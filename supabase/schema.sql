@@ -9,6 +9,13 @@ create table if not exists public.contacts (
   created_at timestamptz not null default now()
 );
 
+do $$ begin
+  alter table public.contacts
+    add constraint contacts_status_check check (status in ('lead', 'qualified', 'proposal', 'won', 'lost'));
+exception
+  when duplicate_object then null;
+end $$;
+
 create table if not exists public.deals (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -35,3 +42,4 @@ alter table public.tasks enable row level security;
 create index if not exists contacts_company_idx on public.contacts(company);
 create index if not exists deals_stage_idx on public.deals(stage);
 create index if not exists tasks_completed_idx on public.tasks(completed);
+create index if not exists contacts_created_at_idx on public.contacts(created_at desc);
