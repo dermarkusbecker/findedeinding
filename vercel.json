@@ -5,7 +5,7 @@
   },
   "rewrites": [
     { "source": "/login", "destination": "/login.html" },
-    { "source": "/kunden-login", "destination": "/customer-login.html" },
+    { "source": "/kunden-login", "destination": "/customer-login" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/portal", "destination": "/api/portal" }
   ],
