@@ -12,6 +12,8 @@ Landingpage und CRM-Prototyp mit Vercel Functions und Supabase.
    - `AUTH_SECRET` (mindestens 32 zufällige Zeichen)
    - `ADMIN_USERNAME`
    - `ADMIN_PASSWORD`
+   - `CUSTOMER_USERNAME`
+   - `CUSTOMER_PASSWORD`
 4. Neu deployen und `/api/health` prüfen.
 
 Der Service-Role-Key bleibt ausschließlich in Vercel. Er darf niemals in Browser-Code oder Git eingecheckt werden.
@@ -20,7 +22,8 @@ Der Service-Role-Key bleibt ausschließlich in Vercel. Er darf niemals in Browse
 
 - `/` – öffentliche Landingpage und Lead-Funnel
 - `/login` – serverseitig geprüfter Login
+- `/kunden-login` – separater Kunden-Login
 - `/admin` – CRM-Dashboard und Benutzerverwaltung
-- `/portal` – schematisches Kundenportal für den 8-Wochen-Prozess
+- `/portal` – interaktiver Kundenprozess mit Onboarding, Wochen-Gates und Fortschritt
 
 Die gewünschten Zugangsdaten werden ausschließlich als geschützte Vercel-Variablen gesetzt und nicht im Git-Repository gespeichert.
