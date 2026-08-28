@@ -3,6 +3,12 @@
   "functions": {
     "api/*.js": { "maxDuration": 10 }
   },
+  "rewrites": [
+    { "source": "/", "destination": "/landing.html" },
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/admin", "destination": "/index.html" },
+    { "source": "/portal", "destination": "/api/portal" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

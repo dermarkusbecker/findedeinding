@@ -6,6 +6,11 @@ const contactForm = document.querySelector('#contactForm');
 const contactRows = document.querySelector('#contactRows');
 let contacts = [];
 
+async function requireSession() {
+  const response = await fetch('/api/auth/session');
+  if (!response.ok) location.replace('/login');
+}
+
 function showView(view) {
   panels.forEach((panel) => panel.classList.toggle('hidden', panel.dataset.panel !== view));
   navItems.forEach((item) => item.classList.toggle('active', item.dataset.view === view));
@@ -46,10 +51,10 @@ function renderContacts(query = '') {
 async function loadContacts() {
   const status = document.querySelector('#connectionStatus');
   try {
-    const response = await fetch('/api/contacts');
+    const response = await fetch('/api/leads');
     const data = await response.json();
     if (!response.ok) throw new Error(data.error);
-    contacts = data.contacts;
+    contacts = data.leads.map((lead) => { const parts = lead.name.trim().split(/\s+/); return { ...lead, first_name: parts.shift() || '', last_name: parts.join(' ') || '—', company: lead.source, status: lead.status === 'new' ? 'lead' : lead.status }; });
     status.textContent = 'Supabase verbunden';
     status.className = 'connection-status connected';
     renderContacts();
@@ -65,12 +70,13 @@ contactForm.addEventListener('submit', async (event) => {
   const submit = contactForm.querySelector('[type="submit"]');
   submit.disabled = true;
   try {
-    const response = await fetch('/api/contacts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(contactForm))) });
+    const values = Object.fromEntries(new FormData(contactForm));
+    const response = await fetch('/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: `${values.firstName} ${values.lastName}`, email: values.email, source: values.company || 'manuell', consent: true }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error);
     contactDialog.close();
     contactForm.reset();
-    showToast('Kontakt wurde in Supabase gespeichert.');
+    showToast('Lead wurde in Supabase gespeichert.');
     await loadContacts();
     showView('contacts');
   } catch (error) {
@@ -81,6 +87,17 @@ contactForm.addEventListener('submit', async (event) => {
 });
 
 document.querySelector('#contactSearch').addEventListener('input', (event) => renderContacts(event.target.value));
-loadContacts();
+document.querySelector('#logout').addEventListener('click', async () => { await fetch('/api/auth/session', { method: 'DELETE' }); location.replace('/login'); });
+
+const userDialog = document.querySelector('#userDialog');
+const userForm = document.querySelector('#userForm');
+document.querySelector('#newUser').addEventListener('click', () => userDialog.showModal());
+document.querySelectorAll('[data-close-user]').forEach((button) => button.addEventListener('click', () => userDialog.close()));
+async function loadUsers() {
+  try { const response = await fetch('/api/users'); const data = await response.json(); if (!response.ok) throw new Error(data.error); document.querySelector('#userRows').innerHTML = data.users.length ? data.users.map((user, index) => `<div class="table-row"><div class="contact-name"><div class="avatar ${index % 2 ? 'avatar-coral' : 'avatar-blue'}">${escapeHtml(user.name.slice(0, 2).toUpperCase())}</div><strong>${escapeHtml(user.name)}</strong></div><span>${escapeHtml(user.email)}</span><span>${escapeHtml(user.role)}</span><span class="status-label ${user.status === 'active' ? 'mint' : 'warm'}">${escapeHtml(user.status)}</span></div>`).join('') : '<div class="empty-state">Noch keine Benutzer angelegt.</div>'; } catch (error) { document.querySelector('#userRows').innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`; }
+}
+userForm.addEventListener('submit', async (event) => { event.preventDefault(); const response = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(userForm))) }); const data = await response.json(); if (!response.ok) return showToast(data.error); userDialog.close(); userForm.reset(); showToast('Benutzer wurde angelegt.'); loadUsers(); });
+
+requireSession().then(() => Promise.all([loadContacts(), loadUsers()]));
 
 if (window.lucide) window.lucide.createIcons();

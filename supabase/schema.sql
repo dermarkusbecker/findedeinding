@@ -35,11 +35,67 @@ create table if not exists public.tasks (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.leads (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  email text not null,
+  phone text,
+  challenge text,
+  source text not null default 'website',
+  utm_source text,
+  utm_medium text,
+  utm_campaign text,
+  status text not null default 'new' check (status in ('new', 'contacted', 'qualified', 'customer', 'lost')),
+  consent_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.user_profiles (
+  id uuid primary key default gen_random_uuid(),
+  auth_user_id uuid unique,
+  name text not null,
+  email text not null unique,
+  role text not null check (role in ('admin', 'coach', 'participant')),
+  status text not null default 'invited' check (status in ('invited', 'active', 'paused', 'completed')),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.participant_progress (
+  id uuid primary key default gen_random_uuid(),
+  user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
+  process_status text not null default 'ONBOARDING',
+  current_week integer not null default 0 check (current_week between 0 and 8),
+  completed_steps jsonb not null default '[]'::jsonb,
+  privacy_consent_at timestamptz,
+  start_commitment_at timestamptz,
+  final_commitment_at timestamptz,
+  last_activity_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.process_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
+  week integer not null check (week between 1 and 8),
+  data_block text not null,
+  raw_answer text,
+  structured_data jsonb not null default '{}'::jsonb,
+  evidence_level text,
+  created_at timestamptz not null default now()
+);
+
 alter table public.contacts enable row level security;
 alter table public.deals enable row level security;
 alter table public.tasks enable row level security;
+alter table public.leads enable row level security;
+alter table public.user_profiles enable row level security;
+alter table public.participant_progress enable row level security;
+alter table public.process_entries enable row level security;
 
 create index if not exists contacts_company_idx on public.contacts(company);
 create index if not exists deals_stage_idx on public.deals(stage);
 create index if not exists tasks_completed_idx on public.tasks(completed);
 create index if not exists contacts_created_at_idx on public.contacts(created_at desc);
+create index if not exists leads_created_at_idx on public.leads(created_at desc);
+create index if not exists leads_status_idx on public.leads(status);
+create index if not exists process_entries_participant_idx on public.process_entries(user_profile_id, week);

@@ -1,6 +1,8 @@
 export default function handler(request, response) {
-  response.status(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY ? 200 : 503).json({
-    ok: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
-    services: { vercel: true, supabase: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) },
+  const supabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const auth = Boolean(process.env.AUTH_SECRET && process.env.ADMIN_PASSWORD);
+  response.status(supabase && auth ? 200 : 503).json({
+    ok: supabase && auth,
+    services: { vercel: true, supabase, auth },
   });
 }
