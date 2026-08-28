@@ -6,7 +6,7 @@
   "rewrites": [
     { "source": "/", "destination": "/landing.html" },
     { "source": "/login", "destination": "/login.html" },
-    { "source": "/admin", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/admin.html" },
     { "source": "/portal", "destination": "/api/portal" }
   ],
   "headers": [
