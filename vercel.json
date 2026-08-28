@@ -4,7 +4,6 @@
     "api/*.js": { "maxDuration": 10 }
   },
   "rewrites": [
-    { "source": "/", "destination": "/landing.html" },
     { "source": "/login", "destination": "/login.html" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/portal", "destination": "/api/portal" }
