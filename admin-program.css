@@ -67,6 +67,50 @@
 .booking-rule-grid input,.booking-rule-grid select { background: #fff; border: 1px solid #d9d9d3; border-radius: 8px; padding: 10px; }
 .booking-rule-grid label small { bottom: 10px; color: #8a8f89; font-size: 7px; font-weight: 500; position: absolute; right: 8px; }
 @media(max-width:700px){.availability-day{grid-template-columns:1fr 1fr}.availability-day .day-toggle{grid-column:1/-1}.booking-rule-grid{grid-template-columns:1fr 1fr}}
+.sidebar nav p:nth-of-type(3) { margin-top: 25px; }
+.settings-admin-badge { background: #e4f0df; border-radius: 20px; color: #367b50; font: 500 7px DM Mono; padding: 7px 10px; }
+.settings-layout { align-items: start; display: grid; gap: 18px; grid-template-columns: 235px minmax(0,1fr); }
+.settings-nav { display: flex; flex-direction: column; padding: 12px; position: sticky; top: 94px; }
+.settings-nav > p { color: #959a94; font: 500 7px DM Mono; letter-spacing: .08em; margin: 4px 8px 10px; text-transform: uppercase; }
+.settings-nav button { align-items: center; background: transparent; border: 0; border-radius: 9px; color: #646b65; cursor: pointer; display: flex; gap: 10px; padding: 11px 10px; text-align: left; width: 100%; }
+.settings-nav button:hover,.settings-nav button.active { background: #edf4ee; color: #20312b; }
+.settings-nav button > span { align-items: center; background: #f0efea; border-radius: 7px; display: flex; font-size: 12px; height: 30px; justify-content: center; width: 30px; }
+.settings-nav button.active > span { background: #20312b; color: #badb9d; }
+.settings-nav button b,.settings-nav button small { display: block; }
+.settings-nav button b { font-size: 9px; }
+.settings-nav button small { color: #8a908a; font-size: 7px; margin-top: 3px; }
+.settings-panel { display: none; }
+.settings-panel.active { display: flex; flex-direction: column; gap: 14px; }
+.settings-hero { align-items: center; background: #20312b; color: #fff; display: flex; gap: 16px; }
+.settings-hero .settings-icon { align-items: center; background: #f3c099; border-radius: 10px; color: #20312b; display: flex; font-size: 18px; height: 46px; justify-content: center; min-width: 46px; }
+.settings-hero .settings-icon.peach { background: #f3c099; }.settings-hero .settings-icon.sage { background: #badb9d; }.settings-hero .settings-icon.yellow { background: #f1d86f; }
+.settings-hero h2 { font-size: 17px; margin: 0; }
+.settings-hero p:last-child { color: #aebdb5; font-size: 8px; line-height: 1.6; margin: 5px 0 0; }
+.settings-card-head { align-items: flex-start; display: flex; justify-content: space-between; }
+.settings-card-head h3,.integration-card h3,.settings-link-grid h3 { font-size: 12px; margin: 0; }
+.settings-card-head p,.integration-copy p,.settings-link-grid p,.settings-coming p { color: #777d77; font-size: 8px; line-height: 1.6; margin: 5px 0 0; }
+.settings-state { background: #f0efeb; border-radius: 18px; color: #747a74; font: 500 7px DM Mono; padding: 6px 9px; }
+.settings-state.active { background: #e4f0df; color: #367b50; }
+.settings-data-list { margin-top: 18px; }
+.settings-data-list > div { align-items: center; border-top: 1px solid #ecebe6; display: flex; justify-content: space-between; padding: 13px 2px; }
+.settings-data-list span { color: #777d77; font-size: 8px; }.settings-data-list b { font-size: 9px; }
+.settings-summary-grid { display: grid; gap: 9px; grid-template-columns: repeat(4,1fr); margin-top: 18px; }
+.settings-summary-grid article { background: #f7f6f2; border-radius: 9px; padding: 13px; }
+.settings-summary-grid small,.settings-summary-grid strong { display: block; }.settings-summary-grid small { color: #858a85; font-size: 7px; }.settings-summary-grid strong { font-size: 11px; margin-top: 6px; }
+.settings-action-row { align-items: center; border-top: 1px solid #ecebe6; display: flex; justify-content: space-between; margin-top: 18px; padding-top: 17px; }
+.settings-action-row b,.settings-action-row small { display: block; }.settings-action-row b { font-size: 9px; }.settings-action-row small { color: #7b807b; font-size: 7px; margin-top: 4px; }
+.integration-card { align-items: center; display: grid; gap: 15px; grid-template-columns: auto 1fr auto; }
+.integration-logo { align-items: center; background: #fff; border: 1px solid #deddd6; border-radius: 11px; display: flex; font-size: 19px; font-weight: 800; height: 48px; justify-content: center; width: 48px; }
+.google-logo { color: #4285f4; }
+.integration-copy span { color: #3a7d50; display: block; font: 500 7px DM Mono; margin-top: 8px; }
+.settings-coming { align-items: center; background: transparent; border-style: dashed; box-shadow: none; display: flex; gap: 13px; }
+.settings-coming > span { align-items: center; background: #e9e8e2; border-radius: 9px; color: #7b807b; display: flex; font-size: 17px; height: 40px; justify-content: center; width: 40px; }
+.settings-coming b { font-size: 9px; }
+.settings-link-grid { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+.settings-link-grid article > span { align-items: center; background: #edf4ee; border-radius: 9px; color: #326044; display: flex; font-size: 15px; height: 39px; justify-content: center; margin-bottom: 16px; width: 39px; }
+.settings-link-grid article button { margin-top: 13px; }
+@media(max-width:900px){.settings-layout{grid-template-columns:1fr}.settings-nav{display:grid;grid-template-columns:repeat(4,1fr);position:static}.settings-nav>p{grid-column:1/-1}.settings-nav button{align-items:flex-start}.settings-nav button>span{display:none}.settings-summary-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.settings-admin-badge{display:inline-block;margin-top:14px}.settings-nav{grid-template-columns:1fr 1fr}.settings-nav button small{display:none}.settings-action-row,.integration-card{align-items:flex-start;display:flex;flex-direction:column}.settings-link-grid{grid-template-columns:1fr}.settings-summary-grid{grid-template-columns:1fr 1fr}}
 .program-status-bar { align-items: center; background: #20312b; border-radius: 9px; color: #fff; display: flex; justify-content: space-between; margin-top: 20px; padding: 12px 15px; }
 .program-status-bar span { font-size: 9px; font-weight: 700; }
 .program-status-bar i { background: #3b5147; border-radius: 20px; color: #badb9d; font: 500 7px DM Mono; padding: 6px 9px; }

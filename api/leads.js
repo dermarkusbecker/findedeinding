@@ -93,13 +93,13 @@ export default async function handler(request, response) {
       return response.redirect(302, authorizationUrl(admin.profileId));
     }
     if (request.method === 'GET' && action === 'google-callback') {
-      if (request.query?.error) return response.redirect(302, `/admin?view=leads&google=error&reason=${encodeURIComponent(request.query.error)}`);
+      if (request.query?.error) return response.redirect(302, `/admin?view=settings&section=integrations&google=error&reason=${encodeURIComponent(request.query.error)}`);
       if (!verifyOAuthState(request.query?.state, admin.profileId)) return response.status(400).send('Ungültiger oder abgelaufener Google-Verbindungsversuch.');
       const tokens = await exchangeAuthorizationCode(request.query?.code);
       if (!tokens.refresh_token) return response.status(409).send('Google hat keinen dauerhaften Zugriff erteilt. Bitte die Verbindung erneut starten.');
       const payload = { provider: 'google_calendar', encrypted_credentials: encryptCredential(tokens.refresh_token), connected_email: emailFromIdToken(tokens.id_token) || admin.email, updated_at: new Date().toISOString() };
       await readJson(await fetch(`${service.url}/rest/v1/integration_settings?on_conflict=provider`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify(payload) }), 'Google-Verbindung konnte nicht gespeichert werden.');
-      return response.redirect(302, '/admin?view=leads&google=connected');
+      return response.redirect(302, '/admin?view=settings&section=integrations&google=connected');
     }
     if (request.method === 'GET' && action === 'google-status') {
       const configured = Boolean(googleConfig());
