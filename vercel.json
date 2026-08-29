@@ -7,6 +7,8 @@
     { "source": "/login", "destination": "/login.html" },
     { "source": "/zugang", "destination": "/login.html" },
     { "source": "/kunden-login", "destination": "/login.html" },
+    { "source": "/api/google/connect", "destination": "/api/leads?action=google-connect" },
+    { "source": "/api/google/callback", "destination": "/api/leads?action=google-callback" },
     { "source": "/admin", "destination": "/api/admin" },
     { "source": "/portal", "destination": "/api/portal" }
   ],

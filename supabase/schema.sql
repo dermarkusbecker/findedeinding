@@ -45,9 +45,29 @@ create table if not exists public.leads (
   utm_source text,
   utm_medium text,
   utm_campaign text,
-  status text not null default 'new' check (status in ('new', 'contacted', 'qualified', 'customer', 'lost')),
+  status text not null default 'new' check (status in ('new', 'contacted', 'scheduled', 'consultation', 'offer', 'customer', 'lost')),
+  first_name text,
+  last_name text,
+  internal_notes text,
+  qualification_answers jsonb not null default '{}'::jsonb,
+  appointment_start timestamptz,
+  appointment_end timestamptz,
+  appointment_timezone text not null default 'Europe/Berlin',
+  calendar_event_id text,
+  calendar_event_url text,
+  meet_url text,
+  converted_user_profile_id uuid,
+  converted_at timestamptz,
+  updated_at timestamptz not null default now(),
   consent_at timestamptz not null,
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.integration_settings (
+  provider text primary key,
+  encrypted_credentials text not null,
+  connected_email text,
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.user_profiles (
@@ -61,6 +81,12 @@ create table if not exists public.user_profiles (
   permissions text[] not null default '{}'::text[],
   created_at timestamptz not null default now()
 );
+
+do $$ begin
+  alter table public.leads add constraint leads_converted_user_profile_id_fkey
+    foreign key (converted_user_profile_id) references public.user_profiles(id) on delete set null;
+exception when duplicate_object then null;
+end $$;
 
 create table if not exists public.participant_progress (
   id uuid primary key default gen_random_uuid(),
@@ -140,6 +166,7 @@ alter table public.contacts enable row level security;
 alter table public.deals enable row level security;
 alter table public.tasks enable row level security;
 alter table public.leads enable row level security;
+alter table public.integration_settings enable row level security;
 alter table public.user_profiles enable row level security;
 alter table public.participant_progress enable row level security;
 alter table public.process_entries enable row level security;
