@@ -157,6 +157,6 @@ $('#completeWeek').addEventListener('click', async () => {
   catch (error) { toast(error.message); }
 });
 $('#saveSupport').addEventListener('click', () => { const text = $('#supportText').value.trim(); if (!text) return; local.support.push({ text, week: currentWeek, at: new Date().toISOString() }); $('#supportText').value = ''; saveLocal(); toast('Deine Frage wurde für das Q&A gespeichert.'); });
-$('#customerLogout').addEventListener('click', async () => { await fetch('/api/auth/session', { method: 'DELETE' }); location.replace('/login'); });
+$('#customerLogout').addEventListener('click', async () => { await fetch('/api/auth?action=session', { method: 'DELETE' }); location.replace('/login'); });
 
 loadProgram().catch((error) => { if (error.status === 401) location.replace('/kunden-login'); else toast(error.message); });

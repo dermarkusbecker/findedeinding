@@ -16,11 +16,11 @@ form.addEventListener('submit', async (event) => {
   try {
     if (recoveryToken) {
       status.textContent = 'Neues Passwort wird gespeichert …';
-      const response = await fetch('/api/auth/update-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accessToken: recoveryToken, password: form.elements.password.value }) });
+      const response = await fetch('/api/auth?action=update-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accessToken: recoveryToken, password: form.elements.password.value }) });
       const data = await response.json(); if (!response.ok) throw new Error(data.error);
       history.replaceState(null, '', '/login'); form.reset(); status.textContent = 'Passwort gespeichert. Du kannst dich jetzt anmelden.'; setTimeout(() => location.replace('/login'), 1200); return;
     }
-    const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(form))) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); location.replace(data.destination);
+    const response = await fetch('/api/auth?action=login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(form))) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); location.replace(data.destination);
   }
   catch (error) { status.textContent = error.message || 'Anmeldung fehlgeschlagen.'; button.disabled = false; }
 });
@@ -30,7 +30,7 @@ document.querySelector('#forgotPassword').addEventListener('click', async () => 
   if (!email) { status.textContent = 'Bitte zuerst deine E-Mail-Adresse eingeben.'; form.elements.email.focus(); return; }
   status.textContent = 'E-Mail wird angefordert …';
   try {
-    const response = await fetch('/api/auth/password-reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+    const response = await fetch('/api/auth?action=password-reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error);
     status.textContent = data.message;

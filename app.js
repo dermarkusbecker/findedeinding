@@ -7,7 +7,7 @@ const contactRows = document.querySelector('#contactRows');
 let contacts = [];
 
 async function requireSession() {
-  const response = await fetch('/api/auth/session');
+  const response = await fetch('/api/auth?action=session');
   if (!response.ok) location.replace('/login');
 }
 
@@ -87,7 +87,7 @@ contactForm.addEventListener('submit', async (event) => {
 });
 
 document.querySelector('#contactSearch').addEventListener('input', (event) => renderContacts(event.target.value));
-document.querySelector('#logout').addEventListener('click', async () => { await fetch('/api/auth/session', { method: 'DELETE' }); location.replace('/login'); });
+document.querySelector('#logout').addEventListener('click', async () => { await fetch('/api/auth?action=session', { method: 'DELETE' }); location.replace('/login'); });
 
 const userDialog = document.querySelector('#userDialog');
 const userForm = document.querySelector('#userForm');
