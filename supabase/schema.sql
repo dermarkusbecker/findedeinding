@@ -52,11 +52,13 @@ create table if not exists public.leads (
 
 create table if not exists public.user_profiles (
   id uuid primary key default gen_random_uuid(),
-  auth_user_id uuid unique,
+  auth_user_id uuid unique references auth.users(id) on delete cascade,
+  portal_username text unique,
   name text not null,
   email text not null unique,
-  role text not null check (role in ('admin', 'coach', 'participant')),
-  status text not null default 'invited' check (status in ('invited', 'active', 'paused', 'completed')),
+  role text not null default 'user' check (role in ('admin', 'user')),
+  status text not null default 'active' check (status in ('active', 'inactive')),
+  permissions text[] not null default '{}'::text[],
   created_at timestamptz not null default now()
 );
 
@@ -65,6 +67,11 @@ create table if not exists public.participant_progress (
   user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
   process_status text not null default 'ONBOARDING',
   current_week integer not null default 0 check (current_week between 0 and 8),
+  program_start_date date not null default current_date,
+  access_mode text not null default 'completion_based' check (access_mode in ('completion_based', 'time_based', 'full_access')),
+  program_status text not null default 'active' check (program_status in ('active', 'paused')),
+  manually_unlocked_weeks integer[] not null default '{}'::integer[],
+  manually_locked_weeks integer[] not null default '{}'::integer[],
   completed_steps jsonb not null default '[]'::jsonb,
   privacy_consent_at timestamptz,
   start_commitment_at timestamptz,
@@ -150,3 +157,29 @@ create index if not exists leads_status_idx on public.leads(status);
 create index if not exists process_entries_participant_idx on public.process_entries(user_profile_id, week);
 create index if not exists week_gates_participant_idx on public.week_gates(user_profile_id, week);
 create index if not exists coach_escalations_status_idx on public.coach_escalations(status, created_at desc);
+
+-- Idempotente Migration für Projekte, in denen die Basistabellen bereits existieren.
+alter table public.user_profiles add column if not exists portal_username text;
+alter table public.participant_progress add column if not exists program_start_date date not null default current_date;
+alter table public.participant_progress add column if not exists access_mode text not null default 'completion_based';
+alter table public.participant_progress add column if not exists program_status text not null default 'active';
+alter table public.participant_progress add column if not exists manually_unlocked_weeks integer[] not null default '{}'::integer[];
+alter table public.participant_progress add column if not exists manually_locked_weeks integer[] not null default '{}'::integer[];
+
+create unique index if not exists participant_progress_user_profile_unique on public.participant_progress(user_profile_id);
+create unique index if not exists user_profiles_portal_username_unique on public.user_profiles(portal_username) where portal_username is not null;
+
+update public.participant_progress set access_mode = 'completion_based' where access_mode is null;
+update public.participant_progress set program_status = 'active' where program_status is null;
+
+do $$ begin
+  alter table public.participant_progress add constraint participant_progress_access_mode_check
+    check (access_mode in ('completion_based', 'time_based', 'full_access'));
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  alter table public.participant_progress add constraint participant_progress_program_status_check
+    check (program_status in ('active', 'paused'));
+exception when duplicate_object then null;
+end $$;

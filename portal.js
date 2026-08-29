@@ -1,41 +1,162 @@
-const weeks=[
-  {title:'Ausgangslage',mode:'Ist-Aufnahme',question:'Stell dir vor, vor dir steht eine Fee und du hast genau drei Wünsche frei. Welche drei Dinge würdest du dir für dein Leben aktuell am meisten wünschen?',help:'Nenne zunächst einfach alle drei. Danach vertiefen wir sie einzeln.',tasks:['Drei Wünsche nennen und vertiefen','Klarheitsskala als Baseline erfassen','Beruflichen Werdegang vollständig aufnehmen'],upload:'Lebenslauf optional'},
-  {title:'Fähigkeiten & Umfeld',mode:'Datensammlung',question:'Welche besonderen Fähigkeiten oder Qualifikationen hast du dir außerhalb deiner klassischen Ausbildung und deines Berufs angeeignet?',help:'Denk auch an Hobbys, Ehrenamt, eigene Projekte oder langjährige Erfahrung.',tasks:['Formales und informelles Können erfassen','Arbeitsumfeld beschreiben','Selbst- und Fremdbild festhalten'],upload:'Nachweise optional'},
-  {title:'Motivatoren',mode:'Auswahl',question:'Wenn du auf dein heutiges Leben schaust: Welcher deiner fünf wichtigsten Motivatoren kommt aktuell am deutlichsten zu kurz?',help:'Wir betrachten das als Puzzleteil – nicht automatisch als Berufskriterium.',tasks:['Motivatoren-Paare abschließen','Top 5 priorisieren','Kindheitsinteressen und Reintegration'],upload:'Workbook optional'},
-  {title:'Halbzeit',mode:'Synthese',question:'Sollte das Thema „Gestaltungsfreiheit“ eher in deinem Ding enthalten sein, in deinem Leben, in beidem – oder weißt du es noch nicht?',help:'Du ordnest selbst zu. Human Design bleibt dabei nur eine ergänzende Perspektive.',tasks:['Geburtsdaten und HD-Auswertung','Ding/Leben/Beides-Zuordnung','Halbzeitanalyse lesen'],upload:'Halbzeitanalyse bestätigen'},
-  {title:'Werte & Lebenswerk',mode:'Reflexion',question:'Welche Eigenschaft bewunderst du an anderen Menschen besonders – und was berührt dich daran?',help:'Wir unterscheiden später zwischen eigener Stärke, Potenzial und Wunsch.',tasks:['Top 5 Werte priorisieren','LILA-Reflexion abschließen','Grabrede schreiben und hochladen'],upload:'Grabrede erforderlich'},
-  {title:'Dein-Ding-Map',mode:'Verdichtung',question:'Wenn du an eine zukünftige Tätigkeit denkst: Was möchtest du auf keinen Fall mehr in deinem Arbeitsalltag haben?',help:'Wir sammeln mindestens zehn konkrete Ausschlusskriterien und formulieren danach deine gewünschten Gegenstücke.',tasks:['Vier FDD-Bereiche vervollständigen','10+ Ausschlusskriterien sammeln','Positivkriterien und Map erzeugen'],upload:'Perfekter Tag erforderlich'},
-  {title:'Optionen & Realität',mode:'Entscheidung',question:'Wenn du alles zusammennimmst: Welche Richtungen oder Tätigkeiten fühlen sich so an, als könnte etwas für dich darin stecken?',help:'Du nennst zuerst eigene Optionen. Mindestens eine davon bekommt einen kleinen, sicheren Realitätskontakt.',tasks:['Mindestens einen Realitätskontakt durchführen','Genau zwei Optionen auswählen','Zwei Wege / zwei Zukünfte bearbeiten'],upload:'Zukunfts-Timelines erforderlich'},
-  {title:'Umsetzung',mode:'Handeln',question:'Was sind die ein bis drei konkreten Dinge, die du innerhalb der nächsten 24 Stunden tun kannst, damit deine Entscheidung nicht nur auf Papier steht?',help:'Kontrollierbare Handlungen zählen mehr als Ergebnisse, die du nicht direkt beeinflussen kannst.',tasks:['Schriftliche Entscheidung festhalten','24/30/90-Tage-Plan erstellen','Umsetzungs-Commitment unterschreiben'],upload:'Commitment erforderlich'},
-];
-const defaultState={started:false,privacyAt:null,commitmentAt:null,currentWeek:1,completedWeeks:[],answers:{},tasks:{},uploads:{},clarityStart:null,clarityEnd:null,support:[],updatedAt:null};
-let state={...defaultState,...JSON.parse(localStorage.getItem('fdd_customer_state')||'{}')};
-const $=selector=>document.querySelector(selector),$$=selector=>document.querySelectorAll(selector);
-function save(){state.updatedAt=new Date().toISOString();localStorage.setItem('fdd_customer_state',JSON.stringify(state));render();}
-function toast(message){const el=$('#portalToast');el.textContent=message;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2600);}
-function progress(){const base=state.started?5:0;return Math.min(100,Math.round(base+state.completedWeeks.length/8*95));}
-function showView(name){$$('.screen').forEach(panel=>panel.classList.toggle('active',panel.dataset.panel===name));$$('aside nav button').forEach(button=>button.classList.toggle('active',button.dataset.view===name));window.scrollTo({top:0,behavior:'smooth'});}
-$$('[data-view]').forEach(button=>button.addEventListener('click',()=>showView(button.dataset.view)));$$('[data-view-link]').forEach(button=>button.addEventListener('click',()=>showView(button.dataset.viewLink)));
-function weekTasks(index){return state.tasks[index]||[];}
-function setTask(index,taskIndex,value){state.tasks[index]=weekTasks(index);state.tasks[index][taskIndex]=value;save();}
-function render(){
-  const pct=progress(),week=weeks[state.currentWeek-1];$('#sideProgress').style.width=`${pct}%`;$('#sidePercent').textContent=`${pct} % abgeschlossen`;$('#sidePhase').textContent=state.started?`Woche ${state.currentWeek} · ${week.title}`:'Onboarding';$('#headerPhase').textContent=state.started?`Woche ${state.currentWeek} von 8 · ${week.title}`:'Dein Start';
-  $('#onboarding').classList.toggle('hidden',state.started);$('#activeWeek').classList.toggle('hidden',!state.started);
-  if(!state.started){$('#todayLabel').textContent='Dein Start';$('#welcomeTitle').innerHTML='Willkommen bei <em>Finde dein Ding.</em>';$('#welcomeCopy').textContent='Bevor Clara mit dir startet, braucht es zwei klare Grundlagen: deine Einwilligung und dein persönliches Commitment.';$('#clarityValue').textContent='—';$('#privacy').checked=Boolean(state.privacyAt);$('#commitment').checked=Boolean(state.commitmentAt);$('#startProcess').disabled=!(state.privacyAt&&state.commitmentAt);}
-  else{
-    $('#todayLabel').textContent=`Woche ${state.currentWeek} · ${week.mode}`;$('#welcomeTitle').innerHTML=`${week.title}. <em>Schritt für Schritt.</em>`;$('#welcomeCopy').textContent=`${state.completedWeeks.length} von 8 Wochen abgeschlossen. Deine nächste Woche öffnet sich erst nach den bestätigten Pflichtschritten.`;$('#clarityValue').textContent=state.currentWeek===8?(state.clarityEnd||state.clarityStart||'—'):(state.clarityStart||'—');$('#clarityValue').nextElementSibling.textContent='Klarheit / 10';$('#claraContext').textContent=`Woche ${state.currentWeek} · ${week.mode}`;$('#questionLabel').textContent='Deine nächste Frage';$('#questionText').textContent=week.question;$('#questionHelp').textContent=week.help;$('#answer').value='';const answer=state.answers[state.currentWeek];$('#savedAnswer').classList.toggle('hidden',!answer);$('#savedAnswer').textContent=answer?`Gespeichert: ${answer}`:'';
-    const tasks=weekTasks(state.currentWeek);$('#taskList').innerHTML=week.tasks.map((task,index)=>`<label class="task ${tasks[index]?'completed':''}"><input type="checkbox" data-task="${index}" ${tasks[index]?'checked':''}><span><b>${task}</b><small>${index===0?'Clara-Dialog und strukturierte Speicherung':index===1?'Pflichtschritt für das Wochen-Gate':'Abschluss des Wochenoutputs'}</small></span></label>`).join('');$$('[data-task]').forEach(input=>input.addEventListener('change',()=>setTask(state.currentWeek,Number(input.dataset.task),input.checked)));const done=tasks.filter(Boolean).length;$('#taskCount').textContent=`${done} / ${week.tasks.length}`;$('#uploadButton').childNodes[0].textContent=`⇧ ${week.upload} `;$('#completeWeek').disabled=done<week.tasks.length||!state.answers[state.currentWeek];$('#completeWeek').textContent=state.currentWeek===8?'Digitalen Prozess abschließen →':'Woche abschließen →';
-  }
-  renderJourney();renderInsights();renderDocuments();
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => document.querySelectorAll(selector);
+const local = { ...JSON.parse(localStorage.getItem('fdd_customer_notes') || '{}'), answers: JSON.parse(localStorage.getItem('fdd_customer_notes') || '{}').answers || {}, uploads: JSON.parse(localStorage.getItem('fdd_customer_notes') || '{}').uploads || {}, support: JSON.parse(localStorage.getItem('fdd_customer_notes') || '{}').support || [] };
+let program = null;
+let currentWeek = 1;
+let currentContent = null;
+
+function saveLocal() { localStorage.setItem('fdd_customer_notes', JSON.stringify(local)); }
+function toast(message) { const el = $('#portalToast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2800); }
+function showView(name) { $$('.screen').forEach((panel) => panel.classList.toggle('active', panel.dataset.panel === name)); $$('aside nav button').forEach((button) => button.classList.toggle('active', button.dataset.view === name)); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+$$('[data-view]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.view)));
+$$('[data-view-link]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.viewLink)));
+
+async function request(url, options = {}) {
+  const response = await fetch(url, { ...options, headers: options.body ? { 'Content-Type': 'application/json', ...(options.headers || {}) } : options.headers });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) { const error = new Error(data.error || 'Die Anfrage konnte nicht verarbeitet werden.'); error.status = response.status; error.data = data; throw error; }
+  return data;
 }
-$('#privacy').addEventListener('change',event=>{state.privacyAt=event.target.checked?new Date().toISOString():null;save();});$('#commitment').addEventListener('change',event=>{state.commitmentAt=event.target.checked?new Date().toISOString():null;save();});
-$('#startProcess').addEventListener('click',()=>{if(!state.privacyAt||!state.commitmentAt)return;state.started=true;save();toast('Dein achtwöchiger Prozess ist gestartet.');});
-$('#answerForm').addEventListener('submit',event=>{event.preventDefault();const answer=$('#answer').value.trim();if(!answer)return;state.answers[state.currentWeek]=answer;if(state.currentWeek===1&&!state.clarityStart){const score=prompt('Wie klar ist dir heute auf einer Skala von 1 bis 10, was dein Ding ist?');const parsed=Number(score);if(parsed>=1&&parsed<=10)state.clarityStart=parsed;}state.tasks[state.currentWeek]=weekTasks(state.currentWeek);state.tasks[state.currentWeek][0]=true;save();toast('Deine Antwort wurde gespeichert.');});
-$('#fileInput').addEventListener('change',event=>{const file=event.target.files[0];if(!file)return;state.uploads[state.currentWeek]={name:file.name,type:file.type,size:file.size,at:new Date().toISOString()};state.tasks[state.currentWeek]=weekTasks(state.currentWeek);state.tasks[state.currentWeek][2]=true;save();toast(`${file.name} wurde für diese Demo lokal erfasst.`);});
-$('#completeWeek').addEventListener('click',()=>{const weekNumber=state.currentWeek;if(weekTasks(weekNumber).filter(Boolean).length<3||!state.answers[weekNumber])return toast('Bitte schließe zuerst alle Pflichtschritte ab.');if(weekNumber===8&&!state.clarityEnd){const score=prompt('Wie klar ist dir heute auf einer Skala von 1 bis 10, was dein Ding ist?');const parsed=Number(score);if(!(parsed>=1&&parsed<=10))return toast('Bitte gib eine Zahl zwischen 1 und 10 ein.');state.clarityEnd=parsed;}if(!state.completedWeeks.includes(weekNumber))state.completedWeeks.push(weekNumber);if(weekNumber<8)state.currentWeek++;save();toast(weekNumber===8?'Digitaler Prozess abgeschlossen. Jetzt folgt dein 45-Minuten-Call.':`Woche ${weekNumber+1} ist jetzt geöffnet.`);});
-function renderJourney(){$('#journeyGrid').innerHTML=weeks.map((week,index)=>{const number=index+1,done=state.completedWeeks.includes(number),active=state.started&&state.currentWeek===number,locked=!done&&!active;return`<article class="week-card ${done?'completed':active?'active':'locked'}"><span>Woche ${number}</span><i>${done?'✓ abgeschlossen':active?'● aktiv':'gesperrt'}</i><h2>${week.title}</h2><p>${week.mode} · ${week.tasks.join(' · ')}</p><b>${done?'Gate bestätigt':active?'Deine aktuelle Phase':'Vorheriges Gate erforderlich'}</b></article>`;}).join('');}
-function renderInsights(){const answerText=Object.values(state.answers).join(' ').toLowerCase();const motivators=['Freiheit','Neugier','Beziehungen','Wirkung'].filter(item=>answerText.includes(item.toLowerCase()));$('#motivatorTags').innerHTML=motivators.length?motivators.map(item=>`<span class="tag">${item}</span>`).join(''):'<i>Entwickelt sich in Woche 3</i>';const values=state.currentWeek>5?['Eigenverantwortung','Ehrlichkeit','Entwicklung']:[];$('#valueTags').innerHTML=values.length?values.map(item=>`<span class="tag">${item}</span>`).join(''):'<i>Öffnet sich in Woche 5</i>';$('#clarityChart').innerHTML=`<b>Start ${state.clarityStart||'—'}</b><i></i><b>${state.clarityEnd?'Ende':'Heute'} ${state.clarityEnd||state.clarityStart||'—'}</b>`;}
-function renderDocuments(){const articles=$$('#documentList article');if(state.commitmentAt){articles[0].classList.remove('locked');articles[0].querySelector('small').textContent='Digital bestätigt';articles[0].querySelector('i').textContent='Erledigt';}if(state.completedWeeks.includes(4)){articles[1].classList.remove('locked');articles[1].querySelector('i').textContent='Bereit';}if(state.completedWeeks.includes(6)){articles[2].classList.remove('locked');articles[2].querySelector('i').textContent='Bereit';}if(state.completedWeeks.includes(8)){articles[3].classList.remove('locked');articles[3].querySelector('i').textContent='Wird erzeugt';}}
-$('#saveSupport').addEventListener('click',()=>{const text=$('#supportText').value.trim();if(!text)return;state.support.push({text,week:state.currentWeek,at:new Date().toISOString()});$('#supportText').value='';save();toast('Deine Frage wurde für das Q&A gespeichert.');});
-$('#customerLogout').addEventListener('click',async()=>{await fetch('/api/auth/session',{method:'DELETE'});location.replace('/kunden-login');});
-fetch('/api/auth/session').then(async response=>{if(!response.ok)return location.replace('/kunden-login');const data=await response.json();if(!['participant','admin'].includes(data.user?.role))location.replace('/kunden-login');});render();
+
+function modeLabel(mode) {
+  return mode === 'time_based' ? 'Zeitbasierte Freischaltung' : mode === 'full_access' ? 'Alles freigegeben' : 'Abschlussbasierte Freischaltung';
+}
+
+function progressPercent() {
+  if (!program) return 0;
+  return Math.round(program.access.completedWeeks.length / 8 * 100);
+}
+
+async function loadProgram(week = null) {
+  const suffix = week ? `?week=${week}` : '';
+  program = await request(`/api/participant-program${suffix}`);
+  currentWeek = program.selectedWeek || week || program.access.unlockedWeeks[0] || 1;
+  currentContent = program.week;
+  render();
+}
+
+async function openWeek(week) {
+  try { await loadProgram(week); showView('today'); }
+  catch (error) { toast(error.status === 403 ? 'Diese Woche ist noch gesperrt.' : error.message); }
+}
+
+function renderPausedState() {
+  let banner = $('#programPaused');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'programPaused';
+    banner.className = 'program-paused hidden';
+    banner.innerHTML = '<strong>Dein Programm ist aktuell pausiert.</strong><span>Bitte wende dich an Markus. Deine bisherigen Inhalte bleiben erhalten.</span>';
+    document.querySelector('main').prepend(banner);
+  }
+  banner.classList.toggle('hidden', program?.access.status !== 'paused');
+}
+
+function render() {
+  if (!program) return;
+  const pct = progressPercent();
+  const started = program.onboardingComplete;
+  const content = currentContent;
+  const paused = program.access.status === 'paused';
+  $('#sideProgress').style.width = `${pct}%`;
+  $('#sidePercent').textContent = `${pct} % abgeschlossen`;
+  $('#sidePhase').textContent = started && content ? `Woche ${currentWeek} · ${content.title}` : 'Onboarding';
+  $('#headerPhase').textContent = started && content ? `Woche ${currentWeek} von 8 · ${content.title}` : 'Dein Start';
+  const name = program.profile?.name || 'Teilnehmer';
+  const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+  document.querySelector('.side-foot > div > span').textContent = initials;
+  document.querySelector('.side-foot strong').textContent = name;
+  $('#onboarding').classList.toggle('hidden', started);
+  $('#activeWeek').classList.toggle('hidden', !started || !content);
+  renderPausedState();
+
+  if (!started) {
+    $('#todayLabel').textContent = paused ? 'Programm pausiert' : 'Dein Start';
+    $('#welcomeTitle').innerHTML = 'Willkommen bei <em>Finde dein Ding.</em>';
+    $('#welcomeCopy').textContent = paused ? 'Dein Zugang ist pausiert. Bitte wende dich an Markus.' : 'Bevor Clara mit dir startet, braucht es zwei klare Grundlagen: deine Einwilligung und dein persönliches Commitment.';
+    $('#clarityValue').textContent = '—';
+    $('#startProcess').disabled = paused || !($('#privacy').checked && $('#commitment').checked);
+  } else if (content) {
+    $('#todayLabel').textContent = `Woche ${currentWeek} · ${content.mode}`;
+    $('#welcomeTitle').innerHTML = `${content.title}. <em>Schritt für Schritt.</em>`;
+    $('#welcomeCopy').textContent = `${program.access.completedWeeks.length} von 8 Wochen abgeschlossen · ${modeLabel(program.access.accessMode)}.`;
+    $('#clarityValue').textContent = local.clarityEnd || local.clarityStart || '—';
+    $('#clarityValue').nextElementSibling.textContent = 'Klarheit / 10';
+    $('#claraContext').textContent = `Woche ${currentWeek} · ${content.mode}`;
+    $('#questionText').textContent = content.question;
+    $('#questionHelp').textContent = content.help;
+    const answer = local.answers[currentWeek];
+    $('#answer').value = '';
+    $('#savedAnswer').classList.toggle('hidden', !answer);
+    $('#savedAnswer').textContent = answer ? `Zuletzt gespeichert: ${answer}` : '';
+    $('#taskList').innerHTML = content.tasks.map((task) => `<label class="task ${task.completed ? 'completed' : ''}"><input type="checkbox" data-gate="${task.id}" ${task.completed ? 'checked' : ''} ${paused ? 'disabled' : ''}><span><b>${task.label}</b><small>Pflichtaufgabe · serverseitig bestätigt</small></span></label>`).join('');
+    $$('[data-gate]').forEach((input) => input.addEventListener('change', async () => {
+      input.disabled = true;
+      try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'set_gate', week: currentWeek, gateId: input.dataset.gate, completed: input.checked }) }); await loadProgram(currentWeek); }
+      catch (error) { input.checked = !input.checked; input.disabled = false; toast(error.message); }
+    }));
+    const done = content.tasks.filter((task) => task.completed).length;
+    $('#taskCount').textContent = `${done} / ${content.tasks.length}`;
+    $('#uploadButton').childNodes[0].textContent = `⇧ ${content.upload} `;
+    $('#completeWeek').disabled = paused || done < content.tasks.length;
+    $('#completeWeek').textContent = currentWeek === 8 ? 'Digitalen Prozess abschließen →' : 'Woche abschließen →';
+    $('#gateNote').textContent = program.access.accessMode === 'completion_based' ? 'Die nächste Woche öffnet sich nach Abschluss aller Pflichtaufgaben.' : program.access.accessMode === 'time_based' ? 'Weitere Wochen öffnen sich automatisch alle sieben Tage.' : 'Alle Wochen sind freigeschaltet; Pflichtaufgaben dokumentieren deinen Fortschritt.';
+  }
+  renderJourney(); renderInsights(); renderDocuments();
+}
+
+function renderJourney() {
+  const summaries = new Map((program?.accessibleWeeks || []).map((week) => [week.week, week]));
+  $('#journeyGrid').innerHTML = (program?.access.weekStates || []).map((state) => {
+    const summary = summaries.get(state.week);
+    const active = state.week === currentWeek;
+    const status = state.completed ? '✓ abgeschlossen' : active ? '● geöffnet' : state.accessible ? '○ verfügbar' : 'gesperrt';
+    const reason = state.reason === 'admin_unlocked' ? 'Vom Admin freigegeben' : state.reason === 'admin_locked' ? 'Vom Admin gesperrt' : state.reason === 'scheduled_release' ? 'Zeitlich freigeschaltet' : state.accessible ? 'Zugriff freigegeben' : 'Noch nicht freigeschaltet';
+    return `<article class="week-card ${state.completed ? 'completed' : active ? 'active' : state.accessible ? 'available' : 'locked'}" ${state.accessible ? `data-open-week="${state.week}" tabindex="0" role="button"` : ''}><span>Woche ${state.week}</span><i>${status}</i><h2>${summary ? summary.title : 'Noch gesperrt'}</h2><p>${summary ? summary.mode : 'Inhalte werden nach der Freischaltung sichtbar.'}</p><b>${reason}</b></article>`;
+  }).join('');
+  $$('[data-open-week]').forEach((card) => {
+    card.addEventListener('click', () => openWeek(Number(card.dataset.openWeek)));
+    card.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') openWeek(Number(card.dataset.openWeek)); });
+  });
+}
+
+function renderInsights() {
+  const answerText = Object.values(local.answers).join(' ').toLowerCase();
+  const motivators = ['Freiheit', 'Neugier', 'Beziehungen', 'Wirkung'].filter((item) => answerText.includes(item.toLowerCase()));
+  $('#motivatorTags').innerHTML = motivators.length ? motivators.map((item) => `<span class="tag">${item}</span>`).join('') : '<i>Entwickelt sich in Woche 3</i>';
+  const values = program.access.completedWeeks.includes(5) ? ['Eigenverantwortung', 'Ehrlichkeit', 'Entwicklung'] : [];
+  $('#valueTags').innerHTML = values.length ? values.map((item) => `<span class="tag">${item}</span>`).join('') : '<i>Öffnet sich in Woche 5</i>';
+  $('#clarityChart').innerHTML = `<b>Start ${local.clarityStart || '—'}</b><i></i><b>${local.clarityEnd ? 'Ende' : 'Heute'} ${local.clarityEnd || local.clarityStart || '—'}</b>`;
+}
+
+function renderDocuments() {
+  const articles = $$('#documentList article');
+  if (program.onboardingComplete) { articles[0].classList.remove('locked'); articles[0].querySelector('small').textContent = 'Digital bestätigt'; articles[0].querySelector('i').textContent = 'Erledigt'; }
+  [[4, 1, 'Bereit'], [6, 2, 'Bereit'], [8, 3, 'Wird erzeugt']].forEach(([week, index, label]) => { if (program.access.completedWeeks.includes(week)) { articles[index].classList.remove('locked'); articles[index].querySelector('i').textContent = label; } });
+}
+
+$('#privacy').addEventListener('change', () => { $('#startProcess').disabled = !($('#privacy').checked && $('#commitment').checked); });
+$('#commitment').addEventListener('change', () => { $('#startProcess').disabled = !($('#privacy').checked && $('#commitment').checked); });
+$('#startProcess').addEventListener('click', async () => {
+  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'start', privacy: $('#privacy').checked, commitment: $('#commitment').checked }) }); await loadProgram(1); toast('Dein achtwöchiger Prozess ist gestartet.'); }
+  catch (error) { toast(error.message); }
+});
+$('#answerForm').addEventListener('submit', async (event) => {
+  event.preventDefault(); const answer = $('#answer').value.trim(); if (!answer) return;
+  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'save_answer', week: currentWeek, answer }) }); local.answers[currentWeek] = answer; if (currentWeek === 1 && !local.clarityStart) { const score = Number(prompt('Wie klar ist dir heute auf einer Skala von 1 bis 10, was dein Ding ist?')); if (score >= 1 && score <= 10) local.clarityStart = score; } saveLocal(); await loadProgram(currentWeek); toast('Deine Antwort wurde serverseitig gespeichert.'); }
+  catch (error) { toast(error.message); }
+});
+$('#fileInput').addEventListener('change', async (event) => {
+  const file = event.target.files[0]; if (!file || !currentContent?.tasks[2]) return;
+  local.uploads[currentWeek] = { name: file.name, type: file.type, size: file.size, at: new Date().toISOString() }; saveLocal();
+  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'set_gate', week: currentWeek, gateId: currentContent.tasks[2].id, completed: true }) }); await loadProgram(currentWeek); toast(`${file.name} wurde erfasst und das Gate bestätigt.`); }
+  catch (error) { toast(error.message); }
+});
+$('#completeWeek').addEventListener('click', async () => {
+  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'complete_week', week: currentWeek }) }); if (currentWeek === 8 && !local.clarityEnd) { const score = Number(prompt('Wie klar ist dir heute auf einer Skala von 1 bis 10, was dein Ding ist?')); if (score >= 1 && score <= 10) { local.clarityEnd = score; saveLocal(); } } await loadProgram(currentWeek < 8 ? currentWeek + 1 : 8); toast(currentWeek === 8 ? 'Digitaler Prozess abgeschlossen.' : 'Woche abgeschlossen.'); }
+  catch (error) { toast(error.message); }
+});
+$('#saveSupport').addEventListener('click', () => { const text = $('#supportText').value.trim(); if (!text) return; local.support.push({ text, week: currentWeek, at: new Date().toISOString() }); $('#supportText').value = ''; saveLocal(); toast('Deine Frage wurde für das Q&A gespeichert.'); });
+$('#customerLogout').addEventListener('click', async () => { await fetch('/api/auth/session', { method: 'DELETE' }); location.replace('/login'); });
+
+loadProgram().catch((error) => { if (error.status === 401) location.replace('/kunden-login'); else toast(error.message); });

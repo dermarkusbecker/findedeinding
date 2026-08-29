@@ -9,9 +9,8 @@ export default async function handler(request, response) {
   const config = supabaseAuthConfig();
   const profile = config && session.profileId ? await profileById(config, session.profileId).catch(() => null) : null;
   if (!profile || profile.status !== 'active') return response.redirect(302, '/login');
-  if (profile.role === 'admin') return response.redirect(302, '/admin');
-  if (profile.role !== 'user' || !profile.permissions?.some((permission) => ['customer_portal', 'clara_program'].includes(permission))) return response.redirect(302, '/login?error=access');
-  const file = fileURLToPath(new URL('../portal.html', import.meta.url));
+  if (profile.role !== 'admin') return response.redirect(302, '/portal');
+  const file = fileURLToPath(new URL('../admin.html', import.meta.url));
   response.setHeader('Content-Type', 'text/html; charset=utf-8');
   response.setHeader('Cache-Control', 'private, no-store');
   return response.status(200).send(readFileSync(file, 'utf8'));

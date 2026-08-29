@@ -3,14 +3,14 @@ function config() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   return url && key ? { url, key } : null;
 }
-import { requireAdmin } from '../lib/auth.js';
+import { requireCurrentAdmin } from '../lib/user-auth.js';
 
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 
 export default async function handler(request, response) {
   const service = config();
   if (request.method === 'GET') {
-    if (!requireAdmin(request, response)) return;
+    if (!await requireCurrentAdmin(request, response)) return;
     if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
     const result = await fetch(`${service.url}/rest/v1/leads?select=*&order=created_at.desc&limit=200`, { headers: { apikey: service.key, Authorization: `Bearer ${service.key}` } });
     const leads = await result.json();

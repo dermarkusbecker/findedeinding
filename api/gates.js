@@ -1,10 +1,10 @@
-import { requireAdmin } from '../lib/auth.js';
+import { requireCurrentAdmin } from '../lib/user-auth.js';
 
 function config(){const url=process.env.SUPABASE_URL?.replace(/\/$/,'');const key=process.env.SUPABASE_SERVICE_ROLE_KEY;return url&&key?{url,key}:null;}
 const headers=(key,extra={})=>({apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json',...extra});
 
 export default async function handler(request,response){
-  if(!requireAdmin(request,response))return;
+  if(!await requireCurrentAdmin(request,response))return;
   const service=config(),participantId=request.query?.participantId||request.body?.participantId;
   if(!service)return response.status(503).json({error:'Supabase ist noch nicht konfiguriert.'});
   if(!participantId)return response.status(400).json({error:'Teilnehmer-ID fehlt.'});

@@ -1,14 +1,18 @@
 {
-  "cleanUrls": true,
+  "cleanUrls": false,
   "functions": {
     "api/*.js": { "maxDuration": 10 }
   },
   "rewrites": [
     { "source": "/login", "destination": "/login.html" },
-    { "source": "/zugang", "destination": "/access" },
-    { "source": "/kunden-login", "destination": "/customer-login" },
-    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/zugang", "destination": "/login.html" },
+    { "source": "/kunden-login", "destination": "/login.html" },
+    { "source": "/admin", "destination": "/api/admin" },
     { "source": "/portal", "destination": "/api/portal" }
+  ],
+  "redirects": [
+    { "source": "/admin.html", "destination": "/admin", "permanent": false },
+    { "source": "/portal.html", "destination": "/portal", "permanent": false }
   ],
   "headers": [
     {

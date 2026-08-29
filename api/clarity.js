@@ -1,10 +1,10 @@
-import { requireAdmin } from '../lib/auth.js';
+import { requireCurrentAdmin } from '../lib/user-auth.js';
 
 function config() { const url = process.env.SUPABASE_URL?.replace(/\/$/, ''); const key = process.env.SUPABASE_SERVICE_ROLE_KEY; return url && key ? { url, key } : null; }
 const headers = (key) => ({ apikey: key, Authorization: `Bearer ${key}` });
 
 export default async function handler(request, response) {
-  if (!requireAdmin(request, response)) return;
+  if (!await requireCurrentAdmin(request, response)) return;
   if (request.method !== 'GET') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
   const service = config(), participantId = request.query?.participantId;
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });

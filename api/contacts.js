@@ -1,5 +1,5 @@
 const ALLOWED_STATUSES = new Set(['lead', 'qualified', 'proposal', 'won', 'lost']);
-import { requireAdmin } from '../lib/auth.js';
+import { requireCurrentAdmin } from '../lib/user-auth.js';
 
 function configuration() {
   const url = process.env.SUPABASE_URL?.replace(/\/$/, '');
@@ -22,7 +22,7 @@ function clean(value, max = 160) {
 }
 
 export default async function handler(request, response) {
-  if (!requireAdmin(request, response)) return;
+  if (!await requireCurrentAdmin(request, response)) return;
   const config = configuration();
   if (!config) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
 

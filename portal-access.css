@@ -1,0 +1,20 @@
+.program-paused {
+  background: #f8efc7;
+  border: 1px solid #e6cf66;
+  border-radius: 10px;
+  color: #191b18;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 18px 4.5vw 0;
+  padding: 13px 18px;
+  text-align: center;
+}
+.program-paused strong { font-size: 10px; }
+.program-paused span { color: #747a74; font-size: 9px; }
+.program-paused.hidden { display: none; }
+.week-card.available { cursor: pointer; transition: border-color .2s, transform .2s; }
+.week-card.available:hover { border-color: #45ad6b; transform: translateY(-2px); }
+@media (max-width: 720px) {
+  .program-paused { align-items: center; flex-direction: column; margin-inline: 18px; }
+}
