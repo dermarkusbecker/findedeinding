@@ -1,4 +1,5 @@
-import { authorizationUrl, assertCalendarAvailable, decryptCredential, deleteCalendarEvent, emailFromIdToken, encryptCredential, exchangeAuthorizationCode, googleConfig, refreshAccessToken, saveCalendarEvent, verifyOAuthState } from '../lib/google-calendar.js';
+import { DEFAULT_BOOKING_SETTINGS, generateAvailableSlots, isWithinBookingAvailability, normalizeBookingSettings } from '../lib/booking-availability.js';
+import { authorizationUrl, assertCalendarAvailable, calendarBusyIntervals, decryptCredential, deleteCalendarEvent, emailFromIdToken, encryptCredential, exchangeAuthorizationCode, googleConfig, refreshAccessToken, saveCalendarEvent, verifyOAuthState } from '../lib/google-calendar.js';
 import { provisionProgramUser, requireCurrentAdmin, supabaseAuthConfig } from '../lib/user-auth.js';
 
 const VALID_STATUSES = ['new', 'contacted', 'scheduled', 'consultation', 'offer', 'customer', 'lost'];
@@ -41,6 +42,24 @@ async function googleConnection(service) {
 async function googleAccessToken(service) {
   const connection = await googleConnection(service);
   return refreshAccessToken(decryptCredential(connection.encrypted_credentials));
+}
+
+async function bookingSettings(service) {
+  const rows = await readJson(await fetch(`${service.url}/rest/v1/booking_settings?id=eq.default&select=*&limit=1`, { headers: headers(service.key) }), 'Termin-Einstellungen konnten nicht geladen werden.');
+  return normalizeBookingSettings(rows[0] || DEFAULT_BOOKING_SETTINGS);
+}
+
+function bookingSettingsPayload(settings) {
+  return {
+    id: 'default',
+    timezone: settings.timezone,
+    weekly_availability: settings.weeklyAvailability,
+    slot_interval_minutes: settings.slotIntervalMinutes,
+    default_duration_minutes: settings.defaultDurationMinutes,
+    min_notice_hours: settings.minNoticeHours,
+    booking_horizon_days: settings.bookingHorizonDays,
+    updated_at: new Date().toISOString(),
+  };
 }
 
 function qualificationAnswers(value) {
@@ -88,6 +107,23 @@ export default async function handler(request, response) {
       if (configured) connection = await googleConnection(service).catch(() => null);
       return response.status(200).json({ configured, connected: Boolean(connection), email: connection?.connected_email || null, updatedAt: connection?.updated_at || null });
     }
+    if (request.method === 'GET' && action === 'booking-settings') {
+      return response.status(200).json({ settings: await bookingSettings(service) });
+    }
+    if (request.method === 'PATCH' && action === 'booking-settings') {
+      const settings = normalizeBookingSettings(request.body || {});
+      await readJson(await fetch(`${service.url}/rest/v1/booking_settings?on_conflict=id`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify(bookingSettingsPayload(settings)) }), 'Termin-Einstellungen konnten nicht gespeichert werden.');
+      return response.status(200).json({ settings });
+    }
+    if (request.method === 'GET' && action === 'available-slots') {
+      const settings = await bookingSettings(service);
+      const candidates = generateAvailableSlots({ settings, from: clean(request.query?.from, 10), to: clean(request.query?.to, 10), duration: Number(request.query?.duration), now: new Date() });
+      if (!candidates.length) return response.status(200).json({ settings, slots: [] });
+      const accessToken = await googleAccessToken(service);
+      const busyIntervals = await calendarBusyIntervals(accessToken, candidates[0].start, candidates.at(-1).end);
+      const slots = generateAvailableSlots({ settings, from: clean(request.query?.from, 10), to: clean(request.query?.to, 10), duration: Number(request.query?.duration), busyIntervals, now: new Date() });
+      return response.status(200).json({ settings, slots });
+    }
     if (request.method === 'GET') {
       const leads = await readJson(await fetch(`${service.url}/rest/v1/leads?select=*&order=created_at.desc&limit=200`, { headers: headers(service.key) }), 'Leads konnten nicht geladen werden.');
       return response.status(200).json({ leads });
@@ -107,8 +143,11 @@ export default async function handler(request, response) {
       const startDate = new Date(request.body?.start), duration = Number(request.body?.duration || 45);
       if (Number.isNaN(startDate.getTime()) || ![30, 45, 60, 90].includes(duration)) return response.status(400).json({ error: 'Gültiger Termin und Dauer erforderlich.' });
       if (startDate.getTime() < Date.now() - 60000) return response.status(400).json({ error: 'Der Termin muss in der Zukunft liegen.' });
+      const settings = await bookingSettings(service);
+      if (!isWithinBookingAvailability(startDate, duration, settings)) return response.status(409).json({ error: 'Dieser Termin liegt außerhalb deiner freigegebenen Buchungszeiten.' });
       const endDate = new Date(startDate.getTime() + duration * 60000), accessToken = await googleAccessToken(service);
-      if (!lead.calendar_event_id) await assertCalendarAvailable(accessToken, startDate.toISOString(), endDate.toISOString());
+      const unchangedAppointment = lead.calendar_event_id && lead.appointment_start === startDate.toISOString() && lead.appointment_end === endDate.toISOString();
+      if (!unchangedAppointment) await assertCalendarAvailable(accessToken, startDate.toISOString(), endDate.toISOString());
       const event = await saveCalendarEvent(accessToken, lead, startDate.toISOString(), endDate.toISOString());
       const meetUrl = event.hangoutLink || event.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || lead.meet_url || null;
       const updated = await patchLead(service, lead.id, { appointment_start: startDate.toISOString(), appointment_end: endDate.toISOString(), appointment_timezone: 'Europe/Berlin', calendar_event_id: event.id, calendar_event_url: event.htmlLink || lead.calendar_event_url, meet_url: meetUrl, status: 'scheduled' });
