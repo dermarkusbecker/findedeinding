@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Wähle deinen Zugang zu Finde dein Ding.">
+  <title>Zugang wählen · Finde dein Ding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="access.css">
+</head>
+<body>
+  <header><a class="logo" href="/"><span>f</span><b>finde dein ding</b></a><a href="/">← Zur Website</a></header>
+  <main>
+    <section class="intro"><p class="eyebrow">Geschützter Bereich</p><h1>Welchen Zugang<br>möchtest du <em>öffnen?</em></h1><p>Wähle bewusst deinen Bereich. Erst nach deiner Bestätigung wirst du zur passenden Anmeldung weitergeleitet.</p></section>
+    <form id="accessChoice">
+      <fieldset>
+        <legend>Zugang auswählen</legend>
+        <label><input type="radio" name="access" value="admin"><span class="choice-icon admin">A</span><span class="choice-copy"><b>Admin</b><small>CRM, Teilnehmerverwaltung und Programmsteuerung</small></span><i>→</i></label>
+        <label><input type="radio" name="access" value="customer"><span class="choice-icon customer">K</span><span class="choice-copy"><b>Kunde</b><small>Kundenportal, Unterlagen und persönliche Inhalte</small></span><i>→</i></label>
+        <label><input type="radio" name="access" value="participant"><span class="choice-icon participant">T</span><span class="choice-copy"><b>Teilnehmer</b><small>Aktiver Clara-Dialog und dein persönlicher 8-Wochen-Prozess</small></span><i>→</i></label>
+      </fieldset>
+      <div class="session-note hidden" id="sessionNote"></div>
+      <button type="submit" disabled>Auswahl bestätigen <span>→</span></button>
+      <p>Du wirst nicht automatisch eingeloggt. Deine Zugangsdaten werden anschließend serverseitig geprüft.</p>
+    </form>
+  </main>
+  <script src="access.js"></script>
+</body>
+</html>
