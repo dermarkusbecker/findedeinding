@@ -33,6 +33,15 @@ export default async function handler(request, response) {
       const id = clean(request.body?.id, 80);
       const existing = await profileById(service, id);
       if (!existing) return response.status(404).json({ error: 'Benutzer wurde nicht gefunden.' });
+      if (request.body?.action === 'credentials') {
+        if (existing.id !== admin.profileId || existing.role !== 'admin') return response.status(403).json({ error: 'Admin-Zugangsdaten können nur für das eigene Konto geändert werden.' });
+        const email = clean(request.body?.email, 254).toLowerCase(), password = typeof request.body?.password === 'string' ? request.body.password : '';
+        if (!emailValid(email) || password.length < 8) return response.status(400).json({ error: 'Gültige E-Mail und Passwort mit mindestens acht Zeichen erforderlich.' });
+        const authResponse = await fetch(`${service.url}/auth/v1/admin/users/${encodeURIComponent(existing.auth_user_id)}`, { method: 'PUT', headers: authHeaders(service.serviceKey), body: JSON.stringify({ email, password, email_confirm: true }) });
+        await data(authResponse);
+        const users = await data(await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { ...authHeaders(service.serviceKey), Prefer: 'return=representation' }, body: JSON.stringify({ email }) }));
+        return response.status(200).json({ user: users[0], credentialsUpdated: true });
+      }
       if (request.body?.action === 'password_reset') {
         await sendPasswordReset(service, existing.email);
         return response.status(200).json({ ok: true, message: 'Passwort-Reset wurde ausgelöst.' });
