@@ -1,4 +1,5 @@
 import { USER_PERMISSIONS } from '../lib/auth.js';
+import { participantGateRows } from '../lib/gate-templates.js';
 import { authHeaders, createManagedAuthUser, profileById, requireCurrentAdmin, sendPasswordReset, supabaseAuthConfig } from '../lib/user-auth.js';
 
 const clean = (value, max = 160) => typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -23,11 +24,22 @@ export default async function handler(request, response) {
     }
     if (request.method === 'POST') {
       const name = clean(request.body?.name, 120), email = clean(request.body?.email, 254).toLowerCase(), role = clean(request.body?.role, 20) || 'user';
+      const password = typeof request.body?.password === 'string' ? request.body.password : '';
       const permissions = permissionsFrom(request.body?.permissions);
       if (!name || !emailValid(email) || !['admin', 'user'].includes(role)) return response.status(400).json({ error: 'Name, gültige E-Mail und Rolle sind erforderlich.' });
-      const authUser = await createManagedAuthUser(service, email, name);
+      if (password && password.length < 8) return response.status(400).json({ error: 'Das Startpasswort muss mindestens acht Zeichen lang sein.' });
+      const authUser = await createManagedAuthUser(service, email, name, password);
       const profiles = await data(await fetch(`${service.url}/rest/v1/user_profiles`, { method: 'POST', headers: { ...authHeaders(service.serviceKey), Prefer: 'return=representation' }, body: JSON.stringify({ auth_user_id: authUser.id, name, email, role, status: 'active', permissions }) }));
-      return response.status(201).json({ user: profiles[0], passwordResetSent: true });
+      let programCreated = false;
+      if (permissions.includes('clara_program')) {
+        const programStartDate = /^\d{4}-\d{2}-\d{2}$/.test(request.body?.programStartDate || '') ? request.body.programStartDate : new Date().toISOString().slice(0, 10);
+        await Promise.all([
+          data(await fetch(`${service.url}/rest/v1/participant_progress`, { method: 'POST', headers: authHeaders(service.serviceKey), body: JSON.stringify({ user_profile_id: profiles[0].id, process_status: 'ONBOARDING', current_week: 1, program_start_date: programStartDate, access_mode: 'completion_based', program_status: 'active' }) })),
+          data(await fetch(`${service.url}/rest/v1/week_gates`, { method: 'POST', headers: authHeaders(service.serviceKey), body: JSON.stringify(participantGateRows(profiles[0].id)) })),
+        ]);
+        programCreated = true;
+      }
+      return response.status(201).json({ user: profiles[0], passwordResetSent: !password, programCreated });
     }
     if (request.method === 'PATCH') {
       const id = clean(request.body?.id, 80);
