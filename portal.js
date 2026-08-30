@@ -1,15 +1,136 @@
+const resolveSpeechRecognition = (windowObject = window) => {
+  if (!windowObject) return null;
+  return windowObject.SpeechRecognition || windowObject.webkitSpeechRecognition || null;
+};
+
+const applySpeechTranscript = (existingValue = '', newText = '') => {
+  const text = String(newText || '').trim();
+  if (!text) return String(existingValue || '');
+  const current = String(existingValue || '').trimEnd();
+  return current ? `${current} ${text}` : text;
+};
+
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
-const local = { ...JSON.parse(localStorage.getItem('fdd_customer_notes') || '{}'), answers: JSON.parse(localStorage.getItem('fdd_customer_notes') || '{}').answers || {}, uploads: JSON.parse(localStorage.getItem('fdd_customer_notes') || '{}').uploads || {}, support: JSON.parse(localStorage.getItem('fdd_customer_notes') || '{}').support || [] };
+const rawLocal = JSON.parse(localStorage.getItem('fdd_customer_notes') || '{}');
+const local = { ...rawLocal, answers: rawLocal.answers || {}, uploads: rawLocal.uploads || {}, support: rawLocal.support || [], signedCommitment: rawLocal.signedCommitment || null };
 let program = null;
 let currentWeek = 1;
 let currentContent = null;
+const speechState = { recognition: null, activeButton: null };
 
 function saveLocal() { localStorage.setItem('fdd_customer_notes', JSON.stringify(local)); }
 function toast(message) { const el = $('#portalToast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2800); }
-function showView(name) { $$('.screen').forEach((panel) => panel.classList.toggle('active', panel.dataset.panel === name)); $$('aside nav button').forEach((button) => button.classList.toggle('active', button.dataset.view === name)); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function showView(name) {
+  const isLockedOnboarding = !program?.onboardingComplete && !['today', 'onboarding'].includes(name);
+  const safeName = isLockedOnboarding ? 'onboarding' : name;
+  const targetPanel = safeName === 'onboarding' ? 'today' : safeName;
+  $$('.screen').forEach((panel) => panel.classList.toggle('active', panel.dataset.panel === targetPanel));
+  $$('aside nav button').forEach((button) => button.classList.toggle('active', button.dataset.view === safeName));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function setSpeechButtonState(button, isListening) {
+  if (!button) return;
+  button.classList.toggle('listening', isListening);
+  button.setAttribute('aria-pressed', String(isListening));
+  button.textContent = isListening ? '⏹ Spracheingabe stoppen' : button.dataset.defaultLabel || '⌁ Spracheingabe';
+}
+
+function wireSpeechControls() {
+  document.querySelectorAll('.voice').forEach((button) => {
+    if (!button.dataset.boundSpeech) {
+      button.type = 'button';
+      button.dataset.boundSpeech = 'true';
+      attachSpeechButton(button);
+    }
+  });
+}
+
+function attachSpeechButton(button) {
+  if (!button) return;
+  button.dataset.defaultLabel = button.dataset.defaultLabel || button.textContent.trim();
+  const target = button.dataset.target ? document.getElementById(button.dataset.target) : button.closest('form')?.querySelector('textarea, input');
+  if (!target) return;
+
+  button.addEventListener('click', () => {
+    const Recognition = resolveSpeechRecognition(window);
+    if (!Recognition) {
+      toast('Dein Browser unterstützt Spracheingabe leider nicht.');
+      return;
+    }
+
+    if (speechState.recognition && speechState.activeButton === button) {
+      speechState.recognition.stop();
+      speechState.recognition = null;
+      speechState.activeButton = null;
+      setSpeechButtonState(button, false);
+      return;
+    }
+
+    if (speechState.recognition) {
+      speechState.recognition.stop();
+      speechState.recognition = null;
+      if (speechState.activeButton) setSpeechButtonState(speechState.activeButton, false);
+      speechState.activeButton = null;
+    }
+
+    const recognition = new Recognition();
+    recognition.lang = 'de-DE';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setSpeechButtonState(button, true);
+      speechState.activeButton = button;
+      speechState.recognition = recognition;
+    };
+
+    recognition.onresult = (event) => {
+      let finalText = '';
+      for (let i = 0; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        if (result.isFinal) finalText += result[0].transcript;
+      }
+      if (!finalText) return;
+      target.value = applySpeechTranscript(target.value, finalText);
+      target.focus();
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    recognition.onerror = (event) => {
+      const message = event.error === 'not-allowed' ? 'Microfonzugriff wurde verweigert. Bitte erlauben.' : 'Spracheingabe konnte nicht gestartet werden.';
+      toast(message);
+      setSpeechButtonState(button, false);
+      speechState.activeButton = null;
+      speechState.recognition = null;
+    };
+
+    recognition.onend = () => {
+      setSpeechButtonState(button, false);
+      if (speechState.activeButton === button) {
+        speechState.activeButton = null;
+      }
+      if (speechState.recognition === recognition) {
+        speechState.recognition = null;
+      }
+    };
+
+    try {
+      recognition.start();
+    } catch (error) {
+      toast('Spracheingabe ist bereits aktiv. Bitte warte kurz und versuche es erneut.');
+      setSpeechButtonState(button, false);
+      speechState.activeButton = null;
+      speechState.recognition = null;
+    }
+  });
+}
+
 $$('[data-view]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.view)));
 $$('[data-view-link]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.viewLink)));
+wireSpeechControls();
+window.wireSpeechControls = wireSpeechControls;
 
 async function request(url, options = {}) {
   const response = await fetch(url, { ...options, headers: options.body ? { 'Content-Type': 'application/json', ...(options.headers || {}) } : options.headers });
@@ -20,6 +141,91 @@ async function request(url, options = {}) {
 
 function modeLabel(mode) {
   return mode === 'time_based' ? 'Zeitbasierte Freischaltung' : mode === 'full_access' ? 'Alles freigegeben' : 'Abschlussbasierte Freischaltung';
+}
+
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+}
+
+function buildStartCommitmentText(name = 'Teilnehmer') {
+  return `
+    <div class="commitment-title">Mein Start-Commitment</div>
+    <p><strong>${escapeHtml(name)}</strong></p>
+    <p>Ich nehme den achtwöchigen Prozess ernsthaft in Angriff.</p>
+    <p>Ich bin bereit, meine Antworten ehrlich zu formulieren, meine Widerstände sichtbar zu machen und mich nicht vorschnell aus dem Prozess zu verabschieden.</p>
+    <p>Ich möchte meine Entscheidung nicht nur denken, sondern sie konkret erleben, prüfen und mit Verantwortung weiterentwickeln.</p>
+    <p>Ich bestätige hiermit bewusst mein persönliches Commitment für den Start dieses Prozesses.</p>
+    <div class="commitment-signature"><span>Ort, Datum</span><span>__________________</span></div>
+    <div class="commitment-signature"><span>Name</span><span>${escapeHtml(name)}</span></div>
+    <div class="commitment-signature"><span>Unterschrift</span><span>__________________</span></div>
+  `;
+}
+
+function openCommitmentPrintView() {
+  const name = program?.profile?.name || 'Teilnehmer';
+  const printWindow = window.open('', '_blank', 'noopener');
+  if (!printWindow) {
+    toast('Bitte erlaube Pop-ups, um dein Commitment zu drucken.');
+    return;
+  }
+
+  const printHtml = `
+    <!doctype html>
+    <html lang="de">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Mein Start-Commitment</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 32px; color: #1a1b1a; }
+          .sheet { max-width: 760px; margin: 0 auto; border: 1px solid #d7d7d3; border-radius: 16px; padding: 30px 32px; background: #fff; }
+          h1 { font-size: 26px; margin: 0 0 20px; }
+          p { font-size: 14px; line-height: 1.7; margin: 0 0 14px; }
+          .meta { margin: 24px 0; }
+          .sign-row { display: flex; justify-content: space-between; gap: 18px; margin-top: 28px; border-top: 1px solid #d7d7d3; padding-top: 16px; }
+          .sign-row span { font-size: 12px; color: #4d514e; }
+          .sign-row strong { font-size: 14px; }
+          @media print { body { margin: 0; } .sheet { border: none; box-shadow: none; } }
+        </style>
+      </head>
+      <body>
+        <div class="sheet">
+          <h1>Mein Start-Commitment</h1>
+          <div class="meta"><strong>${escapeHtml(name)}</strong></div>
+          <p>Ich nehme den achtwöchigen Prozess ernsthaft in Angriff.</p>
+          <p>Ich bin bereit, meine Antworten ehrlich zu formulieren, meine Widerstände sichtbar zu machen und mich nicht vorschnell aus dem Prozess zu verabschieden.</p>
+          <p>Ich möchte meine Entscheidung nicht nur denken, sondern sie konkret erleben, prüfen und mit Verantwortung weiterentwickeln.</p>
+          <p>Ich bestätige hiermit bewusst mein persönliches Commitment für den Start dieses Prozesses.</p>
+          <div class="sign-row"><span>Ort, Datum</span><strong>____________________________</strong></div>
+          <div class="sign-row"><span>Name</span><strong>${escapeHtml(name)}</strong></div>
+          <div class="sign-row"><span>Unterschrift</span><strong>____________________________</strong></div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  printWindow.document.write(printHtml);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => printWindow.print(), 250);
+}
+
+function renderOnboardingDocuments() {
+  const participantName = program?.profile?.name || 'Teilnehmer';
+  const doc = $('#commitmentDocument');
+  if (doc) doc.innerHTML = buildStartCommitmentText(participantName);
+  const signedStatus = $('#signedCommitmentStatus');
+  if (signedStatus) {
+    signedStatus.textContent = local.signedCommitment ? `Hochgeladen: ${local.signedCommitment.name} • ${new Date(local.signedCommitment.uploadedAt).toLocaleString('de-DE')}` : 'Noch kein unterschriebenes Commitment hochgeladen.';
+  }
+  const signedFileInput = $('#signedCommitmentUpload');
+  if (signedFileInput) signedFileInput.value = '';
+}
+
+function refreshOnboardingGateState() {
+  const privacyChecked = !!$('#privacy')?.checked;
+  const commitmentChecked = !!$('#commitment')?.checked;
+  const signedUploaded = Boolean(local.signedCommitment && local.signedCommitment.name);
+  $('#startProcess').disabled = !privacyChecked || !commitmentChecked || !signedUploaded;
 }
 
 function progressPercent() {
@@ -71,11 +277,16 @@ function render() {
   renderPausedState();
 
   if (!started) {
+    renderOnboardingDocuments();
     $('#todayLabel').textContent = paused ? 'Programm pausiert' : 'Dein Start';
     $('#welcomeTitle').innerHTML = 'Willkommen bei <em>Finde dein Ding.</em>';
     $('#welcomeCopy').textContent = paused ? 'Dein Zugang ist pausiert. Bitte wende dich an Markus.' : 'Bevor Clara mit dir startet, braucht es zwei klare Grundlagen: deine Einwilligung und dein persönliches Commitment.';
     $('#clarityValue').textContent = '—';
-    $('#startProcess').disabled = paused || !($('#privacy').checked && $('#commitment').checked);
+    refreshOnboardingGateState();
+    $('#startProcess').disabled = paused || $('#startProcess').disabled;
+    if (document.querySelector('aside nav button.active')?.dataset.view === 'onboarding') {
+      showView('onboarding');
+    }
   } else if (content) {
     $('#todayLabel').textContent = `Woche ${currentWeek} · ${content.mode}`;
     $('#welcomeTitle').innerHTML = `${content.title}. <em>Schritt für Schritt.</em>`;
@@ -103,6 +314,7 @@ function render() {
     $('#gateNote').textContent = program.access.accessMode === 'completion_based' ? 'Die nächste Woche öffnet sich nach Abschluss aller Pflichtaufgaben.' : program.access.accessMode === 'time_based' ? 'Weitere Wochen öffnen sich automatisch alle sieben Tage.' : 'Alle Wochen sind freigeschaltet; Pflichtaufgaben dokumentieren deinen Fortschritt.';
   }
   renderJourney(); renderInsights(); renderDocuments();
+  wireSpeechControls();
 }
 
 function renderJourney() {
@@ -135,10 +347,21 @@ function renderDocuments() {
   [[4, 1, 'Bereit'], [6, 2, 'Bereit'], [8, 3, 'Wird erzeugt']].forEach(([week, index, label]) => { if (program.access.completedWeeks.includes(week)) { articles[index].classList.remove('locked'); articles[index].querySelector('i').textContent = label; } });
 }
 
-$('#privacy').addEventListener('change', () => { $('#startProcess').disabled = !($('#privacy').checked && $('#commitment').checked); });
-$('#commitment').addEventListener('change', () => { $('#startProcess').disabled = !($('#privacy').checked && $('#commitment').checked); });
+$('#privacy').addEventListener('change', refreshOnboardingGateState);
+$('#commitment').addEventListener('change', refreshOnboardingGateState);
+$('#printCommitment').addEventListener('click', openCommitmentPrintView);
+$('#signedCommitmentUpload').addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  local.signedCommitment = { name: file.name, type: file.type, size: file.size, uploadedAt: new Date().toISOString() };
+  saveLocal();
+  renderOnboardingDocuments();
+  refreshOnboardingGateState();
+  toast('Unterschriebenes Commitment wurde gespeichert.');
+});
 $('#startProcess').addEventListener('click', async () => {
-  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'start', privacy: $('#privacy').checked, commitment: $('#commitment').checked }) }); await loadProgram(1); toast('Dein achtwöchiger Prozess ist gestartet.'); }
+  const signedUploaded = Boolean(local.signedCommitment && local.signedCommitment.name);
+  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'start', privacy: $('#privacy').checked, commitment: $('#commitment').checked && signedUploaded, signedDocument: signedUploaded }) }); await loadProgram(1); toast('Dein achtwöchiger Prozess ist gestartet.'); }
   catch (error) { toast(error.message); }
 });
 $('#answerForm').addEventListener('submit', async (event) => {
@@ -151,6 +374,18 @@ $('#fileInput').addEventListener('change', async (event) => {
   local.uploads[currentWeek] = { name: file.name, type: file.type, size: file.size, at: new Date().toISOString() }; saveLocal();
   try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'set_gate', week: currentWeek, gateId: currentContent.tasks[2].id, completed: true }) }); await loadProgram(currentWeek); toast(`${file.name} wurde erfasst und das Gate bestätigt.`); }
   catch (error) { toast(error.message); }
+});
+$('#reopenCurrentWeek').addEventListener('click', async () => {
+  if (!program?.onboardingComplete || !currentContent) return;
+  const confirmed = window.confirm(`Bist du dir sicher, dass du die Woche ${currentWeek} erneut starten möchtest?\n\nDer bisherige Verlauf bleibt erhalten. Du kannst die Inhalte dieser Woche noch einmal bewusst durchlaufen.`);
+  if (!confirmed) return;
+  try {
+    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'reopen_week', week: currentWeek }) });
+    await loadProgram(currentWeek);
+    toast(`Woche ${currentWeek} wurde erneut geöffnet.`);
+  } catch (error) {
+    toast(error.message);
+  }
 });
 $('#completeWeek').addEventListener('click', async () => {
   try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'complete_week', week: currentWeek }) }); if (currentWeek === 8 && !local.clarityEnd) { const score = Number(prompt('Wie klar ist dir heute auf einer Skala von 1 bis 10, was dein Ding ist?')); if (score >= 1 && score <= 10) { local.clarityEnd = score; saveLocal(); } } await loadProgram(currentWeek < 8 ? currentWeek + 1 : 8); toast(currentWeek === 8 ? 'Digitaler Prozess abgeschlossen.' : 'Woche abgeschlossen.'); }

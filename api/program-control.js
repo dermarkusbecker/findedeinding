@@ -40,6 +40,20 @@ export default async function handler(request, response) {
     }
     if (body.manuallyUnlockedWeeks !== undefined) changes.manually_unlocked_weeks = normalizeWeeks(body.manuallyUnlockedWeeks);
     if (body.manuallyLockedWeeks !== undefined) changes.manually_locked_weeks = normalizeWeeks(body.manuallyLockedWeeks);
+    if (body.resetToOnboarding === true) {
+      Object.assign(changes, {
+        current_week: 0,
+        process_status: 'ONBOARDING',
+        program_status: 'active',
+        access_mode: 'completion_based',
+        manually_unlocked_weeks: [],
+        manually_locked_weeks: [],
+        privacy_consent_at: null,
+        start_commitment_at: null,
+        final_commitment_at: null,
+        last_activity_at: null,
+      });
+    }
     const overlaps = (changes.manually_unlocked_weeks || current.progress.manually_unlocked_weeks || []).filter((week) => (changes.manually_locked_weeks || current.progress.manually_locked_weeks || []).includes(week));
     if (overlaps.length) return response.status(400).json({ error: `Eine Woche kann nicht gleichzeitig manuell frei und gesperrt sein: ${overlaps.join(', ')}` });
 

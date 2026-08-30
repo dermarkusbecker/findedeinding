@@ -1,8 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateProgramAccess } from '../lib/program-access.js';
+import { calculateProgramAccess, isOnboardingComplete, reopenWeekState, resetParticipantProgressState } from '../lib/program-access.js';
 
 const requiredGates = (week, completed = true) => [1, 2, 3].map((index) => ({ week, gate_key: `w${week}_${index}`, required: true, completed_at: completed ? '2026-08-01T10:00:00Z' : null }));
+
+test('resetParticipantProgressState setzt den Prozess auf Onboarding zurück und öffnet die Wiederholung', () => {
+  const reset = resetParticipantProgressState();
+  assert.equal(reset.current_week, 0);
+  assert.equal(reset.process_status, 'ONBOARDING');
+  assert.equal(reset.privacy_consent_at, null);
+  assert.equal(reset.start_commitment_at, null);
+  assert.deepEqual(reset.manually_unlocked_weeks, []);
+  assert.deepEqual(reset.manually_locked_weeks, []);
+  assert.equal(reset.access_mode, 'completion_based');
+});
+
+test('Onboarding gilt nur dann als abgeschlossen, wenn Status und Woche das auch bestätigen', () => {
+  assert.equal(isOnboardingComplete({ current_week: 0, process_status: 'ONBOARDING', privacy_consent_at: '2026-08-01T00:00:00Z', start_commitment_at: '2026-08-01T00:00:00Z' }), false);
+  assert.equal(isOnboardingComplete({ current_week: 1, process_status: 'WEEK_1', privacy_consent_at: '2026-08-01T00:00:00Z', start_commitment_at: '2026-08-01T00:00:00Z' }), true);
+  assert.equal(isOnboardingComplete({ current_week: 1, process_status: 'ONBOARDING', privacy_consent_at: '2026-08-01T00:00:00Z', start_commitment_at: '2026-08-01T00:00:00Z' }), false);
+});
+
+test('reopenWeekState setzt den Teilnehmer auf die gewählte Woche zurück und erlaubt den Replay', () => {
+  const reopened = reopenWeekState(3);
+  assert.equal(reopened.current_week, 3);
+  assert.equal(reopened.process_status, 'WEEK_3');
+  assert.equal(reopened.last_activity_at, null);
+});
 
 test('completion_based ist der sichere Standard und öffnet zunächst nur Woche 1', () => {
   const access = calculateProgramAccess({ progress: {}, gates: [] });

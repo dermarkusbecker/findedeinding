@@ -1,5 +1,6 @@
 import { requireCurrentPermission } from '../lib/user-auth.js';
 import { getParticipantProgramAccess, patchParticipantProgress, serviceHeaders } from '../lib/program-access-service.js';
+import { isOnboardingComplete, reopenWeekState } from '../lib/program-access.js';
 
 const programWeeks = [
   { week: 1, title: 'Ausgangslage', mode: 'Ist-Aufnahme', question: 'Stell dir vor, vor dir steht eine Fee und du hast genau drei Wünsche frei. Welche drei Dinge würdest du dir für dein Leben aktuell am meisten wünschen?', help: 'Nenne zunächst einfach alle drei. Danach vertiefen wir sie einzeln.', upload: 'Lebenslauf optional' },
@@ -33,7 +34,7 @@ export default async function handler(request, response) {
   try {
     const result = await getParticipantProgramAccess(session.participantId);
     if (request.method === 'GET') {
-      const onboardingComplete = Boolean(result.progress.privacy_consent_at && result.progress.start_commitment_at);
+      const onboardingComplete = isOnboardingComplete(result.progress);
       const requestedWeek = request.query?.week === undefined ? null : Number(request.query.week);
       if (requestedWeek !== null && (!Number.isInteger(requestedWeek) || requestedWeek < 1 || requestedWeek > 8)) return response.status(400).json({ error: 'Ungültige Woche.' });
       if (!onboardingComplete && requestedWeek !== null) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
@@ -49,13 +50,14 @@ export default async function handler(request, response) {
     const action = request.body?.action;
     if (action === 'start') {
       if (result.access.status !== 'active') return response.status(423).json({ error: 'Dein Programm ist aktuell pausiert.' });
-      if (!request.body?.privacy || !request.body?.commitment) return response.status(400).json({ error: 'Beide Start-Gates müssen aktiv bestätigt werden.' });
+      const signedDocumentUploaded = Boolean(request.body?.signedDocument || request.body?.commitment);
+      if (!request.body?.privacy || !signedDocumentUploaded) return response.status(400).json({ error: 'Datenschutz und unterschriebenes Commitment müssen beide bestätigt werden.' });
       const startGates = result.gates.filter((gate) => Number(gate.week) === 0);
       for (const gate of startGates) await setGate(result.service, session.participantId, gate.id, true);
       const now = new Date().toISOString();
       await patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: now, start_commitment_at: now, current_week: 1, process_status: 'WEEK_1', last_activity_at: now });
     } else if (action === 'set_gate') {
-      if (!result.progress.privacy_consent_at || !result.progress.start_commitment_at) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
+      if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const week = Number(request.body?.week);
       if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist nicht freigeschaltet.' });
       const gate = result.gates.find((item) => item.id === request.body?.gateId && Number(item.week) === week);
@@ -63,7 +65,7 @@ export default async function handler(request, response) {
       await setGate(result.service, session.participantId, gate.id, Boolean(request.body?.completed));
       await patchParticipantProgress(result.service, session.participantId, { last_activity_at: new Date().toISOString() });
     } else if (action === 'save_answer') {
-      if (!result.progress.privacy_consent_at || !result.progress.start_commitment_at) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
+      if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const week = Number(request.body?.week);
       const answer = typeof request.body?.answer === 'string' ? request.body.answer.trim().slice(0, 10000) : '';
       if (!answer) return response.status(400).json({ error: 'Antwort fehlt.' });
@@ -73,8 +75,15 @@ export default async function handler(request, response) {
       const firstGate = result.gates.find((gate) => Number(gate.week) === week && gate.required !== false);
       if (firstGate) await setGate(result.service, session.participantId, firstGate.id, true);
       await patchParticipantProgress(result.service, session.participantId, { last_activity_at: new Date().toISOString() });
+    } else if (action === 'reopen_week') {
+      if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
+      const week = Number(request.body?.week);
+      if (!Number.isInteger(week) || week < 1 || week > 8) return response.status(400).json({ error: 'Ungültige Woche für den Replay.' });
+      if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist derzeit nicht zugänglich.' });
+      const resetState = reopenWeekState(week);
+      await patchParticipantProgress(result.service, session.participantId, { current_week: resetState.current_week, process_status: resetState.process_status, last_activity_at: new Date().toISOString() });
     } else if (action === 'complete_week') {
-      if (!result.progress.privacy_consent_at || !result.progress.start_commitment_at) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
+      if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const week = Number(request.body?.week);
       if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist nicht freigeschaltet.' });
       const required = result.gates.filter((gate) => Number(gate.week) === week && gate.required !== false);
