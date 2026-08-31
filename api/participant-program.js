@@ -63,6 +63,9 @@ export default async function handler(request, response) {
         Promise.allSettled(startGates.map((gate) => setGate(result.service, session.participantId, gate.id, true))),
       ]);
       return response.status(200).json({ ok: true, started: true, week: 1 });
+    } else if (action === 'revoke_privacy') {
+      const now = new Date().toISOString();
+      await patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: null, current_week: 0, process_status: 'ONBOARDING', last_activity_at: now });
     } else if (action === 'set_gate') {
       if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const week = Number(request.body?.week);

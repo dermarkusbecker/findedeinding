@@ -788,6 +788,21 @@ header > div:last-child {
   box-shadow: 0 17px 34px rgba(214, 73, 8, .38);
 }
 
+.revoke-privacy {
+  align-self: center;
+  margin: 2px auto 0;
+  padding: 7px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.revoke-privacy:hover { color: #a3462b; }
+
 #startProcess[disabled] {
   opacity: 0.45;
   cursor: not-allowed;
@@ -1395,6 +1410,7 @@ aside {
 
 aside nav { gap: 6px; }
 aside nav button { padding: 12px 13px; border-radius: 12px; color: rgba(255,248,242,.65); font-size: 13px; }
+aside nav .onboarding-link { margin-top: 14px; border-top: 1px solid rgba(255,255,255,.08); border-radius: 0 0 12px 12px; }
 aside nav button.active,
 aside nav button:hover {
   color: #fff;

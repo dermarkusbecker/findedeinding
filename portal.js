@@ -40,6 +40,7 @@ function showView(name) {
   if (isLockedView) {
     toast('Bitte zuerst das Onboarding abschließen, um diesen Bereich zu bearbeiten.');
   }
+  if (program) render();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -313,12 +314,12 @@ function refreshOnboardingGateState() {
   $('#startProcess').disabled = !privacyChecked || !commitmentChecked || !signedUploaded;
 }
 
-function renderCommitmentUploadState() {
+function renderCommitmentUploadState(completed = false) {
   const status = $('#signedCommitmentStatus');
   if (!status) return;
   status.textContent = local.signedCommitment
     ? `Hochgeladen: ${local.signedCommitment.name} • ${new Date(local.signedCommitment.uploadedAt).toLocaleString('de-DE')}`
-    : 'Noch kein unterschriebenes Commitment hochgeladen.';
+    : completed ? 'Unterschriebenes Commitment wurde beim Start bestätigt.' : 'Noch kein unterschriebenes Commitment hochgeladen.';
 }
 
 function progressPercent() {
@@ -376,32 +377,43 @@ function render() {
   const started = program.onboardingComplete;
   const content = currentContent;
   const paused = program.access.status === 'paused';
+  const activeView = document.querySelector('aside nav button.active')?.dataset.view || 'onboarding';
+  const reviewingOnboarding = activeView === 'onboarding';
+  const showOnboarding = !started || reviewingOnboarding;
   $('#sideProgress').style.width = `${pct}%`;
   $('#sidePercent').textContent = `${pct} % abgeschlossen`;
-  $('#sidePhase').textContent = started && content ? `Woche ${currentWeek} · ${content.title}` : 'Onboarding';
-  $('#headerPhase').textContent = started && content ? `Woche ${currentWeek} von 8 · ${content.title}` : 'Dein Start';
+  $('#sidePhase').textContent = !showOnboarding && started && content ? `Woche ${currentWeek} · ${content.title}` : 'Onboarding';
+  $('#headerPhase').textContent = !showOnboarding && started && content ? `Woche ${currentWeek} von 8 · ${content.title}` : 'Onboarding';
   const name = program.profile?.name || 'Teilnehmer';
   const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
   document.querySelector('.side-foot > div > span').textContent = initials;
   document.querySelector('.side-foot strong').textContent = name;
-  $('#onboarding').classList.toggle('hidden', started);
-  $('#activeWeek').classList.toggle('hidden', !started || !content);
+  $('#onboarding').classList.toggle('hidden', !showOnboarding);
+  $('#activeWeek').classList.toggle('hidden', showOnboarding || !started || !content);
   renderPausedState();
 
-  if (!started) {
-    renderCommitmentUploadState();
-    $('#todayLabel').textContent = paused ? 'Programm pausiert' : 'Dein Start';
+  if (showOnboarding) {
+    renderCommitmentUploadState(started);
+    $('#todayLabel').textContent = started ? 'Onboarding abgeschlossen' : paused ? 'Programm pausiert' : 'Dein Start';
     $('#welcomeTitle').innerHTML = 'Willkommen bei <em>Finde dein Ding.</em>';
     $('#welcomeCopy').innerHTML = paused
       ? 'Dein Zugang ist pausiert. Bitte wende dich an Markus.'
       : 'In den nächsten Wochen geht es um eine zentrale Frage: <strong>Was ist wirklich dein Ding – und wie machst du daraus deinen Weg?</strong><br>Clara begleitet dich dabei Schritt für Schritt. Du musst heute noch keine Antworten haben. Du musst nur bereit sein, ehrlich hinzuschauen.';
     $('#clarityValue').textContent = '—';
-    refreshOnboardingGateState();
-    $('#startProcess').disabled = paused || $('#startProcess').disabled;
-    if (document.querySelector('aside nav button.active')?.dataset.view === 'onboarding') {
-      showView('onboarding');
+    $('#startProcess').classList.toggle('hidden', started);
+    $('#revokePrivacy').classList.toggle('hidden', !started);
+    if (started) {
+      $('#privacy').checked = true;
+      $('#privacy').disabled = true;
+      $('#commitment').checked = true;
+      $('#commitment').disabled = true;
+    } else {
+      $('#privacy').disabled = false;
+      refreshOnboardingGateState();
+      $('#startProcess').disabled = paused || $('#startProcess').disabled;
     }
   } else if (content) {
+    $('#revokePrivacy').classList.add('hidden');
     $('#todayLabel').textContent = `Woche ${currentWeek} · ${content.mode}`;
     $('#welcomeTitle').innerHTML = `${content.title}. <em>Schritt für Schritt.</em>`;
     $('#welcomeCopy').textContent = `${program.access.completedWeeks.length} von 8 Wochen abgeschlossen · ${modeLabel(program.access.accessMode)}.`;
@@ -489,6 +501,18 @@ $('#startProcess').addEventListener('click', async () => {
     refreshOnboardingGateState();
     toast(error.message === 'Die Anfrage konnte nicht verarbeitet werden.' ? 'Der Start konnte gerade nicht abgeschlossen werden. Bitte versuche es noch einmal.' : error.message);
   }
+});
+$('#revokePrivacy').addEventListener('click', async () => {
+  const confirmed = window.confirm('Möchtest du deine Einwilligung zum Datenschutz wirklich widerrufen? Clara kann dich danach nicht weiter begleiten, bis du erneut einwilligst. Deine bisherigen Inhalte werden nicht gelöscht.');
+  if (!confirmed) return;
+  try {
+    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'revoke_privacy' }) });
+    $('#privacy').checked = false;
+    $('#commitment').checked = false;
+    await loadProgram();
+    showView('onboarding');
+    toast('Deine Einwilligung wurde widerrufen.');
+  } catch (error) { toast(error.message); }
 });
 $('#answerForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const answer = $('#answer').value.trim(); if (!answer) return;
