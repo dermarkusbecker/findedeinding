@@ -81,6 +81,12 @@ test('Bild-CV wird für OCR vorgemerkt und nicht als Text-PDF behandelt', async 
   assert.equal(result.method, null);
 });
 
+test('Dokumentmodul lädt den nativen PDF-Stack nicht beim Portalstart', async () => {
+  assert.equal(globalThis.DOMMatrix, undefined);
+  await extractDocumentText(Buffer.from('fake-image'), 'image/jpeg');
+  assert.equal(globalThis.DOMMatrix, undefined);
+});
+
 test('Week-1-End-to-End: freier Chat, Korrektur, Reload und Gate-Sicherheit', async () => {
   let persistedState = createWeekOneState();
   persistedState.current_step = WEEK_ONE_STEPS.TARGET;
