@@ -53,10 +53,13 @@ export default async function handler(request, response) {
       const commitmentConfirmed = request.body?.commitment === true;
       const signedDocumentUploaded = request.body?.signedDocument === true;
       if (!request.body?.privacy || !commitmentConfirmed || !signedDocumentUploaded) return response.status(400).json({ error: 'Bitte bestätige deine Einwilligung und lade dein unterschriebenes Commitment hoch.' });
-      const now = new Date().toISOString();
-      await patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: now, start_commitment_at: now, current_week: 1, process_status: 'WEEK_1', last_activity_at: now });
       const startGates = result.gates.filter((gate) => Number(gate.week) === 0);
-      await Promise.allSettled(startGates.map((gate) => setGate(result.service, session.participantId, gate.id, true)));
+      const now = new Date().toISOString();
+      await Promise.all([
+        patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: now, start_commitment_at: now, current_week: 1, process_status: 'WEEK_1', last_activity_at: now }),
+        Promise.allSettled(startGates.map((gate) => setGate(result.service, session.participantId, gate.id, true))),
+      ]);
+      return response.status(200).json({ ok: true, started: true, week: 1 });
     } else if (action === 'set_gate') {
       if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const week = Number(request.body?.week);

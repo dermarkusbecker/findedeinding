@@ -15,6 +15,10 @@ const $$ = (selector) => document.querySelectorAll(selector);
 const lockedNonOnboardingViews = ['journey', 'insights', 'documents', 'support'];
 const rawLocal = JSON.parse(localStorage.getItem('fdd_customer_notes') || '{}');
 const local = { ...rawLocal, answers: rawLocal.answers || {}, uploads: rawLocal.uploads || {}, support: rawLocal.support || [], signedCommitment: rawLocal.signedCommitment || null };
+if (local.signedCommitment?.flowVersion !== 2) {
+  local.signedCommitment = null;
+  localStorage.setItem('fdd_customer_notes', JSON.stringify(local));
+}
 let program = null;
 let currentWeek = 1;
 let currentContent = null;
@@ -464,7 +468,7 @@ $('#printCommitment').addEventListener('click', openCommitmentPrintView);
 $('#signedCommitmentUpload').addEventListener('change', (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
-  local.signedCommitment = { name: file.name, type: file.type, size: file.size, uploadedAt: new Date().toISOString() };
+  local.signedCommitment = { name: file.name, type: file.type, size: file.size, uploadedAt: new Date().toISOString(), flowVersion: 2 };
   saveLocal();
   renderCommitmentUploadState();
   refreshOnboardingGateState();
@@ -479,6 +483,7 @@ $('#startProcess').addEventListener('click', async () => {
     await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'start', privacy: $('#privacy').checked, commitment: $('#commitment').checked, signedDocument: signedUploaded }) });
     await loadProgram(1);
     showView('today');
+    toast('Alles erfolgreich erledigt. Ich leite dich jetzt zu Woche 1 weiter.');
   } catch (error) {
     button.textContent = 'Ich bin bereit →';
     refreshOnboardingGateState();
