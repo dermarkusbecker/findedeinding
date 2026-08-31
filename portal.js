@@ -12,6 +12,7 @@ const applySpeechTranscript = (existingValue = '', newText = '') => {
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
+const lockedNonOnboardingViews = ['journey', 'insights', 'documents', 'support'];
 const rawLocal = JSON.parse(localStorage.getItem('fdd_customer_notes') || '{}');
 const local = { ...rawLocal, answers: rawLocal.answers || {}, uploads: rawLocal.uploads || {}, support: rawLocal.support || [], signedCommitment: rawLocal.signedCommitment || null };
 let program = null;
@@ -22,11 +23,19 @@ const speechState = { recognition: null, activeButton: null };
 function saveLocal() { localStorage.setItem('fdd_customer_notes', JSON.stringify(local)); }
 function toast(message) { const el = $('#portalToast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2800); }
 function showView(name) {
-  const isLockedOnboarding = !program?.onboardingComplete && !['today', 'onboarding'].includes(name);
-  const safeName = isLockedOnboarding ? 'onboarding' : name;
+  const isLockedView = !program?.onboardingComplete && lockedNonOnboardingViews.includes(name);
+  const safeName = name;
   const targetPanel = safeName === 'onboarding' ? 'today' : safeName;
   $$('.screen').forEach((panel) => panel.classList.toggle('active', panel.dataset.panel === targetPanel));
-  $$('aside nav button').forEach((button) => button.classList.toggle('active', button.dataset.view === safeName));
+  $$('aside nav button').forEach((button) => {
+    const isThisLockedView = !program?.onboardingComplete && lockedNonOnboardingViews.includes(button.dataset.view);
+    button.classList.toggle('active', button.dataset.view === safeName);
+    button.classList.toggle('locked', isThisLockedView);
+    button.title = isThisLockedView ? 'Bitte zuerst das Onboarding abschließen.' : '';
+  });
+  if (isLockedView) {
+    toast('Bitte zuerst das Onboarding abschließen, um diesen Bereich zu bearbeiten.');
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -161,52 +170,153 @@ function buildStartCommitmentText(name = 'Teilnehmer') {
   `;
 }
 
-function openCommitmentPrintView() {
-  const name = program?.profile?.name || 'Teilnehmer';
-  const printWindow = window.open('', '_blank', 'noopener');
-  if (!printWindow) {
-    toast('Bitte erlaube Pop-ups, um dein Commitment zu drucken.');
-    return;
-  }
-
-  const printHtml = `
-    <!doctype html>
-    <html lang="de">
-      <head>
-        <meta charset="UTF-8" />
-        <title>Mein Start-Commitment</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 32px; color: #1a1b1a; }
-          .sheet { max-width: 760px; margin: 0 auto; border: 1px solid #d7d7d3; border-radius: 16px; padding: 30px 32px; background: #fff; }
-          h1 { font-size: 26px; margin: 0 0 20px; }
-          p { font-size: 14px; line-height: 1.7; margin: 0 0 14px; }
-          .meta { margin: 24px 0; }
-          .sign-row { display: flex; justify-content: space-between; gap: 18px; margin-top: 28px; border-top: 1px solid #d7d7d3; padding-top: 16px; }
-          .sign-row span { font-size: 12px; color: #4d514e; }
-          .sign-row strong { font-size: 14px; }
-          @media print { body { margin: 0; } .sheet { border: none; box-shadow: none; } }
-        </style>
-      </head>
-      <body>
-        <div class="sheet">
-          <h1>Mein Start-Commitment</h1>
-          <div class="meta"><strong>${escapeHtml(name)}</strong></div>
-          <p>Ich nehme den achtwöchigen Prozess ernsthaft in Angriff.</p>
-          <p>Ich bin bereit, meine Antworten ehrlich zu formulieren, meine Widerstände sichtbar zu machen und mich nicht vorschnell aus dem Prozess zu verabschieden.</p>
-          <p>Ich möchte meine Entscheidung nicht nur denken, sondern sie konkret erleben, prüfen und mit Verantwortung weiterentwickeln.</p>
-          <p>Ich bestätige hiermit bewusst mein persönliches Commitment für den Start dieses Prozesses.</p>
-          <div class="sign-row"><span>Ort, Datum</span><strong>____________________________</strong></div>
-          <div class="sign-row"><span>Name</span><strong>${escapeHtml(name)}</strong></div>
-          <div class="sign-row"><span>Unterschrift</span><strong>____________________________</strong></div>
-        </div>
-      </body>
-    </html>
+async function openCommitmentPrintView() {
+  const name = (program?.profile?.name || 'Teilnehmer').trim() || 'Teilnehmer';
+  const pdfCss = `
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f5f2ee;
+      color: #1a1b1a;
+      font-family: Arial, sans-serif;
+    }
+    .pdf-sheet {
+      width: 595px;
+      min-height: 842px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #d7d7d3;
+      border-radius: 16px;
+      padding: 42px 46px;
+      box-shadow: 0 8px 20px rgba(26, 27, 26, 0.06);
+    }
+    h1 {
+      font-size: 29px;
+      margin: 0 0 18px;
+      line-height: 1.2;
+      color: #1a1b1a;
+    }
+    .meta {
+      margin: 24px 0 18px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    p {
+      font-size: 14px;
+      line-height: 1.7;
+      margin: 0 0 14px;
+      color: #1a1b1a;
+    }
+    .sign-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      margin-top: 28px;
+      padding-top: 16px;
+      border-top: 1px solid #d7d7d3;
+      align-items: baseline;
+    }
+    .sign-row span {
+      font-size: 12px;
+      color: #4d514e;
+      display: inline-block;
+    }
+    .sign-row strong {
+      font-size: 14px;
+      font-weight: 700;
+      display: inline-block;
+    }
   `;
 
-  printWindow.document.write(printHtml);
-  printWindow.document.close();
-  printWindow.focus();
-  setTimeout(() => printWindow.print(), 250);
+  const pdfMarkup = `
+    <div class="pdf-sheet">
+      <h1>Mein Start-Commitment</h1>
+      <div class="meta"><strong>${escapeHtml(name)}</strong></div>
+      <p>Ich nehme den achtwöchigen Prozess ernsthaft in Angriff.</p>
+      <p>Ich bin bereit, meine Antworten ehrlich zu formulieren, meine Widerstände sichtbar zu machen und mich nicht vorschnell aus dem Prozess zu verabschieden.</p>
+      <p>Ich möchte meine Entscheidung nicht nur denken, sondern sie konkret erleben, prüfen und mit Verantwortung weiterentwickeln.</p>
+      <p>Ich bestätige hiermit bewusst mein persönliches Commitment für den Start dieses Prozesses.</p>
+      <div class="sign-row"><span>Ort, Datum</span><strong>____________________________</strong></div>
+      <div class="sign-row"><span>Name</span><strong>${escapeHtml(name)}</strong></div>
+      <div class="sign-row"><span>Unterschrift</span><strong>____________________________</strong></div>
+    </div>
+  `;
+
+  const openPdfPreview = (pdfBlob) => {
+    const url = URL.createObjectURL(pdfBlob);
+    const previewWindow = window.open(url, '_blank', 'noopener,noreferrer');
+    if (previewWindow) {
+      previewWindow.focus();
+      toast('PDF-Vorschau geöffnet. Du kannst sie im Browser herunterladen.');
+    } else {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'mein-start-commitment.pdf';
+      link.click();
+      toast('PDF-Vorschau wurde blockiert; die Datei wurde direkt heruntergeladen.');
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+  };
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `<style>${pdfCss}</style>${pdfMarkup}`;
+  wrapper.style.position = 'fixed';
+  wrapper.style.left = '-9999px';
+  wrapper.style.top = '-9999px';
+  wrapper.style.width = '595px';
+  document.body.appendChild(wrapper);
+
+  try {
+    if (!window.jspdf || !window.jspdf.jsPDF || !window.html2canvas) {
+      throw new Error('PDF libraries not available');
+    }
+
+    const { jsPDF } = window.jspdf;
+    const canvas = await window.html2canvas(wrapper, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+    });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 36;
+    const pdfWidth = pageWidth - margin * 2;
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    let y = margin;
+    let heightLeft = pdfHeight;
+
+    pdf.addImage(imgData, 'PNG', margin, y, pdfWidth, pdfHeight, undefined, 'FAST');
+    heightLeft -= pageHeight - margin * 2;
+
+    while (heightLeft > 0) {
+      y = margin - (pageHeight - margin * 2) - heightLeft + 20;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', margin, y, pdfWidth, pdfHeight, undefined, 'FAST');
+      heightLeft -= pageHeight - margin * 2;
+    }
+
+    openPdfPreview(pdf.output('blob'));
+  } catch (error) {
+    const fallbackHtml = `<!doctype html><html lang="de"><head><meta charset="UTF-8"><title>Mein Start-Commitment</title><style>${pdfCss}</style></head><body>${pdfMarkup}</body></html>`;
+    const blob = new Blob([fallbackHtml], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const previewWindow = window.open(url, '_blank', 'noopener,noreferrer');
+    if (previewWindow) {
+      previewWindow.focus();
+      toast('Vorschau geöffnet. Im Browser kannst du sie als PDF speichern.');
+    } else {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'mein-start-commitment.html';
+      link.click();
+      toast('Vorschau wurde blockiert; HTML-Datei wurde heruntergeladen.');
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+  } finally {
+    wrapper.remove();
+  }
 }
 
 function renderOnboardingDocuments() {
@@ -256,6 +366,25 @@ function renderPausedState() {
     document.querySelector('main').prepend(banner);
   }
   banner.classList.toggle('hidden', program?.access.status !== 'paused');
+}
+
+function renderLockedViewNotice() {
+  const activeView = $$('aside nav button.active')[0]?.dataset.view || 'today';
+  const shouldShow = !program?.onboardingComplete && lockedNonOnboardingViews.includes(activeView);
+  const scope = $('.screen.active');
+  if (!scope) return;
+
+  let notice = scope.querySelector('.view-lock-notice');
+  if (!notice && shouldShow) {
+    notice = document.createElement('div');
+    notice.className = 'view-lock-notice';
+    notice.innerHTML = '<strong>Bitte beim Onboarding starten</strong><span>Dein Weg, deine Erkenntnisse und Dokumente bleiben sichtbar, aber du kannst sie erst nach dem Start des Onboardings bearbeiten.</span>';
+    scope.insertBefore(notice, scope.firstChild);
+  }
+
+  if (notice) {
+    notice.classList.toggle('hidden', !shouldShow);
+  }
 }
 
 function render() {
@@ -314,6 +443,7 @@ function render() {
     $('#gateNote').textContent = program.access.accessMode === 'completion_based' ? 'Die nächste Woche öffnet sich nach Abschluss aller Pflichtaufgaben.' : program.access.accessMode === 'time_based' ? 'Weitere Wochen öffnen sich automatisch alle sieben Tage.' : 'Alle Wochen sind freigeschaltet; Pflichtaufgaben dokumentieren deinen Fortschritt.';
   }
   renderJourney(); renderInsights(); renderDocuments();
+  renderLockedViewNotice();
   wireSpeechControls();
 }
 
