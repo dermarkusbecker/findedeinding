@@ -143,7 +143,9 @@ window.wireSpeechControls = wireSpeechControls;
 
 async function request(url, options = {}) {
   const response = await fetch(url, { ...options, headers: options.body ? { 'Content-Type': 'application/json', ...(options.headers || {}) } : options.headers });
-  const data = await response.json().catch(() => ({}));
+  const responseText = await response.text();
+  let data = {};
+  try { data = responseText ? JSON.parse(responseText) : {}; } catch { data = {}; }
   if (!response.ok) { const error = new Error(data.error || 'Die Anfrage konnte nicht verarbeitet werden.'); error.status = response.status; error.data = data; throw error; }
   return data;
 }
@@ -151,6 +153,7 @@ async function request(url, options = {}) {
 function modeLabel(mode) {
   return mode === 'time_based' ? 'Zeitbasierte Freischaltung' : mode === 'full_access' ? 'Alles freigegeben' : 'Abschlussbasierte Freischaltung';
 }
+
 
 function escapeHtml(value = '') {
   return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -160,8 +163,8 @@ function buildStartCommitmentText(name = 'Teilnehmer') {
   return `
     <div class="commitment-title">Mein Start-Commitment</div>
     <p><strong>${escapeHtml(name)}</strong></p>
-    <p>Ich nehme den achtwöchigen Prozess ernsthaft in Angriff.</p>
-    <p>Ich bin bereit, meine Antworten ehrlich zu formulieren, meine Widerstände sichtbar zu machen und mich nicht vorschnell aus dem Prozess zu verabschieden.</p>
+    <p>Ich entscheide mich bewusst, mich auf Finde dein Ding einzulassen.</p>
+    <p>Ich bin bereit, ehrlich hinzuschauen – auch wenn eine Antwort noch unfertig, unbequem oder widersprüchlich ist – und dranzubleiben.</p>
     <p>Ich möchte meine Entscheidung nicht nur denken, sondern sie konkret erleben, prüfen und mit Verantwortung weiterentwickeln.</p>
     <p>Ich bestätige hiermit bewusst mein persönliches Commitment für den Start dieses Prozesses.</p>
     <div class="commitment-signature"><span>Ort, Datum</span><span>__________________</span></div>
@@ -171,75 +174,77 @@ function buildStartCommitmentText(name = 'Teilnehmer') {
 }
 
 async function openCommitmentPrintView() {
-  const name = (program?.profile?.name || 'Teilnehmer').trim() || 'Teilnehmer';
   const pdfCss = `
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: #f5f2ee;
-      color: #1a1b1a;
-      font-family: Arial, sans-serif;
-    }
-    .pdf-sheet {
-      width: 595px;
-      min-height: 842px;
-      margin: 0 auto;
-      background: #ffffff;
-      border: 1px solid #d7d7d3;
-      border-radius: 16px;
-      padding: 42px 46px;
-      box-shadow: 0 8px 20px rgba(26, 27, 26, 0.06);
-    }
-    h1 {
-      font-size: 29px;
-      margin: 0 0 18px;
-      line-height: 1.2;
-      color: #1a1b1a;
-    }
-    .meta {
-      margin: 24px 0 18px;
-      font-size: 15px;
-      font-weight: 700;
-    }
-    p {
-      font-size: 14px;
-      line-height: 1.7;
-      margin: 0 0 14px;
-      color: #1a1b1a;
-    }
-    .sign-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 18px;
-      margin-top: 28px;
-      padding-top: 16px;
-      border-top: 1px solid #d7d7d3;
-      align-items: baseline;
-    }
-    .sign-row span {
-      font-size: 12px;
-      color: #4d514e;
-      display: inline-block;
-    }
-    .sign-row strong {
-      font-size: 14px;
-      font-weight: 700;
-      display: inline-block;
-    }
+    @page { size: A4; margin: 0; }
+    body { margin: 0; background: #eceeed; color: #111; font-family: Georgia, "Times New Roman", serif; }
+    .pdf-sheet { position: relative; width: 595px; height: 842px; margin: 0 auto; padding: 44px 68px 48px; overflow: hidden; background: #fff; page-break-after: always; }
+    .pdf-sheet:last-child { page-break-after: auto; }
+    .brand-title { margin: 0 0 8px; color: #f5a36f; font-size: 27px; line-height: 1; font-weight: 800; letter-spacing: -.02em; }
+    .document-title { margin: 0 0 17px; font-size: 15px; line-height: 1.2; font-weight: 800; text-transform: uppercase; }
+    .intro-box, .signature-box { padding: 11px 10px; background: #f0f2f1; }
+    .intro-box { margin: 0 -10px 21px; }
+    .intro-box strong, .signature-box strong { display: block; margin-bottom: 6px; font-size: 10.5px; }
+    .intro-box p, .signature-box p { margin: 0; font-size: 10.5px; line-height: 1.65; }
+    .meta-row { display: flex; gap: 8px; margin: 0 0 19px; font-size: 10px; }
+    .meta-row strong { min-width: 74px; }
+    .meta-row span { display: inline-block; width: 210px; border-bottom: 1px solid #444; }
+    .write-section { margin-top: 31px; }
+    .write-section h2, .page-two h2 { margin: 0 0 8px; color: #111; font-size: 14px; line-height: 1.25; font-weight: 800; text-transform: uppercase; }
+    .write-section.cost h2, .page-two h2 { color: #314d42; }
+    .write-section p { margin: 0 0 14px; font-size: 10.5px; }
+    .writing-lines { display: grid; gap: 19px; }
+    .writing-lines i { display: block; border-bottom: 1px solid #555; }
+    .footer { position: absolute; bottom: 35px; left: 0; width: 100%; color: #9a9a96; font-size: 7px; text-align: center; }
+    .footer b { margin-left: 8px; color: #111; font-size: 9px; }
+    .page-two { padding: 57px 69px 48px; }
+    .page-two .commitment-list { margin: 0 0 30px; padding: 0 0 0 6px; list-style: none; }
+    .page-two .commitment-list li { position: relative; margin: 0 0 4px; padding-left: 8px; font-size: 10px; line-height: 1.35; }
+    .page-two .commitment-list li::before { content: "•"; position: absolute; left: 0; }
+    .signature-box { margin: 22px -9px 25px; padding: 11px 9px; }
+    .signature-line { display: flex; align-items: flex-end; gap: 5px; margin: 0 0 35px; font-size: 10px; font-weight: 700; }
+    .signature-line i { display: inline-block; width: 164px; border-bottom: 1px solid #333; }
+    .closing-brand { position: absolute; left: 0; right: 0; bottom: 113px; text-align: center; }
+    .closing-brand strong { display: block; color: #f5a36f; font-size: 22px; line-height: 1; }
+    .closing-brand span { display: block; margin-top: 19px; font-family: Arial, sans-serif; font-size: 10px; }
+    @media print { body { background: #fff; } .pdf-sheet { margin: 0; } }
   `;
 
+  const lines = (count) => '<div class="writing-lines">' + '<i></i>'.repeat(count) + '</div>';
   const pdfMarkup = `
-    <div class="pdf-sheet">
-      <h1>Mein Start-Commitment</h1>
-      <div class="meta"><strong>${escapeHtml(name)}</strong></div>
-      <p>Ich nehme den achtwöchigen Prozess ernsthaft in Angriff.</p>
-      <p>Ich bin bereit, meine Antworten ehrlich zu formulieren, meine Widerstände sichtbar zu machen und mich nicht vorschnell aus dem Prozess zu verabschieden.</p>
-      <p>Ich möchte meine Entscheidung nicht nur denken, sondern sie konkret erleben, prüfen und mit Verantwortung weiterentwickeln.</p>
-      <p>Ich bestätige hiermit bewusst mein persönliches Commitment für den Start dieses Prozesses.</p>
-      <div class="sign-row"><span>Ort, Datum</span><strong>____________________________</strong></div>
-      <div class="sign-row"><span>Name</span><strong>${escapeHtml(name)}</strong></div>
-      <div class="sign-row"><span>Unterschrift</span><strong>____________________________</strong></div>
-    </div>
+    <section class="pdf-sheet">
+      <h1 class="brand-title">FINDE DEIN DING</h1>
+      <h2 class="document-title">Mein persönliches Commitment</h2>
+      <div class="intro-box"><strong>Dieser Vertrag ist eine Vereinbarung mit mir selbst.</strong><p>Mit meiner Unterschrift entscheide ich mich bewusst dafür, meinen Weg ernst zu nehmen,<br>ehrlich hinzuschauen und aktiv herauszufinden, was wirklich zu mir passt.</p></div>
+      <div class="meta-row"><strong>Name:</strong><span></span></div>
+      <div class="meta-row"><strong>Startdatum:</strong><span></span></div>
+      <section class="write-section"><h2>Warum ich hier bin</h2><p>Ich starte „Finde dein Ding“, weil …</p>${lines(4)}</section>
+      <section class="write-section"><h2>Was ich für mich verändern möchte</h2><p>Am Ende dieses Prozesses möchte ich …</p>${lines(4)}</section>
+      <section class="write-section cost"><h2>Was es mich kostet, wenn ich weiter keine Klarheit habe</h2><p>Emotional, Beruflich, Lebensqualität, Schlaf etc.</p>${lines(4)}</section>
+      <div class="footer">FINDE DEIN DING&nbsp;&nbsp;•<b>1</b></div>
+    </section>
+    <section class="pdf-sheet page-two">
+      <h2>Mein Commitment an mich selbst</h2>
+      <p style="margin:0 0 8px;font-size:10px">Für die Dauer von „Finde dein Ding“ verpflichte ich mich:</p>
+      <ul class="commitment-list">
+        <li>mir selbst und meinen Antworten gegenüber ehrlich zu sein,</li>
+        <li>mir regelmäßig Zeit für meine persönliche Entwicklung zu nehmen,</li>
+        <li>die vereinbarten Übungen und Aufgaben gewissenhaft umzusetzen,</li>
+        <li>offen und neugierig zu bleiben, auch wenn ich noch nicht sofort eine Antwort finde,</li>
+        <li>meine Gedanken, Wünsche und Zweifel auszusprechen, anstatt sie zurückzuhalten,</li>
+        <li>Verantwortung für meine Entscheidungen und meine nächsten Schritte zu übernehmen,</li>
+        <li>mich nicht mit anderen zu vergleichen, sondern meinen eigenen Weg zu achten,</li>
+        <li>Rückschläge, Widerstände und Unsicherheit als Teil des Prozesses anzunehmen,</li>
+        <li>mir Unterstützung zu holen, wenn ich allein nicht weiterkomme,</li>
+        <li>und die Erkenntnisse aus diesem Prozess durch konkrete Handlungen in mein Leben zu übertragen.</li>
+      </ul>
+      <h2>Meine Vereinbarung mit mir selbst:</h2>
+      <div class="signature-box"><strong>Mit meiner Unterschrift bestätige ich:</strong><p>Ich bin bereit, mein Ding nicht länger nur zu suchen, sondern ihm Schritt für Schritt<br>näherzukommen.</p></div>
+      <div class="signature-line">Ort und Datum:<i></i></div>
+      <div class="signature-line">Unterschrift:<i></i></div>
+      <div class="closing-brand"><strong>FINDE DEIN DING</strong><span>Mein Weg. Meine Entscheidung. Mein Commitment.</span></div>
+      <div class="footer">FINDE DEIN DING&nbsp;&nbsp;•<b>2</b></div>
+    </section>
   `;
 
   const openPdfPreview = (pdfBlob) => {
@@ -247,95 +252,69 @@ async function openCommitmentPrintView() {
     const previewWindow = window.open(url, '_blank', 'noopener,noreferrer');
     if (previewWindow) {
       previewWindow.focus();
-      toast('PDF-Vorschau geöffnet. Du kannst sie im Browser herunterladen.');
+      toast('Dein persönliches Commitment wurde geöffnet.');
     } else {
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'mein-start-commitment.pdf';
+      link.download = 'mein-persoenliches-commitment.pdf';
       link.click();
-      toast('PDF-Vorschau wurde blockiert; die Datei wurde direkt heruntergeladen.');
+      toast('Die Vorschau wurde blockiert; dein PDF wurde heruntergeladen.');
     }
-    setTimeout(() => URL.revokeObjectURL(url), 15000);
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
   };
 
   const wrapper = document.createElement('div');
   wrapper.innerHTML = `<style>${pdfCss}</style>${pdfMarkup}`;
-  wrapper.style.position = 'fixed';
-  wrapper.style.left = '-9999px';
-  wrapper.style.top = '-9999px';
-  wrapper.style.width = '595px';
+  Object.assign(wrapper.style, { position: 'fixed', left: '-9999px', top: '0', width: '595px' });
   document.body.appendChild(wrapper);
 
   try {
-    if (!window.jspdf || !window.jspdf.jsPDF || !window.html2canvas) {
-      throw new Error('PDF libraries not available');
-    }
-
+    if (!window.jspdf?.jsPDF || !window.html2canvas) throw new Error('PDF libraries not available');
     const { jsPDF } = window.jspdf;
-    const canvas = await window.html2canvas(wrapper, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      useCORS: true,
-    });
-    const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 36;
-    const pdfWidth = pageWidth - margin * 2;
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    let y = margin;
-    let heightLeft = pdfHeight;
-
-    pdf.addImage(imgData, 'PNG', margin, y, pdfWidth, pdfHeight, undefined, 'FAST');
-    heightLeft -= pageHeight - margin * 2;
-
-    while (heightLeft > 0) {
-      y = margin - (pageHeight - margin * 2) - heightLeft + 20;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', margin, y, pdfWidth, pdfHeight, undefined, 'FAST');
-      heightLeft -= pageHeight - margin * 2;
+    const sheets = [...wrapper.querySelectorAll('.pdf-sheet')];
+    for (let index = 0; index < sheets.length; index += 1) {
+      const canvas = await window.html2canvas(sheets[index], { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+      if (index > 0) pdf.addPage();
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pageWidth, pageHeight, undefined, 'FAST');
     }
-
     openPdfPreview(pdf.output('blob'));
   } catch (error) {
-    const fallbackHtml = `<!doctype html><html lang="de"><head><meta charset="UTF-8"><title>Mein Start-Commitment</title><style>${pdfCss}</style></head><body>${pdfMarkup}</body></html>`;
-    const blob = new Blob([fallbackHtml], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
+    const printCss = pdfCss + 'body{background:#fff}.pdf-sheet{margin:0 auto}';
+    const fallbackHtml = `<!doctype html><html lang="de"><head><meta charset="UTF-8"><title>Mein persönliches Commitment</title><style>${printCss}</style></head><body>${pdfMarkup}</body></html>`;
+    const url = URL.createObjectURL(new Blob([fallbackHtml], { type: 'text/html;charset=utf-8' }));
     const previewWindow = window.open(url, '_blank', 'noopener,noreferrer');
-    if (previewWindow) {
-      previewWindow.focus();
-      toast('Vorschau geöffnet. Im Browser kannst du sie als PDF speichern.');
-    } else {
+    if (previewWindow) previewWindow.focus();
+    else {
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'mein-start-commitment.html';
+      link.download = 'mein-persoenliches-commitment.html';
       link.click();
-      toast('Vorschau wurde blockiert; HTML-Datei wurde heruntergeladen.');
     }
-    setTimeout(() => URL.revokeObjectURL(url), 15000);
+    toast('Dein Commitment wurde als druckbare Vorschau geöffnet.');
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
   } finally {
     wrapper.remove();
   }
 }
 
-function renderOnboardingDocuments() {
-  const participantName = program?.profile?.name || 'Teilnehmer';
-  const doc = $('#commitmentDocument');
-  if (doc) doc.innerHTML = buildStartCommitmentText(participantName);
-  const signedStatus = $('#signedCommitmentStatus');
-  if (signedStatus) {
-    signedStatus.textContent = local.signedCommitment ? `Hochgeladen: ${local.signedCommitment.name} • ${new Date(local.signedCommitment.uploadedAt).toLocaleString('de-DE')}` : 'Noch kein unterschriebenes Commitment hochgeladen.';
-  }
-  const signedFileInput = $('#signedCommitmentUpload');
-  if (signedFileInput) signedFileInput.value = '';
-}
-
 function refreshOnboardingGateState() {
   const privacyChecked = !!$('#privacy')?.checked;
   const commitmentChecked = !!$('#commitment')?.checked;
-  const signedUploaded = Boolean(local.signedCommitment && local.signedCommitment.name);
+  const signedUploaded = Boolean(local.signedCommitment?.name);
+  $('#commitment').disabled = !signedUploaded;
+  if (!signedUploaded) $('#commitment').checked = false;
   $('#startProcess').disabled = !privacyChecked || !commitmentChecked || !signedUploaded;
+}
+
+function renderCommitmentUploadState() {
+  const status = $('#signedCommitmentStatus');
+  if (!status) return;
+  status.textContent = local.signedCommitment
+    ? `Hochgeladen: ${local.signedCommitment.name} • ${new Date(local.signedCommitment.uploadedAt).toLocaleString('de-DE')}`
+    : 'Noch kein unterschriebenes Commitment hochgeladen.';
 }
 
 function progressPercent() {
@@ -406,10 +385,12 @@ function render() {
   renderPausedState();
 
   if (!started) {
-    renderOnboardingDocuments();
+    renderCommitmentUploadState();
     $('#todayLabel').textContent = paused ? 'Programm pausiert' : 'Dein Start';
     $('#welcomeTitle').innerHTML = 'Willkommen bei <em>Finde dein Ding.</em>';
-    $('#welcomeCopy').textContent = paused ? 'Dein Zugang ist pausiert. Bitte wende dich an Markus.' : 'Bevor Clara mit dir startet, braucht es zwei klare Grundlagen: deine Einwilligung und dein persönliches Commitment.';
+    $('#welcomeCopy').innerHTML = paused
+      ? 'Dein Zugang ist pausiert. Bitte wende dich an Markus.'
+      : 'In den nächsten Wochen geht es um eine zentrale Frage: <strong>Was ist wirklich dein Ding – und wie machst du daraus deinen Weg?</strong><br>Clara begleitet dich dabei Schritt für Schritt. Du musst heute noch keine Antworten haben. Du musst nur bereit sein, ehrlich hinzuschauen.';
     $('#clarityValue').textContent = '—';
     refreshOnboardingGateState();
     $('#startProcess').disabled = paused || $('#startProcess').disabled;
@@ -480,19 +461,29 @@ function renderDocuments() {
 $('#privacy').addEventListener('change', refreshOnboardingGateState);
 $('#commitment').addEventListener('change', refreshOnboardingGateState);
 $('#printCommitment').addEventListener('click', openCommitmentPrintView);
-$('#signedCommitmentUpload').addEventListener('change', async (event) => {
+$('#signedCommitmentUpload').addEventListener('change', (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
   local.signedCommitment = { name: file.name, type: file.type, size: file.size, uploadedAt: new Date().toISOString() };
   saveLocal();
-  renderOnboardingDocuments();
+  renderCommitmentUploadState();
   refreshOnboardingGateState();
-  toast('Unterschriebenes Commitment wurde gespeichert.');
+  toast('Dein unterschriebenes Commitment wurde hochgeladen.');
 });
 $('#startProcess').addEventListener('click', async () => {
-  const signedUploaded = Boolean(local.signedCommitment && local.signedCommitment.name);
-  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'start', privacy: $('#privacy').checked, commitment: $('#commitment').checked && signedUploaded, signedDocument: signedUploaded }) }); await loadProgram(1); toast('Dein achtwöchiger Prozess ist gestartet.'); }
-  catch (error) { toast(error.message); }
+  const signedUploaded = Boolean(local.signedCommitment?.name);
+  const button = $('#startProcess');
+  button.disabled = true;
+  button.textContent = 'Woche 1 wird vorbereitet …';
+  try {
+    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'start', privacy: $('#privacy').checked, commitment: $('#commitment').checked, signedDocument: signedUploaded }) });
+    await loadProgram(1);
+    showView('today');
+  } catch (error) {
+    button.textContent = 'Ich bin bereit →';
+    refreshOnboardingGateState();
+    toast(error.message === 'Die Anfrage konnte nicht verarbeitet werden.' ? 'Der Start konnte gerade nicht abgeschlossen werden. Bitte versuche es noch einmal.' : error.message);
+  }
 });
 $('#answerForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const answer = $('#answer').value.trim(); if (!answer) return;
@@ -502,7 +493,7 @@ $('#answerForm').addEventListener('submit', async (event) => {
 $('#fileInput').addEventListener('change', async (event) => {
   const file = event.target.files[0]; if (!file || !currentContent?.tasks[2]) return;
   local.uploads[currentWeek] = { name: file.name, type: file.type, size: file.size, at: new Date().toISOString() }; saveLocal();
-  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'set_gate', week: currentWeek, gateId: currentContent.tasks[2].id, completed: true }) }); await loadProgram(currentWeek); toast(`${file.name} wurde erfasst und das Gate bestätigt.`); }
+  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'set_gate', week: currentWeek, gateId: currentContent.tasks[2].id, completed: true }) }); await loadProgram(currentWeek); toast(`${file.name} wurde erfasst und der Pflichtschritt bestätigt.`); }
   catch (error) { toast(error.message); }
 });
 $('#reopenCurrentWeek').addEventListener('click', async () => {

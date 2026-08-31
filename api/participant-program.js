@@ -50,12 +50,13 @@ export default async function handler(request, response) {
     const action = request.body?.action;
     if (action === 'start') {
       if (result.access.status !== 'active') return response.status(423).json({ error: 'Dein Programm ist aktuell pausiert.' });
-      const signedDocumentUploaded = Boolean(request.body?.signedDocument || request.body?.commitment);
-      if (!request.body?.privacy || !signedDocumentUploaded) return response.status(400).json({ error: 'Datenschutz und unterschriebenes Commitment müssen beide bestätigt werden.' });
-      const startGates = result.gates.filter((gate) => Number(gate.week) === 0);
-      for (const gate of startGates) await setGate(result.service, session.participantId, gate.id, true);
+      const commitmentConfirmed = request.body?.commitment === true;
+      const signedDocumentUploaded = request.body?.signedDocument === true;
+      if (!request.body?.privacy || !commitmentConfirmed || !signedDocumentUploaded) return response.status(400).json({ error: 'Bitte bestätige deine Einwilligung und lade dein unterschriebenes Commitment hoch.' });
       const now = new Date().toISOString();
       await patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: now, start_commitment_at: now, current_week: 1, process_status: 'WEEK_1', last_activity_at: now });
+      const startGates = result.gates.filter((gate) => Number(gate.week) === 0);
+      await Promise.allSettled(startGates.map((gate) => setGate(result.service, session.participantId, gate.id, true)));
     } else if (action === 'set_gate') {
       if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const week = Number(request.body?.week);
