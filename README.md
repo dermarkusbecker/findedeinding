@@ -16,6 +16,18 @@ Landingpage und CRM-Prototyp mit Vercel Functions und Supabase.
    - `CUSTOMER_PASSWORD`
 4. Neu deployen und `/api/health` prüfen.
 
+## Clara-KI aktivieren
+
+1. Nach dem Basisschema `supabase/clara-ai-migration.sql` im Supabase SQL Editor ausführen.
+2. In Vercel zusätzlich setzen:
+   - `OPENAI_API_KEY`
+   - `CLARA_OPENAI_MODEL=gpt-5.6-terra`
+   - `CLARA_REASONING_EFFORT=low`
+   - `CLARA_MAX_OUTPUT_TOKENS=1800`
+3. Neu deployen. Der Key wird nur in den serverseitigen Functions verwendet.
+
+Clara speichert Originalaussagen append-only in `process_entries`, den Dialog in `clara_messages`, abgeleitete und versionierte Erkenntnisse in `participant_memory` und Uploads getrennt in `participant_documents` sowie im privaten Storage-Bucket `participant-documents`. Modellvorschläge laufen immer durch den Week-1-Reducer; Clara darf keine Gates oder Wochen direkt freischalten.
+
 Der Service-Role-Key bleibt ausschließlich in Vercel. Er darf niemals in Browser-Code oder Git eingecheckt werden.
 
 ## Bereiche

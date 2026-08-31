@@ -1,3 +1,5 @@
+import { stepStatuses, weekOnePrompt } from './lib/week-one.js';
+
 const resolveSpeechRecognition = (windowObject = window) => {
   if (!windowObject) return null;
   return windowObject.SpeechRecognition || windowObject.webkitSpeechRecognition || null;
@@ -22,6 +24,8 @@ if (local.signedCommitment?.flowVersion !== 2) {
 let program = null;
 let currentWeek = 1;
 let currentContent = null;
+let initialViewResolved = false;
+let claraMessages = [];
 const speechState = { recognition: null, activeButton: null };
 
 function saveLocal() { localStorage.setItem('fdd_customer_notes', JSON.stringify(local)); }
@@ -330,9 +334,30 @@ function progressPercent() {
 async function loadProgram(week = null) {
   const suffix = week ? `?week=${week}` : '';
   program = await request(`/api/participant-program${suffix}`);
+  const initialView = !initialViewResolved ? (program.onboardingComplete ? 'today' : 'onboarding') : null;
   currentWeek = program.selectedWeek || week || program.access.unlockedWeeks[0] || 1;
   currentContent = program.week;
+  if (program.onboardingComplete && currentWeek === 1) {
+    try { claraMessages = (await request('/api/clara-message?week=1')).messages || []; }
+    catch { claraMessages = []; }
+  }
+  if (initialView) {
+    initialViewResolved = true;
+    showView(initialView);
+    return;
+  }
   render();
+}
+
+function renderClaraChat() {
+  const chat = $('#claraChat');
+  if (!chat) return;
+  chat.classList.toggle('hidden', currentWeek !== 1 || !program?.onboardingComplete);
+  $('#claraMessages').innerHTML = claraMessages.length
+    ? claraMessages.map((message) => `<article class="clara-message ${message.role}"><span>${message.role === 'assistant' ? 'Clara' : 'Du'}</span><p>${escapeHtml(message.content).replace(/\n/g, '<br>')}</p></article>`).join('')
+    : '<p class="clara-chat-empty">Hier ist Raum für alles, was nicht in ein festes Feld passt.</p>';
+  const list = $('#claraMessages');
+  list.scrollTop = list.scrollHeight;
 }
 
 async function openWeek(week) {
@@ -371,6 +396,127 @@ function renderLockedViewNotice() {
   }
 }
 
+async function updateWeekOne(stepAction) {
+  const flow = $('#weekOneFlow');
+  const errorBox = $('#weekOneError');
+  if (errorBox) errorBox.textContent = '';
+  if (flow) flow.classList.add('is-saving');
+  try {
+    const result = await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'week_1_update', stepAction }) });
+    program.weekOne = result.weekOne;
+    program.weekOneGate = result.gate;
+    currentContent.tasks = result.steps;
+    render();
+    toast('✓ Deine Antwort wurde gespeichert.');
+  } catch (error) {
+    if (errorBox) errorBox.textContent = error.message;
+    else toast(error.message);
+    if (flow) flow.classList.remove('is-saving');
+  }
+}
+
+function weekOneTextarea(id, placeholder = 'Schreib, was dir spontan in den Kopf kommt …') {
+  return `<textarea id="${id}" placeholder="${placeholder}"></textarea>`;
+}
+
+function startThreeWishesSpeech(button) {
+  const Recognition = resolveSpeechRecognition(window);
+  if (!Recognition) { toast('Spracheingabe wird von diesem Browser nicht unterstützt.'); return; }
+  const recognition = new Recognition();
+  recognition.lang = 'de-DE';
+  recognition.interimResults = false;
+  button.disabled = true;
+  button.textContent = '● Ich höre zu …';
+  recognition.onresult = (event) => {
+    const transcript = Array.from(event.results).map((result) => result[0]?.transcript || '').join(' ').trim();
+    const match = transcript.match(/wunsch\s*(?:1|eins)\s*[:.,-]?\s*(.*?)\s+wunsch\s*(?:2|zwei)\s*[:.,-]?\s*(.*?)\s+wunsch\s*(?:3|drei)\s*[:.,-]?\s*(.*)$/i);
+    if (match) [1, 2, 3].forEach((number) => { $(`#wish${number}`).value = match[number].trim(); });
+    else $('#weekOneError').textContent = 'Ich habe daraus noch nicht sicher drei einzelne Wünsche erkannt. Nenne mir bitte Wunsch 1, Wunsch 2 und Wunsch 3 getrennt.';
+  };
+  recognition.onerror = () => { $('#weekOneError').textContent = 'Die Spracheingabe konnte nicht verarbeitet werden. Bitte versuche es erneut oder tippe deine Wünsche ein.'; };
+  recognition.onend = () => { button.disabled = false; button.textContent = '⌁ Spracheingabe'; };
+  recognition.start();
+}
+
+function renderWeekOne() {
+  const state = program.weekOne;
+  if (!state) return;
+  const firstName = (program.profile?.name || '').trim().split(/\s+/)[0];
+  const prompt = weekOnePrompt(state, firstName);
+  let flow = $('#weekOneFlow');
+  if (!flow) {
+    flow = document.createElement('div');
+    flow.id = 'weekOneFlow';
+    $('#answerForm').before(flow);
+  }
+  $('#answerForm').classList.add('hidden');
+  $('#savedAnswer').classList.add('hidden');
+  $('#questionLabel').textContent = prompt.type === 'entry' ? 'Willkommen in Woche 1' : 'Deine nächste Frage';
+  $('#questionText').textContent = prompt.title;
+  const questionParts = [prompt.transition || '', prompt.quote ? `„${prompt.quote}“` : '', prompt.question || '', prompt.help || ''].filter(Boolean);
+  $('#questionHelp').innerHTML = questionParts.map((part, index) => index === 0 ? `<strong>${escapeHtml(part)}</strong>` : escapeHtml(part)).join('<br><br>');
+
+  if (prompt.type === 'entry') {
+    flow.innerHTML = '<button class="primary" data-week-one-action="begin">Mit Woche 1 beginnen →</button><p id="weekOneError" class="week-one-error"></p>';
+  } else if (prompt.type === 'wishes') {
+    flow.innerHTML = `<div class="wish-fields">${[0, 1, 2].map((index) => `<label><strong>Wunsch ${index + 1}</strong>${weekOneTextarea(`wish${index + 1}`, 'Was wünschst du dir?')}<small>Mindestens 6 Wörter</small></label>`).join('')}</div><p class="week-one-example">Statt nur „mehr Freiheit“ beschreib bitte etwas genauer, was du dir wünschst.</p><div class="week-one-actions"><button type="button" class="voice" id="wishSpeech">⌁ Spracheingabe</button><button class="primary" data-week-one-action="save-wishes">Meine drei Wünsche speichern →</button></div><p id="weekOneError" class="week-one-error"></p>`;
+  } else if (prompt.type === 'wish_followup') {
+    flow.innerHTML = `${weekOneTextarea('weekOneAnswer')}<div class="week-one-actions"><button type="button" class="voice" data-target="weekOneAnswer">⌁ Spracheingabe</button><button class="primary" data-week-one-action="wish-followup">Weiter →</button></div><p id="weekOneError" class="week-one-error"></p>`;
+  } else if (prompt.type === 'target' || prompt.type === 'target_clarify') {
+    flow.innerHTML = `${weekOneTextarea('weekOneAnswer')}<div class="week-one-actions"><button type="button" class="voice" data-target="weekOneAnswer">⌁ Spracheingabe</button><button class="primary" data-week-one-action="${prompt.type === 'target' ? 'target' : 'target-clarify'}">Weiter →</button></div><p id="weekOneError" class="week-one-error"></p>`;
+  } else if (prompt.type === 'clarity') {
+    if (state.clarity_baseline.completed) {
+      flow.innerHTML = `<div class="clarity-saved"><strong>${state.clarity_baseline.score} von 10 – gespeichert.</strong><p>Wenn du möchtest: Warum hast du gerade diese Zahl gewählt?</p></div>${weekOneTextarea('clarityReason', 'Optional: Deine Begründung')}<button class="primary" data-week-one-action="clarity-continue">Weiter →</button><p id="weekOneError" class="week-one-error"></p>`;
+    } else {
+      flow.innerHTML = `<div class="clarity-scale" role="group" aria-label="Klarheitswert">${Array.from({ length: 10 }, (_, index) => `<button type="button" data-clarity-score="${index + 1}">${index + 1}</button>`).join('')}</div><p id="weekOneError" class="week-one-error"></p>`;
+    }
+  } else if (prompt.type === 'career_choice') {
+    flow.innerHTML = '<div class="career-choice"><label class="upload-button" for="fileInput">Lebenslauf hochladen</label><button class="secondary" data-week-one-action="career-dialog">Ohne Lebenslauf weitermachen</button></div><p class="week-one-example">Der Lebenslauf ist optional. Dein beruflicher Weg wird in beiden Varianten gemeinsam vervollständigt.</p><p id="weekOneError" class="week-one-error"></p>';
+  } else if (prompt.type === 'career_dialog' || prompt.type === 'career_cv') {
+    flow.innerHTML = `${weekOneTextarea('careerAnswer', prompt.type === 'career_cv' ? 'Erkannte Stationen korrigieren oder fehlende Station ergänzen …' : 'Deine wichtigsten beruflichen Stationen …')}<label class="career-confirm-check"><input type="checkbox" id="careerConfirmed"><span>Die wesentlichen Stationen sind vollständig. Es fehlt keine wichtige berufliche Station.</span></label><div class="week-one-actions"><button type="button" class="voice" data-target="careerAnswer">⌁ Spracheingabe</button><button class="primary" data-week-one-action="career-save">Weiter →</button></div><p id="weekOneError" class="week-one-error"></p>`;
+  } else if (prompt.type === 'career_confirm') {
+    flow.innerHTML = '<div class="career-choice"><button class="primary" data-week-one-action="career-confirm">Ja, vollständig →</button><button class="secondary" data-week-one-action="career-add">Eine Station ergänzen</button></div><p id="weekOneError" class="week-one-error"></p>';
+  } else {
+    flow.innerHTML = '<div class="week-one-review"><span>✓</span><p>Alle vier Schritte deiner Ist-Aufnahme sind abgeschlossen.</p></div><p id="weekOneError" class="week-one-error"></p>';
+  }
+  if ((prompt.type === 'career_dialog' || prompt.type === 'career_cv') && state.career_history.stations?.length) {
+    $('#careerAnswer').value = state.career_history.stations.map((station) => [station.from && station.to ? `${station.from}–${station.to}` : station.from, station.role, station.company, station.description_raw].filter(Boolean).join(' · ')).join('\n');
+  }
+
+  flow.querySelector('[data-week-one-action="begin"]')?.addEventListener('click', () => updateWeekOne({ type: 'begin' }));
+  flow.querySelector('#wishSpeech')?.addEventListener('click', (event) => startThreeWishesSpeech(event.currentTarget));
+  flow.querySelector('[data-week-one-action="save-wishes"]')?.addEventListener('click', () => updateWeekOne({ type: 'save_wishes', wishes: [$('#wish1').value, $('#wish2').value, $('#wish3').value] }));
+  flow.querySelector('[data-week-one-action="wish-followup"]')?.addEventListener('click', () => updateWeekOne({ type: 'save_wish_followup', wishIndex: prompt.wishIndex, answer: $('#weekOneAnswer').value }));
+  flow.querySelector('[data-week-one-action="target"]')?.addEventListener('click', () => updateWeekOne({ type: 'save_target', answer: $('#weekOneAnswer').value }));
+  flow.querySelector('[data-week-one-action="target-clarify"]')?.addEventListener('click', () => updateWeekOne({ type: 'clarify_target', answer: $('#weekOneAnswer').value }));
+  flow.querySelectorAll('[data-clarity-score]').forEach((button) => button.addEventListener('click', () => updateWeekOne({ type: 'save_clarity', score: Number(button.dataset.clarityScore) })));
+  flow.querySelector('[data-week-one-action="clarity-continue"]')?.addEventListener('click', () => updateWeekOne({ type: 'continue_clarity', reason: $('#clarityReason').value }));
+  flow.querySelector('[data-week-one-action="career-dialog"]')?.addEventListener('click', () => updateWeekOne({ type: 'choose_career_dialog' }));
+  flow.querySelector('[data-week-one-action="career-save"]')?.addEventListener('click', () => updateWeekOne({ type: 'save_career_history', answer: $('#careerAnswer').value, confirmed: $('#careerConfirmed').checked }));
+  flow.querySelector('[data-week-one-action="career-confirm"]')?.addEventListener('click', () => updateWeekOne({ type: 'confirm_career', complete: true }));
+  flow.querySelector('[data-week-one-action="career-add"]')?.addEventListener('click', () => updateWeekOne({ type: 'confirm_career', complete: false }));
+
+  const statuses = stepStatuses(state);
+  const statusSymbol = { open: '○', in_progress: '◐', completed: '✓' };
+  const statusLabel = { open: 'offen', in_progress: 'in Bearbeitung', completed: 'abgeschlossen' };
+  $('#taskList').innerHTML = statuses.map((step) => `<div class="task week-one-task ${step.status}"><span class="step-state">${statusSymbol[step.status]}</span><span><b>${escapeHtml(step.title)}</b><small>${escapeHtml(step.subtitle)}</small></span><i>${statusLabel[step.status]}</i></div>`).join('');
+  const done = statuses.filter((step) => step.status === 'completed').length;
+  $('#taskCount').textContent = `${done} / 4`;
+  $('#uploadButton').childNodes[0].textContent = '⇧ Datei auswählen ';
+  $('#uploadButton').classList.add('week-one-upload');
+  let cvNote = $('#weekOneCvNote');
+  if (!cvNote) {
+    cvNote = document.createElement('div');
+    cvNote.id = 'weekOneCvNote';
+    $('#uploadButton').before(cvNote);
+  }
+  cvNote.innerHTML = '<div><strong>Lebenslauf</strong><span>Optional</span></div><p>Wenn du keinen Lebenslauf hast, erfasst Clara deinen bisherigen Weg gemeinsam mit dir.</p>';
+  $('#gateNote').textContent = program.weekOneGate?.complete ? 'Alle Pflichtschritte sind abgeschlossen. Du kannst Woche 1 abschließen.' : `Die nächste Woche öffnet sich nach Abschluss aller Pflichtschritte.${program.weekOneGate?.missingRequirements?.length ? ` Offen: ${program.weekOneGate.missingRequirements.join(', ')}.` : ''}`;
+  $('#completeWeek').disabled = !program.weekOneGate?.complete;
+  $('#completeWeek').textContent = 'Woche abschließen →';
+  renderClaraChat();
+}
+
 function render() {
   if (!program) return;
   const pct = progressPercent();
@@ -380,6 +526,7 @@ function render() {
   const activeView = document.querySelector('aside nav button.active')?.dataset.view || 'onboarding';
   const reviewingOnboarding = activeView === 'onboarding';
   const showOnboarding = !started || reviewingOnboarding;
+  document.querySelector('aside nav button[data-view="today"] span').textContent = 'Heute';
   $('#sideProgress').style.width = `${pct}%`;
   $('#sidePercent').textContent = `${pct} % abgeschlossen`;
   $('#sidePhase').textContent = !showOnboarding && started && content ? `Woche ${currentWeek} · ${content.title}` : 'Onboarding';
@@ -416,28 +563,36 @@ function render() {
     $('#revokePrivacy').classList.add('hidden');
     $('#todayLabel').textContent = `Woche ${currentWeek} · ${content.mode}`;
     $('#welcomeTitle').innerHTML = `${content.title}. <em>Schritt für Schritt.</em>`;
-    $('#welcomeCopy').textContent = `${program.access.completedWeeks.length} von 8 Wochen abgeschlossen · ${modeLabel(program.access.accessMode)}.`;
+    $('#welcomeCopy').textContent = currentWeek === 1 ? 'Wir schauen, wo du heute stehst und was sich für dich verändern soll.' : `${program.access.completedWeeks.length} von 8 Wochen abgeschlossen · ${modeLabel(program.access.accessMode)}.`;
     $('#clarityValue').textContent = local.clarityEnd || local.clarityStart || '—';
     $('#clarityValue').nextElementSibling.textContent = 'Klarheit / 10';
     $('#claraContext').textContent = `Woche ${currentWeek} · ${content.mode}`;
-    $('#questionText').textContent = content.question;
-    $('#questionHelp').textContent = content.help;
-    const answer = local.answers[currentWeek];
-    $('#answer').value = '';
-    $('#savedAnswer').classList.toggle('hidden', !answer);
-    $('#savedAnswer').textContent = answer ? `Zuletzt gespeichert: ${answer}` : '';
-    $('#taskList').innerHTML = content.tasks.map((task) => `<label class="task ${task.completed ? 'completed' : ''}"><input type="checkbox" data-gate="${task.id}" ${task.completed ? 'checked' : ''} ${paused ? 'disabled' : ''}><span><b>${task.label}</b><small>Pflichtaufgabe · serverseitig bestätigt</small></span></label>`).join('');
-    $$('[data-gate]').forEach((input) => input.addEventListener('change', async () => {
-      input.disabled = true;
-      try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'set_gate', week: currentWeek, gateId: input.dataset.gate, completed: input.checked }) }); await loadProgram(currentWeek); }
-      catch (error) { input.checked = !input.checked; input.disabled = false; toast(error.message); }
-    }));
-    const done = content.tasks.filter((task) => task.completed).length;
-    $('#taskCount').textContent = `${done} / ${content.tasks.length}`;
-    $('#uploadButton').childNodes[0].textContent = `⇧ ${content.upload} `;
-    $('#completeWeek').disabled = paused || done < content.tasks.length;
-    $('#completeWeek').textContent = currentWeek === 8 ? 'Digitalen Prozess abschließen →' : 'Woche abschließen →';
-    $('#gateNote').textContent = program.access.accessMode === 'completion_based' ? 'Die nächste Woche öffnet sich nach Abschluss aller Pflichtaufgaben.' : program.access.accessMode === 'time_based' ? 'Weitere Wochen öffnen sich automatisch alle sieben Tage.' : 'Alle Wochen sind freigeschaltet; Pflichtaufgaben dokumentieren deinen Fortschritt.';
+    if (currentWeek === 1) renderWeekOne();
+    else {
+      $('#claraChat')?.classList.add('hidden');
+      $('#weekOneFlow')?.remove();
+      $('#weekOneCvNote')?.remove();
+      $('#answerForm').classList.remove('hidden');
+      $('#uploadButton').classList.remove('week-one-upload');
+      $('#questionText').textContent = content.question;
+      $('#questionHelp').textContent = content.help;
+      const answer = local.answers[currentWeek];
+      $('#answer').value = '';
+      $('#savedAnswer').classList.toggle('hidden', !answer);
+      $('#savedAnswer').textContent = answer ? '✓ Deine Antwort wurde gespeichert.' : '';
+      $('#taskList').innerHTML = content.tasks.map((task) => `<label class="task ${task.completed ? 'completed' : ''}"><input type="checkbox" data-gate="${task.id}" ${task.completed ? 'checked' : ''} ${paused ? 'disabled' : ''}><span><b>${task.label}</b><small>Pflichtaufgabe · serverseitig bestätigt</small></span></label>`).join('');
+      $$('[data-gate]').forEach((input) => input.addEventListener('change', async () => {
+        input.disabled = true;
+        try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'set_gate', week: currentWeek, gateId: input.dataset.gate, completed: input.checked }) }); await loadProgram(currentWeek); }
+        catch (error) { input.checked = !input.checked; input.disabled = false; toast(error.message); }
+      }));
+      const done = content.tasks.filter((task) => task.completed).length;
+      $('#taskCount').textContent = `${done} / ${content.tasks.length}`;
+      $('#uploadButton').childNodes[0].textContent = `⇧ ${content.upload} `;
+      $('#completeWeek').disabled = paused || done < content.tasks.length;
+      $('#completeWeek').textContent = currentWeek === 8 ? 'Digitalen Prozess abschließen →' : 'Woche abschließen →';
+      $('#gateNote').textContent = program.access.accessMode === 'completion_based' ? 'Die nächste Woche öffnet sich nach Abschluss aller Pflichtaufgaben.' : program.access.accessMode === 'time_based' ? 'Weitere Wochen öffnen sich automatisch alle sieben Tage.' : 'Alle Wochen sind freigeschaltet; Pflichtaufgaben dokumentieren deinen Fortschritt.';
+    }
   }
   renderJourney(); renderInsights(); renderDocuments();
   renderLockedViewNotice();
@@ -519,8 +674,62 @@ $('#answerForm').addEventListener('submit', async (event) => {
   try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'save_answer', week: currentWeek, answer }) }); local.answers[currentWeek] = answer; if (currentWeek === 1 && !local.clarityStart) { const score = Number(prompt('Wie klar ist dir heute auf einer Skala von 1 bis 10, was dein Ding ist?')); if (score >= 1 && score <= 10) local.clarityStart = score; } saveLocal(); await loadProgram(currentWeek); toast('Deine Antwort wurde serverseitig gespeichert.'); }
   catch (error) { toast(error.message); }
 });
+$('#claraChatForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const input = $('#claraChatInput');
+  const button = $('#sendClaraMessage');
+  const message = input.value.trim();
+  if (!message || button.disabled) return;
+  const pending = { role: 'participant', content: message, created_at: new Date().toISOString() };
+  claraMessages.push(pending);
+  input.value = '';
+  button.disabled = true;
+  button.textContent = 'Clara denkt …';
+  renderClaraChat();
+  try {
+    const result = await request('/api/clara-message', { method: 'POST', body: JSON.stringify({ week: 1, message, clientMessageId: crypto.randomUUID() }) });
+    claraMessages.push(result.message);
+    program.weekOne = result.weekOne;
+    program.weekOneGate = result.gate;
+    currentContent.tasks = result.steps;
+    render();
+  } catch (error) {
+    claraMessages = claraMessages.filter((item) => item !== pending);
+    input.value = message;
+    renderClaraChat();
+    toast(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Senden →';
+  }
+});
+
+function fileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+    reader.onerror = () => reject(new Error('Die Datei konnte nicht gelesen werden.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 $('#fileInput').addEventListener('change', async (event) => {
-  const file = event.target.files[0]; if (!file || !currentContent?.tasks[2]) return;
+  const file = event.target.files[0];
+  if (!file) return;
+  if (currentWeek === 1) {
+    if (file.size > 10 * 1024 * 1024) { toast('Der Lebenslauf darf höchstens 10 MB groß sein.'); event.target.value = ''; return; }
+    try {
+      toast('Dein Lebenslauf wird sicher gespeichert und gelesen …');
+      const uploaded = await request('/api/participant-document', { method: 'POST', body: JSON.stringify({ week: 1, documentType: 'cv', fileName: file.name, mimeType: file.type, contentBase64: await fileAsBase64(file) }) });
+      local.uploads[1] = { id: uploaded.document.id, name: file.name, type: file.type, size: file.size, at: new Date().toISOString(), status: uploaded.document.status };
+      saveLocal();
+      await updateWeekOne({ type: 'cv_uploaded', fileName: file.name, fileId: uploaded.document.id, stations: uploaded.document.extractedData?.stations || [] });
+      if (uploaded.document.status === 'needs_ocr') toast('Das Dokument ist vermutlich gescannt. Es wurde für die OCR-Verarbeitung vorgemerkt.');
+    } catch (error) { toast(error.message); }
+    event.target.value = '';
+    return;
+  }
+  if (!currentContent?.tasks[2]) return;
   local.uploads[currentWeek] = { name: file.name, type: file.type, size: file.size, at: new Date().toISOString() }; saveLocal();
   try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'set_gate', week: currentWeek, gateId: currentContent.tasks[2].id, completed: true }) }); await loadProgram(currentWeek); toast(`${file.name} wurde erfasst und der Pflichtschritt bestätigt.`); }
   catch (error) { toast(error.message); }

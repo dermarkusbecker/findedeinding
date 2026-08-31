@@ -965,6 +965,63 @@ header > div:last-child {
   line-height: 1.7;
 }
 
+#weekOneFlow { margin-top: 20px; }
+#weekOneFlow.is-saving { opacity: .62; pointer-events: none; }
+#weekOneFlow textarea {
+  width: 100%;
+  min-height: 118px;
+  padding: 14px 15px;
+  border: 1px solid rgba(218,112,52,.24);
+  border-radius: 14px;
+  background: #fffcf9;
+  color: var(--ink);
+  resize: vertical;
+}
+#weekOneFlow textarea:focus { outline: 2px solid rgba(255,143,91,.35); outline-offset: 1px; }
+.wish-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.wish-fields label { display: flex; flex-direction: column; gap: 7px; }
+.wish-fields label > strong { color: var(--ink); font-size: 12px; }
+.wish-fields label > small { color: var(--muted); font-size: 9px; }
+.wish-fields textarea { min-height: 130px !important; }
+.voice.mini { align-self: flex-start; padding: 7px 9px; font-size: 9px; }
+.week-one-example { margin: 14px 0 !important; color: var(--muted) !important; font-size: 10px; }
+.week-one-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
+.week-one-error { min-height: 18px; margin: 10px 0 0 !important; color: #b54828 !important; font-size: 11px; font-weight: 700; }
+.clarity-scale { display: grid; grid-template-columns: repeat(10,1fr); gap: 7px; }
+.clarity-scale button { aspect-ratio: 1; min-width: 0; border: 1px solid #d7e4ec; border-radius: 11px; background: #f4f9fc; color: #245c7e; font-weight: 800; cursor: pointer; }
+.clarity-scale button:hover { border-color: var(--accent); background: var(--accent); color: #fff; box-shadow: 0 8px 18px rgba(226,102,35,.2); }
+.clarity-saved { margin-bottom: 14px; padding: 14px; border-radius: 13px; background: #edf8f2; color: #267454; }
+.clarity-saved p { margin-top: 5px !important; color: #4d7664 !important; font-size: 11px; }
+.career-choice { display: flex; flex-wrap: wrap; gap: 10px; }
+.career-choice > * { min-height: 44px; }
+.career-confirm-check { display: flex; align-items: flex-start; gap: 10px; margin-top: 13px; padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: #fffaf6; color: var(--ink-soft); font-size: 11px; line-height: 1.6; }
+.career-confirm-check input { margin-top: 3px; accent-color: var(--accent-strong); }
+.week-one-review { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 14px; background: #edf8f2; color: #267454; }
+.week-one-review > span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #4ca77c; color: #fff; font-weight: 900; }
+.week-one-review p { color: #315f4b !important; }
+.week-one-task { position: relative; align-items: center; }
+.week-one-task .step-state { display: grid; place-items: center; flex: 0 0 24px; height: 24px; border-radius: 50%; background: #f2eee9; color: var(--muted); font-weight: 900; }
+.week-one-task i { margin-left: auto; color: var(--muted); font-size: 8px; font-style: normal; white-space: nowrap; }
+.week-one-task.in_progress { border-color: rgba(242,118,46,.25); background: #fff8f1; }
+.week-one-task.in_progress .step-state { background: #fff0e4; color: var(--orange-deep); }
+.week-one-task.completed { border-color: rgba(76,167,124,.22); background: #f3faf6; }
+.week-one-task.completed .step-state { background: #4ca77c; color: #fff; }
+#weekOneCvNote { margin: 18px 0 9px; padding-top: 15px; border-top: 1px solid var(--line); }
+#weekOneCvNote > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#weekOneCvNote strong { font-size: 11px; }
+#weekOneCvNote span { padding: 4px 7px; border-radius: 999px; background: #f1eee9; color: var(--muted); font-size: 8px; font-weight: 800; text-transform: uppercase; }
+#weekOneCvNote p { margin: 7px 0 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
+
+@media (max-width: 900px) {
+  .wish-fields { grid-template-columns: 1fr; }
+  .wish-fields textarea { min-height: 100px !important; }
+}
+
+@media (max-width: 560px) {
+  .clarity-scale { grid-template-columns: repeat(5,1fr); }
+  .week-one-actions,.career-choice { align-items: stretch; flex-direction: column; }
+}
+
 #savedAnswer {
   margin-top: 12px;
   color: var(--muted-strong);
@@ -1597,6 +1654,18 @@ header strong { font-size: 14px; }
 .support-grid .dark textarea { background: rgba(255,255,255,.075); color: white; border-color: rgba(255,187,136,.26); }
 #portalToast { background: #153348; color: white; border-color: rgba(255,255,255,.1); box-shadow: 0 16px 40px rgba(12,39,57,.25); }
 
+.clara-chat { margin-top: 30px; padding-top: 24px; border-top: 1px solid rgba(31,72,99,.12); }
+.clara-chat-head { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; margin-bottom: 14px; }
+.clara-chat-head strong { color: var(--ink); font-size: 16px; }
+.clara-chat-head small, .clara-chat-empty { color: var(--muted); }
+.clara-messages { display: grid; gap: 10px; max-height: 390px; overflow-y: auto; padding: 4px 2px 14px; }
+.clara-message { max-width: 88%; padding: 12px 14px; border-radius: 16px; background: rgba(225,239,248,.72); border: 1px solid rgba(63,126,166,.14); }
+.clara-message.participant { justify-self: end; background: #fff0e5; border-color: #ffd5b7; }
+.clara-message span { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.clara-message p { margin: 0; color: var(--ink); line-height: 1.6; }
+#claraChatForm textarea { width: 100%; min-height: 92px; resize: vertical; padding: 14px; border: 1px solid rgba(31,72,99,.18); border-radius: 14px; background: #fffcf9; color: var(--ink); font: inherit; }
+#claraChatForm > div { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; }
+
 @media (max-width: 1100px) {
   .welcome h1 { white-space: normal; }
 }
@@ -1618,4 +1687,6 @@ header strong { font-size: 14px; }
   .task-card { padding: 18px; }
   .keep-together { white-space: normal; }
   .privacy-details { grid-template-columns: 1fr; }
+  .clara-chat-head { display: grid; }
+  .clara-message { max-width: 96%; }
 }
