@@ -338,7 +338,7 @@ async function loadProgram(week = null) {
   currentWeek = program.selectedWeek || week || program.access.unlockedWeeks[0] || 1;
   currentContent = program.week;
   if (program.onboardingComplete && currentWeek === 1) {
-    try { claraMessages = (await request('/api/clara-message?week=1')).messages || []; }
+    try { claraMessages = (await request('/api/participant-program?feature=clara-message&week=1')).messages || []; }
     catch { claraMessages = []; }
   }
   if (initialView) {
@@ -687,7 +687,7 @@ $('#claraChatForm').addEventListener('submit', async (event) => {
   button.textContent = 'Clara denkt …';
   renderClaraChat();
   try {
-    const result = await request('/api/clara-message', { method: 'POST', body: JSON.stringify({ week: 1, message, clientMessageId: crypto.randomUUID() }) });
+    const result = await request('/api/participant-program?feature=clara-message', { method: 'POST', body: JSON.stringify({ week: 1, message, clientMessageId: crypto.randomUUID() }) });
     claraMessages.push(result.message);
     program.weekOne = result.weekOne;
     program.weekOneGate = result.gate;
@@ -720,7 +720,7 @@ $('#fileInput').addEventListener('change', async (event) => {
     if (file.size > 10 * 1024 * 1024) { toast('Der Lebenslauf darf höchstens 10 MB groß sein.'); event.target.value = ''; return; }
     try {
       toast('Dein Lebenslauf wird sicher gespeichert und gelesen …');
-      const uploaded = await request('/api/participant-document', { method: 'POST', body: JSON.stringify({ week: 1, documentType: 'cv', fileName: file.name, mimeType: file.type, contentBase64: await fileAsBase64(file) }) });
+      const uploaded = await request('/api/participant-program?feature=participant-document', { method: 'POST', body: JSON.stringify({ week: 1, documentType: 'cv', fileName: file.name, mimeType: file.type, contentBase64: await fileAsBase64(file) }) });
       local.uploads[1] = { id: uploaded.document.id, name: file.name, type: file.type, size: file.size, at: new Date().toISOString(), status: uploaded.document.status };
       saveLocal();
       await updateWeekOne({ type: 'cv_uploaded', fileName: file.name, fileId: uploaded.document.id, stations: uploaded.document.extractedData?.stations || [] });

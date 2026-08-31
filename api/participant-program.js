@@ -2,6 +2,8 @@ import { requireCurrentPermission } from '../lib/user-auth.js';
 import { getParticipantProgramAccess, patchParticipantProgress, serviceHeaders } from '../lib/program-access-service.js';
 import { isOnboardingComplete, reopenWeekState } from '../lib/program-access.js';
 import { applyWeekOneAction, createWeekOneState, missingWeekOneRequirements, stepStatuses, weekOneComplete } from '../lib/week-one.js';
+import { handleClaraMessage } from '../lib/clara/api-handler.js';
+import { handleParticipantDocument } from '../lib/documents/api-handler.js';
 
 const programWeeks = [
   { week: 1, title: 'Jetzt geht es los', mode: 'Ist-Aufnahme', question: 'Stell dir vor, vor dir steht eine Fee und du hast genau drei Wünsche frei. Welche drei Dinge würdest du dir für dein Leben aktuell am meisten wünschen?', help: 'Nenne zunächst einfach alle drei. Danach vertiefen wir sie einzeln.', upload: 'Lebenslauf optional' },
@@ -60,6 +62,8 @@ async function setGate(service, participantId, gateId, completed) {
 }
 
 export default async function handler(request, response) {
+  if (request.query?.feature === 'clara-message') return handleClaraMessage(request, response);
+  if (request.query?.feature === 'participant-document') return handleParticipantDocument(request, response);
   const session = await requireCurrentPermission('clara_program')(request, response);
   if (!session) return;
   try {

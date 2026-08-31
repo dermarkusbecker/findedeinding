@@ -15,10 +15,12 @@ test('resetParticipantProgressState setzt den Prozess auf Onboarding zurück und
   assert.equal(reset.access_mode, 'completion_based');
 });
 
-test('Onboarding gilt nur dann als abgeschlossen, wenn Status und Woche das auch bestätigen', () => {
-  assert.equal(isOnboardingComplete({ current_week: 0, process_status: 'ONBOARDING', privacy_consent_at: '2026-08-01T00:00:00Z', start_commitment_at: '2026-08-01T00:00:00Z' }), false);
+test('Onboarding richtet sich nach den beiden getrennt protokollierten Start-Gates', () => {
+  assert.equal(isOnboardingComplete({ current_week: 0, process_status: 'ONBOARDING', privacy_consent_at: '2026-08-01T00:00:00Z', start_commitment_at: '2026-08-01T00:00:00Z' }), true);
   assert.equal(isOnboardingComplete({ current_week: 1, process_status: 'WEEK_1', privacy_consent_at: '2026-08-01T00:00:00Z', start_commitment_at: '2026-08-01T00:00:00Z' }), true);
-  assert.equal(isOnboardingComplete({ current_week: 1, process_status: 'ONBOARDING', privacy_consent_at: '2026-08-01T00:00:00Z', start_commitment_at: '2026-08-01T00:00:00Z' }), false);
+  assert.equal(isOnboardingComplete({ current_week: 1, process_status: 'ONBOARDING', privacy_consent_at: '2026-08-01T00:00:00Z', start_commitment_at: '2026-08-01T00:00:00Z' }), true);
+  assert.equal(isOnboardingComplete({ current_week: 1, process_status: 'WEEK_1', privacy_consent_at: '2026-08-01T00:00:00Z' }), false);
+  assert.equal(isOnboardingComplete({ current_week: 1, process_status: 'WEEK_1', start_commitment_at: '2026-08-01T00:00:00Z' }), false);
 });
 
 test('reopenWeekState setzt den Teilnehmer auf die gewählte Woche zurück und erlaubt den Replay', () => {
