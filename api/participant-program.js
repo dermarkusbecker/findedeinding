@@ -55,8 +55,11 @@ export default async function handler(request, response) {
       if (!request.body?.privacy || !commitmentConfirmed || !signedDocumentUploaded) return response.status(400).json({ error: 'Bitte bestätige deine Einwilligung und lade dein unterschriebenes Commitment hoch.' });
       const startGates = result.gates.filter((gate) => Number(gate.week) === 0);
       const now = new Date().toISOString();
+      const berlinDateParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+      const datePart = (type) => berlinDateParts.find((part) => part.type === type)?.value;
+      const programStartDate = `${datePart('year')}-${datePart('month')}-${datePart('day')}`;
       await Promise.all([
-        patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: now, start_commitment_at: now, current_week: 1, process_status: 'WEEK_1', last_activity_at: now }),
+        patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: now, start_commitment_at: now, program_start_date: programStartDate, current_week: 1, process_status: 'WEEK_1', last_activity_at: now }),
         Promise.allSettled(startGates.map((gate) => setGate(result.service, session.participantId, gate.id, true))),
       ]);
       return response.status(200).json({ ok: true, started: true, week: 1 });
