@@ -391,13 +391,13 @@ header > div:last-child {
 .eyebrow {
   display: inline-block;
   margin: 0 0 12px;
-  color: var(--accent);
+  color: #f49a5d;
   font-size: 13px;
   font-weight: 900;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   line-height: 1.4;
-  text-shadow: 0 0 24px rgba(255, 157, 98, 0.28);
+  text-shadow: none;
   opacity: 1;
 }
 
@@ -414,7 +414,7 @@ header > div:last-child {
 .welcome h1 em,
 .section-intro h1 em {
   font-style: normal;
-  color: var(--accent);
+  color: #f49a5d;
   background: none;
   -webkit-background-clip: initial;
   background-clip: initial;
