@@ -1023,6 +1023,9 @@ header > div:last-child {
 #weekOneCvNote.uploaded strong { color: #267454; }
 #weekOneCvNote.uploaded span { background: #d9f4e6; color: #23744f; }
 #weekOneCvNote.uploaded p { color: #4b715f; }
+.cv-task-confirm { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(76,167,124,.18); color: #315f4b; cursor: pointer; }
+.cv-task-confirm input { width: 16px; height: 16px; margin: 0; accent-color: #4ca77c; }
+.cv-task-confirm strong { font-size: 9px !important; }
 
 @media (max-width: 900px) {
   .wish-fields { grid-template-columns: 1fr; }

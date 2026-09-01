@@ -534,11 +534,14 @@ function renderWeekOne() {
     const uploadedAt = state.career_history.cv_uploaded_at || state.updated_at;
     const uploadedLabel = uploadedAt ? new Date(uploadedAt).toLocaleString('de-DE') : 'soeben';
     cvNote.classList.add('uploaded');
-    cvNote.innerHTML = `<div><strong>✓ ${escapeHtml(state.career_history.cv_file_name || 'Lebenslauf')}</strong><span>Hochgeladen</span></div><p>Sicher gespeichert am ${escapeHtml(uploadedLabel)}.${state.career_history.participant_confirmed ? ' Upload bestätigt.' : ' Bitte bestätige den Upload oben bei Clara.'}</p>`;
+    cvNote.innerHTML = `<div><strong>✓ ${escapeHtml(state.career_history.cv_file_name || 'Lebenslauf')}</strong><span>Hochgeladen</span></div><p>Sicher gespeichert am ${escapeHtml(uploadedLabel)}.</p><label class="cv-task-confirm"><input type="checkbox" id="cvUploadConfirmedTask" ${state.career_history.participant_confirmed ? 'checked disabled' : ''}><strong>${state.career_history.participant_confirmed ? 'Upload erfolgreich bestätigt' : 'Ich bestätige den vollständigen Upload.'}</strong></label>`;
   } else {
     cvNote.classList.remove('uploaded');
     cvNote.innerHTML = '<div><strong>Lebenslauf</strong><span>Pflicht</span></div><p>Woche 1 kann erst nach dem Upload und deiner Bestätigung abgeschlossen werden.</p>';
   }
+  cvNote.querySelector('#cvUploadConfirmedTask')?.addEventListener('change', (event) => {
+    if (event.currentTarget.checked) updateWeekOne({ type: 'confirm_cv_upload' });
+  });
   $('#gateNote').textContent = program.weekOneGate?.complete ? 'Alle Pflichtschritte sind abgeschlossen. Du kannst Woche 1 abschließen.' : `Die nächste Woche öffnet sich nach Abschluss aller Pflichtschritte.${program.weekOneGate?.missingRequirements?.length ? ` Offen: ${program.weekOneGate.missingRequirements.join(', ')}.` : ''}`;
   $('#completeWeek').disabled = !program.weekOneGate?.complete;
   $('#completeWeek').textContent = 'Woche abschließen →';
