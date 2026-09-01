@@ -1,9 +1,10 @@
 import { requireCurrentPermission } from '../lib/user-auth.js';
 import { getParticipantProgramAccess, patchParticipantProgress, serviceHeaders } from '../lib/program-access-service.js';
-import { isOnboardingComplete, reopenWeekState } from '../lib/program-access.js';
+import { isOnboardingComplete } from '../lib/program-access.js';
 import { applyWeekOneAction, createWeekOneState, missingWeekOneRequirements, stepStatuses, weekOneComplete } from '../lib/week-one.js';
 import { handleClaraMessage } from '../lib/clara/api-handler.js';
 import { handleParticipantDocument } from '../lib/documents/api-handler.js';
+import { weekResetScope } from '../lib/week-reset.js';
 
 const programWeeks = [
   { week: 1, title: 'Jetzt geht es los', mode: 'Ist-Aufnahme', question: 'Stell dir vor, vor dir steht eine Fee und du hast genau drei Wünsche frei. Welche drei Dinge würdest du dir für dein Leben aktuell am meisten wünschen?', help: 'Nenne zunächst einfach alle drei. Danach vertiefen wir sie einzeln.', upload: 'Lebenslauf optional' },
@@ -59,6 +60,46 @@ async function setGate(service, participantId, gateId, completed) {
   const rows = await response.json();
   if (!response.ok || !rows[0]) throw new Error(rows.message || 'Pflichtaufgabe wurde nicht gefunden.');
   return rows[0];
+}
+
+function missingOptionalRelation(status, data = {}) {
+  return status === 404 || ['PGRST205', '42P01'].includes(data?.code);
+}
+
+async function optionalRows(response, fallback) {
+  const data = await response.json().catch(() => ([]));
+  if (!response.ok && missingOptionalRelation(response.status, data)) return [];
+  if (!response.ok) throw new Error(data.message || fallback);
+  return data;
+}
+
+async function deleteWeekData(service, participantId, week) {
+  const id = encodeURIComponent(participantId);
+  const headers = serviceHeaders(service.key);
+  const documents = await optionalRows(await fetch(`${service.url}/rest/v1/participant_documents?user_profile_id=eq.${id}&week=eq.${week}&select=id,storage_bucket,storage_path`, { headers }), 'Dokumente der Woche konnten nicht geladen werden.');
+  for (const document of documents) {
+    const storageDelete = await fetch(`${service.url}/storage/v1/object/${encodeURIComponent(document.storage_bucket)}/${document.storage_path.split('/').map(encodeURIComponent).join('/')}`, { method: 'DELETE', headers });
+    if (!storageDelete.ok && storageDelete.status !== 404) throw new Error('Ein Upload dieser Woche konnte nicht gelöscht werden.');
+  }
+  const resources = [
+    `participant_memory?user_profile_id=eq.${id}&source_week=eq.${week}`,
+    `clara_messages?user_profile_id=eq.${id}&week=eq.${week}`,
+    `participant_documents?user_profile_id=eq.${id}&week=eq.${week}`,
+    `process_entries?user_profile_id=eq.${id}&week=eq.${week}`,
+  ];
+  for (const resource of resources) {
+    const result = await fetch(`${service.url}/rest/v1/${resource}`, { method: 'DELETE', headers });
+    const data = await result.json().catch(() => ({}));
+    if (!result.ok && !missingOptionalRelation(result.status, data)) throw new Error(data.message || 'Die Inhalte der Woche konnten nicht vollständig gelöscht werden.');
+  }
+  const gateReset = await fetch(`${service.url}/rest/v1/week_gates?user_profile_id=eq.${id}&week=eq.${week}`, { method: 'PATCH', headers, body: JSON.stringify({ completed_at: null, evidence_entry_id: null }) });
+  if (!gateReset.ok) throw new Error('Die Pflichtschritte der Woche konnten nicht zurückgesetzt werden.');
+  const scope = weekResetScope(week);
+  for (const phase of scope.clarityPhases) {
+    const measurement = await fetch(`${service.url}/rest/v1/clarity_measurements?user_profile_id=eq.${id}&phase=eq.${phase}`, { method: 'DELETE', headers });
+    if (!measurement.ok) throw new Error('Die Klarheitsmessung der Woche konnte nicht zurückgesetzt werden.');
+  }
+  return scope;
 }
 
 export default async function handler(request, response) {
@@ -146,8 +187,8 @@ export default async function handler(request, response) {
       const week = Number(request.body?.week);
       if (!Number.isInteger(week) || week < 1 || week > 8) return response.status(400).json({ error: 'Ungültige Woche für den Replay.' });
       if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist derzeit nicht zugänglich.' });
-      const resetState = reopenWeekState(week);
-      await patchParticipantProgress(result.service, session.participantId, { current_week: resetState.current_week, process_status: resetState.process_status, last_activity_at: new Date().toISOString() });
+      const resetState = await deleteWeekData(result.service, session.participantId, week);
+      await patchParticipantProgress(result.service, session.participantId, { current_week: resetState.week, process_status: resetState.processStatus, last_activity_at: new Date().toISOString() });
     } else if (action === 'complete_week') {
       if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const week = Number(request.body?.week);

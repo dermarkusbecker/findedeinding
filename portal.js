@@ -736,12 +736,19 @@ $('#fileInput').addEventListener('change', async (event) => {
 });
 $('#reopenCurrentWeek').addEventListener('click', async () => {
   if (!program?.onboardingComplete || !currentContent) return;
-  const confirmed = window.confirm(`Bist du dir sicher, dass du die Woche ${currentWeek} erneut starten möchtest?\n\nDer bisherige Verlauf bleibt erhalten. Du kannst die Inhalte dieser Woche noch einmal bewusst durchlaufen.`);
+  const confirmed = window.confirm(`Bist du sicher, dass du Woche ${currentWeek} erneut starten möchtest?\n\nDadurch werden alle deine Inhalte aus dieser Woche unwiderruflich gelöscht.`);
   if (!confirmed) return;
   try {
     await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'reopen_week', week: currentWeek }) });
+    delete local.answers[currentWeek];
+    delete local.uploads[currentWeek];
+    if (currentWeek === 1) {
+      delete local.clarityStart;
+      claraMessages = [];
+    }
+    saveLocal();
     await loadProgram(currentWeek);
-    toast(`Woche ${currentWeek} wurde erneut geöffnet.`);
+    toast(`Woche ${currentWeek} wurde zurückgesetzt und neu gestartet.`);
   } catch (error) {
     toast(error.message);
   }
