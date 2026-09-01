@@ -29,7 +29,7 @@ test('drei valide Wünsche erzeugen eine signierte, teilnehmergebundene Confirma
 test('kurze, aber klare Wünsche dürfen bestätigt werden', () => {
   const state = createWeekOneState();
   state.current_step = WEEK_ONE_STEPS.WISHES;
-  const wishes = ['Finanziell frei sein.', 'Viel reisen.', 'Mehr Zeit mit meiner Familie.'];
+  const wishes = ['Ich möchte reich sein.', 'Ich möchte die Welt bereisen.', 'Ich möchte einen Job haben, den ich liebe.'];
   const uiAction = buildJourneyUiAction({ state, response: response(wishes), participantId: 'p1', week: 1 });
   assert.equal(uiAction.type, 'show_confirmation');
   assert.deepEqual(uiAction.confirmation.wishes, wishes);

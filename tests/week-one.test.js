@@ -22,11 +22,12 @@ test('abstrakter Wunsch löst eine passende kurze Rückfrage aus', () => {
 });
 
 test('klare Wünsche werden unabhängig von ihrer Länge akzeptiert', () => {
-  const clearWishes = ['Ich möchte finanziell frei sein.', 'Ich möchte viel reisen.', 'Ich möchte einen Beruf haben, den ich liebe.'];
+  const clearWishes = ['Ich möchte reich sein.', 'Ich möchte die Welt bereisen.', 'Ich möchte einen Job haben, den ich liebe.'];
   assert.equal(clearWishes.every((wish) => validateWishClarity(wish).valid), true);
   const result = applyWeekOneAction(createWeekOneState(), { type: 'save_wishes', wishes: clearWishes });
   assert.equal(result.ok, true);
   assert.equal(result.state.current_step, WEEK_ONE_STEPS.WISH_1);
+  assert.deepEqual(result.state.wishes.map((wish) => wish.raw_wish), clearWishes);
 });
 
 test('nur zwei Wünsche starten keine Vertiefung', () => {
