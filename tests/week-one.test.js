@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyWeekOneAction, createWeekOneState, missingWeekOneRequirements, stepStatuses, validateMinWords, validateWishClarity, weekOneComplete, WEEK_ONE_STEPS } from '../lib/week-one.js';
+import { applyWeekOneAction, createWeekOneState, missingWeekOneRequirements, stepStatuses, validateWishClarity, weekOneComplete, WEEK_ONE_STEPS } from '../lib/week-one.js';
 
 const validWishes = [
   'Ich möchte finanziell endlich viel freier leben.',
@@ -64,10 +64,18 @@ test('Rohwunsch bleibt bei strukturierter Vertiefung unverändert', () => {
   assert.match(result.state.wishes[0].emotional_meaning, /ruhig schlafen/);
 });
 
-test('zu kurzes FDD-Ziel wird abgelehnt', () => {
-  const result = applyWeekOneAction(moveThroughWishes(), { type: 'save_target', answer: 'Ich will Klarheit.' });
-  assert.equal(result.ok, false);
-  assert.equal(result.details.reason, 'TOO_SHORT');
+test('kurzes verständliches FDD-Ziel wird ohne Mindestwortzahl akzeptiert', () => {
+  const result = applyWeekOneAction(moveThroughWishes(), { type: 'save_target', answer: 'Beruf wechseln.' });
+  assert.equal(result.ok, true);
+  assert.equal(result.state.fdd_target.completed, true);
+  assert.equal(result.state.current_step, WEEK_ONE_STEPS.CLARITY);
+});
+
+test('kurzes abstraktes FDD-Ziel wird inhaltlich konkretisiert', () => {
+  const result = applyWeekOneAction(moveThroughWishes(), { type: 'save_target', answer: 'Klarheit.' });
+  assert.equal(result.ok, true);
+  assert.equal(result.state.fdd_target.completed, false);
+  assert.equal(result.state.current_step, WEEK_ONE_STEPS.TARGET_CLARIFY);
 });
 
 test('formal gültiges aber abstraktes Klarheitsziel wird konkretisiert', () => {
@@ -142,10 +150,6 @@ test('Reload kann mit gespeichertem State an der offenen Stelle fortsetzen', () 
   const reloaded = JSON.parse(JSON.stringify(state));
   assert.equal(reloaded.current_step, WEEK_ONE_STEPS.TARGET);
   assert.equal(reloaded.wishes.every((wish) => wish.completed), true);
-});
-
-test('Satzzeichen werden nicht als zusätzliche Wörter gezählt', () => {
-  assert.equal(validateMinWords('Freiheit, Geld!').wordCount, 2);
 });
 
 test('Wünsche werden strikt der Reihe nach vertieft', () => {
