@@ -752,7 +752,7 @@ $('#fileInput').addEventListener('change', async (event) => {
       const uploaded = await request('/api/participant-program?feature=participant-document', { method: 'POST', body: JSON.stringify({ week: 1, documentType: 'cv', fileName: file.name, mimeType: file.type, contentBase64: await fileAsBase64(file) }) });
       local.uploads[1] = { id: uploaded.document.id, name: file.name, type: file.type, size: file.size, at: new Date().toISOString(), status: uploaded.document.status };
       saveLocal();
-      await updateWeekOne({ type: 'cv_uploaded', fileName: file.name, fileId: uploaded.document.id, stations: uploaded.document.extractedData?.stations || [] });
+      await updateWeekOne({ type: 'cv_uploaded', fileName: file.name, fileId: uploaded.document.id, storagePath: uploaded.document.storagePath, stations: uploaded.document.extractedData?.stations || [] });
       if (uploaded.document.status === 'needs_ocr') toast('Das Dokument ist vermutlich gescannt. Es wurde für die OCR-Verarbeitung vorgemerkt.');
       else if (uploaded.document.status === 'failed') toast('Dein Lebenslauf wurde sicher gespeichert. Die automatische Auswertung wird später erneut versucht.');
     } catch (error) { toast(error.message); }

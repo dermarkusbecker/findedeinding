@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ensureDocumentBucket } from '../lib/documents/api-handler.js';
+import { documentRelationMissing, ensureDocumentBucket } from '../lib/documents/api-handler.js';
 
 test('vorhandener privater Dokument-Bucket wird unverändert verwendet', async () => {
   const calls = [];
@@ -36,4 +36,9 @@ test('Supabase-Meldung Bucket not found mit Status 400 legt den Bucket ebenfalls
   });
   assert.equal(calls.length, 3);
   assert.equal(calls[1].options.method, 'POST');
+});
+
+test('fehlende participant_documents-Tabelle wird eindeutig als optionale Migration erkannt', () => {
+  assert.equal(documentRelationMissing({ status: 404 }, { code: 'PGRST205', message: "Could not find the table 'public.participant_documents' in the schema cache" }), true);
+  assert.equal(documentRelationMissing({ status: 500 }, { code: 'OTHER', message: 'Database unavailable' }), false);
 });
