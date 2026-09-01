@@ -1789,8 +1789,8 @@ header strong { font-size: 14px; }
   .gate-card,
   .task-card { width: 100%; padding: 18px; border-radius: 20px; }
   .active-week { width: 100%; gap: 14px; }
-  .active-week .task-card { order: 1; }
-  .active-week .clara-card { order: 2; }
+  .active-week .clara-card { order: 1; }
+  .active-week .task-card { order: 2; }
   .entry-step .clara-card .question-label,
   .entry-step .clara-card #questionText,
   .entry-step .clara-card .question-help { display: none; }

@@ -21,3 +21,10 @@ test('Lebenslauf-Upload nutzt genau eine eigene, zugängliche Dateiauswahl', asy
   assert.match(css, /\.file-input-hidden\s*\{/);
   assert.match(css, /\.custom-file-upload:focus-within/);
 });
+
+test('Clara steht auf Mobile vor der Diese-Woche-Card', async () => {
+  const css = await readFile(stylesUrl, 'utf8');
+  const mobile = css.slice(css.lastIndexOf('@media (max-width: 700px)'));
+  assert.match(mobile, /\.active-week \.clara-card\s*\{\s*order:\s*1;/);
+  assert.match(mobile, /\.active-week \.task-card\s*\{\s*order:\s*2;/);
+});
