@@ -520,15 +520,25 @@ function renderWeekOne() {
   $('#taskList').innerHTML = statuses.map((step) => `<div class="task week-one-task ${step.status}"><span class="step-state">${statusSymbol[step.status]}</span><span><b>${escapeHtml(step.title)}</b><small>${escapeHtml(step.subtitle)}</small></span><i>${statusLabel[step.status]}</i></div>`).join('');
   const done = statuses.filter((step) => step.status === 'completed').length;
   $('#taskCount').textContent = `${done} / 4`;
-  $('#uploadButton').childNodes[0].textContent = '⇧ Datei auswählen ';
-  $('#uploadButton').classList.add('week-one-upload');
+  const uploadButton = $('#uploadButton');
+  uploadButton.childNodes[0].textContent = '⇧ Datei auswählen ';
+  uploadButton.classList.add('week-one-upload');
+  uploadButton.classList.toggle('hidden', Boolean(state.career_history.cv_uploaded));
   let cvNote = $('#weekOneCvNote');
   if (!cvNote) {
     cvNote = document.createElement('div');
     cvNote.id = 'weekOneCvNote';
     $('#uploadButton').before(cvNote);
   }
-  cvNote.innerHTML = '<div><strong>Lebenslauf</strong><span>Pflicht</span></div><p>Woche 1 kann erst nach dem Upload und deiner Bestätigung abgeschlossen werden.</p>';
+  if (state.career_history.cv_uploaded) {
+    const uploadedAt = state.career_history.cv_uploaded_at || state.updated_at;
+    const uploadedLabel = uploadedAt ? new Date(uploadedAt).toLocaleString('de-DE') : 'soeben';
+    cvNote.classList.add('uploaded');
+    cvNote.innerHTML = `<div><strong>✓ ${escapeHtml(state.career_history.cv_file_name || 'Lebenslauf')}</strong><span>Hochgeladen</span></div><p>Sicher gespeichert am ${escapeHtml(uploadedLabel)}.${state.career_history.participant_confirmed ? ' Upload bestätigt.' : ' Bitte bestätige den Upload oben bei Clara.'}</p>`;
+  } else {
+    cvNote.classList.remove('uploaded');
+    cvNote.innerHTML = '<div><strong>Lebenslauf</strong><span>Pflicht</span></div><p>Woche 1 kann erst nach dem Upload und deiner Bestätigung abgeschlossen werden.</p>';
+  }
   $('#gateNote').textContent = program.weekOneGate?.complete ? 'Alle Pflichtschritte sind abgeschlossen. Du kannst Woche 1 abschließen.' : `Die nächste Woche öffnet sich nach Abschluss aller Pflichtschritte.${program.weekOneGate?.missingRequirements?.length ? ` Offen: ${program.weekOneGate.missingRequirements.join(', ')}.` : ''}`;
   $('#completeWeek').disabled = !program.weekOneGate?.complete;
   $('#completeWeek').textContent = 'Woche abschließen →';
@@ -592,6 +602,7 @@ function render() {
       $('#weekOneCvNote')?.remove();
       $('#answerForm').classList.remove('hidden');
       $('#uploadButton').classList.remove('week-one-upload');
+      $('#uploadButton').classList.remove('hidden');
       $('#questionText').textContent = content.question;
       $('#questionHelp').textContent = content.help;
       const answer = local.answers[currentWeek];
