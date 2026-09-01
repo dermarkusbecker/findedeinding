@@ -85,10 +85,23 @@ test('CV-Upload allein schließt den beruflichen Weg nicht ab', () => {
   assert.equal(result.state.current_step, WEEK_ONE_STEPS.CAREER_CV);
 });
 
-test('ohne Lebenslauf startet der dialogische Werdegang', () => {
+test('ohne Lebenslauf kann der berufliche Schritt nicht umgangen werden', () => {
   const result = applyWeekOneAction(createWeekOneState(), { type: 'choose_career_dialog' });
-  assert.equal(result.state.current_step, WEEK_ONE_STEPS.CAREER_DIALOG);
-  assert.equal(result.state.career_history.source, 'dialog');
+  assert.equal(result.ok, false);
+  assert.equal(result.details.reason, 'CV_REQUIRED');
+  assert.equal(result.state.current_step, WEEK_ONE_STEPS.ENTRY);
+});
+
+test('Lebenslauf muss nach erfolgreichem Upload ausdrücklich bestätigt werden', () => {
+  let result = applyWeekOneAction(createWeekOneState(), { type: 'confirm_cv_upload' });
+  assert.equal(result.ok, false);
+  assert.equal(result.details.reason, 'CV_REQUIRED');
+  result = applyWeekOneAction(createWeekOneState(), { type: 'cv_uploaded', fileName: 'lebenslauf.pdf', fileId: 'cv-1' });
+  result = applyWeekOneAction(result.state, { type: 'confirm_cv_upload' });
+  assert.equal(result.ok, true);
+  assert.equal(result.state.career_history.participant_confirmed, true);
+  assert.equal(result.state.career_history.completed, true);
+  assert.equal(result.state.current_step, WEEK_ONE_STEPS.REVIEW);
 });
 
 test('Woche 1 spricht keine vorschnelle Berufsempfehlung aus', () => {
@@ -110,6 +123,7 @@ test('alle fachlichen Schritte und beide Voraussetzungen schließen Woche 1 ab',
   const state = moveThroughWishes();
   state.fdd_target.completed = true;
   state.clarity_baseline = { score: 7, reason_raw: '', completed: true };
+  state.career_history.cv_uploaded = true;
   state.career_history.completed = true;
   assert.equal(weekOneComplete(state, { privacyConsent: true, startCommitment: true }), true);
   assert.equal(weekOneComplete(state, { privacyConsent: true, startCommitment: false }), false);
@@ -155,20 +169,6 @@ test('Klarheitswerte außerhalb von 1 bis 10 werden abgelehnt', () => {
   assert.equal(applyWeekOneAction(createWeekOneState(), { type: 'save_clarity', score: 11 }).ok, false);
 });
 
-test('dialogischer Werdegang bleibt bis zur Bestätigung in Bearbeitung', () => {
-  let result = applyWeekOneAction(createWeekOneState(), { type: 'choose_career_dialog' });
-  result = applyWeekOneAction(result.state, { type: 'save_career_history', answer: 'Ausbildung, Vertrieb und anschließend Projektleitung.', confirmed: false });
-  assert.equal(result.state.career_history.completed, false);
-  assert.equal(result.state.current_step, WEEK_ONE_STEPS.CAREER_CONFIRM);
-});
-
-test('Ergänzung nach CV-Upload wird gespeichert und bestätigt', () => {
-  let result = applyWeekOneAction(createWeekOneState(), { type: 'cv_uploaded', fileName: 'lebenslauf.pdf' });
-  result = applyWeekOneAction(result.state, { type: 'save_career_history', answer: 'Zusätzlich war ich zwei Jahre selbstständig tätig.', confirmed: true });
-  assert.equal(result.state.career_history.stations[0].source, 'cv_upload');
-  assert.equal(result.state.career_history.completed, true);
-});
-
 test('Schrittstatus wird ausschließlich aus dem State berechnet', () => {
   const state = moveThroughWishes();
   const statuses = stepStatuses(state);
@@ -179,7 +179,7 @@ test('Schrittstatus wird ausschließlich aus dem State berechnet', () => {
 test('fehlende Voraussetzungen werden konkret benannt', () => {
   const missing = missingWeekOneRequirements(createWeekOneState(), { privacyConsent: true, startCommitment: true });
   assert.ok(missing.includes('Klarheitswert'));
-  assert.ok(missing.includes('vollständiger beruflicher Weg'));
+  assert.ok(missing.includes('hochgeladener Lebenslauf'));
 });
 
 test('korrigierter Wunsch erfüllt weiterhin die Sechs-Wörter-Regel', () => {

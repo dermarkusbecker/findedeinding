@@ -978,6 +978,13 @@ header > div:last-child {
   resize: vertical;
 }
 #weekOneFlow textarea:focus { outline: 2px solid rgba(255,143,91,.35); outline-offset: 1px; }
+.cv-required-card { display: flex; align-items: center; gap: 14px; padding: 16px; border: 1px solid rgba(65,122,201,.2); border-radius: 16px; background: linear-gradient(135deg,rgba(231,241,255,.9),rgba(246,250,255,.96)); }
+.cv-required-card .cv-required-icon { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 42px; border-radius: 13px; background: #dcecff; color: #2869bd; font-size: 19px; font-weight: 900; }
+.cv-required-card div { display: grid; gap: 3px; margin-right: auto; }
+.cv-required-card small { color: var(--muted-strong); }
+.cv-required-card.uploaded { border-color: rgba(54,145,102,.22); background: linear-gradient(135deg,rgba(232,249,240,.92),rgba(248,253,250,.98)); }
+.cv-required-card.uploaded .cv-required-icon { background: #d9f4e6; color: #27855a; }
+.cv-upload-confirm { margin-top: 14px; }
 .wish-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
 .wish-fields label { display: flex; flex-direction: column; gap: 7px; }
 .wish-fields label > strong { color: var(--ink); font-size: 12px; }

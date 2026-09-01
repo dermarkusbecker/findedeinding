@@ -479,8 +479,10 @@ function renderWeekOne() {
       flow.innerHTML = `<div class="clarity-scale" role="group" aria-label="Klarheitswert">${Array.from({ length: 10 }, (_, index) => `<button type="button" data-clarity-score="${index + 1}">${index + 1}</button>`).join('')}</div><p id="weekOneError" class="week-one-error"></p>`;
     }
   } else if (prompt.type === 'career_choice') {
-    flow.innerHTML = '<div class="career-choice"><label class="upload-button" for="fileInput">Lebenslauf hochladen</label><button class="secondary" data-week-one-action="career-dialog">Ohne Lebenslauf weitermachen</button></div><p class="week-one-example">Der Lebenslauf ist optional. Dein beruflicher Weg wird in beiden Varianten gemeinsam vervollständigt.</p><p id="weekOneError" class="week-one-error"></p>';
-  } else if (prompt.type === 'career_dialog' || prompt.type === 'career_cv') {
+    flow.innerHTML = '<div class="cv-required-card"><span class="cv-required-icon">⇧</span><div><strong>Deinen Lebenslauf hochladen</strong><small>PDF, DOCX, JPG oder PNG</small></div><label class="upload-button" for="fileInput">Datei auswählen</label></div><p id="weekOneError" class="week-one-error"></p>';
+  } else if (prompt.type === 'career_cv') {
+    flow.innerHTML = `<div class="cv-required-card uploaded"><span class="cv-required-icon">✓</span><div><strong>${escapeHtml(state.career_history.cv_file_name || 'Lebenslauf')}</strong><small>Erfolgreich hochgeladen</small></div></div><label class="career-confirm-check cv-upload-confirm"><input type="checkbox" id="cvUploadConfirmed"><span><strong>Mein Lebenslauf ist hochgeladen.</strong></span></label><p id="weekOneError" class="week-one-error"></p>`;
+  } else if (prompt.type === 'career_dialog') {
     flow.innerHTML = `${weekOneTextarea('careerAnswer', prompt.type === 'career_cv' ? 'Erkannte Stationen korrigieren oder fehlende Station ergänzen …' : 'Deine wichtigsten beruflichen Stationen …')}<label class="career-confirm-check"><input type="checkbox" id="careerConfirmed"><span>Die wesentlichen Stationen sind vollständig. Es fehlt keine wichtige berufliche Station.</span></label><div class="week-one-actions"><button type="button" class="voice" data-target="careerAnswer">⌁ Spracheingabe</button><button class="primary" data-week-one-action="career-save">Weiter →</button></div><p id="weekOneError" class="week-one-error"></p>`;
   } else if (prompt.type === 'career_confirm') {
     flow.innerHTML = '<div class="career-choice"><button class="primary" data-week-one-action="career-confirm">Ja, vollständig →</button><button class="secondary" data-week-one-action="career-add">Eine Station ergänzen</button></div><p id="weekOneError" class="week-one-error"></p>';
@@ -499,7 +501,9 @@ function renderWeekOne() {
   flow.querySelector('[data-week-one-action="target-clarify"]')?.addEventListener('click', () => updateWeekOne({ type: 'clarify_target', answer: $('#weekOneAnswer').value }));
   flow.querySelectorAll('[data-clarity-score]').forEach((button) => button.addEventListener('click', () => updateWeekOne({ type: 'save_clarity', score: Number(button.dataset.clarityScore) })));
   flow.querySelector('[data-week-one-action="clarity-continue"]')?.addEventListener('click', () => updateWeekOne({ type: 'continue_clarity', reason: $('#clarityReason').value }));
-  flow.querySelector('[data-week-one-action="career-dialog"]')?.addEventListener('click', () => updateWeekOne({ type: 'choose_career_dialog' }));
+  flow.querySelector('#cvUploadConfirmed')?.addEventListener('change', (event) => {
+    if (event.currentTarget.checked) updateWeekOne({ type: 'confirm_cv_upload' });
+  });
   flow.querySelector('[data-week-one-action="career-save"]')?.addEventListener('click', () => updateWeekOne({ type: 'save_career_history', answer: $('#careerAnswer').value, confirmed: $('#careerConfirmed').checked }));
   flow.querySelector('[data-week-one-action="career-confirm"]')?.addEventListener('click', () => updateWeekOne({ type: 'confirm_career', complete: true }));
   flow.querySelector('[data-week-one-action="career-add"]')?.addEventListener('click', () => updateWeekOne({ type: 'confirm_career', complete: false }));
@@ -518,7 +522,7 @@ function renderWeekOne() {
     cvNote.id = 'weekOneCvNote';
     $('#uploadButton').before(cvNote);
   }
-  cvNote.innerHTML = '<div><strong>Lebenslauf</strong><span>Optional</span></div><p>Wenn du keinen Lebenslauf hast, erfasst Clara deinen bisherigen Weg gemeinsam mit dir.</p>';
+  cvNote.innerHTML = '<div><strong>Lebenslauf</strong><span>Pflicht</span></div><p>Woche 1 kann erst nach dem Upload und deiner Bestätigung abgeschlossen werden.</p>';
   $('#gateNote').textContent = program.weekOneGate?.complete ? 'Alle Pflichtschritte sind abgeschlossen. Du kannst Woche 1 abschließen.' : `Die nächste Woche öffnet sich nach Abschluss aller Pflichtschritte.${program.weekOneGate?.missingRequirements?.length ? ` Offen: ${program.weekOneGate.missingRequirements.join(', ')}.` : ''}`;
   $('#completeWeek').disabled = !program.weekOneGate?.complete;
   $('#completeWeek').textContent = 'Woche abschließen →';
