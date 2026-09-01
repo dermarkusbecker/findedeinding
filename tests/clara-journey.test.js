@@ -10,7 +10,7 @@ const response = (wishes) => ({ action: 'show_confirmation', step_status: 'await
 test('ungültige Modell-Confirmation wird zu ask_followup herabgestuft', () => {
   const state = createWeekOneState();
   state.current_step = WEEK_ONE_STEPS.WISHES;
-  const uiAction = buildJourneyUiAction({ state, response: response(['Mehr Ruhe', 'Guter Job', 'Mehr Zeit']), participantId: 'p1', week: 1 });
+  const uiAction = buildJourneyUiAction({ state, response: response(['Mehr.', 'Freiheit.', 'Glücklich sein.']), participantId: 'p1', week: 1 });
   assert.equal(uiAction.type, 'ask_followup');
   assert.equal(uiAction.confirmation, null);
 });
@@ -24,6 +24,15 @@ test('drei valide Wünsche erzeugen eine signierte, teilnehmergebundene Confirma
   assert.equal(uiAction.type, 'show_confirmation');
   assert.deepEqual(verified.wishes, wishes);
   assert.equal(verifyConfirmationToken(uiAction.confirmation.token, { participantId: 'p2', secret: process.env.AUTH_SECRET }), null);
+});
+
+test('kurze, aber klare Wünsche dürfen bestätigt werden', () => {
+  const state = createWeekOneState();
+  state.current_step = WEEK_ONE_STEPS.WISHES;
+  const wishes = ['Finanziell frei sein.', 'Viel reisen.', 'Mehr Zeit mit meiner Familie.'];
+  const uiAction = buildJourneyUiAction({ state, response: response(wishes), participantId: 'p1', week: 1 });
+  assert.equal(uiAction.type, 'show_confirmation');
+  assert.deepEqual(uiAction.confirmation.wishes, wishes);
 });
 
 test('erst die explizite Confirmation schreibt in den Week-1-Reducer', () => {

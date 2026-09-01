@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyWeekOneAction, createWeekOneState, missingWeekOneRequirements, stepStatuses, validateMinWords, weekOneComplete, WEEK_ONE_STEPS } from '../lib/week-one.js';
+import { applyWeekOneAction, createWeekOneState, missingWeekOneRequirements, stepStatuses, validateMinWords, validateWishClarity, weekOneComplete, WEEK_ONE_STEPS } from '../lib/week-one.js';
 
 const validWishes = [
   'Ich möchte finanziell endlich viel freier leben.',
@@ -14,12 +14,19 @@ function moveThroughWishes(state = createWeekOneState()) {
   return result.state;
 }
 
-test('Wunsch mit einem Wort wird freundlich abgelehnt', () => {
-  assert.deepEqual(validateMinWords('Geld').reason, 'TOO_SHORT');
+test('abstrakter Wunsch löst eine passende kurze Rückfrage aus', () => {
+  assert.equal(validateWishClarity('Mehr.').valid, false);
+  assert.equal(validateWishClarity('Mehr.').followup, 'Mehr wovon genau?');
+  assert.match(validateWishClarity('Freiheit.').followup, /Freiheit/);
+  assert.match(validateWishClarity('Glücklich sein.').followup, /glücklicher/);
 });
 
-test('Wunsch mit mindestens sechs Wörtern wird formal akzeptiert', () => {
-  assert.equal(validateMinWords(validWishes[0]).valid, true);
+test('klare Wünsche werden unabhängig von ihrer Länge akzeptiert', () => {
+  const clearWishes = ['Ich möchte finanziell frei sein.', 'Ich möchte viel reisen.', 'Ich möchte einen Beruf haben, den ich liebe.'];
+  assert.equal(clearWishes.every((wish) => validateWishClarity(wish).valid), true);
+  const result = applyWeekOneAction(createWeekOneState(), { type: 'save_wishes', wishes: clearWishes });
+  assert.equal(result.ok, true);
+  assert.equal(result.state.current_step, WEEK_ONE_STEPS.WISH_1);
 });
 
 test('nur zwei Wünsche starten keine Vertiefung', () => {
@@ -182,10 +189,10 @@ test('fehlende Voraussetzungen werden konkret benannt', () => {
   assert.ok(missing.includes('hochgeladener Lebenslauf'));
 });
 
-test('korrigierter Wunsch erfüllt weiterhin die Sechs-Wörter-Regel', () => {
+test('korrigierter Wunsch braucht Klarheit, aber keine Mindestwortzahl', () => {
   const state = moveThroughWishes();
   assert.equal(applyWeekOneAction(state, { type: 'correct_wish', wishIndex: 1, wish: 'Mehr Freiheit' }).ok, false);
-  const result = applyWeekOneAction(state, { type: 'correct_wish', wishIndex: 1, wish: 'Ich wünsche mir deutlich mehr Freiheit in meinem Berufsalltag.' });
+  const result = applyWeekOneAction(state, { type: 'correct_wish', wishIndex: 1, wish: 'Finanziell frei sein.' });
   assert.equal(result.ok, true);
   assert.equal(result.state.current_step, WEEK_ONE_STEPS.WISH_2);
   assert.equal(result.state.wishes[1].completed, false);
