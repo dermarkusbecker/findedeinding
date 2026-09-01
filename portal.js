@@ -737,6 +737,7 @@ $('#fileInput').addEventListener('change', async (event) => {
       saveLocal();
       await updateWeekOne({ type: 'cv_uploaded', fileName: file.name, fileId: uploaded.document.id, stations: uploaded.document.extractedData?.stations || [] });
       if (uploaded.document.status === 'needs_ocr') toast('Das Dokument ist vermutlich gescannt. Es wurde für die OCR-Verarbeitung vorgemerkt.');
+      else if (uploaded.document.status === 'failed') toast('Dein Lebenslauf wurde sicher gespeichert. Die automatische Auswertung wird später erneut versucht.');
     } catch (error) { toast(error.message); }
     event.target.value = '';
     return;
