@@ -490,6 +490,7 @@ function renderWeekOne() {
   if (!state) return;
   const firstName = (program.profile?.name || '').trim().split(/\s+/)[0];
   const prompt = weekOnePrompt(state, firstName);
+  $('#activeWeek').classList.toggle('entry-step', prompt.type === 'entry');
   let flow = $('#weekOneFlow');
   if (!flow) {
     flow = document.createElement('div');
@@ -519,7 +520,7 @@ function renderWeekOne() {
       flow.innerHTML = `<div class="clarity-scale" role="group" aria-label="Klarheitswert">${Array.from({ length: 10 }, (_, index) => `<button type="button" data-clarity-score="${index + 1}">${index + 1}</button>`).join('')}</div><p id="weekOneError" class="week-one-error"></p>`;
     }
   } else if (prompt.type === 'career_choice') {
-    flow.innerHTML = '<div class="cv-required-card"><span class="cv-required-icon">⇧</span><div><strong>Deinen Lebenslauf hochladen</strong><small>PDF, DOCX, JPG oder PNG</small></div><label class="upload-button" for="fileInput">Datei auswählen</label></div><p id="weekOneError" class="week-one-error"></p>';
+    flow.innerHTML = '<div class="cv-required-card"><span class="cv-required-icon">⇧</span><div><strong>Deinen Lebenslauf hochladen</strong><small>Nutze dafür den Upload im Bereich „Deine Schritte“.</small></div></div><p id="weekOneError" class="week-one-error"></p>';
   } else if (prompt.type === 'career_cv') {
     const uploadedAt = state.career_history.cv_uploaded_at || state.updated_at;
     const uploadedLabel = uploadedAt ? new Date(uploadedAt).toLocaleString('de-DE') : 'soeben';
@@ -561,9 +562,9 @@ function renderWeekOne() {
   const done = statuses.filter((step) => step.status === 'completed').length;
   $('#taskCount').textContent = `${done} / ${statuses.length}`;
   const uploadButton = $('#uploadButton');
-  uploadButton.childNodes[0].textContent = '⇧ Datei auswählen ';
+  $('#uploadButtonLabel').textContent = state.career_history.cv_uploaded ? 'Datei ändern' : '↑ Datei auswählen';
   uploadButton.classList.add('week-one-upload');
-  uploadButton.classList.toggle('hidden', Boolean(state.career_history.cv_uploaded));
+  uploadButton.classList.toggle('is-change', Boolean(state.career_history.cv_uploaded));
   let cvNote = $('#weekOneCvNote');
   if (!cvNote) {
     cvNote = document.createElement('div');
@@ -577,7 +578,7 @@ function renderWeekOne() {
     cvNote.innerHTML = `<div><strong>✓ ${escapeHtml(state.career_history.cv_file_name || 'Lebenslauf')}</strong><span>Hochgeladen</span></div><p>Sicher gespeichert am ${escapeHtml(uploadedLabel)}.</p><label class="cv-task-confirm"><input type="checkbox" id="cvUploadConfirmedTask" ${state.career_history.participant_confirmed ? 'checked disabled' : ''}><strong>${state.career_history.participant_confirmed ? 'Upload erfolgreich bestätigt' : 'Ich bestätige den vollständigen Upload.'}</strong></label>`;
   } else {
     cvNote.classList.remove('uploaded');
-    cvNote.innerHTML = '<div><strong>Lebenslauf</strong><span>Pflicht</span></div><p>Woche 1 kann erst nach dem Upload und deiner Bestätigung abgeschlossen werden.</p>';
+    cvNote.innerHTML = '<div><strong>Lebenslauf</strong><span>Pflicht</span></div><p>Lade deinen aktuellen Lebenslauf hoch.</p><small>PDF, DOCX, JPG oder PNG · maximal 10 MB</small>';
   }
   cvNote.querySelector('#cvUploadConfirmedTask')?.addEventListener('change', (event) => {
     if (event.currentTarget.checked) updateWeekOne({ type: 'confirm_cv_upload' });
@@ -611,6 +612,7 @@ function render() {
   renderPausedState();
 
   if (showOnboarding) {
+    $('#mobileWeekGreeting').classList.add('hidden');
     renderCommitmentUploadState(started);
     $('#todayLabel').textContent = started ? 'Onboarding abgeschlossen' : paused ? 'Programm pausiert' : 'Dein Start';
     $('#welcomeTitle').innerHTML = 'Willkommen bei <em>Finde dein Ding.</em>';
@@ -638,6 +640,9 @@ function render() {
     $('#clarityValue').textContent = local.clarityEnd || local.clarityStart || '—';
     $('#clarityValue').nextElementSibling.textContent = 'Klarheit / 10';
     $('#claraContext').textContent = `Woche ${currentWeek} · ${content.mode}`;
+    $('#mobileWeekGreeting').classList.remove('hidden');
+    $('#mobileGreetingTitle').textContent = `Hallo ${name.trim().split(/\s+/)[0] || 'du'}, jetzt geht’s richtig los.`;
+    $('#mobileGreetingCopy').textContent = `Clara begleitet dich jetzt Schritt für Schritt durch deine ${currentWeek === 1 ? 'erste Woche' : `Woche ${currentWeek}`}.`;
     if (currentWeek === 1) renderWeekOne();
     else {
       $('#claraJourney')?.classList.add('hidden');
@@ -645,7 +650,7 @@ function render() {
       $('#weekOneCvNote')?.remove();
       $('#answerForm').classList.remove('hidden');
       $('#uploadButton').classList.remove('week-one-upload');
-      $('#uploadButton').classList.remove('hidden');
+      $('#uploadButton').classList.remove('is-change');
       $('#questionText').textContent = content.question;
       $('#questionHelp').textContent = content.help;
       const answer = local.answers[currentWeek];
@@ -660,7 +665,7 @@ function render() {
       }));
       const done = content.tasks.filter((task) => task.completed).length;
       $('#taskCount').textContent = `${done} / ${content.tasks.length}`;
-      $('#uploadButton').childNodes[0].textContent = `⇧ ${content.upload} `;
+      $('#uploadButtonLabel').textContent = `↑ ${content.upload}`;
       $('#completeWeek').disabled = paused || done < content.tasks.length;
       $('#completeWeek').textContent = currentWeek === 8 ? 'Digitalen Prozess abschließen →' : 'Woche abschließen →';
       $('#gateNote').textContent = program.access.accessMode === 'completion_based' ? 'Die nächste Woche öffnet sich nach Abschluss aller Pflichtaufgaben.' : program.access.accessMode === 'time_based' ? 'Weitere Wochen öffnen sich automatisch alle sieben Tage.' : 'Alle Wochen sind freigeschaltet; Pflichtaufgaben dokumentieren deinen Fortschritt.';
