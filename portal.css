@@ -1678,6 +1678,12 @@ header strong { font-size: 14px; }
 .clara-message.participant { justify-self: end; background: #fff0e5; border-color: #ffd5b7; }
 .clara-message span { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .clara-message p { margin: 0; color: var(--ink); line-height: 1.6; }
+.clara-message.loading p { display: flex; align-items: center; gap: 5px; }
+.clara-message.loading p i { width: 6px; height: 6px; border-radius: 50%; background: #6f9bb6; animation: claraPulse 1.15s infinite ease-in-out; }
+.clara-message.loading p i:nth-child(2) { animation-delay: .14s; }
+.clara-message.loading p i:nth-child(3) { animation-delay: .28s; }
+.clara-message.loading p em { margin-left: 5px; color: var(--muted); font-size: 11px; font-style: normal; }
+@keyframes claraPulse { 0%,80%,100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
 #claraChatForm textarea { width: 100%; min-height: 92px; resize: vertical; padding: 14px; border: 1px solid rgba(31,72,99,.18); border-radius: 14px; background: #fffcf9; color: var(--ink); font: inherit; }
 #claraChatForm > div { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; }
 

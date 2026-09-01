@@ -63,15 +63,16 @@ test('nur belegte Extraktionen und plausible Memory-Updates passieren die Grenze
   assert.equal(validatedMemoryUpdates([{ operation: 'add', memory_type: 'diagnosis', topic: 'x', value: 'y', reason: '', confidence: .9 }]).length, 0);
 });
 
-test('Responses API wird zentral mit GPT-5.6 Terra, store=false und strengem Schema aufgerufen', async () => {
+test('Responses API nutzt SDK, GPT-5.6 Terra, vorherige Response und strenges Schema', async () => {
   let requestBody;
   const structured = { schema_version: '1.0', message: 'Ich höre dir zu.', intent: { type: 'free_reflection', target: null, confidence: .8 }, extracted_information: [], memory_updates: [], suggested_state_updates: [{ action: 'none', payload: payload() }], next_action: { type: 'stay', step: null }, needs_followup: true };
-  const fetchImpl = async (_url, options) => { requestBody = JSON.parse(options.body); return { ok: true, json: async () => ({ id: 'resp_1', model: 'gpt-5.6-terra', output_text: JSON.stringify(structured), usage: { total_tokens: 42 } }) }; };
+  const client = { responses: { create: async (body) => { requestBody = body; return { id: 'resp_1', model: 'gpt-5.6-terra', output_text: JSON.stringify(structured), usage: { total_tokens: 42 } }; } } };
   const context = buildClaraContext({ participantId: 'p1', participantName: 'Mara', week: 1, state: createWeekOneState() });
-  const result = await requestClaraResponse({ context, message: 'Ich denke gerade nach.', fetchImpl, env: { OPENAI_API_KEY: 'test' } });
+  const result = await requestClaraResponse({ context, message: 'Ich denke gerade nach.', previousResponseId: 'resp_previous', client, env: { OPENAI_API_KEY: 'test' } });
   assert.equal(result.response.message, 'Ich höre dir zu.');
   assert.equal(requestBody.model, 'gpt-5.6-terra');
-  assert.equal(requestBody.store, false);
+  assert.equal(requestBody.store, true);
+  assert.equal(requestBody.previous_response_id, 'resp_previous');
   assert.equal(requestBody.text.format.strict, true);
 });
 

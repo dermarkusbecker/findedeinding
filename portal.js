@@ -26,6 +26,7 @@ let currentWeek = 1;
 let currentContent = null;
 let initialViewResolved = false;
 let claraMessages = [];
+let claraChatLoading = false;
 const speechState = { recognition: null, activeButton: null };
 
 function saveLocal() { localStorage.setItem('fdd_customer_notes', JSON.stringify(local)); }
@@ -353,9 +354,10 @@ function renderClaraChat() {
   const chat = $('#claraChat');
   if (!chat) return;
   chat.classList.toggle('hidden', currentWeek !== 1 || !program?.onboardingComplete);
-  $('#claraMessages').innerHTML = claraMessages.length
+  const messageHtml = claraMessages.length
     ? claraMessages.map((message) => `<article class="clara-message ${message.role}"><span>${message.role === 'assistant' ? 'Clara' : 'Du'}</span><p>${escapeHtml(message.content).replace(/\n/g, '<br>')}</p></article>`).join('')
     : '<p class="clara-chat-empty">Hier ist Raum für alles, was nicht in ein festes Feld passt.</p>';
+  $('#claraMessages').innerHTML = `${messageHtml}${claraChatLoading ? '<article class="clara-message assistant loading" aria-live="polite"><span>Clara</span><p><i></i><i></i><i></i><em>Clara denkt nach …</em></p></article>' : ''}`;
   const list = $('#claraMessages');
   list.scrollTop = list.scrollHeight;
 }
@@ -715,6 +717,7 @@ $('#claraChatForm').addEventListener('submit', async (event) => {
   const pending = { role: 'participant', content: message, created_at: new Date().toISOString() };
   claraMessages.push(pending);
   input.value = '';
+  claraChatLoading = true;
   button.disabled = true;
   button.textContent = 'Clara denkt …';
   renderClaraChat();
@@ -731,9 +734,17 @@ $('#claraChatForm').addEventListener('submit', async (event) => {
     renderClaraChat();
     toast(error.message);
   } finally {
+    claraChatLoading = false;
     button.disabled = false;
     button.textContent = 'Senden →';
+    renderClaraChat();
   }
+});
+
+$('#claraChatInput').addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  if (!$('#sendClaraMessage').disabled) $('#claraChatForm').requestSubmit();
 });
 
 function fileAsBase64(file) {
