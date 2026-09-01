@@ -1,0 +1,113 @@
+/* Ruhige, geführte Wochenansicht. Die bestehenden IDs bleiben für die Journey-Logik erhalten. */
+#activeWeek {
+  grid-template-columns: minmax(250px, .66fr) minmax(0, 1.34fr);
+  gap: 24px;
+}
+
+#activeWeek .task-card {
+  padding: 24px;
+  border: 0;
+  background: rgba(255, 252, 249, .82);
+  box-shadow: 0 16px 44px rgba(60, 45, 34, .07);
+}
+
+#activeWeek .clara-card {
+  padding: 28px;
+  border: 0;
+  border-top: 3px solid rgba(242, 118, 46, .62);
+  background: rgba(255, 253, 251, .94);
+  box-shadow: 0 20px 52px rgba(60, 45, 34, .09);
+}
+
+#activeWeek .clara-head {
+  padding-bottom: 18px;
+  border-bottom-color: rgba(120, 88, 63, .08);
+}
+
+#activeWeek .question-label { display: none; }
+#activeWeek #questionText { margin-top: 28px; }
+#activeWeek .question-help { max-width: 650px; margin-top: 10px; font-size: 14px; line-height: 1.65; }
+#activeWeek #weekOneFlow { margin-top: 26px; }
+
+#activeWeek #taskList { gap: 2px; }
+#activeWeek .week-one-task {
+  align-items: center;
+  gap: 11px;
+  min-height: 50px;
+  padding: 10px 4px;
+  border: 0;
+  border-bottom: 1px solid rgba(120, 88, 63, .07);
+  border-radius: 0;
+  background: transparent;
+}
+#activeWeek .week-one-task:last-child { border-bottom: 0; }
+#activeWeek .week-one-task .step-state {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  border: 1px solid #d9d1ca;
+  border-radius: 50%;
+  color: #aaa098;
+  font-size: 12px;
+  font-weight: 850;
+}
+#activeWeek .week-one-task > span:nth-child(2) { flex: 1; }
+#activeWeek .week-one-task b { font-size: 12px; }
+#activeWeek .week-one-task small { margin-top: 2px; }
+#activeWeek .week-one-task > i { display: none; }
+#activeWeek .week-one-task.in_progress .step-state { border-color: var(--accent); background: var(--accent); color: #fff; }
+#activeWeek .week-one-task.in_progress b { color: var(--orange-deep); }
+#activeWeek .week-one-task.completed .step-state { border-color: #4ca77c; background: #4ca77c; color: #fff; }
+#activeWeek .week-one-task.completed b { color: #315e4b; }
+
+#activeWeek .week-one-upload,
+#activeWeek #weekOneCvNote,
+#activeWeek .gate-note { display: none !important; }
+
+.journey-upload {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid rgba(63, 126, 166, .14);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(241, 248, 252, .84), rgba(255, 252, 249, .96));
+}
+.journey-upload-copy { display: flex; align-items: center; gap: 13px; }
+.journey-upload-copy > span { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: #e1eff8; color: #397ea8; font-size: 20px; }
+.journey-upload-copy div { display: grid; gap: 3px; }
+.journey-upload-copy small { color: var(--muted-strong); }
+.journey-upload-action { width: fit-content; min-height: 44px; padding: 11px 16px; border: 1px solid #c5ddea; border-radius: 12px; background: #eef7fc; color: #286b96; font-size: 12px; font-weight: 800; cursor: pointer; }
+.journey-upload-action:hover { border-color: #82b5d1; background: #e2f1f9; }
+.journey-upload-action:focus-visible { outline: 3px solid rgba(63, 126, 166, .25); outline-offset: 2px; }
+.journey-upload-meta { color: var(--muted); font-size: 10px; }
+
+.week-actions { display: grid; gap: 10px; margin-top: 20px; }
+.week-actions details { position: relative; text-align: center; }
+.week-actions summary { color: var(--muted); font-size: 10px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; list-style: none; }
+.week-actions summary::-webkit-details-marker { display: none; }
+.week-actions details .secondary { margin-top: 9px; padding: 9px 12px; font-size: 10px; }
+#activeWeek #completeWeek { min-height: 48px; margin-top: 0; }
+#activeWeek #completeWeek:disabled { border: 1px solid #e2d9d2; background: #f7f2ee; color: #aa9d93; box-shadow: none; opacity: 1; }
+
+#activeWeek .clara-journey { margin-top: 26px; }
+#activeWeek .clara-messages { gap: 14px; max-height: 460px; padding: 4px 2px 18px; }
+#activeWeek .clara-message { padding: 15px 17px; border: 0; border-radius: 6px 18px 18px 18px; background: #eef5f8; }
+#activeWeek .clara-message.participant { border-radius: 18px 6px 18px 18px; background: #fff0e5; }
+#activeWeek .clara-message span { font-size: 9px; }
+#activeWeek .clara-composer { padding-top: 18px; border-top: 1px solid rgba(120, 88, 63, .08); }
+#activeWeek .clara-composer textarea { min-height: 112px; border-color: rgba(63, 126, 166, .18); border-radius: 16px; background: #fff; }
+#activeWeek .clara-composer textarea:focus { outline: 3px solid rgba(63, 126, 166, .13); border-color: rgba(63, 126, 166, .42); }
+
+@media (max-width: 700px) {
+  #activeWeek { grid-template-columns: 1fr; gap: 14px; }
+  #activeWeek .clara-card { order: 1; padding: 20px; }
+  #activeWeek .task-card { order: 2; padding: 20px; }
+  #activeWeek #questionText { margin-top: 22px; font-size: 27px; }
+  #activeWeek .question-help { font-size: 13px; }
+  #activeWeek .clara-message { max-width: 96%; }
+  #activeWeek .clara-composer > div { align-items: stretch; }
+  #activeWeek .clara-composer button { min-height: 44px; }
+  .journey-upload-action { width: 100%; text-align: center; }
+}

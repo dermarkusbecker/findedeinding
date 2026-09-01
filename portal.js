@@ -354,7 +354,7 @@ function renderClaraJourney() {
   const journey = $('#claraJourney');
   if (!journey) return;
   journey.classList.toggle('hidden', currentWeek !== 1 || !program?.onboardingComplete);
-  const initialPrompt = program?.weekOne?.current_step === 'THREE_WISHES_COLLECTION' ? '<article class="clara-message assistant"><span>Clara</span><p>Stell dir vor, vor dir steht eine Fee und du hast genau drei Wünsche frei. Welche drei Dinge würdest du dir für dein Leben aktuell am meisten wünschen?</p></article>' : '<p class="clara-chat-empty">Hier ist Raum für alles, was nicht in ein festes Feld passt.</p>';
+  const initialPrompt = program?.weekOne?.current_step === 'THREE_WISHES_COLLECTION' ? '<article class="clara-message assistant"><span>Clara</span><p>Zum Start möchte ich ein Gefühl dafür bekommen, was du dir für dein Leben wirklich wünschst.<br><br>Stell dir vor, du hättest drei Wünsche frei – ganz unabhängig davon, ob sie gerade realistisch sind.<br><br>Welche drei Dinge würdest du dir gerade am meisten wünschen?<br><br>Schreib einfach drauflos. Wir sortieren und vertiefen sie danach gemeinsam.</p></article>' : '<p class="clara-chat-empty">Hier ist Raum für alles, was nicht in ein festes Feld passt.</p>';
   const messageHtml = journeyMessages.length
     ? journeyMessages.map((message) => `<article class="clara-message ${message.role}"><span>${message.role === 'assistant' ? 'Clara' : 'Du'}</span><p>${escapeHtml(message.content).replace(/\n/g, '<br>')}</p>${renderClaraResultCard(message.uiAction)}</article>`).join('')
     : initialPrompt;
@@ -491,6 +491,7 @@ function renderWeekOne() {
   const firstName = (program.profile?.name || '').trim().split(/\s+/)[0];
   const prompt = weekOnePrompt(state, firstName);
   $('#activeWeek').classList.toggle('entry-step', prompt.type === 'entry');
+  $('#activeWeek').dataset.journeyStep = prompt.type;
   let flow = $('#weekOneFlow');
   if (!flow) {
     flow = document.createElement('div');
@@ -500,15 +501,17 @@ function renderWeekOne() {
   flow.classList.remove('is-saving');
   $('#answerForm').classList.add('hidden');
   $('#savedAnswer').classList.add('hidden');
-  $('#questionLabel').textContent = prompt.type === 'entry' ? 'Willkommen in Woche 1' : 'Deine nächste Frage';
+  $('#questionLabel').textContent = prompt.type === 'entry' ? 'Willkommen in Woche 1' : '';
   $('#questionText').textContent = prompt.title;
   const questionParts = [prompt.transition || '', prompt.quote ? `„${prompt.quote}“` : '', prompt.question || '', prompt.help || ''].filter(Boolean);
-  $('#questionHelp').innerHTML = questionParts.map((part, index) => index === 0 ? `<strong>${escapeHtml(part)}</strong>` : escapeHtml(part)).join('<br><br>');
+  $('#questionHelp').innerHTML = prompt.type === 'wishes'
+    ? 'Zum Start möchte ich verstehen, wonach du dich gerade wirklich sehnst.'
+    : questionParts.map((part, index) => index === 0 ? `<strong>${escapeHtml(part)}</strong>` : escapeHtml(part)).join('<br><br>');
 
   if (prompt.type === 'entry') {
     flow.innerHTML = '<button class="primary" data-week-one-action="begin">Mit Woche 1 beginnen →</button><p id="weekOneError" class="week-one-error"></p>';
   } else if (prompt.type === 'wishes') {
-    flow.innerHTML = '<div class="clara-guided-step"><span>✦</span><div><strong>Clara führt dich durch diesen Schritt</strong><p>Antworte unten im Dialog in deinen eigenen Worten. Clara fragt bei Bedarf nach und zeigt dir anschließend eine Zusammenfassung zur Bestätigung.</p></div></div><p id="weekOneError" class="week-one-error"></p>';
+    flow.innerHTML = '<p id="weekOneError" class="week-one-error"></p>';
   } else if (prompt.type === 'wish_followup') {
     flow.innerHTML = `${weekOneTextarea('weekOneAnswer')}<div class="week-one-actions"><button type="button" class="voice" data-target="weekOneAnswer">⌁ Spracheingabe</button><button class="primary" data-week-one-action="wish-followup">Weiter →</button></div><p id="weekOneError" class="week-one-error"></p>`;
   } else if (prompt.type === 'target' || prompt.type === 'target_clarify') {
@@ -520,11 +523,11 @@ function renderWeekOne() {
       flow.innerHTML = `<div class="clarity-scale" role="group" aria-label="Klarheitswert">${Array.from({ length: 10 }, (_, index) => `<button type="button" data-clarity-score="${index + 1}">${index + 1}</button>`).join('')}</div><p id="weekOneError" class="week-one-error"></p>`;
     }
   } else if (prompt.type === 'career_choice') {
-    flow.innerHTML = '<div class="cv-required-card"><span class="cv-required-icon">⇧</span><div><strong>Deinen Lebenslauf hochladen</strong><small>Nutze dafür den Upload im Bereich „Deine Schritte“.</small></div></div><p id="weekOneError" class="week-one-error"></p>';
+    flow.innerHTML = '<div class="journey-upload"><div class="journey-upload-copy"><span>⇧</span><div><strong>Lebenslauf</strong><small>Lade deinen aktuellen Lebenslauf hoch.</small></div></div><label class="journey-upload-action" for="fileInput">↑ Datei auswählen</label><small class="journey-upload-meta">PDF, DOCX, JPG oder PNG · maximal 10 MB</small></div><p id="weekOneError" class="week-one-error"></p>';
   } else if (prompt.type === 'career_cv') {
     const uploadedAt = state.career_history.cv_uploaded_at || state.updated_at;
     const uploadedLabel = uploadedAt ? new Date(uploadedAt).toLocaleString('de-DE') : 'soeben';
-    flow.innerHTML = `<div class="cv-required-card uploaded"><span class="cv-required-icon">✓</span><div><strong>${escapeHtml(state.career_history.cv_file_name || 'Lebenslauf')}</strong><small>Erfolgreich hochgeladen · ${escapeHtml(uploadedLabel)}</small></div><span class="cv-upload-badge">Hochgeladen</span></div><label class="career-confirm-check cv-upload-confirm"><input type="checkbox" id="cvUploadConfirmed"><span><strong>Ich bestätige, dass mein Lebenslauf vollständig hochgeladen wurde.</strong></span></label><p class="week-one-example">Erst nach dieser Bestätigung kannst du Woche 1 abschließen.</p><p id="weekOneError" class="week-one-error"></p>`;
+    flow.innerHTML = `<div class="cv-required-card uploaded"><span class="cv-required-icon">✓</span><div><strong>${escapeHtml(state.career_history.cv_file_name || 'Lebenslauf')}</strong><small>Erfolgreich hochgeladen · ${escapeHtml(uploadedLabel)}</small></div><span class="cv-upload-badge">Hochgeladen</span></div><label class="journey-upload-action journey-upload-change" for="fileInput">Datei ändern</label><label class="career-confirm-check cv-upload-confirm"><input type="checkbox" id="cvUploadConfirmed"><span><strong>Ich bestätige, dass mein Lebenslauf vollständig hochgeladen wurde.</strong></span></label><p class="week-one-example">Erst nach dieser Bestätigung kannst du Woche 1 abschließen.</p><p id="weekOneError" class="week-one-error"></p>`;
   } else if (prompt.type === 'career_dialog') {
     flow.innerHTML = `${weekOneTextarea('careerAnswer', prompt.type === 'career_cv' ? 'Erkannte Stationen korrigieren oder fehlende Station ergänzen …' : 'Deine wichtigsten beruflichen Stationen …')}<label class="career-confirm-check"><input type="checkbox" id="careerConfirmed"><span>Die wesentlichen Stationen sind vollständig. Es fehlt keine wichtige berufliche Station.</span></label><div class="week-one-actions"><button type="button" class="voice" data-target="careerAnswer">⌁ Spracheingabe</button><button class="primary" data-week-one-action="career-save">Weiter →</button></div><p id="weekOneError" class="week-one-error"></p>`;
   } else if (prompt.type === 'career_confirm') {
@@ -556,33 +559,15 @@ function renderWeekOne() {
   flow.querySelector('[data-week-one-action="career-add"]')?.addEventListener('click', () => updateWeekOne({ type: 'confirm_career', complete: false }));
 
   const statuses = journeyStepStatuses(state);
-  const statusSymbol = { open: '○', in_progress: '◐', completed: '✓' };
-  const statusLabel = { open: 'offen', in_progress: 'in Bearbeitung', completed: 'abgeschlossen' };
-  $('#taskList').innerHTML = statuses.map((step) => `<div class="task week-one-task ${step.status}"><span class="step-state">${statusSymbol[step.status]}</span><span><b>${escapeHtml(step.title)}</b><small>${step.status === 'completed' ? 'Erledigt' : step.status === 'in_progress' ? 'Aktueller Schritt' : 'Kommt als Nächstes'}</small></span><i>${statusLabel[step.status]}</i></div>`).join('');
+  const statusSymbol = { open: '○', in_progress: '●', completed: '✓' };
+  $('#taskList').innerHTML = statuses.map((step) => `<div class="task week-one-task ${step.status}"><span class="step-state" aria-hidden="true">${statusSymbol[step.status]}</span><span><b>${escapeHtml(step.title)}</b>${step.status === 'in_progress' ? '<small>Gerade dabei</small>' : ''}</span></div>`).join('');
   const done = statuses.filter((step) => step.status === 'completed').length;
   $('#taskCount').textContent = `${done} / ${statuses.length}`;
   const uploadButton = $('#uploadButton');
   $('#uploadButtonLabel').textContent = state.career_history.cv_uploaded ? 'Datei ändern' : '↑ Datei auswählen';
   uploadButton.classList.add('week-one-upload');
   uploadButton.classList.toggle('is-change', Boolean(state.career_history.cv_uploaded));
-  let cvNote = $('#weekOneCvNote');
-  if (!cvNote) {
-    cvNote = document.createElement('div');
-    cvNote.id = 'weekOneCvNote';
-    $('#uploadButton').before(cvNote);
-  }
-  if (state.career_history.cv_uploaded) {
-    const uploadedAt = state.career_history.cv_uploaded_at || state.updated_at;
-    const uploadedLabel = uploadedAt ? new Date(uploadedAt).toLocaleString('de-DE') : 'soeben';
-    cvNote.classList.add('uploaded');
-    cvNote.innerHTML = `<div><strong>✓ ${escapeHtml(state.career_history.cv_file_name || 'Lebenslauf')}</strong><span>Hochgeladen</span></div><p>Sicher gespeichert am ${escapeHtml(uploadedLabel)}.</p><label class="cv-task-confirm"><input type="checkbox" id="cvUploadConfirmedTask" ${state.career_history.participant_confirmed ? 'checked disabled' : ''}><strong>${state.career_history.participant_confirmed ? 'Upload erfolgreich bestätigt' : 'Ich bestätige den vollständigen Upload.'}</strong></label>`;
-  } else {
-    cvNote.classList.remove('uploaded');
-    cvNote.innerHTML = '<div><strong>Lebenslauf</strong><span>Pflicht</span></div><p>Lade deinen aktuellen Lebenslauf hoch.</p><small>PDF, DOCX, JPG oder PNG · maximal 10 MB</small>';
-  }
-  cvNote.querySelector('#cvUploadConfirmedTask')?.addEventListener('change', (event) => {
-    if (event.currentTarget.checked) updateWeekOne({ type: 'confirm_cv_upload' });
-  });
+  $('#weekOneCvNote')?.remove();
   $('#gateNote').textContent = program.weekOneGate?.complete ? 'Alle Pflichtschritte sind abgeschlossen. Du kannst Woche 1 abschließen.' : `Die nächste Woche öffnet sich nach Abschluss aller Pflichtschritte.${program.weekOneGate?.missingRequirements?.length ? ` Offen: ${program.weekOneGate.missingRequirements.join(', ')}.` : ''}`;
   $('#completeWeek').disabled = !program.weekOneGate?.complete;
   $('#completeWeek').textContent = 'Woche abschließen →';
