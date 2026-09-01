@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyWeekOneAction, createWeekOneState, journeyStepStatuses, WEEK_ONE_STEPS } from '../lib/week-one.js';
+import { applyWeekOneAction, createWeekOneState, journeyStepStatuses, weekOnePrompt, WEEK_ONE_STEPS } from '../lib/week-one.js';
 import { buildJourneyUiAction, verifyConfirmationToken } from '../lib/clara/journey-actions.js';
 
 process.env.AUTH_SECRET ||= 'clara-journey-test-secret';
@@ -47,4 +47,5 @@ test('erst die explizite Confirmation schreibt in den Week-1-Reducer', () => {
   assert.equal(confirmed.state.current_step, WEEK_ONE_STEPS.WISH_1);
   assert.deepEqual(confirmed.state.wishes.map((wish) => wish.final_answer), wishes);
   assert.equal(journeyStepStatuses(confirmed.state)[0].status, 'completed');
+  assert.match(weekOnePrompt(confirmed.state).question, /Was würde sich in deinem Leben konkret verändern/);
 });
