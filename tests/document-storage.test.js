@@ -26,3 +26,14 @@ test('fehlender Dokument-Bucket wird privat und mit Dateilimit angelegt', async 
   assert.equal(payload.file_size_limit, 10 * 1024 * 1024);
   assert.ok(payload.allowed_mime_types.includes('application/pdf'));
 });
+
+test('Supabase-Meldung Bucket not found mit Status 400 legt den Bucket ebenfalls an', async () => {
+  const calls = [];
+  await ensureDocumentBucket({ url: 'https://example.supabase.co', key: 'service-key' }, async (url, options = {}) => {
+    calls.push({ url, options });
+    if (calls.length === 1) return { ok: false, status: 400, json: async () => ({ message: 'Bucket not found' }) };
+    return { ok: true, status: 200 };
+  });
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].options.method, 'POST');
+});

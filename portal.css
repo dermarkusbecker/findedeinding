@@ -984,6 +984,7 @@ header > div:last-child {
 .cv-required-card small { color: var(--muted-strong); }
 .cv-required-card.uploaded { border-color: rgba(54,145,102,.22); background: linear-gradient(135deg,rgba(232,249,240,.92),rgba(248,253,250,.98)); }
 .cv-required-card.uploaded .cv-required-icon { background: #d9f4e6; color: #27855a; }
+.cv-upload-badge { padding: 7px 10px; border-radius: 999px; background: #d9f4e6; color: #23744f; font-size: 11px; font-weight: 850; text-transform: uppercase; letter-spacing: .05em; }
 .cv-upload-confirm { margin-top: 14px; }
 .wish-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
 .wish-fields label { display: flex; flex-direction: column; gap: 7px; }
