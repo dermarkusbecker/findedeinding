@@ -51,6 +51,13 @@ test('direkter Aufruf der Admin-Programmsteuerung durch Benutzer endet vor jedem
   assert.equal(response.statusCode, 403);
 });
 
+test('Teilnehmer kann eine technische Admin-Bestätigung nicht direkt erzeugen', async () => {
+  const token = createSession('kunde@example.de', 'user', { profileId, permissions: USER_PERMISSIONS });
+  const response = responseMock();
+  await programControlHandler({ method: 'PATCH', query: {}, body: { participantId: profileId, technicalConfirmation: { week: 4, stepId: 'human_design', note: 'Manipulationsversuch' } }, ...requestFor(token) }, response);
+  assert.equal(response.statusCode, 403);
+});
+
 test('direkter Aufruf der Clara-API ohne Clara-Freigabe endet vor jedem Datenbankzugriff mit 403', async () => {
   const token = createSession('kunde@example.de', 'user', { profileId, permissions: ['customer_portal'] });
   const response = responseMock();

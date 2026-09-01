@@ -1,4 +1,5 @@
 import { journeyStepStatuses, weekOnePrompt } from './lib/week-one.js';
+import { currentGuidedStep, guidedStepStatuses, guidedWeekDefinition } from './lib/guided-weeks.js';
 
 const resolveSpeechRecognition = (windowObject = window) => {
   if (!windowObject) return null;
@@ -338,8 +339,8 @@ async function loadProgram(week = null) {
   const initialView = !initialViewResolved ? (program.onboardingComplete ? 'today' : 'onboarding') : null;
   currentWeek = program.selectedWeek || week || program.access.unlockedWeeks[0] || 1;
   currentContent = program.week;
-  if (program.onboardingComplete && currentWeek === 1) {
-    try { journeyMessages = (await request('/api/participant-program?feature=clara-message&week=1')).messages || []; }
+  if (program.onboardingComplete && currentWeek >= 1) {
+    try { journeyMessages = (await request(`/api/participant-program?feature=clara-message&week=${currentWeek}`)).messages || []; }
     catch { journeyMessages = []; }
   }
   if (initialView) {
@@ -353,8 +354,13 @@ async function loadProgram(week = null) {
 function renderClaraJourney() {
   const journey = $('#claraJourney');
   if (!journey) return;
-  journey.classList.toggle('hidden', currentWeek !== 1 || !program?.onboardingComplete);
-  const initialPrompt = program?.weekOne?.current_step === 'THREE_WISHES_COLLECTION' ? '<article class="clara-message assistant"><span>Clara</span><p>Stell dir vor, du hättest drei Wünsche frei – ganz unabhängig davon, ob sie gerade realistisch sind.<br><br><strong>Welche drei Dinge würdest du dir für dein Leben gerade am meisten wünschen?</strong><br><br>Schreib einfach drauflos. Wir schauen sie uns danach gemeinsam an.</p></article>' : '<p class="clara-chat-empty">Hier ist Raum für alles, was nicht in ein festes Feld passt.</p>';
+  journey.classList.toggle('hidden', !program?.onboardingComplete);
+  const guidedStep = currentWeek >= 2 ? currentGuidedStep(program?.weekState) : null;
+  const initialPrompt = program?.weekOne?.current_step === 'THREE_WISHES_COLLECTION'
+    ? '<article class="clara-message assistant"><span>Clara</span><p>Stell dir vor, du hättest drei Wünsche frei – ganz unabhängig davon, ob sie gerade realistisch sind.<br><br><strong>Welche drei Dinge würdest du dir für dein Leben gerade am meisten wünschen?</strong><br><br>Schreib einfach drauflos. Wir schauen sie uns danach gemeinsam an.</p></article>'
+    : guidedStep
+      ? `<article class="clara-message assistant"><span>Clara</span><p>${escapeHtml(guidedStep.question)}</p></article>`
+      : '<p class="clara-chat-empty">Hier ist Raum für alles, was nicht in ein festes Feld passt.</p>';
   const messageHtml = journeyMessages.length
     ? journeyMessages.map((message) => `<article class="clara-message ${message.role}"><span>${message.role === 'assistant' ? 'Clara' : 'Du'}</span><p>${escapeHtml(message.content).replace(/\n/g, '<br>')}</p>${renderClaraResultCard(message.uiAction)}</article>`).join('')
     : initialPrompt;
@@ -488,6 +494,7 @@ function startThreeWishesSpeech(button) {
 function renderWeekOne() {
   const state = program.weekOne;
   if (!state) return;
+  $('#guidedWeekFlow')?.remove();
   const firstName = (program.profile?.name || '').trim().split(/\s+/)[0];
   const prompt = weekOnePrompt(state, firstName);
   $('#activeWeek').classList.toggle('entry-step', prompt.type === 'entry');
@@ -574,6 +581,63 @@ function renderWeekOne() {
   renderClaraJourney();
 }
 
+async function updateGuidedWeek(stepAction) {
+  try {
+    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'guided_week_update', week: currentWeek, stepAction }) });
+    await loadProgram(currentWeek);
+    toast('✓ Dein Schritt wurde gespeichert.');
+  } catch (error) { toast(error.message); }
+}
+
+function renderGuidedWeek() {
+  const state = program.weekState;
+  const definition = guidedWeekDefinition(currentWeek);
+  if (!state || !definition) return;
+  const active = currentGuidedStep(state);
+  $('#activeWeek').classList.remove('entry-step');
+  $('#activeWeek').dataset.journeyStep = active?.kind || 'review';
+  $('#answerForm').classList.add('hidden');
+  $('#savedAnswer').classList.add('hidden');
+  $('#questionLabel').textContent = '';
+  $('#questionText').textContent = active?.title || 'Woche geschafft';
+  $('#questionHelp').textContent = '';
+  $('#weekOneFlow')?.remove();
+  let flow = $('#guidedWeekFlow');
+  if (!flow) {
+    flow = document.createElement('div');
+    flow.id = 'guidedWeekFlow';
+    $('#answerForm').before(flow);
+  }
+  if (!active) {
+    flow.innerHTML = '<div class="week-one-review"><span>✓</span><p>Alle Schritte dieser Woche sind abgeschlossen.</p></div>';
+  } else if (active.kind === 'upload') {
+    flow.innerHTML = `<div class="journey-upload"><div class="journey-upload-copy"><span>⇧</span><div><strong>${escapeHtml(active.title)}</strong><small>${escapeHtml(active.question)}</small></div></div><label class="journey-upload-action" for="fileInput">↑ Datei auswählen</label><small class="journey-upload-meta">PDF, DOCX, JPG oder PNG · maximal 10 MB</small></div>`;
+  } else if (active.kind === 'scale') {
+    flow.innerHTML = `<div class="clarity-scale" role="group" aria-label="Klarheitswert">${Array.from({ length: active.max - active.min + 1 }, (_, index) => `<button type="button" data-guided-score="${active.min + index}">${active.min + index}</button>`).join('')}</div>`;
+    flow.querySelectorAll('[data-guided-score]').forEach((button) => button.addEventListener('click', () => updateGuidedWeek({ type: 'save_answer', stepId: active.id, score: Number(button.dataset.guidedScore), answer: button.dataset.guidedScore })));
+  } else if (active.kind === 'external') {
+    flow.innerHTML = `<div class="cv-required-card"><span class="cv-required-icon">◇</span><div><strong>${escapeHtml(active.title)}</strong><small>Dieser Schritt wird sicher geprüft. Sobald die Bestätigung vorliegt, kannst du hier direkt weitermachen.</small></div></div><button type="button" class="secondary technical-refresh" id="refreshTechnicalStep">Status prüfen</button>`;
+    flow.querySelector('#refreshTechnicalStep').addEventListener('click', async (event) => {
+      event.currentTarget.disabled = true;
+      try { await loadProgram(currentWeek); toast('Der aktuelle Status wurde geladen.'); }
+      catch (error) { toast(error.message); }
+    });
+  } else {
+    flow.innerHTML = '';
+  }
+
+  const statuses = guidedStepStatuses(state);
+  const statusSymbol = { open: '○', in_progress: '●', completed: '✓' };
+  $('#taskList').innerHTML = statuses.map((item) => `<div class="task week-one-task ${item.status}"><span class="step-state" aria-hidden="true">${statusSymbol[item.status]}</span><span><b>${escapeHtml(item.title)}</b>${item.status === 'in_progress' ? '<small>Gerade dabei</small>' : ''}</span></div>`).join('');
+  $('#taskCount').textContent = `${statuses.filter((item) => item.status === 'completed').length} / ${statuses.length}`;
+  $('#uploadButton').classList.add('week-one-upload');
+  $('#gateNote').textContent = program.weekGate?.complete ? `Alle Pflichtschritte in Woche ${currentWeek} sind abgeschlossen.` : '';
+  $('#completeWeek').disabled = !program.weekGate?.complete;
+  $('#completeWeek').textContent = currentWeek === 8 ? 'Digitalen Prozess abschließen →' : 'Woche abschließen →';
+  $('#claraJourney').classList.toggle('hidden', ['upload', 'scale', 'external'].includes(active?.kind));
+  renderClaraJourney();
+}
+
 function render() {
   if (!program) return;
   const pct = progressPercent();
@@ -635,6 +699,7 @@ function render() {
     $('#mobileGreetingTitle').textContent = `Hallo ${name.trim().split(/\s+/)[0] || 'du'}, jetzt geht’s richtig los.`;
     $('#mobileGreetingCopy').textContent = `Clara begleitet dich jetzt Schritt für Schritt durch deine ${currentWeek === 1 ? 'erste Woche' : `Woche ${currentWeek}`}.`;
     if (currentWeek === 1) renderWeekOne();
+    else if (program.weekState) renderGuidedWeek();
     else {
       $('#claraJourney')?.classList.add('hidden');
       $('#weekOneFlow')?.remove();
@@ -756,10 +821,15 @@ $('#claraJourneyForm').addEventListener('submit', async (event) => {
   button.textContent = 'Clara denkt …';
   renderClaraJourney();
   try {
-    const result = await request('/api/participant-program?feature=clara-message', { method: 'POST', body: JSON.stringify({ week: 1, message, clientMessageId: crypto.randomUUID() }) });
+    const result = await request('/api/participant-program?feature=clara-message', { method: 'POST', body: JSON.stringify({ week: currentWeek, message, clientMessageId: crypto.randomUUID() }) });
     journeyMessages.push(result.message);
-    program.weekOne = result.weekOne;
-    program.weekOneGate = result.gate;
+    if (currentWeek === 1) {
+      program.weekOne = result.weekOne;
+      program.weekOneGate = result.gate;
+    } else {
+      program.weekState = result.weekState;
+      program.weekGate = result.gate;
+    }
     currentContent.tasks = result.steps;
     render();
   } catch (error) {
@@ -807,10 +877,17 @@ $('#fileInput').addEventListener('change', async (event) => {
     event.target.value = '';
     return;
   }
-  if (!currentContent?.tasks[2]) return;
-  local.uploads[currentWeek] = { name: file.name, type: file.type, size: file.size, at: new Date().toISOString() }; saveLocal();
-  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'set_gate', week: currentWeek, gateId: currentContent.tasks[2].id, completed: true }) }); await loadProgram(currentWeek); toast(`${file.name} wurde erfasst und der Pflichtschritt bestätigt.`); }
-  catch (error) { toast(error.message); }
+  const active = currentGuidedStep(program.weekState);
+  if (!active || active.kind !== 'upload') return;
+  if (file.size > 10 * 1024 * 1024) { toast('Das Dokument darf höchstens 10 MB groß sein.'); event.target.value = ''; return; }
+  try {
+    toast('Dein Dokument wird sicher gespeichert …');
+    const uploaded = await request('/api/participant-program?feature=participant-document', { method: 'POST', body: JSON.stringify({ week: currentWeek, documentType: active.documentType || 'workbook', fileName: file.name, mimeType: file.type, contentBase64: await fileAsBase64(file) }) });
+    local.uploads[currentWeek] = { id: uploaded.document.id, stepId: active.id, name: file.name, type: file.type, size: file.size, at: new Date().toISOString(), status: uploaded.document.status };
+    saveLocal();
+    await updateGuidedWeek({ type: 'document_uploaded', stepId: active.id, documentId: uploaded.document.id, fileName: file.name });
+  } catch (error) { toast(error.message); }
+  event.target.value = '';
 });
 $('#reopenCurrentWeek').addEventListener('click', async () => {
   if (!program?.onboardingComplete || !currentContent) return;

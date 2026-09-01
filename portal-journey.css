@@ -93,6 +93,7 @@
 .journey-upload-action:hover { border-color: #82b5d1; background: #e2f1f9; }
 .journey-upload-action:focus-visible { outline: 3px solid rgba(63, 126, 166, .25); outline-offset: 2px; }
 .journey-upload-meta { color: var(--muted); font-size: 10px; }
+.technical-refresh { margin-top: 12px; }
 
 .week-actions { display: grid; gap: 10px; margin-top: 20px; }
 .week-actions details { position: relative; text-align: center; }

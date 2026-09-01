@@ -54,7 +54,46 @@ document.querySelector('#resetUserPassword').addEventListener('click',async()=>{
 
 const programDialog=document.querySelector('#programDialog');
 document.querySelectorAll('[data-close-program]').forEach(button=>button.addEventListener('click',()=>programDialog.close()));
-function renderProgramControl(data){programSnapshot=data;document.querySelector('#programParticipantId').value=data.profile.id;document.querySelector('#programParticipantName').textContent=data.profile.name;document.querySelector('#programParticipantEmail').textContent=data.profile.email;document.querySelector('#programStartDate').value=data.access.programStartDate||new Date().toISOString().slice(0,10);document.querySelector('#programStatus').value=data.access.status;document.querySelector('#programCurrentWeek').value=String(data.progress.current_week||0);document.querySelector(`input[name="accessMode"][value="${data.access.accessMode}"]`).checked=true;document.querySelector('#programCalculatedWeek').textContent=data.access.status==='paused'?'Teilnehmer pausiert · kein Wochenzugriff':`Aktuell zugänglich: ${data.access.unlockedWeeks.length?data.access.unlockedWeeks.map(week=>`W${week}`).join(', '):'keine Woche'}`;document.querySelector('#programAccessBadge').textContent=accessModeLabel(data.access.accessMode);document.querySelector('#weekOverrides').innerHTML=data.access.weekStates.map(state=>`<div class="week-override"><div><strong>Woche ${state.week}</strong><i class="${state.accessible?'open':'closed'}">${state.accessible?'zugänglich':'gesperrt'}</i></div><select data-week-override="${state.week}"><option value="auto" ${!state.adminOverride?'selected':''}>Automatisch</option><option value="unlocked" ${state.adminOverride==='unlocked'?'selected':''}>Manuell frei</option><option value="locked" ${state.adminOverride==='locked'?'selected':''}>Manuell gesperrt</option></select></div>`).join('');const grouped=Object.groupBy?Object.groupBy(data.gates,gate=>gate.week):data.gates.reduce((result,gate)=>{(result[gate.week]||=[]).push(gate);return result;},{});document.querySelector('#programGateList').innerHTML=Object.entries(grouped).map(([week,gates])=>`<div class="gate-correction-week"><strong>${Number(week)===0?'Onboarding':`Woche ${week}`}</strong>${gates.map(gate=>`<label><input type="checkbox" data-correction-gate="${gate.id}" data-original="${Boolean(gate.completed_at)}" ${gate.completed_at?'checked':''}> ${escapeHtml(gate.label)}</label>`).join('')}</div>`).join('');}
+function renderProgramControl(data){
+  programSnapshot=data;
+  document.querySelector('#programParticipantId').value=data.profile.id;
+  document.querySelector('#programParticipantName').textContent=data.profile.name;
+  document.querySelector('#programParticipantEmail').textContent=data.profile.email;
+  document.querySelector('#programStartDate').value=data.access.programStartDate||new Date().toISOString().slice(0,10);
+  document.querySelector('#programStatus').value=data.access.status;
+  document.querySelector('#programCurrentWeek').value=String(data.progress.current_week||0);
+  document.querySelector(`input[name="accessMode"][value="${data.access.accessMode}"]`).checked=true;
+  document.querySelector('#programCalculatedWeek').textContent=data.access.status==='paused'?'Teilnehmer pausiert · kein Wochenzugriff':`Aktuell zugänglich: ${data.access.unlockedWeeks.length?data.access.unlockedWeeks.map(week=>`W${week}`).join(', '):'keine Woche'}`;
+  document.querySelector('#programAccessBadge').textContent=accessModeLabel(data.access.accessMode);
+  document.querySelector('#weekOverrides').innerHTML=data.access.weekStates.map(state=>`<div class="week-override"><div><strong>Woche ${state.week}</strong><i class="${state.accessible?'open':'closed'}">${state.accessible?'zugänglich':'gesperrt'}</i></div><select data-week-override="${state.week}"><option value="auto" ${!state.adminOverride?'selected':''}>Automatisch</option><option value="unlocked" ${state.adminOverride==='unlocked'?'selected':''}>Manuell frei</option><option value="locked" ${state.adminOverride==='locked'?'selected':''}>Manuell gesperrt</option></select></div>`).join('');
+  const grouped=Object.groupBy?Object.groupBy(data.gates,gate=>gate.week):data.gates.reduce((result,gate)=>{(result[gate.week]||=[]).push(gate);return result;},{});
+  document.querySelector('#programGateList').innerHTML=Object.entries(grouped).map(([week,gates])=>`<div class="gate-correction-week"><strong>${Number(week)===0?'Onboarding':`Woche ${week}`}</strong>${gates.map(gate=>`<label><input type="checkbox" data-correction-gate="${gate.id}" data-original="${Boolean(gate.completed_at)}" ${gate.completed_at?'checked':''}> ${escapeHtml(gate.label)}</label>`).join('')}</div>`).join('');
+  const confirmations=data.technicalConfirmations||[];
+  const reached=confirmations.filter(item=>item.status!=='not_reached');
+  document.querySelector('#technicalConfirmationList').innerHTML=reached.length?reached.map(item=>item.status==='confirmed'
+    ?`<article class="technical-confirmation confirmed"><div><span>Woche ${item.week}</span><strong>✓ ${escapeHtml(item.title)}</strong><small>Bestätigt ${item.confirmation?.confirmedAt?new Date(item.confirmation.confirmedAt).toLocaleString('de-DE'):''}</small></div>${item.confirmation?.resultReference?`<p>Referenz: ${escapeHtml(item.confirmation.resultReference)}</p>`:''}</article>`
+    :`<article class="technical-confirmation pending" data-technical-card><div><span>Woche ${item.week} · wartet auf Admin-Prüfung</span><strong>${escapeHtml(item.title)}</strong><small>Der Teilnehmer kann diesen Schritt nicht selbst freischalten.</small></div><label>Ergebnis / Referenz<input data-technical-reference placeholder="z. B. Bericht-ID, Termin oder Ablageort"></label><label>Prüfvermerk<textarea data-technical-note rows="3" placeholder="Was wurde geprüft und bestätigt?"></textarea></label><button type="button" class="primary" data-confirm-technical data-week="${item.week}" data-step-id="${escapeHtml(item.stepId)}">Geprüft und sicher bestätigen</button></article>`).join('')
+    :'<div class="technical-empty">Aktuell wartet kein externer Journey-Schritt auf eine Admin-Bestätigung.</div>';
+}
+
+document.querySelector('#technicalConfirmationList').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-confirm-technical]');
+  if(!button)return;
+  const card=button.closest('[data-technical-card]');
+  const note=card.querySelector('[data-technical-note]').value.trim();
+  const resultReference=card.querySelector('[data-technical-reference]').value.trim();
+  if(note.length<5)return toast('Bitte einen nachvollziehbaren Prüfvermerk eingeben.');
+  if(!confirm(`Technisches Ergebnis „${card.querySelector('strong').textContent}“ verbindlich bestätigen?`))return;
+  button.disabled=true;
+  try{
+    const response=await fetch('/api/program-control',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({participantId:document.querySelector('#programParticipantId').value,technicalConfirmation:{week:Number(button.dataset.week),stepId:button.dataset.stepId,note,resultReference}})});
+    const data=await response.json();
+    if(!response.ok)throw new Error(data.error);
+    renderProgramControl(data);
+    toast('Technisches Ergebnis wurde auditierbar bestätigt.');
+    await loadParticipants();
+  }catch(error){toast(error.message);button.disabled=false;}
+});
 async function openProgramControl(participantId){if(!participantId||participantId.startsWith('demo-'))return toast('Demo-Datensatz besitzt keine serverseitige Programmsteuerung.');programDialog.showModal();document.querySelector('#programParticipantName').textContent='Wird geladen …';try{const response=await fetch(`/api/program-control?participantId=${encodeURIComponent(participantId)}`);const data=await response.json();if(!response.ok)throw new Error(data.error);renderProgramControl(data);}catch(error){programDialog.close();toast(error.message);}}
 document.querySelector('#unlockAllWeeks').addEventListener('click',()=>document.querySelectorAll('[data-week-override]').forEach(select=>select.value='unlocked'));
 document.querySelector('#clearWeekOverrides').addEventListener('click',()=>document.querySelectorAll('[data-week-override]').forEach(select=>select.value='auto'));

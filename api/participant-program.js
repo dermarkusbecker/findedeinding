@@ -2,6 +2,7 @@ import { requireCurrentPermission } from '../lib/user-auth.js';
 import { getParticipantProgramAccess, patchParticipantProgress, serviceHeaders } from '../lib/program-access-service.js';
 import { isOnboardingComplete } from '../lib/program-access.js';
 import { applyWeekOneAction, createWeekOneState, missingWeekOneRequirements, stepStatuses, weekOneComplete } from '../lib/week-one.js';
+import { applyGuidedWeekAction, createGuidedWeekState, guidedStepStatuses, guidedWeekComplete, guidedWeekDefinition, missingGuidedRequirements, normalizeGuidedWeekState } from '../lib/guided-weeks.js';
 import { handleClaraMessage } from '../lib/clara/api-handler.js';
 import { handleParticipantDocument } from '../lib/documents/api-handler.js';
 import { weekResetScope } from '../lib/week-reset.js';
@@ -17,10 +18,14 @@ const programWeeks = [
   { week: 8, title: 'Umsetzung', mode: 'Handeln', question: 'Was sind die ein bis drei konkreten Dinge, die du innerhalb der nächsten 24 Stunden tun kannst, damit deine Entscheidung nicht nur auf Papier steht?', help: 'Kontrollierbare Handlungen zählen mehr als Ergebnisse, die du nicht direkt beeinflussen kannst.', upload: 'Commitment erforderlich' },
 ];
 
-const weekContent = (week, gates, weekOneState = null) => {
+const weekContent = (week, gates, weekOneState = null, guidedState = null) => {
   const content = programWeeks.find((item) => item.week === Number(week));
   if (!content) return null;
   if (Number(week) === 1 && weekOneState) return { ...content, tasks: stepStatuses(weekOneState) };
+  if (Number(week) >= 2 && guidedState) {
+    const definition = guidedWeekDefinition(week);
+    return { ...content, title: definition.title, mode: definition.mode, question: definition.steps.find((step) => step.id === guidedState.current_step)?.question || 'Diese Woche ist bereit zum Abschluss.', help: definition.intro, tasks: guidedStepStatuses(guidedState) };
+  }
   return { ...content, tasks: gates.filter((gate) => Number(gate.week) === Number(week) && gate.required !== false).map((gate) => ({ id: gate.id, key: gate.gate_key, label: gate.label, completed: Boolean(gate.completed_at) })) };
 };
 
@@ -29,6 +34,18 @@ async function readWeekOneState(result, participantId) {
   const rows = await stateResponse.json();
   if (!stateResponse.ok) throw new Error(rows.message || 'Woche 1 konnte nicht geladen werden.');
   return rows[0]?.structured_data?.week_1 || createWeekOneState();
+}
+
+async function readGuidedWeekState(result, participantId, week) {
+  const response = await fetch(`${result.service.url}/rest/v1/process_entries?user_profile_id=eq.${encodeURIComponent(participantId)}&week=eq.${week}&data_block=eq.week_${week}_state&select=structured_data&order=created_at.desc&limit=1`, { headers: serviceHeaders(result.service.key) });
+  const rows = await response.json();
+  if (!response.ok) throw new Error(rows.message || `Woche ${week} konnte nicht geladen werden.`);
+  return normalizeGuidedWeekState(week, rows[0]?.structured_data?.[`week_${week}`] || createGuidedWeekState(week));
+}
+
+async function saveGuidedWeekState(result, participantId, week, state, rawAnswer = '') {
+  const response = await fetch(`${result.service.url}/rest/v1/process_entries`, { method: 'POST', headers: serviceHeaders(result.service.key), body: JSON.stringify({ user_profile_id: participantId, week, data_block: `week_${week}_state`, raw_answer: String(rawAnswer || '').slice(0, 10000) || null, structured_data: { [`week_${week}`]: state }, evidence_level: 'participant_statement' }) });
+  if (!response.ok) throw new Error(`Dein Fortschritt in Woche ${week} konnte nicht gespeichert werden.`);
 }
 
 async function saveWeekOneState(result, participantId, state, rawAnswer = '') {
@@ -128,7 +145,8 @@ export default async function handler(request, response) {
       });
       const recordedWeekAccessible = access.weekStates.some((state) => state.week === Number(result.progress.current_week) && state.accessible);
       const selectedWeek = onboardingComplete ? (requestedWeek || (recordedWeekAccessible ? Number(result.progress.current_week) : access.unlockedWeeks[0] || 1)) : 0;
-      return response.status(200).json({ profile: { id: result.profile.id, name: result.profile.name }, access, onboardingComplete, accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) } });
+      const guidedState = selectedWeek >= 2 ? await readGuidedWeekState(result, session.participantId, selectedWeek) : null;
+      return response.status(200).json({ profile: { id: result.profile.id, name: result.profile.name }, access, onboardingComplete, accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null });
     }
     if (request.method !== 'PATCH') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
     const action = request.body?.action;
@@ -161,6 +179,31 @@ export default async function handler(request, response) {
       const gateMap = { three_wishes: statuses[0].status === 'completed', target_and_baseline: statuses[1].status === 'completed' && statuses[2].status === 'completed', career_history: statuses[3].status === 'completed' };
       await Promise.allSettled(result.gates.filter((gate) => Number(gate.week) === 1 && gate.gate_key in gateMap).map((gate) => setGate(result.service, session.participantId, gate.id, gateMap[gate.gate_key])));
       return response.status(200).json({ ok: true, weekOne: update.state, steps: statuses, gate: { complete: weekOneComplete(update.state, weekOnePreconditions(result.progress)), missingRequirements: missingWeekOneRequirements(update.state, weekOnePreconditions(result.progress)) } });
+    } else if (action === 'guided_week_update') {
+      if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
+      const week = Number(request.body?.week);
+      if (!Number.isInteger(week) || week < 2 || week > 8 || !result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist nicht freigeschaltet.' });
+      const stepAction = request.body?.stepAction || {};
+      if (stepAction.type === 'external_completed') return response.status(403).json({ error: 'Technische Ergebnisse können nur durch den zuständigen serverseitigen Dienst bestätigt werden.' });
+      if (stepAction.type === 'document_uploaded') {
+        const documentId = String(stepAction.documentId || '');
+        const storageFallbackValid = documentId.startsWith(`storage:${session.participantId}/`);
+        let storedDocumentValid = false;
+        if (/^[0-9a-f-]{36}$/i.test(documentId)) {
+          const documentResponse = await fetch(`${result.service.url}/rest/v1/participant_documents?id=eq.${encodeURIComponent(documentId)}&user_profile_id=eq.${encodeURIComponent(session.participantId)}&week=eq.${week}&select=id&limit=1`, { headers: serviceHeaders(result.service.key) });
+          const rows = await documentResponse.json().catch(() => ([]));
+          storedDocumentValid = documentResponse.ok && Boolean(rows[0]);
+        }
+        if (!storageFallbackValid && !storedDocumentValid) return response.status(400).json({ error: 'Der zugehörige sichere Upload wurde nicht gefunden.' });
+      }
+      const currentState = await readGuidedWeekState(result, session.participantId, week);
+      const update = applyGuidedWeekAction(currentState, stepAction);
+      if (!update.ok) return response.status(400).json({ error: update.error, details: update.details, weekState: update.state });
+      const rawAnswer = request.body?.stepAction?.answer || request.body?.stepAction?.fileName || '';
+      await saveGuidedWeekState(result, session.participantId, week, update.state, rawAnswer);
+      const gateMap = Object.fromEntries([...new Set(guidedWeekDefinition(week).steps.map((step) => step.gateKey))].map((key) => [key, guidedWeekDefinition(week).steps.filter((step) => step.gateKey === key).every((step) => update.state.completed_steps.includes(step.id))]));
+      await Promise.allSettled(result.gates.filter((gate) => Number(gate.week) === week && gate.gate_key in gateMap).map((gate) => setGate(result.service, session.participantId, gate.id, gateMap[gate.gate_key])));
+      return response.status(200).json({ ok: true, weekState: update.state, steps: guidedStepStatuses(update.state), gate: { complete: guidedWeekComplete(update.state), missingRequirements: missingGuidedRequirements(update.state) } });
     } else if (action === 'set_gate') {
       if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const week = Number(request.body?.week);
@@ -203,6 +246,8 @@ export default async function handler(request, response) {
         await saveWeekOneState(result, session.participantId, weekOneState, 'Woche 1 abgeschlossen');
       } else {
         if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist nicht freigeschaltet.' });
+        const guidedState = await readGuidedWeekState(result, session.participantId, week);
+        if (!guidedWeekComplete(guidedState)) return response.status(409).json({ error: `Fast geschafft. Es fehlt noch: ${missingGuidedRequirements(guidedState).join(', ')}.` });
         const required = result.gates.filter((gate) => Number(gate.week) === week && gate.required !== false);
         if (!required.length || required.some((gate) => !gate.completed_at)) return response.status(409).json({ error: 'Die Woche ist erst abgeschlossen, wenn alle Pflichtaufgaben bestätigt sind.' });
       }

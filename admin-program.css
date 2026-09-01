@@ -142,4 +142,20 @@
 .week-override strong { font-size: 9px; }.week-override i { border-radius: 12px; font: 500 6px DM Mono; padding: 4px 6px; }.week-override i.open { background: #e4f0df; color: #388154; }.week-override i.closed { background: #f0efeb; color: #888d87; }
 .week-override select { border: 1px solid #deddd6; border-radius: 6px; color: #5e655f; font-size: 7px; padding: 7px; width: 100%; }
 .progress-correction { border-top: 1px solid #deddd6; margin-top: 20px; padding-top: 16px; }.progress-correction summary { cursor: pointer; font-size: 9px; font-weight: 800; }.progress-correction > p { color: #747a74; font-size: 7px; }.gate-correction-week { background: #fff; border: 1px solid #deddd6; border-radius: 8px; margin-top: 8px; padding: 10px; }.gate-correction-week > strong { display: block; font-size: 8px; margin-bottom: 7px; }.gate-correction-week label { align-items: center; display: flex; flex-direction: row !important; font-size: 7px !important; font-weight: 600 !important; gap: 7px !important; margin: 5px 0 !important; }.gate-correction-week input { margin: 0; }
+.technical-confirmations { border-top: 1px solid #deddd6; margin-top: 20px; padding-top: 16px; }
+.technical-confirmations > summary { cursor: pointer; font-size: 9px; font-weight: 800; }
+.technical-confirmations > p { color: #747a74; font-size: 7px; line-height: 1.6; }
+#technicalConfirmationList { display: grid; gap: 9px; margin-top: 11px; }
+.technical-confirmation { border: 1px solid #deddd6; border-radius: 10px; padding: 13px; }
+.technical-confirmation.pending { background: #fff8ed; border-color: #edc38e; }
+.technical-confirmation.confirmed { background: #edf6ee; border-color: #bad8c0; }
+.technical-confirmation > div > span,.technical-confirmation > div > strong,.technical-confirmation > div > small { display: block; }
+.technical-confirmation > div > span { color: #9b6731; font: 500 7px DM Mono; text-transform: uppercase; }
+.technical-confirmation > div > strong { font-size: 10px; margin-top: 5px; }
+.technical-confirmation > div > small { color: #747a74; font-size: 7px; margin-top: 4px; }
+.technical-confirmation label { color: #6d716d; display: grid; font-size: 7px; font-weight: 800; gap: 5px; margin-top: 10px; }
+.technical-confirmation input,.technical-confirmation textarea { background: #fff; border: 1px solid #d9d7cf; border-radius: 7px; font: 8px Manrope; padding: 9px; resize: vertical; width: 100%; }
+.technical-confirmation button { margin-top: 10px; }
+.technical-confirmation > p { color: #54705d; font-size: 7px; margin: 8px 0 0; }
+.technical-empty { background: #f5f4f0; border-radius: 8px; color: #747a74; font-size: 8px; padding: 12px; }
 @media (max-width: 720px) { .program-fields, .mode-options { grid-template-columns: 1fr; }.week-overrides { grid-template-columns: 1fr 1fr; }.override-head { align-items: flex-start; gap: 12px; }.override-head > div:last-child { flex-direction: column; } }
