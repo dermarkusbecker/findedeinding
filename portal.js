@@ -407,6 +407,7 @@ async function updateWeekOne(stepAction) {
   try {
     await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'week_1_update', stepAction }) });
     await loadProgram(1);
+    $('#weekOneFlow')?.classList.remove('is-saving');
     const nextControl = $('#weekOneFlow textarea:not([disabled]), #weekOneFlow input:not([disabled]), #weekOneFlow button:not([disabled])');
     nextControl?.focus({ preventScroll: true });
     $('#questionText')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -455,6 +456,7 @@ function renderWeekOne() {
     flow.id = 'weekOneFlow';
     $('#answerForm').before(flow);
   }
+  flow.classList.remove('is-saving');
   $('#answerForm').classList.add('hidden');
   $('#savedAnswer').classList.add('hidden');
   $('#questionLabel').textContent = prompt.type === 'entry' ? 'Willkommen in Woche 1' : 'Deine nächste Frage';
