@@ -23,11 +23,22 @@
   padding-bottom: 18px;
   border-bottom-color: rgba(120, 88, 63, .08);
 }
+#activeWeek .clara-head > i { display: none; }
 
 #activeWeek .question-label { display: none; }
 #activeWeek #questionText { margin-top: 28px; }
 #activeWeek .question-help { max-width: 650px; margin-top: 10px; font-size: 14px; line-height: 1.65; }
+#activeWeek .question-help:empty { display: none; }
 #activeWeek #weekOneFlow { margin-top: 26px; }
+
+.welcome.week-hero-compact {
+  min-height: 0;
+  margin-bottom: 18px;
+  padding-block: 22px;
+}
+.welcome.week-hero-compact::after { opacity: .42; }
+.welcome.week-hero-compact h1 { margin-top: 5px; font-size: clamp(29px, 3vw, 44px); }
+.welcome.week-hero-compact #welcomeCopy { margin-top: 7px; font-size: 12px; }
 
 #activeWeek #taskList { gap: 2px; }
 #activeWeek .week-one-task {
@@ -92,10 +103,12 @@
 #activeWeek #completeWeek:disabled { border: 1px solid #e2d9d2; background: #f7f2ee; color: #aa9d93; box-shadow: none; opacity: 1; }
 
 #activeWeek .clara-journey { margin-top: 26px; }
-#activeWeek .clara-messages { gap: 14px; max-height: 460px; padding: 4px 2px 18px; }
-#activeWeek .clara-message { padding: 15px 17px; border: 0; border-radius: 6px 18px 18px 18px; background: #eef5f8; }
+#activeWeek .clara-messages { gap: 11px; max-height: 460px; padding: 2px 2px 14px; }
+#activeWeek .clara-message { padding: 12px 15px; border: 0; border-radius: 6px 17px 17px 17px; background: #eef5f8; }
 #activeWeek .clara-message.participant { border-radius: 18px 6px 18px 18px; background: #fff0e5; }
 #activeWeek .clara-message span { font-size: 9px; }
+#activeWeek .clara-message p { line-height: 1.55; }
+#activeWeek .clara-message p strong { color: var(--ink); font-weight: 800; }
 #activeWeek .clara-composer { padding-top: 18px; border-top: 1px solid rgba(120, 88, 63, .08); }
 #activeWeek .clara-composer textarea { min-height: 112px; border-color: rgba(63, 126, 166, .18); border-radius: 16px; background: #fff; }
 #activeWeek .clara-composer textarea:focus { outline: 3px solid rgba(63, 126, 166, .13); border-color: rgba(63, 126, 166, .42); }
@@ -106,6 +119,8 @@
   #activeWeek .task-card { order: 2; padding: 20px; }
   #activeWeek #questionText { margin-top: 22px; font-size: 27px; }
   #activeWeek .question-help { font-size: 13px; }
+  .welcome.week-hero-compact { margin-bottom: 12px; padding: 18px; }
+  .welcome.week-hero-compact h1 { font-size: clamp(28px, 9vw, 38px); }
   #activeWeek .clara-message { max-width: 96%; }
   #activeWeek .clara-composer > div { align-items: stretch; }
   #activeWeek .clara-composer button { min-height: 44px; }

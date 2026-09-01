@@ -354,7 +354,7 @@ function renderClaraJourney() {
   const journey = $('#claraJourney');
   if (!journey) return;
   journey.classList.toggle('hidden', currentWeek !== 1 || !program?.onboardingComplete);
-  const initialPrompt = program?.weekOne?.current_step === 'THREE_WISHES_COLLECTION' ? '<article class="clara-message assistant"><span>Clara</span><p>Zum Start möchte ich ein Gefühl dafür bekommen, was du dir für dein Leben wirklich wünschst.<br><br>Stell dir vor, du hättest drei Wünsche frei – ganz unabhängig davon, ob sie gerade realistisch sind.<br><br>Welche drei Dinge würdest du dir gerade am meisten wünschen?<br><br>Schreib einfach drauflos. Wir sortieren und vertiefen sie danach gemeinsam.</p></article>' : '<p class="clara-chat-empty">Hier ist Raum für alles, was nicht in ein festes Feld passt.</p>';
+  const initialPrompt = program?.weekOne?.current_step === 'THREE_WISHES_COLLECTION' ? '<article class="clara-message assistant"><span>Clara</span><p>Stell dir vor, du hättest drei Wünsche frei – ganz unabhängig davon, ob sie gerade realistisch sind.<br><br><strong>Welche drei Dinge würdest du dir für dein Leben gerade am meisten wünschen?</strong><br><br>Schreib einfach drauflos. Wir schauen sie uns danach gemeinsam an.</p></article>' : '<p class="clara-chat-empty">Hier ist Raum für alles, was nicht in ein festes Feld passt.</p>';
   const messageHtml = journeyMessages.length
     ? journeyMessages.map((message) => `<article class="clara-message ${message.role}"><span>${message.role === 'assistant' ? 'Clara' : 'Du'}</span><p>${escapeHtml(message.content).replace(/\n/g, '<br>')}</p>${renderClaraResultCard(message.uiAction)}</article>`).join('')
     : initialPrompt;
@@ -505,7 +505,7 @@ function renderWeekOne() {
   $('#questionText').textContent = prompt.title;
   const questionParts = [prompt.transition || '', prompt.quote ? `„${prompt.quote}“` : '', prompt.question || '', prompt.help || ''].filter(Boolean);
   $('#questionHelp').innerHTML = prompt.type === 'wishes'
-    ? 'Zum Start möchte ich verstehen, wonach du dich gerade wirklich sehnst.'
+    ? ''
     : questionParts.map((part, index) => index === 0 ? `<strong>${escapeHtml(part)}</strong>` : escapeHtml(part)).join('<br><br>');
 
   if (prompt.type === 'entry') {
@@ -594,6 +594,12 @@ function render() {
   document.querySelector('.side-foot strong').textContent = name;
   $('#onboarding').classList.toggle('hidden', !showOnboarding);
   $('#activeWeek').classList.toggle('hidden', showOnboarding || !started || !content);
+  $('.welcome').classList.toggle('week-hero-compact', Boolean(
+    started
+    && !showOnboarding
+    && currentWeek === 1
+    && program.weekOne?.current_step !== 'WEEK_1_ENTRY'
+  ));
   renderPausedState();
 
   if (showOnboarding) {
