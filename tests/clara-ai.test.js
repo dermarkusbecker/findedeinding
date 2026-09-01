@@ -65,7 +65,7 @@ test('nur belegte Extraktionen und plausible Memory-Updates passieren die Grenze
 
 test('Responses API nutzt SDK, GPT-5.6 Terra, vorherige Response und strenges Schema', async () => {
   let requestBody;
-  const structured = { schema_version: '1.0', message: 'Ich höre dir zu.', intent: { type: 'free_reflection', target: null, confidence: .8 }, extracted_information: [], memory_updates: [], suggested_state_updates: [{ action: 'none', payload: payload() }], next_action: { type: 'stay', step: null }, needs_followup: true };
+  const structured = { schema_version: '1.1', message: 'Ich höre dir zu.', mode: 'FREE_CHAT', action: 'free_chat', step_status: 'in_progress', structured_data: { wishes: null, active_wish: null, clara_suggestion: null }, intent: { type: 'free_reflection', target: null, confidence: .8 }, extracted_information: [], memory_updates: [], suggested_state_updates: [{ action: 'none', payload: payload() }], next_action: { type: 'stay', step: null }, needs_followup: true };
   const client = { responses: { create: async (body) => { requestBody = body; return { id: 'resp_1', model: 'gpt-5.6-terra', output_text: JSON.stringify(structured), usage: { total_tokens: 42 } }; } } };
   const context = buildClaraContext({ participantId: 'p1', participantName: 'Mara', week: 1, state: createWeekOneState() });
   const result = await requestClaraResponse({ context, message: 'Ich denke gerade nach.', previousResponseId: 'resp_previous', client, env: { OPENAI_API_KEY: 'test' } });

@@ -1,4 +1,4 @@
-import { stepStatuses, weekOnePrompt } from './lib/week-one.js';
+import { journeyStepStatuses, weekOnePrompt } from './lib/week-one.js';
 
 const resolveSpeechRecognition = (windowObject = window) => {
   if (!windowObject) return null;
@@ -354,12 +354,50 @@ function renderClaraChat() {
   const chat = $('#claraChat');
   if (!chat) return;
   chat.classList.toggle('hidden', currentWeek !== 1 || !program?.onboardingComplete);
+  const initialPrompt = program?.weekOne?.current_step === 'THREE_WISHES_COLLECTION' ? '<article class="clara-message assistant"><span>Clara</span><p>Stell dir vor, vor dir steht eine Fee und du hast genau drei Wünsche frei. Welche drei Dinge würdest du dir für dein Leben aktuell am meisten wünschen?</p></article>' : '<p class="clara-chat-empty">Hier ist Raum für alles, was nicht in ein festes Feld passt.</p>';
   const messageHtml = claraMessages.length
-    ? claraMessages.map((message) => `<article class="clara-message ${message.role}"><span>${message.role === 'assistant' ? 'Clara' : 'Du'}</span><p>${escapeHtml(message.content).replace(/\n/g, '<br>')}</p></article>`).join('')
-    : '<p class="clara-chat-empty">Hier ist Raum für alles, was nicht in ein festes Feld passt.</p>';
+    ? claraMessages.map((message) => `<article class="clara-message ${message.role}"><span>${message.role === 'assistant' ? 'Clara' : 'Du'}</span><p>${escapeHtml(message.content).replace(/\n/g, '<br>')}</p>${renderClaraResultCard(message.uiAction)}</article>`).join('')
+    : initialPrompt;
   $('#claraMessages').innerHTML = `${messageHtml}${claraChatLoading ? '<article class="clara-message assistant loading" aria-live="polite"><span>Clara</span><p><i></i><i></i><i></i><em>Clara denkt nach …</em></p></article>' : ''}`;
   const list = $('#claraMessages');
   list.scrollTop = list.scrollHeight;
+  list.querySelectorAll('[data-clara-confirm]').forEach((button) => button.addEventListener('click', () => confirmClaraResult(button.dataset.claraConfirm, button)));
+  list.querySelectorAll('[data-clara-revise]').forEach((button) => button.addEventListener('click', () => {
+    $('#claraChatInput').value = button.dataset.claraRevise;
+    $('#claraChatInput').focus();
+  }));
+}
+
+function renderClaraResultCard(uiAction) {
+  const confirmation = uiAction?.confirmation;
+  if (uiAction?.type !== 'show_confirmation' || !confirmation?.wishes?.length) return '';
+  const wishes = confirmation.wishes.map((wish, index) => `<li><b>${index + 1}</b><span>${escapeHtml(wish)}</span></li>`).join('');
+  const token = escapeHtml(confirmation.token);
+  return `<section class="clara-result-card"><strong>${escapeHtml(confirmation.title)}</strong><ol>${wishes}</ol><div><button class="primary" type="button" data-clara-confirm="${token}">Passt so</button><button class="secondary" type="button" data-clara-revise="Bitte lass uns die Zusammenfassung noch einmal gemeinsam überarbeiten.">Mit Clara überarbeiten</button><button class="secondary" type="button" data-clara-revise="Ich möchte meine ursprüngliche Formulierung behalten.">Meine Formulierung behalten</button></div></section>`;
+}
+
+async function confirmClaraResult(confirmationToken, button) {
+  if (!confirmationToken || button.disabled || claraChatLoading) return;
+  button.closest('.clara-result-card').querySelectorAll('button').forEach((control) => { control.disabled = true; });
+  claraChatLoading = true;
+  $('#sendClaraMessage').disabled = true;
+  renderClaraChat();
+  try {
+    const result = await request('/api/participant-program?feature=clara-message', { method: 'POST', body: JSON.stringify({ week: 1, action: 'confirm_result', confirmationToken, clientMessageId: crypto.randomUUID() }) });
+    claraMessages.push({ role: 'participant', content: 'Passt so', created_at: new Date().toISOString() }, result.message);
+    program.weekOne = result.weekOne;
+    program.weekOneGate = result.gate;
+    currentContent.tasks = result.steps;
+    claraChatLoading = false;
+    $('#sendClaraMessage').disabled = false;
+    render();
+    toast('✓ Deine drei Wünsche wurden bestätigt.');
+  } catch (error) {
+    claraChatLoading = false;
+    $('#sendClaraMessage').disabled = false;
+    renderClaraChat();
+    toast(error.message);
+  }
 }
 
 async function openWeek(week) {
@@ -469,7 +507,7 @@ function renderWeekOne() {
   if (prompt.type === 'entry') {
     flow.innerHTML = '<button class="primary" data-week-one-action="begin">Mit Woche 1 beginnen →</button><p id="weekOneError" class="week-one-error"></p>';
   } else if (prompt.type === 'wishes') {
-    flow.innerHTML = `<div class="wish-fields">${[0, 1, 2].map((index) => `<label><strong>Wunsch ${index + 1}</strong>${weekOneTextarea(`wish${index + 1}`, 'Was wünschst du dir?')}<small>Mindestens 6 Wörter</small></label>`).join('')}</div><p class="week-one-example">Statt nur „mehr Freiheit“ beschreib bitte etwas genauer, was du dir wünschst.</p><div class="week-one-actions"><button type="button" class="voice" id="wishSpeech">⌁ Spracheingabe</button><button class="primary" data-week-one-action="save-wishes">Meine drei Wünsche speichern →</button></div><p id="weekOneError" class="week-one-error"></p>`;
+    flow.innerHTML = '<div class="clara-guided-step"><span>✦</span><div><strong>Clara führt dich durch diesen Schritt</strong><p>Antworte unten im Dialog in deinen eigenen Worten. Clara fragt bei Bedarf nach und zeigt dir anschließend eine Zusammenfassung zur Bestätigung.</p></div></div><p id="weekOneError" class="week-one-error"></p>';
   } else if (prompt.type === 'wish_followup') {
     flow.innerHTML = `${weekOneTextarea('weekOneAnswer')}<div class="week-one-actions"><button type="button" class="voice" data-target="weekOneAnswer">⌁ Spracheingabe</button><button class="primary" data-week-one-action="wish-followup">Weiter →</button></div><p id="weekOneError" class="week-one-error"></p>`;
   } else if (prompt.type === 'target' || prompt.type === 'target_clarify') {
@@ -516,12 +554,12 @@ function renderWeekOne() {
   flow.querySelector('[data-week-one-action="career-confirm"]')?.addEventListener('click', () => updateWeekOne({ type: 'confirm_career', complete: true }));
   flow.querySelector('[data-week-one-action="career-add"]')?.addEventListener('click', () => updateWeekOne({ type: 'confirm_career', complete: false }));
 
-  const statuses = stepStatuses(state);
+  const statuses = journeyStepStatuses(state);
   const statusSymbol = { open: '○', in_progress: '◐', completed: '✓' };
   const statusLabel = { open: 'offen', in_progress: 'in Bearbeitung', completed: 'abgeschlossen' };
-  $('#taskList').innerHTML = statuses.map((step) => `<div class="task week-one-task ${step.status}"><span class="step-state">${statusSymbol[step.status]}</span><span><b>${escapeHtml(step.title)}</b><small>${escapeHtml(step.subtitle)}</small></span><i>${statusLabel[step.status]}</i></div>`).join('');
+  $('#taskList').innerHTML = statuses.map((step) => `<div class="task week-one-task ${step.status}"><span class="step-state">${statusSymbol[step.status]}</span><span><b>${escapeHtml(step.title)}</b><small>${step.status === 'completed' ? 'Erledigt' : step.status === 'in_progress' ? 'Aktueller Schritt' : 'Kommt als Nächstes'}</small></span><i>${statusLabel[step.status]}</i></div>`).join('');
   const done = statuses.filter((step) => step.status === 'completed').length;
-  $('#taskCount').textContent = `${done} / 4`;
+  $('#taskCount').textContent = `${done} / ${statuses.length}`;
   const uploadButton = $('#uploadButton');
   uploadButton.childNodes[0].textContent = '⇧ Datei auswählen ';
   uploadButton.classList.add('week-one-upload');
