@@ -19,7 +19,7 @@ test('fehlender Dokument-Bucket wird privat und mit Dateilimit angelegt', async 
     if (calls.length === 1) return { ok: false, status: 404, json: async () => ({}) };
     return { ok: true, status: 200 };
   });
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   const payload = JSON.parse(calls[1].options.body);
   assert.equal(payload.id, 'participant-documents');
   assert.equal(payload.public, false);
@@ -34,6 +34,6 @@ test('Supabase-Meldung Bucket not found mit Status 400 legt den Bucket ebenfalls
     if (calls.length === 1) return { ok: false, status: 400, json: async () => ({ message: 'Bucket not found' }) };
     return { ok: true, status: 200 };
   });
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   assert.equal(calls[1].options.method, 'POST');
 });
