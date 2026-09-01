@@ -400,18 +400,24 @@ async function updateWeekOne(stepAction) {
   const flow = $('#weekOneFlow');
   const errorBox = $('#weekOneError');
   if (errorBox) errorBox.textContent = '';
-  if (flow) flow.classList.add('is-saving');
+  if (flow) {
+    flow.classList.add('is-saving');
+    flow.querySelectorAll('button, input, textarea').forEach((control) => { control.disabled = true; });
+  }
   try {
-    const result = await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'week_1_update', stepAction }) });
-    program.weekOne = result.weekOne;
-    program.weekOneGate = result.gate;
-    currentContent.tasks = result.steps;
-    render();
+    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'week_1_update', stepAction }) });
+    await loadProgram(1);
+    const nextControl = $('#weekOneFlow textarea:not([disabled]), #weekOneFlow input:not([disabled]), #weekOneFlow button:not([disabled])');
+    nextControl?.focus({ preventScroll: true });
+    $('#questionText')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     toast('✓ Deine Antwort wurde gespeichert.');
   } catch (error) {
     if (errorBox) errorBox.textContent = error.message;
     else toast(error.message);
-    if (flow) flow.classList.remove('is-saving');
+    if (flow) {
+      flow.classList.remove('is-saving');
+      flow.querySelectorAll('button, input, textarea').forEach((control) => { control.disabled = false; });
+    }
   }
 }
 
