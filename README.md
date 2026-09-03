@@ -2,6 +2,21 @@
 
 Landingpage und CRM-Prototyp mit Vercel Functions und Supabase.
 
+## Lokal ansehen
+
+```bash
+npm run dev
+```
+
+Danach ist die Website unter `http://localhost:3000` erreichbar. Statische Dateien
+werden direkt aus dem lokalen Arbeitsordner geladen. API-Aufrufe, Login, Admin und
+Portal werden an das verbundene Production-Backend weitergeleitet, weil Vercel
+Variablen vom Typ `Secret` absichtlich nicht lokal exportiert. Dadurch bleiben der
+Supabase-Service-Key und andere Zugangsdaten geschützt.
+
+Wichtig: Datenänderungen in dieser Vorschau wirken auf die Production-Datenbank.
+Mit `LOCAL_API_ORIGIN` kann bei Bedarf ein anderes Backend gesetzt werden.
+
 ## Deployment
 
 1. `supabase/schema.sql` im SQL Editor des Supabase-Projekts ausführen.
