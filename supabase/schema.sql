@@ -91,6 +91,9 @@ create table if not exists public.lead_contracts (
   amount numeric(12,2) not null default 0 check (amount >= 0),
   status text not null default 'draft' check (status in ('draft', 'sent', 'signed', 'cancelled')),
   signed_at timestamptz,
+  document_confirmed_at timestamptz,
+  video_contract_confirmed_at timestamptz,
+  program_start_date date,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

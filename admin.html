@@ -29,7 +29,7 @@
         <p>Steuerung</p>
         <button class="active" data-view="command">
           <span>⌂</span>Command Center</button
-        ><button data-view="participants"><span>◎</span>Kunden <i>6</i></button
+        ><button data-view="participants"><span>◎</span>Kunden <i id="participantNavCount">0</i></button
         ><button data-view="clarity"><span>✦</span>Klarheitsanalyse</button
         ><button data-view="gates"><span>✓</span>Wochen-Gates</button
         ><button data-view="escalations">
@@ -72,8 +72,8 @@
         </div>
         <div class="header-actions">
           <button class="square">⌕</button><button class="square">♢</button
-          ><button class="primary" data-open-participant>
-            + Kunden aufnehmen
+          ><button class="primary" data-jump="leads">
+            Interessenten öffnen
           </button>
         </div>
       </header>
@@ -93,7 +93,7 @@
         <div class="metrics">
           <article class="dark">
             <div><span>Aktive Kunden</span><b>+2 diesen Monat</b></div>
-            <strong>18</strong>
+            <strong id="activeCustomerCount">0</strong>
             <p>über alle acht Prozesswochen</p>
             <div class="bars">
               <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
@@ -205,8 +205,8 @@
               zentral steuern.
             </p>
           </div>
-          <button class="primary" data-open-participant>
-            + Kunden aufnehmen
+          <button class="primary" data-jump="leads">
+            Zu den Interessenten →
           </button>
         </div>
         <div class="toolbar">
@@ -459,6 +459,7 @@
             <div class="lead-progress-track" id="leadProgressTrack"></div>
           </section>
           <div class="lead-dashboard-grid">
+            <section class="lead-dashboard-card lead-sales-call-card" id="leadSalesCallCard"><div class="lead-card-heading"><div><span class="lead-card-icon">◉</span><h2>Verkaufsgespräch</h2></div><span id="leadSalesCallStatus">Noch nicht geführt</span></div><p>Eigener Arbeitsbereich für Gesprächsleitfaden, Bedarf, Einwände und Abschlussentscheidung. Den genauen Gesprächsablauf bauen wir separat aus.</p><div class="lead-sales-call-overview" id="leadSalesCallOverview"></div><button class="lead-card-action" id="openLeadSalesCall" type="button">Verkaufsgespräch öffnen →</button></section>
             <section class="lead-dashboard-card lead-contact-card" id="leadContactCard"><div class="lead-card-heading"><div><span class="lead-card-icon">◎</span><h2>Kontakt & Anfrage</h2></div><button class="lead-card-menu" type="button" data-lead-edit="profile" aria-label="Kontakt bearbeiten">•••</button></div><div id="leadContactDetails"></div></section>
             <section class="lead-dashboard-card lead-balance-card" id="leadFinanceCard"><div class="lead-card-heading"><div><span class="lead-card-icon">€</span><h2>Kontostand</h2></div><button class="lead-card-menu" type="button" data-lead-record="payment" aria-label="Zahlung erfassen">•••</button></div><div class="lead-balance-summary"><small>Offener Saldo</small><strong id="leadOpenBalance">0,00 €</strong><span id="leadBalanceState">Keine offenen Forderungen</span></div><dl id="leadBalanceDetails"></dl><button class="lead-card-action" type="button" data-lead-record="payment">+ Zahlungseingang erfassen</button></section>
             <section class="lead-dashboard-card lead-communication-card" id="leadCommunicationCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✉</span><h2>E-Mail-Verkehr</h2></div><button class="lead-card-menu" type="button" data-lead-record="communication" aria-label="E-Mail protokollieren">•••</button></div><div class="lead-timeline" id="leadCommunicationList"></div><button class="lead-card-action" type="button" data-lead-record="communication">+ E-Mail protokollieren</button></section>
@@ -829,31 +830,6 @@
       </form>
     </dialog>
 
-    <dialog id="participantDialog">
-      <form id="participantForm">
-        <div class="dialog-head">
-          <div>
-            <p class="eyebrow">Onboarding</p>
-            <h2>Kunden aufnehmen</h2>
-          </div>
-          <button type="button" data-close>×</button>
-        </div>
-        <label>Name<input name="name" required /></label
-        ><label>E-Mail<input name="email" type="email" required /></label
-        ><label
-          >Programmstart<input name="programStartDate" type="date" required
-        /></label>
-        <p>
-          Neue Kunden starten standardmäßig im Modus „Zeitbasiert“.
-          Datenschutz-Einwilligung und Start-Commitment bleiben getrennte
-          Pflicht-Gates.
-        </p>
-        <div class="dialog-actions">
-          <button type="button" class="secondary" data-close>Abbrechen</button
-          ><button class="primary" type="submit">Aufnehmen</button>
-        </div>
-      </form>
-    </dialog>
     <dialog id="leadDialog" class="lead-dialog">
       <form id="leadForm">
         <div class="dialog-head">
@@ -878,7 +854,7 @@
               <option value="scheduled">Termin vereinbart</option>
               <option value="consultation">Gespräch geführt</option>
               <option value="offer">Angebot offen</option>
-              <option value="customer">Kunde</option>
+              <option value="customer" disabled>Teilnehmer (automatisch)</option>
               <option value="lost">Nicht passend</option>
             </select></label
           >
@@ -980,60 +956,16 @@
           <div class="lead-section-head">
             <div>
               <p class="eyebrow">Kaufabschluss</p>
-              <h3>Kundenkonto aktivieren</h3>
+              <h3>Automatischer Teilnehmerstart</h3>
             </div>
             <span id="leadConversionState">Noch kein Konto angelegt</span>
           </div>
-          <label
-            >Programmstart<input name="programStartDate" type="date"
-          /></label>
-          <fieldset class="permission-options">
-            <legend>Zugänge nach dem Kauf</legend>
-            <label
-              ><input
-                type="checkbox"
-                name="leadPermissions"
-                value="customer_portal"
-                checked
-              />
-              Kundenportal</label
-            ><label
-              ><input
-                type="checkbox"
-                name="leadPermissions"
-                value="clara_program"
-                checked
-              />
-              Clara-Programm</label
-            ><label
-              ><input
-                type="checkbox"
-                name="leadPermissions"
-                value="documents"
-                checked
-              />
-              Dokumente</label
-            ><label
-              ><input
-                type="checkbox"
-                name="leadPermissions"
-                value="community"
-              />
-              Community</label
-            >
-          </fieldset>
-          <p>
-            Nach Bestätigung erhält der Kunde eine sichere E-Mail zur eigenen
-            Passwortvergabe.
-          </p>
+          <p>Ein Interessent bleibt Lead, bis ein unterzeichneter Vertrag, das Vertragsdokument und der Videovertrag bestätigt sind. Erst danach wird das Teilnehmerkonto automatisch angelegt und die Passwort-E-Mail versendet.</p>
         </section>
         <div class="dialog-actions lead-dialog-actions">
           <button type="button" class="secondary" data-close-lead>
             Schließen</button
-          ><button class="secondary" type="submit">Interessenten speichern</button
-          ><button class="primary" type="button" id="convertLead">
-            Kauf bestätigen & Zugang senden
-          </button>
+          ><button class="primary" type="submit">Interessenten speichern</button>
         </div>
       </form>
     </dialog>
@@ -1141,9 +1073,6 @@
             />
             Kundenportal</label
           ><label
-            ><input type="checkbox" name="permissions" value="clara_program" />
-            Clara-Programm</label
-          ><label
             ><input type="checkbox" name="permissions" value="documents" />
             Dokumente</label
           ><label
@@ -1154,6 +1083,8 @@
         <p>
           Mit Startpasswort ist der Zugang sofort nutzbar. Ohne Startpasswort
           erhält der Benutzer eine sichere E-Mail zur eigenen Passwortvergabe.
+          Teilnehmer und Clara-Zugänge werden ausschließlich über einen
+          vollständigen Vertragsabschluss in der Interessentenakte angelegt.
         </p>
         <div class="dialog-actions">
           <button type="button" class="secondary" data-close-user>

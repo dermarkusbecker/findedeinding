@@ -6,12 +6,15 @@ const file = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('Interessenten öffnen eine vollständige CRM-Detailakte statt nur eines Bearbeitungsdialogs', async () => {
   const [html, script, styles] = await Promise.all([file('admin.html'), file('admin.js'), file('admin-lead-dashboard.css')]);
-  for (const id of ['leadDashboard', 'leadDashboardOverview', 'leadFinanceCard', 'leadCommunicationCard', 'leadContractsCard', 'leadTasksCard', 'leadNotesCard', 'leadBankCard']) assert.match(html, new RegExp(`id="${id}"`));
+  for (const id of ['leadDashboard', 'leadDashboardOverview', 'leadSalesCallCard', 'leadFinanceCard', 'leadCommunicationCard', 'leadContractsCard', 'leadTasksCard', 'leadNotesCard', 'leadBankCard']) assert.match(html, new RegExp(`id="${id}"`));
   assert.match(script, /openLeadDashboard/);
   assert.match(script, /renderLeadDashboard/);
+  assert.match(script, /renderSalesCallCard/);
+  assert.match(script, /openLeadSalesCall/);
   assert.match(script, /Dashboard öffnen/);
   assert.match(styles, /\.lead-dashboard-grid/);
   assert.match(styles, /\.lead-profile-hero/);
+  assert.match(styles, /\.lead-sales-call-card/);
   assert.doesNotMatch(html.slice(html.indexOf('id="leadDashboard"'), html.indexOf('data-panel="users"')), /Wirtschaftliche Verhältnisse/i);
 });
 
@@ -30,4 +33,39 @@ test('Fragen aus dem Acht-Wochen-Portal werden serverseitig an die Admin-Akte ü
   assert.match(handler, /customer_questions/);
   assert.match(admin, /fragen aus 8 Wochen/i);
   assert.match(admin, /answer_question/);
+});
+
+test('Ein Lead wird erst nach unterschriebenem Dokument und Videovertrag automatisch Teilnehmer', async () => {
+  const [html, script, api, participantsApi, usersApi, auth, migration] = await Promise.all([
+    file('admin.html'),
+    file('admin.js'),
+    file('api/leads.js'),
+    file('api/participants.js'),
+    file('api/users.js'),
+    file('lib/user-auth.js'),
+    file('supabase/migrations/20260904200000_contract_activation_lifecycle.sql'),
+  ]);
+  assert.match(script, /documentConfirmed/);
+  assert.match(script, /videoContractConfirmed/);
+  assert.match(script, /participantActivated/);
+  assert.match(api, /status === 'signed' && documentConfirmed && videoContractConfirmed/);
+  assert.match(api, /activateContractedLead/);
+  assert.match(api, /Teilnehmer-Aktivierung gesperrt/);
+  assert.match(api, /status === 'customer' && !current\.converted_user_profile_id/);
+  assert.match(migration, /document_confirmed_at/);
+  assert.match(migration, /video_contract_confirmed_at/);
+  assert.match(migration, /program_start_date/);
+  assert.doesNotMatch(html, /id="convertLead"/);
+  assert.match(participantsApi, /ausschließlich nach einem vollständig bestätigten Lead-Vertragsabschluss/);
+  assert.doesNotMatch(usersApi, /ensureProgram/);
+  assert.match(usersApi, /Teilnehmerzugänge entstehen ausschließlich automatisch/);
+  assert.doesNotMatch(auth, /Demo Kunde/);
+});
+
+test('Teilnehmerlisten enthalten keine fest eingebauten Demo-Datensätze', async () => {
+  const [script, html] = await Promise.all([file('admin.js'), file('admin.html')]);
+  assert.match(script, /let participants = \[\];/);
+  assert.doesNotMatch(script, /demoParticipants|demo-/);
+  assert.match(html, /id="participantNavCount">0</);
+  assert.match(html, /id="activeCustomerCount">0</);
 });

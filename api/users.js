@@ -1,5 +1,4 @@
 import { USER_PERMISSIONS } from '../lib/auth.js';
-import { participantGateRows } from '../lib/gate-templates.js';
 import { authHeaders, createManagedAuthUser, profileById, requireCurrentAdmin, sendPasswordReset, supabaseAuthConfig } from '../lib/user-auth.js';
 
 const clean = (value, max = 160) => typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -12,15 +11,9 @@ async function data(response) {
   return body;
 }
 
-async function ensureProgram(service, profileId, startDateInput) {
+async function hasParticipantProgram(service, profileId) {
   const progress = await data(await fetch(`${service.url}/rest/v1/participant_progress?user_profile_id=eq.${encodeURIComponent(profileId)}&select=id&limit=1`, { headers: authHeaders(service.serviceKey) }));
-  if (progress[0]) return false;
-  const programStartDate = /^\d{4}-\d{2}-\d{2}$/.test(startDateInput || '') ? startDateInput : new Date().toISOString().slice(0, 10);
-  await Promise.all([
-    data(await fetch(`${service.url}/rest/v1/participant_progress`, { method: 'POST', headers: authHeaders(service.serviceKey), body: JSON.stringify({ user_profile_id: profileId, process_status: 'ONBOARDING', current_week: 1, program_start_date: programStartDate, access_mode: 'time_based', program_status: 'active' }) })),
-    data(await fetch(`${service.url}/rest/v1/week_gates`, { method: 'POST', headers: authHeaders(service.serviceKey), body: JSON.stringify(participantGateRows(profileId)) })),
-  ]);
-  return true;
+  return Boolean(progress[0]);
 }
 
 export default async function handler(request, response) {
@@ -39,10 +32,10 @@ export default async function handler(request, response) {
       const permissions = permissionsFrom(request.body?.permissions);
       if (!name || !emailValid(email) || !['admin', 'user'].includes(role)) return response.status(400).json({ error: 'Name, gültige E-Mail und Rolle sind erforderlich.' });
       if (password && password.length < 8) return response.status(400).json({ error: 'Das Startpasswort muss mindestens acht Zeichen lang sein.' });
+      if (role === 'user' && permissions.includes('clara_program')) return response.status(409).json({ error: 'Teilnehmerzugänge entstehen ausschließlich automatisch nach dem vollständig bestätigten Lead-Vertragsabschluss.' });
       const authUser = await createManagedAuthUser(service, email, name, password);
       const profiles = await data(await fetch(`${service.url}/rest/v1/user_profiles`, { method: 'POST', headers: { ...authHeaders(service.serviceKey), Prefer: 'return=representation' }, body: JSON.stringify({ auth_user_id: authUser.id, name, email, role, status: 'active', permissions }) }));
-      const programCreated = permissions.includes('clara_program') ? await ensureProgram(service, profiles[0].id, request.body?.programStartDate) : false;
-      return response.status(201).json({ user: profiles[0], passwordResetSent: !password, programCreated });
+      return response.status(201).json({ user: profiles[0], passwordResetSent: !password, programCreated: false });
     }
     if (request.method === 'PATCH') {
       const id = clean(request.body?.id, 80);
@@ -81,10 +74,11 @@ export default async function handler(request, response) {
       }
       if (request.body?.permissions !== undefined) changes.permissions = permissionsFrom(request.body.permissions);
       if (!Object.keys(changes).length) return response.status(400).json({ error: 'Keine Änderung übermittelt.' });
-      const users = await data(await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { ...authHeaders(service.serviceKey), Prefer: 'return=representation' }, body: JSON.stringify(changes) }));
+      const targetRole = changes.role || existing.role;
       const targetPermissions = changes.permissions || existing.permissions || [];
-      const programCreated = targetPermissions.includes('clara_program') ? await ensureProgram(service, existing.id, request.body?.programStartDate) : false;
-      return response.status(200).json({ user: users[0], programCreated });
+      if (targetRole === 'user' && targetPermissions.includes('clara_program') && !await hasParticipantProgram(service, existing.id)) return response.status(409).json({ error: 'Dieser Benutzer ist noch kein Teilnehmer. Der Clara-Zugang wird erst nach dem vollständig bestätigten Lead-Vertragsabschluss vergeben.' });
+      const users = await data(await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { ...authHeaders(service.serviceKey), Prefer: 'return=representation' }, body: JSON.stringify(changes) }));
+      return response.status(200).json({ user: users[0], programCreated: false });
     }
     return response.status(405).json({ error: 'Methode nicht erlaubt.' });
   } catch (error) {

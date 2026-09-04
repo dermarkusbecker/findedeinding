@@ -31,6 +31,15 @@
 .lead-dashboard-grid { display: grid; gap: 18px; grid-template-columns: repeat(12,1fr); }
 .lead-dashboard-card { background: #fff; border: 1px solid #dbe4e2; border-radius: 18px; box-shadow: 0 13px 35px rgba(27,72,70,.065); min-height: 250px; padding: 21px; }
 .lead-dashboard-card:hover { border-color: #bdd6d1; box-shadow: 0 17px 42px rgba(27,72,70,.1); }
+.lead-sales-call-card { grid-column: span 12; min-height: 0; }
+.lead-sales-call-card>.lead-card-heading>span { background: #fff1e7; border-radius: 999px; color: #a95a28; font-size: 10px; padding: 6px 10px; }
+.lead-sales-call-card>p { color: #637477; font-size: 12px; line-height: 1.6; margin: 14px 0; max-width: 850px; }
+.lead-sales-call-overview { display: grid; gap: 10px; grid-template-columns: repeat(3,1fr); }
+.lead-sales-call-overview>div { align-items: center; background: #f6f9f8; border: 1px solid #e1e9e7; border-radius: 12px; display: flex; gap: 11px; padding: 13px; }
+.lead-sales-call-overview>div>span { align-items: center; background: #e2f2ec; border-radius: 50%; color: #16846f; display: flex; flex: 0 0 29px; font-size: 11px; font-weight: 900; height: 29px; justify-content: center; }
+.lead-sales-call-overview b,.lead-sales-call-overview small { display: block; }
+.lead-sales-call-overview b { color: #2b3d40; font-size: 11px; }
+.lead-sales-call-overview small { color: #738185; font-size: 10px; margin-top: 3px; }
 .lead-contact-card,.lead-balance-card,.lead-communication-card,.lead-contract-card { grid-column: span 6; }
 .lead-task-card { grid-column: span 7; }
 .lead-notes-card { grid-column: span 5; }
@@ -58,6 +67,9 @@
 .lead-timeline p,.lead-contract-list p,.lead-task-list p { color: #69787b; font-size: 11px; line-height: 1.5; margin: 7px 0 0; }
 .lead-timeline small,.lead-contract-list small,.lead-task-list small { color: #849194; display: block; font-size: 9px; margin-top: 8px; }
 .lead-contract-list article.signed { background: #eff9f5; border-color: #c2e5d8; }
+.lead-contract-checks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.lead-contract-checks i { background: #eef1f0; border-radius: 999px; color: #7b8789; font-size: 9px; font-style: normal; font-weight: 750; padding: 5px 8px; }
+.lead-contract-checks i.ok { background: #ddf3ea; color: #14745f; }
 .lead-task-list article.question { background: #f2f8fb; border-color: #cfe2eb; }
 .lead-task-list article.done { opacity: .65; }
 .lead-task-list label { align-items: flex-start; display: flex; gap: 10px; }
@@ -78,6 +90,10 @@
 #leadRecordFields label.wide { grid-column: 1/-1; }
 #leadRecordFields input,#leadRecordFields select,#leadRecordFields textarea { background: #fff; border: 1px solid #d8e2e0; border-radius: 10px; color: #243639; font: 13px Manrope; padding: 12px; width: 100%; }
 #leadRecordFields textarea { min-height: 110px; resize: vertical; }
+.lead-contract-confirmations { border: 1px solid #d8e2e0; border-radius: 12px; display: grid; gap: 10px; margin: 0; padding: 14px; }
+.lead-contract-confirmations legend { color: #53666a; font-size: 11px; font-weight: 850; padding: 0 5px; }
+.lead-contract-confirmations label { align-items: center; color: #35494c; flex-direction: row !important; font-size: 11px !important; }
+.lead-contract-confirmations input { height: 17px; margin: 0; padding: 0 !important; width: 17px !important; }
 
 @media (max-width: 1250px) {
   .lead-progress-track { grid-template-columns: repeat(4,1fr); }
@@ -90,6 +106,7 @@
   .lead-progress-track { grid-template-columns: repeat(2,1fr); }
   .lead-sales-progress { overflow: hidden; padding: 18px; }
   .lead-sales-progress .lead-card-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .lead-sales-call-overview { grid-template-columns: 1fr; }
 }
 @media (max-width: 520px) {
   .lead-profile-main { align-items: flex-start; }

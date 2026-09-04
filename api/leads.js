@@ -38,6 +38,19 @@ async function insertLeadRecord(service, table, payload) {
   return rows[0] || null;
 }
 
+async function activateContractedLead(service, lead, programStartDate) {
+  if (lead.converted_user_profile_id) return { profileId: lead.converted_user_profile_id, alreadyActive: true };
+  const profile = await provisionProgramUser(service, { name: lead.name, email: lead.email, startDate: programStartDate, permissions: ['customer_portal', 'clara_program', 'documents'] });
+  await patchLead(service, lead.id, { status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
+  await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Kundenportal-Zugang versendet', preview: 'Vertragsdokument und Videovertrag sind bestätigt. Der neue Teilnehmer hat die E-Mail zur sicheren Passwortvergabe erhalten.' }).catch(() => null);
+  return { profileId: profile.id, name: profile.name, email: profile.email, alreadyActive: false };
+}
+
+async function completedContract(service, leadId) {
+  const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_contracts?lead_id=eq.${encodeURIComponent(leadId)}&status=eq.signed&document_confirmed_at=not.is.null&video_contract_confirmed_at=not.is.null&select=*&order=signed_at.desc&limit=1`, { headers: headers(service.key) }), 'Vertragsstatus konnte nicht geprüft werden.');
+  return rows[0] || null;
+}
+
 async function leadDashboard(service, id) {
   const lead = await leadById(service, id);
   const leadFilter = `lead_id=eq.${encodeURIComponent(lead.id)}`;
@@ -68,42 +81,49 @@ async function recordDashboardMutation(service, request) {
     const status = ['draft', 'sent', 'signed', 'cancelled'].includes(request.body?.status) ? request.body.status : 'draft';
     const title = clean(request.body?.title, 180);
     if (!title || !Number.isFinite(amount) || amount < 0) throw Object.assign(new Error('Vertragsbezeichnung und gültiger Betrag sind erforderlich.'), { status: 400 });
-    return insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, title, contract_number: clean(request.body?.contractNumber, 80) || null, amount, status, signed_at: status === 'signed' ? new Date().toISOString() : null });
+    const now = new Date().toISOString();
+    const documentConfirmed = request.body?.documentConfirmed === 'true' || request.body?.documentConfirmed === true;
+    const videoContractConfirmed = request.body?.videoContractConfirmed === 'true' || request.body?.videoContractConfirmed === true;
+    const programStartDate = /^\d{4}-\d{2}-\d{2}$/.test(request.body?.programStartDate || '') ? request.body.programStartDate : now.slice(0, 10);
+    const record = await insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, title, contract_number: clean(request.body?.contractNumber, 80) || null, amount, status, signed_at: status === 'signed' ? now : null, document_confirmed_at: documentConfirmed ? now : null, video_contract_confirmed_at: videoContractConfirmed ? now : null, program_start_date: programStartDate });
+    const readyForParticipant = status === 'signed' && documentConfirmed && videoContractConfirmed;
+    const participant = readyForParticipant ? await activateContractedLead(service, lead, programStartDate) : null;
+    return { record, participantActivated: Boolean(participant && !participant.alreadyActive), participant };
   }
   if (recordType === 'payment') {
     const amount = Number(request.body?.amount);
     const bookedAt = /^\d{4}-\d{2}-\d{2}$/.test(request.body?.bookedAt || '') ? request.body.bookedAt : new Date().toISOString().slice(0, 10);
     if (!Number.isFinite(amount) || amount <= 0) throw Object.assign(new Error('Ein positiver Zahlungsbetrag ist erforderlich.'), { status: 400 });
-    return insertLeadRecord(service, 'lead_payments', { lead_id: lead.id, amount, status: 'booked', booked_at: bookedAt, reference: clean(request.body?.reference, 180) || null });
+    return { record: await insertLeadRecord(service, 'lead_payments', { lead_id: lead.id, amount, status: 'booked', booked_at: bookedAt, reference: clean(request.body?.reference, 180) || null }) };
   }
   if (recordType === 'communication') {
     const subject = clean(request.body?.subject, 220);
     const direction = ['inbound', 'outbound', 'system'].includes(request.body?.direction) ? request.body.direction : 'outbound';
     if (!subject) throw Object.assign(new Error('Ein Betreff ist erforderlich.'), { status: 400 });
-    return insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, subject, direction, preview: clean(request.body?.preview, 2000) || null });
+    return { record: await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, subject, direction, preview: clean(request.body?.preview, 2000) || null }) };
   }
   if (recordType === 'task') {
     const title = clean(request.body?.title, 220);
     if (!title) throw Object.assign(new Error('Eine Aufgabenbezeichnung ist erforderlich.'), { status: 400 });
-    return insertLeadRecord(service, 'lead_tasks', { lead_id: lead.id, title, details: clean(request.body?.details, 2000) || null, due_at: /^\d{4}-\d{2}-\d{2}$/.test(request.body?.dueAt || '') ? request.body.dueAt : null });
+    return { record: await insertLeadRecord(service, 'lead_tasks', { lead_id: lead.id, title, details: clean(request.body?.details, 2000) || null, due_at: /^\d{4}-\d{2}-\d{2}$/.test(request.body?.dueAt || '') ? request.body.dueAt : null }) };
   }
   if (recordType === 'bank') {
     const payload = { lead_id: lead.id, account_holder: clean(request.body?.accountHolder, 180) || null, iban: clean(request.body?.iban, 50).replace(/\s+/g, '').toUpperCase() || null, bic: clean(request.body?.bic, 20).replace(/\s+/g, '').toUpperCase() || null, payment_reference: clean(request.body?.paymentReference, 180) || null, updated_at: new Date().toISOString() };
     const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_bank_accounts?on_conflict=lead_id`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify(payload) }), 'Bankverbindung konnte nicht gespeichert werden.');
-    return rows[0] || null;
+    return { record: rows[0] || null };
   }
-  if (recordType === 'note') return patchLead(service, lead.id, { internal_notes: clean(request.body?.notes, 10000) || null });
+  if (recordType === 'note') return { record: await patchLead(service, lead.id, { internal_notes: clean(request.body?.notes, 10000) || null }) };
   if (recordType === 'toggle_task') {
     if (!uuidValid(request.body?.taskId)) throw Object.assign(new Error('Gültige Aufgaben-ID fehlt.'), { status: 400 });
     const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_tasks?id=eq.${encodeURIComponent(request.body.taskId)}&lead_id=eq.${encodeURIComponent(lead.id)}`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ completed: request.body?.completed === true, updated_at: new Date().toISOString() }) }), 'Aufgabe konnte nicht aktualisiert werden.');
     if (!rows[0]) throw Object.assign(new Error('Aufgabe wurde nicht gefunden.'), { status: 404 });
-    return rows[0];
+    return { record: rows[0] };
   }
   if (recordType === 'answer_question') {
     if (!uuidValid(request.body?.questionId) || !lead.converted_user_profile_id) throw Object.assign(new Error('Gültige Kundenfrage fehlt.'), { status: 400 });
     const rows = await readJson(await fetch(`${service.url}/rest/v1/customer_questions?id=eq.${encodeURIComponent(request.body.questionId)}&user_profile_id=eq.${encodeURIComponent(lead.converted_user_profile_id)}`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ status: 'answered', admin_note: clean(request.body?.adminNote, 2000) || null, updated_at: new Date().toISOString() }) }), 'Kundenfrage konnte nicht aktualisiert werden.');
     if (!rows[0]) throw Object.assign(new Error('Kundenfrage wurde nicht gefunden.'), { status: 404 });
-    return rows[0];
+    return { record: rows[0] };
   }
   throw Object.assign(new Error('Unbekannter Dashboard-Eintrag.'), { status: 400 });
 }
@@ -201,8 +221,8 @@ export default async function handler(request, response) {
     }
     if (request.method === 'GET' && action === 'dashboard') return response.status(200).json(await leadDashboard(service, request.query?.id));
     if (request.method === 'POST' && action === 'dashboard-record') {
-      const record = await recordDashboardMutation(service, request);
-      return response.status(200).json({ ok: true, record });
+      const result = await recordDashboardMutation(service, request);
+      return response.status(200).json({ ok: true, ...result });
     }
     if (request.method === 'GET') {
       const leads = await readJson(await fetch(`${service.url}/rest/v1/leads?select=*&order=created_at.desc&limit=200`, { headers: headers(service.key) }), 'Leads konnten nicht geladen werden.');
@@ -215,6 +235,7 @@ export default async function handler(request, response) {
       const email = clean(request.body?.email, 254).toLowerCase();
       const status = VALID_STATUSES.includes(request.body?.status) ? request.body.status : current.status;
       if (!name || !emailValid(email)) return response.status(400).json({ error: 'Name und gültige E-Mail sind erforderlich.' });
+      if (status === 'customer' && !current.converted_user_profile_id) return response.status(409).json({ error: 'Ein Lead wird erst durch einen vollständig bestätigten Vertragsabschluss automatisch zum Teilnehmer.' });
       const lead = await patchLead(service, current.id, { first_name: firstName || null, last_name: lastName || null, name, email, phone: clean(request.body?.phone, 40) || null, challenge: clean(request.body?.challenge, 1000) || null, internal_notes: clean(request.body?.internalNotes, 10000) || null, qualification_answers: qualificationAnswers(request.body?.qualificationAnswers), status });
       return response.status(200).json({ lead });
     }
@@ -243,13 +264,10 @@ export default async function handler(request, response) {
     if (request.method === 'POST' && action === 'convert') {
       const lead = await leadById(service, request.body?.id);
       if (lead.converted_user_profile_id) return response.status(409).json({ error: 'Für diesen Lead wurde bereits ein Kundenkonto angelegt.' });
-      const firstName = clean(request.body?.firstName, 80), lastName = clean(request.body?.lastName, 80), name = clean(`${firstName} ${lastName}`, 120) || lead.name;
-      const email = clean(request.body?.email || lead.email, 254).toLowerCase();
-      const permissions = Array.isArray(request.body?.permissions) ? request.body.permissions : ['customer_portal', 'clara_program', 'documents'];
-      const profile = await provisionProgramUser(service, { name, email, startDate: request.body?.programStartDate, permissions });
-      const updated = await patchLead(service, lead.id, { first_name: firstName || lead.first_name, last_name: lastName || lead.last_name, name, email, status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
-      await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Kundenportal-Zugang versendet', preview: 'Der Kunde hat die E-Mail zur sicheren Passwortvergabe erhalten.' }).catch(() => null);
-      return response.status(200).json({ lead: updated, profile: { id: profile.id, name: profile.name, email: profile.email }, invitationSent: true });
+      const contract = await completedContract(service, lead.id);
+      if (!contract) return response.status(409).json({ error: 'Teilnehmer-Aktivierung gesperrt: Vertragsdokument und Videovertrag müssen vollständig bestätigt sein.' });
+      const participant = await activateContractedLead(service, lead, contract.program_start_date || request.body?.programStartDate);
+      return response.status(200).json({ lead: await leadById(service, lead.id), profile: { id: participant.profileId, name: participant.name, email: participant.email }, invitationSent: true });
     }
     return response.status(405).json({ error: 'Aktion oder Methode nicht erlaubt.' });
   } catch (error) {
