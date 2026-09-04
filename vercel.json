@@ -9,6 +9,8 @@
     { "source": "/kunden-login", "destination": "/login.html" },
     { "source": "/api/google/connect", "destination": "/api/leads?action=google-connect" },
     { "source": "/api/google/callback", "destination": "/api/leads?action=google-callback" },
+    { "source": "/api/customer-records", "destination": "/api/participants" },
+    { "source": "/api/health", "destination": "/api/admin?action=health" },
     { "source": "/admin", "destination": "/api/admin" },
     { "source": "/portal", "destination": "/api/portal" }
   ],

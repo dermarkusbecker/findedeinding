@@ -13,7 +13,7 @@ test('Kundennavigation bildet exakt Verwaltung, Finanzen, Kommunikation und Term
 });
 
 test('Kundenakte sammelt Vertrags-, Upload-, Finanz-, Nachrichten- und Termindaten serverseitig', async () => {
-  const [api, migration] = await Promise.all([file('api/customer-records.js'), file('supabase/migrations/20260905110000_customer_workspace.sql')]);
+  const [api, migration] = await Promise.all([file('lib/customer-records-service.js'), file('supabase/migrations/20260905110000_customer_workspace.sql')]);
   for (const relation of ['participant_documents', 'customer_appointments', 'lead_contracts', 'lead_payments', 'lead_communications', 'lead_bank_accounts']) assert.match(api, new RegExp(relation));
   assert.match(migration, /mobile_phone text/);
   assert.match(migration, /whatsapp_same_as_mobile boolean/);
@@ -23,7 +23,7 @@ test('Kundenakte sammelt Vertrags-, Upload-, Finanz-, Nachrichten- und Termindat
 });
 
 test('WhatsApp Business besitzt vollständigen Chat, Composer, Versand und signierten Eingang', async () => {
-  const [html, client, api, webhook, registry] = await Promise.all([file('admin.html'), file('admin.js'), file('api/customer-records.js'), file('api/whatsapp-webhook.js'), file('lib/system-registry.js')]);
+  const [html, client, api, webhook, registry] = await Promise.all([file('admin.html'), file('admin.js'), file('lib/customer-records-service.js'), file('api/whatsapp-webhook.js'), file('lib/system-registry.js')]);
   assert.match(html, /id="customerWhatsappMessages"/);
   assert.match(html, /id="customerWhatsappForm"/);
   assert.match(client, /action=whatsapp-send/);

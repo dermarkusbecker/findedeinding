@@ -1,8 +1,10 @@
 import { authHeaders, profileById, randomTemporaryPassword, requireCurrentAdmin, sendPasswordReset } from '../lib/user-auth.js';
+import { handleCustomerRecords } from '../lib/customer-records-service.js';
 
 function config() { const url = process.env.SUPABASE_URL?.replace(/\/$/, ''); const key = process.env.SUPABASE_SERVICE_ROLE_KEY; return url && key ? { url, key } : null; }
 function headers(key, extra = {}) { return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...extra }; }
 export default async function handler(request, response) {
+  if (['overview', 'document-download', 'document-upload', 'avatar-upload', 'whatsapp-send'].includes(request.query?.action || request.body?.action)) return handleCustomerRecords(request, response);
   if (!await requireCurrentAdmin(request, response, ['customers', 'program'])) return;
   const service = config();
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
