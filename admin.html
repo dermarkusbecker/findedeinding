@@ -228,6 +228,7 @@
           </div>
         </section>
         <section id="customerDashboard" class="customer-crm-dashboard" hidden aria-label="Kunden-Dashboard">
+          <input id="customerAvatarInput" type="file" accept="image/png,image/jpeg,image/webp" hidden />
           <button class="lead-back" id="closeCustomerDashboard" type="button">← Zurück zu allen Kunden</button>
           <section class="lead-profile-hero customer-profile-hero">
             <div class="lead-profile-main"><span id="customerDashboardInitials">KD</span><div><p class="eyebrow">Kundenakte</p><div class="lead-name-line"><h1 id="customerDashboardName">Kunde</h1><i id="customerDashboardPhase">Onboarding</i></div><p id="customerDashboardContact">E-Mail · Telefon</p></div></div>
@@ -245,6 +246,12 @@
           <div class="customer-dashboard-page" data-customer-page="data" hidden>
             <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Kundenstammdaten</p><h2>Name &amp; Adresse</h2></div><button class="lead-card-menu" id="editCustomerData" type="button" aria-label="Kundendaten bearbeiten">•••</button></div><div id="customerDataPage"></div></section>
           </div>
+          <div class="customer-dashboard-page" data-customer-page="documents" hidden>
+            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Vertragsunterlagen</p><h2>Vertrag &amp; Videovertrag</h2><p>Verbindliche Abschlussdokumente aus dem Verkaufsprozess.</p></div><span class="customer-page-state" id="customerContractState">Wird geladen …</span></div><div class="customer-document-grid" id="customerOfficialDocuments"></div></section>
+          </div>
+          <div class="customer-dashboard-page" data-customer-page="documentInbox" hidden>
+            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Zentrale Dokumentenakte</p><h2>Dokumenten-Inbox</h2><p>Alle vom Kunden hochgeladenen und an den Kunden freigegebenen Unterlagen.</p></div><span class="customer-page-state" id="customerDocumentCount">0 Dokumente</span></div><form id="customerDocumentUploadForm" class="customer-document-upload"><label>Titel<input name="title" maxlength="180" placeholder="z. B. ergänzende Unterlage" required /></label><label>Dokumentart<select name="documentType"><option value="shared">Allgemeines Dokument</option><option value="contract">Vertrag</option><option value="video_contract">Videovertrag</option><option value="other">Sonstiges</option></select></label><label>Datei<input name="file" type="file" accept="application/pdf,.docx,image/png,image/jpeg,image/webp" required /></label><label class="document-visibility"><input name="customerVisible" type="checkbox" checked /> Im Kundenportal sichtbar</label><button class="primary" type="submit">Dokument hochladen</button></form><div class="customer-document-list" id="customerDocumentInbox"></div></section>
+          </div>
           <div class="customer-dashboard-page" data-customer-page="conversation" hidden>
             <section class="card customer-page-card customer-conversation-page"><div class="lead-card-heading"><div><p class="eyebrow">Persönliche Betreuung</p><h2>Kundengespräch</h2><p>Gesprächsleitfaden, Antworten und nächster Schritt direkt in der Kundenakte bearbeiten.</p></div><span id="customerConversationState">Noch nicht dokumentiert</span></div><form id="customerConversationForm"><div id="customerConversationQuestions" class="customer-conversation-questions"></div><label>Gesprächsnotiz<textarea name="internalNotes" rows="5" placeholder="Erkenntnisse, Einwände und nächste Schritte …"></textarea></label><div class="customer-conversation-actions"><div id="customerConversationAppointment"></div><button class="primary" type="submit">Kundengespräch speichern</button></div></form></section>
           </div>
@@ -252,7 +259,22 @@
             <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Programmsteuerung</p><h2>Acht Wochen im Überblick</h2></div><button class="primary" id="editCustomerProgram" type="button">Programm verwalten</button></div><div class="customer-week-track large" id="customerProgramPageWeeks"></div></section>
           </div>
           <div class="customer-dashboard-page" data-customer-page="login" hidden>
-            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Sicherer Portalzugang</p><h2>Teilnehmer-Login</h2></div><button class="primary" id="manageCustomerLogin" type="button">Zugang verwalten</button></div><div id="customerLoginPage" class="customer-login-page"></div></section>
+            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Sicherer Portalzugang</p><h2>Portal-Login</h2></div><button class="primary" id="manageCustomerLogin" type="button">Zugang verwalten</button></div><div id="customerLoginPage" class="customer-login-page"></div></section>
+          </div>
+          <div class="customer-dashboard-page" data-customer-page="account" hidden>
+            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Finanzen</p><h2>Konto</h2><p>Saldo, Zahlungseingänge und Bankverbindung des Kunden.</p></div><span class="customer-page-state" id="customerAccountState">Wird geladen …</span></div><div class="customer-finance-overview" id="customerAccountPage"></div></section>
+          </div>
+          <div class="customer-dashboard-page" data-customer-page="billing" hidden>
+            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Finanzen</p><h2>Rechnungen &amp; Ratenpläne</h2><p>Verträge, Forderungen, Zahlungen und der aktuelle Abgleich.</p></div><span class="customer-page-state" id="customerBillingState">Wird geladen …</span></div><div class="customer-billing-list" id="customerBillingPage"></div></section>
+          </div>
+          <div class="customer-dashboard-page" data-customer-page="messages" hidden>
+            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Kommunikation</p><h2>Nachrichten</h2><p>Alle E-Mails sowie alle an den Kunden gesendeten WhatsApp-Nachrichten.</p></div><span class="customer-page-state" id="customerMessageCount">0 Nachrichten</span></div><div class="customer-message-list" id="customerMessagePage"></div></section>
+          </div>
+          <div class="customer-dashboard-page" data-customer-page="whatsapp" hidden>
+            <section class="card customer-page-card customer-whatsapp-page"><div class="lead-card-heading"><div><p class="eyebrow">Kundenzugeordneter Chat</p><h2>WhatsApp Business</h2><p>Vollständiger Verlauf aus Ein- und Ausgängen des Kunden.</p></div><span class="customer-page-state" id="customerWhatsappState">Schnittstelle wird geprüft …</span></div><div class="customer-phone-shell"><div class="customer-phone"><div class="customer-phone-notch"></div><header><span id="customerWhatsappAvatar">KD</span><div><strong id="customerWhatsappName">Kunde</strong><small id="customerWhatsappNumber">Keine Nummer</small></div><i>◯</i></header><main id="customerWhatsappMessages"></main><form id="customerWhatsappForm"><button type="button" aria-label="Datei anhängen">⌕</button><textarea name="message" rows="1" maxlength="4000" placeholder="Nachricht eingeben"></textarea><button type="submit" aria-label="Nachricht senden">➤</button></form></div></div></section>
+          </div>
+          <div class="customer-dashboard-page" data-customer-page="appointments" hidden>
+            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Google Kalender</p><h2>Terminliste</h2><p>Bevorstehende und vergangene Kundentermine mit Meet-Verknüpfung.</p></div><span class="customer-page-state" id="customerAppointmentState">Wird geladen …</span></div><div class="customer-appointment-list" id="customerAppointmentPage"></div></section>
           </div>
         </section>
       </section>
@@ -1447,12 +1469,14 @@
             <label class="wide">Vollständiger Name<input id="customerProfileName" name="customerProfileName" required maxlength="160" /></label>
             <label>Geburtsdatum<input id="customerBirthDate" name="customerBirthDate" type="date" /></label>
             <label>Telefonnummer<input id="customerPhone" name="customerPhone" type="tel" maxlength="40" /></label>
+            <label>Mobilnummer<input id="customerMobilePhone" name="customerMobilePhone" type="tel" maxlength="40" /></label>
             <label class="wide">Straße &amp; Hausnummer<input id="customerStreet" name="customerStreet" maxlength="200" placeholder="Noch nicht hinterlegt" /></label>
             <label>Postleitzahl<input id="customerPostalCode" name="customerPostalCode" maxlength="20" /></label>
             <label>Ort<input id="customerCity" name="customerCity" maxlength="120" /></label>
             <label>Land<input id="customerCountry" name="customerCountry" maxlength="80" /></label>
             <label>E-Mail-Adresse<input id="customerProfileEmail" name="customerProfileEmail" type="email" readonly /></label>
             <label>WhatsApp-Nummer<input id="customerWhatsappPhone" name="customerWhatsappPhone" type="tel" maxlength="40" /></label>
+            <label class="customer-postal-toggle"><input id="customerWhatsappSame" name="customerWhatsappSame" type="checkbox" /> WhatsApp-Nummer ist identisch mit der Mobilnummer</label>
             <label>Bevorzugter Kanal<select id="customerPreferredChannel" name="customerPreferredChannel"><option value="email">E-Mail</option><option value="phone">Telefon</option><option value="whatsapp">WhatsApp</option></select></label>
             <label class="customer-postal-toggle"><input id="customerPostalActive" name="customerPostalActive" type="checkbox" /> Postanschrift aktiv verwenden</label>
           </div>

@@ -8,8 +8,8 @@ test('Kundenübersicht trennt Kundenliste und Teilnehmer-Login in eigene Unterbe
   const [html, script] = await Promise.all([file('admin.html'), file('admin.js')]);
   assert.match(html, /id="participantOverview"/);
   assert.match(html, /id="participantLoginManager" hidden/);
-  assert.match(script, /detailItems:\[\['Dashboard'/);
-  assert.match(script, /\['Teilnehmer-Login','Login, Einmalpasswort & Versand'/);
+  assert.match(script, /detailGroups:\[\{label:'Verwaltung'/);
+  assert.match(script, /\['Portal-Login','Login, Einmalpasswort & Versand'/);
   assert.match(script, /function setParticipantSection/);
   assert.match(script, /participantSection!=='logins'/);
 });
@@ -35,7 +35,7 @@ test('Kundenakte öffnet zuerst ein Dashboard und führt das Kundengespräch als
   assert.match(script, /customerDashboardPage='dashboard'/);
   assert.match(script, /function openCustomerDashboard/);
   assert.match(script, /function setCustomerDashboardPage/);
-  assert.match(script, /\['Kundengespräch','Eigene Gesprächsseite'/);
+  assert.match(script, /\['Kundengespräche','Laufende und abgeschlossene Gespräche'/);
   assert.match(script, /Kundengespräch wurde gespeichert/);
 });
 

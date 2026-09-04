@@ -22,7 +22,7 @@ test('Kundenakte zeigt echte Stamm- und Adressdaten statt Lead-Herkunft', async 
   assert.match(client, /customerProfile:\{name:/);
   assert.match(api, /async function patchCustomerProfile/);
   assert.match(api, /preferred_communication_channel/);
-  assert.match(access, /birth_date,street,postal_code,city,country,phone,whatsapp_phone/);
+  assert.match(access, /birth_date,street,postal_code,city,country,phone,mobile_phone,whatsapp_phone,whatsapp_same_as_mobile/);
   assert.match(migration, /add column if not exists birth_date date/);
   assert.match(migration, /set phone = lead\.phone/);
   assert.match(styles, /\.customer-address-card/);

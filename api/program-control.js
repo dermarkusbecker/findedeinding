@@ -16,7 +16,9 @@ async function patchCustomerProfile(service, participantId, input) {
     city: clean(input?.city, 120) || null,
     country: clean(input?.country, 80) || 'Deutschland',
     phone: clean(input?.phone, 40) || null,
-    whatsapp_phone: clean(input?.whatsappPhone, 40) || null,
+    mobile_phone: clean(input?.mobilePhone, 40) || null,
+    whatsapp_same_as_mobile: input?.whatsappSameAsMobile === true,
+    whatsapp_phone: input?.whatsappSameAsMobile === true ? (clean(input?.mobilePhone, 40) || null) : (clean(input?.whatsappPhone, 40) || null),
     preferred_communication_channel: ['email', 'phone', 'whatsapp'].includes(input?.preferredCommunicationChannel) ? input.preferredCommunicationChannel : 'email',
     postal_mail_active: input?.postalMailActive === true,
   };

@@ -117,6 +117,7 @@ create table if not exists public.lead_communications (
   body text,
   channel text not null default 'email',
   delivery_status text not null default 'logged',
+  provider_message_id text,
   read_at timestamptz,
   occurred_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -205,7 +206,10 @@ create table if not exists public.user_profiles (
   city text,
   country text not null default 'Deutschland',
   phone text,
+  mobile_phone text,
   whatsapp_phone text,
+  whatsapp_same_as_mobile boolean not null default true,
+  profile_photo_path text,
   preferred_communication_channel text not null default 'email' check (preferred_communication_channel in ('email', 'phone', 'whatsapp')),
   postal_mail_active boolean not null default true,
   staff_role text check (staff_role is null or staff_role in ('owner', 'administrator', 'sales', 'customer_success', 'communications', 'finance')),
@@ -247,6 +251,48 @@ create table if not exists public.customer_questions (
   question text not null,
   status text not null default 'open' check (status in ('open', 'answered', 'archived')),
   admin_note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.participant_documents (
+  id uuid primary key default gen_random_uuid(),
+  user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
+  week integer not null default 0 check (week between 0 and 8),
+  document_type text not null check (document_type in ('start_commitment','cv','workbook','other','contract','video_contract','shared')),
+  display_title text,
+  original_file_name text not null,
+  mime_type text not null,
+  byte_size bigint not null check (byte_size > 0),
+  storage_bucket text not null,
+  storage_path text not null unique,
+  sha256 text,
+  source text not null default 'customer' check (source in ('customer','staff','system')),
+  visibility text not null default 'customer' check (visibility in ('customer','staff')),
+  uploaded_by_profile_id uuid references public.user_profiles(id) on delete set null,
+  processing_status text not null default 'uploaded' check (processing_status in ('uploaded','extracting','needs_ocr','ready','failed')),
+  extraction_method text,
+  extracted_text text,
+  extracted_data jsonb not null default '{}'::jsonb,
+  extraction_version text,
+  participant_confirmed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.customer_appointments (
+  id uuid primary key default gen_random_uuid(),
+  user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
+  lead_id uuid references public.leads(id) on delete set null,
+  title text not null default 'Kundentermin',
+  starts_at timestamptz not null,
+  ends_at timestamptz not null,
+  timezone text not null default 'Europe/Berlin',
+  google_event_id text,
+  google_event_url text,
+  meet_url text,
+  status text not null default 'scheduled' check (status in ('scheduled','completed','cancelled')),
+  source text not null default 'google_calendar' check (source in ('google_calendar','crm')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -360,6 +406,8 @@ alter table public.communication_automations enable row level security;
 alter table public.user_profiles enable row level security;
 alter table public.participant_progress enable row level security;
 alter table public.customer_questions enable row level security;
+alter table public.participant_documents enable row level security;
+alter table public.customer_appointments enable row level security;
 alter table public.process_entries enable row level security;
 alter table public.week_gates enable row level security;
 alter table public.gate_week_settings enable row level security;
@@ -378,12 +426,16 @@ create index if not exists leads_status_idx on public.leads(status);
 create index if not exists lead_contracts_lead_created_idx on public.lead_contracts(lead_id, created_at desc);
 create index if not exists lead_payments_lead_booked_idx on public.lead_payments(lead_id, booked_at desc);
 create index if not exists lead_communications_lead_occurred_idx on public.lead_communications(lead_id, occurred_at desc);
+create unique index if not exists lead_communications_provider_message_unique on public.lead_communications(provider_message_id);
 create index if not exists lead_tasks_lead_due_idx on public.lead_tasks(lead_id, completed, due_at);
 create index if not exists communication_templates_status_idx on public.communication_templates(status, category, updated_at desc);
 create index if not exists communication_campaigns_schedule_idx on public.communication_campaigns(status, scheduled_at);
 create index if not exists communication_automations_trigger_idx on public.communication_automations(enabled, trigger_type);
 create index if not exists customer_questions_profile_created_idx on public.customer_questions(user_profile_id, created_at desc);
 create index if not exists process_entries_participant_idx on public.process_entries(user_profile_id, week);
+create index if not exists participant_documents_lookup_idx on public.participant_documents(user_profile_id, week, created_at desc);
+create unique index if not exists customer_appointments_google_event_unique on public.customer_appointments(google_event_id);
+create index if not exists customer_appointments_participant_start_idx on public.customer_appointments(user_profile_id, starts_at desc);
 create index if not exists week_gates_participant_idx on public.week_gates(user_profile_id, week);
 create index if not exists gate_template_settings_week_order_idx on public.gate_template_settings(week, sort_order);
 create index if not exists coach_escalations_status_idx on public.coach_escalations(status, created_at desc);

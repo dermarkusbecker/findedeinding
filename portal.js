@@ -23,6 +23,7 @@ if (local.signedCommitment?.flowVersion !== 2) {
   localStorage.setItem('fdd_customer_notes', JSON.stringify(local));
 }
 let program = null;
+let customerWorkspace = null;
 let currentWeek = 1;
 let currentContent = null;
 let initialViewResolved = false;
@@ -48,6 +49,7 @@ function showView(name) {
     toast('Bitte zuerst das Onboarding abschließen, um diesen Bereich zu bearbeiten.');
   }
   if (program) render();
+  if (name === 'appointments') renderPortalAppointments();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -338,6 +340,10 @@ function progressPercent() {
 async function loadProgram(week = null) {
   const suffix = week ? `?week=${week}` : '';
   program = await request(`/api/participant-program${suffix}`);
+  if (!customerWorkspace) {
+    try { customerWorkspace = await request('/api/customer-records?action=overview'); }
+    catch { customerWorkspace = null; }
+  }
   const initialView = !initialViewResolved ? (program.onboardingComplete ? 'today' : 'onboarding') : null;
   currentWeek = program.selectedWeek || week || program.access.unlockedWeeks[0] || 1;
   currentContent = program.week;
@@ -714,8 +720,8 @@ function render() {
   $('#headerPhase').textContent = !showOnboarding && started ? `Woche ${showDashboard ? dashboardWeek : currentWeek} von 8 · ${(showDashboard ? dashboardSummary?.title : content?.title) || 'Dein Prozess'}` : 'Onboarding';
   const name = program.profile?.name || 'Teilnehmer';
   const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
-  document.querySelector('.side-foot > div > span').textContent = initials;
-  document.querySelector('.side-foot strong').textContent = name;
+  $('#portalProfileAvatar').innerHTML = customerWorkspace?.profile?.photoUrl ? `<img src="${escapeHtml(customerWorkspace.profile.photoUrl)}" alt="Dein Profilbild">` : escapeHtml(initials);
+  document.querySelector('.portal-profile strong').textContent = name;
   $('#onboarding').classList.toggle('hidden', !showOnboarding);
   $('#programDashboard').classList.toggle('hidden', !showDashboard);
   $('#activeWeek').classList.toggle('hidden', showOnboarding || showDashboard || !started || !content);
@@ -830,6 +836,20 @@ function renderDocuments() {
   const articles = $$('#documentList article');
   if (program.onboardingComplete) { articles[0].classList.remove('locked'); articles[0].querySelector('small').textContent = 'Digital bestätigt'; articles[0].querySelector('i').textContent = 'Erledigt'; }
   [[4, 1, 'Bereit'], [6, 2, 'Bereit'], [8, 3, 'Wird erzeugt']].forEach(([week, index, label]) => { if (program.access.completedWeeks.includes(week)) { articles[index].classList.remove('locked'); articles[index].querySelector('i').textContent = label; } });
+  $$('#documentList .customer-record-doc').forEach((item) => item.remove());
+  const official = (customerWorkspace?.contracts || []).flatMap((contract) => [{ title: contract.title || 'Vertragsdokument', ready: Boolean(contract.document_confirmed_at), label: 'Vertrag' }, { title: `Videovertrag · ${contract.title || 'Vertragsabschluss'}`, ready: Boolean(contract.video_contract_confirmed_at), label: 'Videovertrag' }]);
+  const uploaded = (customerWorkspace?.documents || []).map((document) => ({ title: document.display_title || document.original_file_name, ready: true, label: document.source === 'customer' ? 'Von dir hochgeladen' : 'Für dich bereitgestellt', document }));
+  $('#documentList').insertAdjacentHTML('beforeend', [...official, ...uploaded].map((item) => `<article class="customer-record-doc ${item.ready ? '' : 'locked'}"><span>▤</span><div><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.label)}</small></div>${item.document ? `<a href="/api/customer-records?action=document-download&documentId=${encodeURIComponent(item.document.id)}" target="_blank" rel="noopener">Öffnen ↗</a>` : `<i>${item.ready ? 'Bestätigt' : 'Offen'}</i>`}</article>`).join(''));
+}
+
+function renderPortalAppointments() {
+  const target = $('#portalAppointmentList');
+  if (!target) return;
+  const appointments = customerWorkspace?.appointments || [], now = Date.now();
+  const upcoming = appointments.filter((item) => item.status === 'scheduled' && new Date(item.starts_at).getTime() >= now);
+  const past = appointments.filter((item) => !upcoming.includes(item)).slice().reverse();
+  const group = (title, items) => `<section><h2>${title}</h2>${items.length ? items.map((item) => `<article><time><b>${new Date(item.starts_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })}</b><span>${new Date(item.starts_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span></time><div><strong>${escapeHtml(item.title || 'Kundentermin')}</strong><p>${item.status === 'cancelled' ? 'Abgesagt' : item.status === 'completed' ? 'Abgeschlossen' : 'Geplant'} · Google Kalender</p></div>${item.meet_url ? `<a href="${escapeHtml(item.meet_url)}" target="_blank" rel="noopener">Google Meet öffnen →</a>` : '<span class="portal-appointment-note">Kein Meet-Link</span>'}</article>`).join('') : '<div class="portal-appointment-empty">Keine Termine vorhanden.</div>'}</section>`;
+  target.innerHTML = group('Deine nächsten Termine', upcoming) + group('Vergangene Termine', past);
 }
 
 $('#openCurrentWeek').addEventListener('click', (event) => openWeek(Number(event.currentTarget.dataset.dashboardWeek || program?.access?.currentWeek || 1)));
@@ -946,6 +966,20 @@ function fileAsBase64(file) {
     reader.readAsDataURL(file);
   });
 }
+
+$('#portalProfilePhotoButton').addEventListener('click', () => $('#portalProfilePhotoInput').click());
+$('#portalProfilePhotoInput').addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { toast('Das Profilbild darf höchstens 3 MB groß sein.'); event.target.value = ''; return; }
+  try {
+    const result = await request('/api/customer-records?action=avatar-upload', { method: 'POST', body: JSON.stringify({ fileName: file.name, mimeType: file.type, contentBase64: await fileAsBase64(file) }) });
+    customerWorkspace = { ...(customerWorkspace || {}), profile: { ...(customerWorkspace?.profile || {}), photoUrl: result.photoUrl } };
+    render();
+    toast('Dein Profilbild wurde gespeichert.');
+  } catch (error) { toast(error.message); }
+  event.target.value = '';
+});
 
 $('#fileInput').addEventListener('change', async (event) => {
   const file = event.target.files[0];

@@ -376,6 +376,7 @@ export default async function handler(request, response) {
         googleConnection: googleConnectionRecord,
         openaiConfigured: Boolean(openai.apiKey),
         openaiModel: openai.model,
+        whatsappConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
       }));
     }
     if (request.method === 'GET' && action === 'command-dashboard') {
@@ -465,13 +466,15 @@ export default async function handler(request, response) {
       if (!unchangedAppointment) await assertCalendarAvailable(accessToken, startDate.toISOString(), endDate.toISOString());
       const event = await saveCalendarEvent(accessToken, lead, startDate.toISOString(), endDate.toISOString());
       const meetUrl = event.hangoutLink || event.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || lead.meet_url || null;
-      const updated = await patchLead(service, lead.id, { appointment_start: startDate.toISOString(), appointment_end: endDate.toISOString(), appointment_timezone: 'Europe/Berlin', calendar_event_id: event.id, calendar_event_url: event.htmlLink || lead.calendar_event_url, meet_url: meetUrl, status: 'scheduled' });
+      const updated = await patchLead(service, lead.id, { appointment_start: startDate.toISOString(), appointment_end: endDate.toISOString(), appointment_timezone: 'Europe/Berlin', calendar_event_id: event.id, calendar_event_url: event.htmlLink || lead.calendar_event_url, meet_url: meetUrl, status: lead.converted_user_profile_id ? 'customer' : 'scheduled' });
+      if (lead.converted_user_profile_id) await readJson(await fetch(`${service.url}/rest/v1/customer_appointments?on_conflict=google_event_id`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify({ user_profile_id: lead.converted_user_profile_id, lead_id: lead.id, title: 'Kundengespräch', starts_at: startDate.toISOString(), ends_at: endDate.toISOString(), timezone: 'Europe/Berlin', google_event_id: event.id, google_event_url: event.htmlLink || null, meet_url: meetUrl, status: 'scheduled', source: 'google_calendar', updated_at: new Date().toISOString() }) }), 'Der Kundentermin konnte nicht synchronisiert werden.');
       await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Kalendereinladung zum Erstgespräch', preview: `Termin am ${startDate.toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} mit Google Meet.` }).catch(() => null);
       return response.status(200).json({ lead: updated, event: { id: event.id, htmlLink: event.htmlLink, meetUrl } });
     }
     if (request.method === 'POST' && action === 'cancel-appointment') {
       const lead = await leadById(service, request.body?.id);
       if (lead.calendar_event_id) await deleteCalendarEvent(await googleAccessToken(service), lead.calendar_event_id);
+      if (lead.converted_user_profile_id && lead.calendar_event_id) await fetch(`${service.url}/rest/v1/customer_appointments?google_event_id=eq.${encodeURIComponent(lead.calendar_event_id)}`, { method: 'PATCH', headers: headers(service.key), body: JSON.stringify({ status: 'cancelled', updated_at: new Date().toISOString() }) });
       const updated = await patchLead(service, lead.id, { appointment_start: null, appointment_end: null, calendar_event_id: null, calendar_event_url: null, meet_url: null, status: lead.status === 'customer' ? 'customer' : 'contacted' });
       return response.status(200).json({ lead: updated });
     }

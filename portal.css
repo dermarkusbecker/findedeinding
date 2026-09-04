@@ -264,6 +264,11 @@ aside nav button.locked {
   font-size: 9px;
 }
 
+.side-foot .portal-profile { align-items: center; border-top: 1px solid rgba(255,255,255,.09); display: flex; gap: 9px; margin-top: 10px; padding: 14px 4px 4px; text-align: left; width: 100%; }
+.side-foot .portal-profile>span { align-items: center; background: linear-gradient(135deg,#ffcb9a,#ff9d6d); border-radius: 50%; color: #fff; display: flex; flex: 0 0 34px; font-size: 9px; font-weight: 800; height: 34px; justify-content: center; overflow: hidden; width: 34px; }
+.side-foot .portal-profile>span img { height: 100%; object-fit: cover; width: 100%; }
+.side-foot .portal-profile p { margin: 0; }
+
 main {
   margin-left: 230px;
   flex: 1;
@@ -1282,6 +1287,20 @@ header > div:last-child {
   background: rgba(255, 255, 255, 0.04);
   border-color: var(--line);
   color: var(--muted);
+}
+
+.documents .customer-record-doc a { border: 1px solid rgba(244,154,93,.28); border-radius: 999px; color: var(--orange-deep); font-size: 9px; font-weight: 800; padding: 7px 10px; text-decoration: none; }
+.portal-appointment-list { display: flex; flex-direction: column; gap: 22px; }
+.portal-appointment-list>section { background: rgba(255,254,252,.92); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow-soft); padding: 22px; }
+.portal-appointment-list h2 { color: var(--ink); font-size: 16px; margin: 0 0 14px; }
+.portal-appointment-list article { align-items: center; border-top: 1px solid var(--line); display: grid; gap: 16px; grid-template-columns: 82px 1fr auto; padding: 15px 0; }
+.portal-appointment-list article:first-of-type { border-top: 0; }
+.portal-appointment-list time { border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+.portal-appointment-list time b { color: var(--orange-deep); font-size: 14px; }.portal-appointment-list time span,.portal-appointment-list p,.portal-appointment-note { color: var(--muted); font-size: 10px; }.portal-appointment-list article strong { font-size: 13px; }.portal-appointment-list article p { margin: 4px 0 0; }.portal-appointment-list article>a { background: var(--accent-soft); border: 1px solid rgba(244,154,93,.24); border-radius: 10px; color: var(--orange-deep); font-size: 10px; font-weight: 800; padding: 9px 12px; text-decoration: none; }.portal-appointment-empty { color: var(--muted); font-size: 11px; padding: 18px 0; }
+
+@media (max-width: 700px) {
+  .portal-appointment-list article { grid-template-columns: 65px 1fr; }
+  .portal-appointment-list article>a,.portal-appointment-note { grid-column: 2; justify-self: start; }
 }
 
 .support-grid {
