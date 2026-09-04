@@ -64,6 +64,23 @@ test('Wochen-Gates besitzen anklickbare Felder und einen zentralen Admin-Dialog'
   assert.match(styles, /\.gate-settings-dialog\s*\{[^}]*max-width:\s*780px/s);
 });
 
+test('CRM Einstellungen zeigen Schnittstellen und KI-Agenten mit echtem Systemstatus', async () => {
+  const [html, script, styles] = await Promise.all([
+    readFile(htmlUrl, 'utf8'),
+    readFile(scriptUrl, 'utf8'),
+    readFile(stylesUrl, 'utf8'),
+  ]);
+  assert.match(html, /Schnittstellen & KI-Agenten/);
+  assert.match(html, /id="integrationStatusGrid"/);
+  assert.match(html, /id="agentStatusGrid"/);
+  assert.match(html, /id="systemStatusRefresh"/);
+  assert.match(script, /fetch\('\/api\/leads\?action=system-status'/);
+  assert.match(script, /renderIntegrationRegistry/);
+  assert.match(script, /renderAgentRegistry/);
+  assert.match(styles, /\.system-status-badge\.positive/);
+  assert.match(styles, /\.agent-registry-grid/);
+});
+
 test('zweite Navigation bleibt auf kleinen Bildschirmen nutzbar', async () => {
   const styles = await readFile(stylesUrl, 'utf8');
   const mobile = styles.slice(styles.indexOf('@media (max-width: 800px)'));

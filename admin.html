@@ -521,7 +521,7 @@
             ><button data-settings-tab="integrations">
               <span>↔</span>
               <div>
-                <b>Integrationen</b><small>Google Calendar & Meet</small>
+                <b>Schnittstellen & KI</b><small>Live-Status aller Systeme</small>
               </div></button
             ><button data-settings-tab="questions">
               <span>?</span>
@@ -626,36 +626,66 @@
               </section>
             </section>
             <section class="settings-panel" data-settings-panel="integrations">
-              <div class="card settings-hero">
+              <div class="card settings-hero system-settings-hero">
                 <span class="settings-icon sage">↔</span>
                 <div>
-                  <p class="eyebrow">Integrationen</p>
-                  <h2>Verbundene Dienste</h2>
+                  <p class="eyebrow">Systemzentrale</p>
+                  <h2>Schnittstellen & KI-Agenten</h2>
                   <p>
-                    Externe Systeme für Terminplanung, Kommunikation und
-                    Automatisierung verwalten.
+                    Auf einen Blick sehen, welche Dienste aktiv arbeiten,
+                    welche nur vorbereitet sind und was als Nächstes hinzukommt.
                   </p>
                 </div>
-              </div>
-              <section class="card integration-card">
-                <div class="integration-logo google-logo">G</div>
-                <div class="integration-copy">
-                  <h3>Google Calendar & Meet</h3>
-                  <p>
-                    Prüft freie Kalenderzeiten und erstellt Termine inklusive
-                    Google-Meet-Link.
-                  </p>
-                  <span id="googleStatus">Google Calendar wird geprüft …</span>
-                </div>
-                <button class="secondary" id="googleConnect">
-                  Google Calendar verbinden
+                <button class="system-refresh" id="systemStatusRefresh" type="button">
+                  Status aktualisieren
                 </button>
+              </div>
+              <section class="system-summary-grid" aria-label="Systemstatus Zusammenfassung">
+                <article class="card">
+                  <small>Aktive Schnittstellen</small>
+                  <strong id="activeIntegrationCount">—</strong>
+                  <span>Datenbank, KI und verbundene Dienste</span>
+                </article>
+                <article class="card">
+                  <small>Aktive KI-Agenten</small>
+                  <strong id="activeAgentCount">—</strong>
+                  <span>Im FDD-Prozess tatsächlich im Einsatz</span>
+                </article>
+                <article class="card">
+                  <small>Geplanter Ausbau</small>
+                  <strong id="plannedSystemCount">—</strong>
+                  <span>Vorbereitete Tools und Agenten</span>
+                </article>
+                <article class="card system-checked-card">
+                  <small>Zuletzt geprüft</small>
+                  <strong id="systemCheckedAt">—</strong>
+                  <span>Live aus der geschützten Admin-API</span>
+                </article>
               </section>
-              <section class="card settings-coming">
-                <span>+</span>
-                <div>
-                  <b>Weitere Integrationen</b>
-                  <p>Neue Dienste werden zukünftig hier gebündelt ergänzt.</p>
+              <section class="card system-registry-section">
+                <div class="settings-card-head">
+                  <div>
+                    <p class="eyebrow">Werkzeuge & Verbindungen</p>
+                    <h3>Schnittstellen</h3>
+                    <p>Aktive, verbindungsbereite und geplante Systeme des CRM.</p>
+                  </div>
+                  <span class="settings-state" id="integrationRegistryState">Wird geprüft …</span>
+                </div>
+                <div class="system-registry-grid" id="integrationStatusGrid">
+                  <div class="empty">Schnittstellen werden geprüft …</div>
+                </div>
+              </section>
+              <section class="card system-registry-section">
+                <div class="settings-card-head">
+                  <div>
+                    <p class="eyebrow">FDD-Automatisierung</p>
+                    <h3>KI-Agenten</h3>
+                    <p>Aufgabe, Prozessphase, verwendetes Werkzeug und echter Betriebsstatus.</p>
+                  </div>
+                  <span class="settings-state" id="agentRegistryState">Wird geprüft …</span>
+                </div>
+                <div class="agent-registry-grid" id="agentStatusGrid">
+                  <div class="empty">KI-Agenten werden geprüft …</div>
                 </div>
               </section>
             </section>

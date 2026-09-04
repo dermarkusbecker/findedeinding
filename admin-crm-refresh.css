@@ -423,6 +423,53 @@ main>header {
 .settings-link-grid { gap: 18px; }
 .settings-link-grid article>span { font-size: 19px; height: 50px; width: 50px; }
 
+/* System registry: integrations and AI agents */
+.system-settings-hero { align-items: center; }
+.system-settings-hero>div { flex: 1; }
+.system-refresh { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.28); border-radius: 10px; color: #fff; cursor: pointer; font: 750 11px Manrope; min-height: 42px; padding: 10px 15px; transition: .18s ease; }
+.system-refresh:hover, .system-refresh:focus-visible { background: #fff; color: #14544b; outline: 0; transform: translateY(-1px); }
+.system-refresh:disabled { cursor: wait; opacity: .55; }
+.system-summary-grid { display: grid; gap: 14px; grid-template-columns: repeat(4,minmax(0,1fr)); }
+.system-summary-grid article { min-height: 132px; padding: 22px; }
+.system-summary-grid small, .system-summary-grid span { color: var(--muted); display: block; font-size: 10px; line-height: 1.5; }
+.system-summary-grid small { font: 600 9px DM Mono; letter-spacing: .08em; text-transform: uppercase; }
+.system-summary-grid strong { color: #143d37; display: block; font-size: 27px; letter-spacing: -.04em; margin: 10px 0 7px; }
+.system-checked-card strong { font-size: 22px; }
+.system-registry-section { padding: 28px; }
+.system-registry-section>.settings-card-head { align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 20px; }
+.system-registry-section>.settings-card-head .eyebrow { color: #168473; font-size: 9px; margin: 0 0 6px; }
+.system-registry-section>.settings-card-head h3 { font-size: 20px; }
+.system-registry-grid, .agent-registry-grid { display: grid; gap: 15px; grid-template-columns: repeat(2,minmax(0,1fr)); margin-top: 22px; }
+.system-registry-card, .agent-registry-card { background: #f8fbfa; border: 1px solid #dce6e3; border-radius: 15px; min-width: 0; padding: 20px; position: relative; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.system-registry-card:hover, .agent-registry-card:hover { border-color: #a9cac3; box-shadow: 0 15px 35px rgba(23,76,67,.09); transform: translateY(-2px); }
+.system-registry-card.warning, .agent-registry-card.warning { background: #fffaf1; border-color: #ead9b3; }
+.system-registry-card.danger, .agent-registry-card.danger { background: #fff7f5; border-color: #efcec7; }
+.system-registry-card.neutral, .agent-registry-card.neutral { background: #faf9f6; border-color: #e2e0d9; }
+.system-registry-head { align-items: flex-start; display: flex; justify-content: space-between; }
+.system-tool-icon, .agent-avatar { align-items: center; background: #e3f2ef; border: 1px solid #cae3de; border-radius: 11px; color: #147866; display: flex; font-size: 15px; font-weight: 850; height: 46px; justify-content: center; min-width: 46px; }
+.tool-google_calendar { background: #eef4ff; border-color: #d3e1ff; color: #2870d7; }
+.tool-google_meet { background: #eaf8f2; border-color: #cceade; color: #138c68; }
+.tool-openai { background: #edf0f0; border-color: #d4dcda; color: #1d3c37; }
+.system-status-badge { align-items: center; background: #eff2f1; border-radius: 20px; color: #67736f; display: inline-flex; font: 600 9px DM Mono; gap: 7px; padding: 7px 10px; white-space: nowrap; }
+.system-status-badge i { background: currentColor; border-radius: 50%; height: 7px; width: 7px; }
+.system-status-badge.positive { background: #dff4ed; color: #08745f; }
+.system-status-badge.warning { background: #fff0ce; color: #9b6500; }
+.system-status-badge.danger { background: #fde6e1; color: #ad4635; }
+.system-registry-card>small { color: #168473; display: block; font: 600 9px DM Mono; letter-spacing: .07em; margin-top: 18px; text-transform: uppercase; }
+.system-registry-card h4, .agent-registry-card h4 { color: var(--ink); font-size: 16px; margin: 6px 0 8px; }
+.system-registry-card>p, .agent-registry-card>p { color: #51615d; font-size: 12px; line-height: 1.65; margin: 0; }
+.system-detail { border-top: 1px solid rgba(29,83,73,.11); color: #667571; font-size: 10px; line-height: 1.55; margin-top: 16px; padding-top: 13px; }
+.system-connect-action { margin-top: 15px; width: 100%; }
+.agent-registry-top { align-items: center; display: grid; gap: 12px; grid-template-columns: auto 1fr auto; }
+.agent-registry-top small { color: #168473; display: block; font: 600 9px DM Mono; letter-spacing: .06em; text-transform: uppercase; }
+.agent-registry-top h4 { margin: 4px 0 0; }
+.agent-registry-card>p { margin-top: 16px; min-height: 40px; }
+.agent-registry-card dl { border-top: 1px solid rgba(29,83,73,.11); margin: 16px 0 0; padding-top: 13px; }
+.agent-registry-card dl>div { display: grid; gap: 10px; grid-template-columns: 92px 1fr; padding: 4px 0; }
+.agent-registry-card dt { color: #84918d; font-size: 9px; font-weight: 750; }
+.agent-registry-card dd { color: #43534f; font-size: 10px; line-height: 1.5; margin: 0; }
+.system-error { color: #ad4635; grid-column: 1/-1; }
+
 /* Admin-editable clarity questions */
 .clarity-question-settings { padding: 28px; }
 .question-toolbar { display: grid; gap: 14px; grid-template-columns: 180px minmax(260px, 1fr); margin: 25px 0 20px; }
@@ -539,6 +586,7 @@ dialog form>p { font-size: 12px; }
   .analysis-layout, .settings-layout { grid-template-columns: 1fr; }
   .analysis-person, .settings-nav { position: static; }
   .analysis-person nav { grid-template-columns: repeat(3, 1fr); }
+  .system-summary-grid { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 800px) {
@@ -573,6 +621,8 @@ dialog form>p { font-size: 12px; }
   .map-core { height: 115px; width: 115px; }
   .settings-nav { grid-template-columns: 1fr 1fr; }
   .settings-summary-grid { grid-template-columns: 1fr 1fr; }
+  .system-settings-hero { align-items: flex-start; flex-direction: column; }
+  .system-registry-grid, .agent-registry-grid { grid-template-columns: 1fr; }
   .program-fields, .mode-options { grid-template-columns: 1fr; }
   .week-overrides { grid-template-columns: 1fr 1fr; }
 }
@@ -590,6 +640,9 @@ dialog form>p { font-size: 12px; }
   .map-grid { grid-template-columns: 1fr; }
   .map-core { margin: 12px auto; position: static; transform: none; }
   .settings-summary-grid, .settings-nav, .week-overrides { grid-template-columns: 1fr; }
+  .system-summary-grid { grid-template-columns: 1fr; }
+  .agent-registry-top { align-items: flex-start; grid-template-columns: auto 1fr; }
+  .agent-registry-top .system-status-badge { grid-column: 1/-1; }
   .question-toolbar { grid-template-columns: 1fr; }
   .question-card-actions { align-items: stretch; flex-direction: column; }
   .question-card-actions>div { flex-direction: column; }

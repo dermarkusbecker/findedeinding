@@ -1,6 +1,8 @@
 import { DEFAULT_BOOKING_SETTINGS, generateAvailableSlots, isWithinBookingAvailability, normalizeBookingSettings } from '../lib/booking-availability.js';
 import { authorizationUrl, assertCalendarAvailable, calendarBusyIntervals, decryptCredential, deleteCalendarEvent, emailFromIdToken, encryptCredential, exchangeAuthorizationCode, googleConfig, refreshAccessToken, saveCalendarEvent, verifyOAuthState } from '../lib/google-calendar.js';
 import { provisionProgramUser, requireCurrentAdmin, supabaseAuthConfig } from '../lib/user-auth.js';
+import { claraConfig } from '../lib/clara/config.js';
+import { buildSystemRegistry } from '../lib/system-registry.js';
 
 const VALID_STATUSES = ['new', 'contacted', 'scheduled', 'consultation', 'offer', 'customer', 'lost'];
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -201,6 +203,17 @@ export default async function handler(request, response) {
       let connection = null;
       if (configured) connection = await googleConnection(service).catch(() => null);
       return response.status(200).json({ configured, connected: Boolean(connection), email: connection?.connected_email || null, updatedAt: connection?.updated_at || null });
+    }
+    if (request.method === 'GET' && action === 'system-status') {
+      const googleConfigured = Boolean(googleConfig());
+      const googleConnectionRecord = googleConfigured ? await googleConnection(service).catch(() => null) : null;
+      const openai = claraConfig();
+      return response.status(200).json(buildSystemRegistry({
+        googleConfigured,
+        googleConnection: googleConnectionRecord,
+        openaiConfigured: Boolean(openai.apiKey),
+        openaiModel: openai.model,
+      }));
     }
     if (request.method === 'GET' && action === 'booking-settings') {
       return response.status(200).json({ settings: await bookingSettings(service) });
