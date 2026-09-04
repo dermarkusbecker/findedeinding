@@ -49,6 +49,21 @@ test('CRM verwendet Kunden und Interessenten und bietet editierbare Klarheitsfra
   assert.match(script, /Kundenprogramme verwalten/);
 });
 
+test('Wochen-Gates besitzen anklickbare Felder und einen zentralen Admin-Dialog', async () => {
+  const [html, script, styles] = await Promise.all([
+    readFile(htmlUrl, 'utf8'),
+    readFile(scriptUrl, 'utf8'),
+    readFile(stylesUrl, 'utf8'),
+  ]);
+  assert.match(html, /id="gateSettingsDialog"/);
+  assert.match(html, /id="gateFieldEditors"/);
+  assert.match(script, /class="gate-menu"/);
+  assert.match(script, /data-edit-gate/);
+  assert.match(script, /fetch\('\/api\/gates\?action=settings'/);
+  assert.match(styles, /\.gate-menu:hover/);
+  assert.match(styles, /\.gate-settings-dialog\s*\{[^}]*max-width:\s*780px/s);
+});
+
 test('zweite Navigation bleibt auf kleinen Bildschirmen nutzbar', async () => {
   const styles = await readFile(stylesUrl, 'utf8');
   const mobile = styles.slice(styles.indexOf('@media (max-width: 800px)'));

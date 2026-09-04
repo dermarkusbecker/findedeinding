@@ -726,6 +726,85 @@
       </section>
     </main>
 
+    <dialog id="gateSettingsDialog" class="gate-settings-dialog">
+      <form id="gateSettingsForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow" id="gateDialogWeek">Wochen-Gate</p>
+            <h2>Gate-Inhalte bearbeiten</h2>
+            <small
+              >Passe die sichtbaren Inhalte an. Die technische Prüfstruktur
+              bleibt geschützt.</small
+            >
+          </div>
+          <button
+            type="button"
+            data-close-gate-settings
+            aria-label="Fenster schließen"
+          >
+            ×
+          </button>
+        </div>
+        <input type="hidden" name="week" />
+        <section class="gate-editor-section">
+          <div class="gate-editor-section-head">
+            <span>01</span>
+            <div>
+              <b>Darstellung des Wochen-Gates</b>
+              <small>Titel und erklärender Text auf der Übersichtskarte</small>
+            </div>
+          </div>
+          <label
+            >Titel<input
+              name="title"
+              minlength="2"
+              maxlength="120"
+              required
+          /></label>
+          <label
+            >Beschreibung<textarea
+              name="description"
+              rows="3"
+              minlength="5"
+              maxlength="600"
+              required
+            ></textarea>
+          </label>
+        </section>
+        <section class="gate-editor-section">
+          <div class="gate-editor-section-head">
+            <span>02</span>
+            <div>
+              <b>Pflichtfelder</b>
+              <small
+                >Diese Bezeichnungen erscheinen im Gate und bei bestehenden
+                Kunden.</small
+              >
+            </div>
+          </div>
+          <div class="gate-field-editors" id="gateFieldEditors"></div>
+        </section>
+        <div class="gate-editor-notice">
+          <span>✓</span>
+          <p>
+            Gate-IDs, Reihenfolge und Prüfregeln werden nicht verändert. So
+            bleibt der laufende Kundenprozess technisch sicher.
+          </p>
+        </div>
+        <div class="dialog-actions gate-dialog-actions">
+          <button type="button" class="secondary" data-reset-gate>
+            Standard wiederherstellen
+          </button>
+          <div>
+            <button type="button" class="secondary" data-close-gate-settings>
+              Abbrechen
+            </button>
+            <button class="primary" type="submit">Änderungen speichern</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="participantDialog">
       <form id="participantForm">
         <div class="dialog-head">

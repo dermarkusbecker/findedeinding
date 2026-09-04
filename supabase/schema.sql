@@ -142,6 +142,27 @@ create table if not exists public.week_gates (
   unique(user_profile_id, week, gate_key)
 );
 
+create table if not exists public.gate_week_settings (
+  week integer primary key check (week between 0 and 8),
+  title text not null check (char_length(title) between 2 and 120),
+  description text not null check (char_length(description) between 5 and 600),
+  default_title text not null,
+  default_description text not null,
+  updated_at timestamptz not null default now(),
+  updated_by uuid references public.user_profiles(id) on delete set null
+);
+
+create table if not exists public.gate_template_settings (
+  gate_key text primary key,
+  week integer not null references public.gate_week_settings(week) on delete cascade,
+  label text not null check (char_length(label) between 2 and 240),
+  default_label text not null,
+  sort_order integer not null,
+  updated_at timestamptz not null default now(),
+  updated_by uuid references public.user_profiles(id) on delete set null,
+  unique (week, sort_order)
+);
+
 create table if not exists public.clarity_measurements (
   id uuid primary key default gen_random_uuid(),
   user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
@@ -200,6 +221,8 @@ alter table public.user_profiles enable row level security;
 alter table public.participant_progress enable row level security;
 alter table public.process_entries enable row level security;
 alter table public.week_gates enable row level security;
+alter table public.gate_week_settings enable row level security;
+alter table public.gate_template_settings enable row level security;
 alter table public.clarity_measurements enable row level security;
 alter table public.coach_escalations enable row level security;
 alter table public.implementation_plans enable row level security;
@@ -213,6 +236,7 @@ create index if not exists leads_created_at_idx on public.leads(created_at desc)
 create index if not exists leads_status_idx on public.leads(status);
 create index if not exists process_entries_participant_idx on public.process_entries(user_profile_id, week);
 create index if not exists week_gates_participant_idx on public.week_gates(user_profile_id, week);
+create index if not exists gate_template_settings_week_order_idx on public.gate_template_settings(week, sort_order);
 create index if not exists coach_escalations_status_idx on public.coach_escalations(status, created_at desc);
 create index if not exists clarity_questions_week_order_idx on public.clarity_questions(week, sort_order);
 
@@ -235,6 +259,27 @@ do $$ begin
     check (access_mode in ('completion_based', 'time_based', 'full_access'));
 exception when duplicate_object then null;
 end $$;
+
+create or replace function public.apply_gate_template_label()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  configured_label text;
+begin
+  select label into configured_label
+  from public.gate_template_settings
+  where gate_key = new.gate_key and week = new.week;
+  new.label := coalesce(configured_label, new.label);
+  return new;
+end;
+$$;
+
+drop trigger if exists apply_gate_template_label_before_insert on public.week_gates;
+create trigger apply_gate_template_label_before_insert
+before insert on public.week_gates
+for each row execute function public.apply_gate_template_label();
 
 do $$ begin
   alter table public.participant_progress add constraint participant_progress_program_status_check
