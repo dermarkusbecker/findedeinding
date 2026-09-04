@@ -78,6 +78,28 @@ test('auch gesperrte Wochen zeigen Inhalt und öffnen eine zentrale Detailvorsch
   for (let week = 1; week <= 8; week += 1) assert.match(api, new RegExp(`week: ${week}, title:`));
 });
 
+test('alle Wochenschritte sind anklickbar und abgeschlossene Inhalte bleiben schreibgeschützt', async () => {
+  const [html, script, styles, api, clara, documents] = await Promise.all([
+    readFile(htmlUrl, 'utf8'),
+    readFile(scriptUrl, 'utf8'),
+    readFile(stylesUrl, 'utf8'),
+    readFile(new URL('../api/participant-program.js', import.meta.url), 'utf8'),
+    readFile(new URL('../lib/clara/api-handler.js', import.meta.url), 'utf8'),
+    readFile(new URL('../lib/documents/api-handler.js', import.meta.url), 'utf8'),
+  ]);
+  assert.match(html, /id="stepReviewDialog"/);
+  assert.match(html, /id="stepReviewContent"/);
+  assert.match(script, /data-step-review/);
+  assert.match(script, /function openStepReview/);
+  assert.match(script, /Abgeschlossen · nur ansehen/);
+  assert.match(script, /function weekIsFinalized/);
+  assert.match(styles, /\.week-one-task:hover/);
+  assert.match(styles, /\.step-review-dialog::backdrop/);
+  assert.match(api, /isProgramWeekFinalized/);
+  assert.match(clara, /sichtbar, sind aber schreibgeschützt/);
+  assert.match(documents, /Dokumente können hier nicht mehr verändert werden/);
+});
+
 test('Freischaltungs-Auswahl ist entfernt und der Server akzeptiert keine Overrides mehr', async () => {
   const [adminHtml, adminScript, controlApi, participantApi, access, migration] = await Promise.all([
     readFile(new URL('../admin.html', import.meta.url), 'utf8'),

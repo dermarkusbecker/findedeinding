@@ -337,6 +337,27 @@ function progressPercent() {
   return Math.round(program.access.completedWeeks.length / 8 * 100);
 }
 
+function weekIsFinalized(week = currentWeek) {
+  const recordedWeek = Number(program?.access?.recordedCurrentWeek || 0);
+  return Number(week) < recordedWeek || (Number(week) === 8 && program?.access?.recordedProcessStatus === 'FINAL_REPORT');
+}
+
+function applyWeekReadOnlyState(allStepsCompleted = false) {
+  const finalized = weekIsFinalized();
+  const locked = finalized || allStepsCompleted;
+  $('#activeWeek').classList.toggle('week-read-only', locked);
+  $('#uploadButton').hidden = locked;
+  const moreActions = $('#reopenCurrentWeek')?.closest('details');
+  if (moreActions) moreActions.hidden = locked;
+  const composer = $('#claraJourneyForm');
+  if (composer) composer.hidden = locked;
+  if (finalized) {
+    $('#completeWeek').disabled = true;
+    $('#completeWeek').textContent = 'Woche abgeschlossen ✓';
+    $('#gateNote').textContent = 'Diese Woche ist abgeschlossen. Alle Schritte und gespeicherten Inhalte bleiben für dich anklickbar und schreibgeschützt.';
+  }
+}
+
 function activeProcessWeek(access = program?.access) {
   const week = Number(access?.processWeek);
   if (Number.isInteger(week) && week >= 1 && week <= 8) return week;
@@ -382,6 +403,9 @@ function renderClaraJourney() {
   $('#journeyMessages').innerHTML = `${messageHtml}${journeyLoading ? '<article class="clara-message assistant loading" aria-live="polite"><span>Clara</span><p><i></i><i></i><i></i><em>Clara denkt nach …</em></p></article>' : ''}`;
   const list = $('#journeyMessages');
   list.scrollTop = list.scrollHeight;
+  const readOnly = weekIsFinalized() || (currentWeek === 1 ? program?.weekOneGate?.complete : program?.weekGate?.complete);
+  $('#claraJourneyForm').hidden = Boolean(readOnly);
+  list.querySelectorAll('button').forEach((button) => { button.disabled = Boolean(readOnly); });
   list.querySelectorAll('[data-clara-confirm]').forEach((button) => button.addEventListener('click', () => confirmClaraResult(button.dataset.claraConfirm, button)));
   list.querySelectorAll('[data-clara-revise]').forEach((button) => button.addEventListener('click', () => {
     $('#claraJourneyInput').value = button.dataset.claraRevise;
@@ -448,6 +472,91 @@ function openWeekPreview(week) {
   openButton.disabled = !accessible;
   openButton.textContent = accessible ? 'Woche öffnen →' : `Freigabe am ${formatProgramDate(state.unlocksAt)}`;
   $('#weekPreviewDialog').showModal();
+}
+
+function reviewParagraph(value, empty = 'Für diesen Schritt ist noch kein Inhalt gespeichert.') {
+  const text = String(value || '').trim();
+  return `<p>${text ? escapeHtml(text).replace(/\n/g, '<br>') : escapeHtml(empty)}</p>`;
+}
+
+function weekOneReviewDetails(stepId) {
+  const state = program?.weekOne || {};
+  const wishes = Array.isArray(state.wishes) ? state.wishes : [];
+  const details = {
+    wishes_collected: {
+      question: 'Welche drei Dinge wünschst du dir für dein Leben aktuell am meisten?',
+      content: wishes.some((wish) => wish.raw_wish)
+        ? `<ol class="step-review-list">${wishes.map((wish) => `<li>${escapeHtml(wish.raw_wish || 'Noch nicht beantwortet')}</li>`).join('')}</ol>`
+        : reviewParagraph(''),
+    },
+    wishes_deepened: {
+      question: 'Was steckt für dich persönlich hinter deinen drei Wünschen?',
+      content: wishes.some((wish) => wish.completed || wish.voluntary_details?.length)
+        ? `<div class="step-review-stack">${wishes.map((wish, index) => `<article><small>Wunsch ${index + 1}</small><strong>${escapeHtml(wish.raw_wish || 'Noch nicht erfasst')}</strong>${reviewParagraph((wish.voluntary_details || []).join('\n\n') || wish.emotional_meaning, 'Noch nicht vertieft.')}</article>`).join('')}</div>`
+        : reviewParagraph(''),
+    },
+    target: {
+      question: 'Was soll sich nach den acht Wochen für dich konkret verändert haben?',
+      content: `${reviewParagraph(state.fdd_target?.raw_answer)}${state.fdd_target?.clarification_raw ? `<div class="step-review-addition"><small>Deine Konkretisierung</small>${reviewParagraph(state.fdd_target.clarification_raw)}</div>` : ''}`,
+    },
+    clarity: {
+      question: 'Wie klar ist dir heute auf einer Skala von 1 bis 10, was dein Ding ist?',
+      content: state.clarity_baseline?.score ? `<div class="step-review-score"><strong>${Number(state.clarity_baseline.score)}</strong><span>von 10</span></div>${reviewParagraph(state.clarity_baseline.reason_raw, 'Keine zusätzliche Begründung gespeichert.')}` : reviewParagraph(''),
+    },
+    career: {
+      question: 'Welcher Lebenslauf und welche beruflichen Stationen wurden festgehalten?',
+      content: state.career_history?.cv_uploaded
+        ? `<div class="step-review-file"><span>▤</span><div><strong>${escapeHtml(state.career_history.cv_file_name || 'Lebenslauf')}</strong><small>Erfolgreich hochgeladen und bestätigt</small></div></div>${state.career_history.stations?.length ? `<ul class="step-review-list">${state.career_history.stations.map((station) => `<li>${escapeHtml([station.from && station.to ? `${station.from}–${station.to}` : station.from, station.role, station.company, station.description_raw].filter(Boolean).join(' · '))}</li>`).join('')}</ul>` : ''}`
+        : reviewParagraph(''),
+    },
+    reflection: {
+      question: 'Was nimmst du aus dieser Woche mit?',
+      content: reviewParagraph(typeof state.week_summary === 'string' ? state.week_summary : '', state.career_history?.completed ? 'Deine Ist-Aufnahme ist vollständig abgeschlossen.' : 'Die Wochenreflexion ist noch nicht abgeschlossen.'),
+    },
+  };
+  return details[stepId] || { question: 'Dein persönlicher Wochenschritt', content: reviewParagraph('') };
+}
+
+function guidedReviewDetails(stepId) {
+  const state = program?.weekState || {};
+  const step = guidedWeekDefinition(currentWeek)?.steps.find((item) => item.id === stepId);
+  const answer = state.answers?.[stepId];
+  const document = state.documents?.[stepId];
+  const external = state.external_results?.[stepId];
+  let content = reviewParagraph(answer?.raw_answer);
+  if (document) content = `<div class="step-review-file"><span>▤</span><div><strong>${escapeHtml(document.fileName || 'Hochgeladenes Dokument')}</strong><small>Sicher gespeichert</small></div></div>`;
+  if (external) content = `<div class="step-review-file verified"><span>✓</span><div><strong>Technisches Ergebnis bestätigt</strong><small>${external.completedAt ? new Date(external.completedAt).toLocaleString('de-DE') : 'Serverseitig geprüft'}</small></div></div>`;
+  return { question: step?.question || 'Dein persönlicher Wochenschritt', content };
+}
+
+function openStepReview(stepId) {
+  const statuses = currentWeek === 1 ? journeyStepStatuses(program?.weekOne) : guidedStepStatuses(program?.weekState);
+  const step = statuses.find((item) => item.id === stepId);
+  if (!step) return;
+  const details = currentWeek === 1 ? weekOneReviewDetails(stepId) : guidedReviewDetails(stepId);
+  const completed = step.status === 'completed';
+  $('#stepReviewEyebrow').textContent = `Woche ${currentWeek} · ${completed ? 'Abgeschlossen' : step.status === 'in_progress' ? 'Aktueller Schritt' : 'Geplant'}`;
+  $('#stepReviewTitle').textContent = step.title;
+  $('#stepReviewStatus').textContent = completed ? '✓ Abgeschlossen · nur ansehen' : step.status === 'in_progress' ? '● Aktuell in Bearbeitung' : '○ Noch nicht bearbeitet';
+  $('#stepReviewStatus').className = `step-review-status ${step.status}`;
+  $('#stepReviewQuestion').textContent = details.question;
+  $('#stepReviewContent').innerHTML = details.content;
+  $('#stepReviewLock').textContent = completed
+    ? 'Dieser Schritt ist abgeschlossen. Du kannst alle Inhalte weiterhin ansehen, aber nicht mehr verändern.'
+    : step.status === 'in_progress'
+      ? 'Die Bearbeitung dieses Schritts erfolgt weiterhin im Dialog mit Clara. Diese Detailansicht verändert keine Inhalte.'
+      : 'Dieser Schritt ist noch nicht an der Reihe. Du kannst bereits sehen, was dich erwartet.';
+  $('#stepReviewDialog').showModal();
+}
+
+function stepTaskMarkup(step) {
+  const statusSymbol = { open: '○', in_progress: '●', completed: '✓' };
+  const action = step.status === 'completed' ? 'Ansehen →' : step.status === 'in_progress' ? 'Öffnen →' : 'Vorschau →';
+  return `<button type="button" class="task week-one-task ${step.status}" data-step-review="${escapeHtml(step.id)}"><span class="step-state" aria-hidden="true">${statusSymbol[step.status]}</span><span><b>${escapeHtml(step.title)}</b>${step.status === 'in_progress' ? '<small>Gerade dabei</small>' : ''}</span><i>${action}</i></button>`;
+}
+
+function wireStepReviewButtons() {
+  $$('#taskList [data-step-review]').forEach((button) => button.addEventListener('click', () => openStepReview(button.dataset.stepReview)));
 }
 
 function renderProgramDashboard() {
@@ -636,8 +745,8 @@ function renderWeekOne() {
   flow.querySelector('[data-week-one-action="career-add"]')?.addEventListener('click', () => updateWeekOne({ type: 'confirm_career', complete: false }));
 
   const statuses = journeyStepStatuses(state);
-  const statusSymbol = { open: '○', in_progress: '●', completed: '✓' };
-  $('#taskList').innerHTML = statuses.map((step) => `<div class="task week-one-task ${step.status}"><span class="step-state" aria-hidden="true">${statusSymbol[step.status]}</span><span><b>${escapeHtml(step.title)}</b>${step.status === 'in_progress' ? '<small>Gerade dabei</small>' : ''}</span></div>`).join('');
+  $('#taskList').innerHTML = statuses.map(stepTaskMarkup).join('');
+  wireStepReviewButtons();
   const done = statuses.filter((step) => step.status === 'completed').length;
   $('#taskCount').textContent = `${done} / ${statuses.length}`;
   const uploadButton = $('#uploadButton');
@@ -649,6 +758,7 @@ function renderWeekOne() {
   $('#completeWeek').disabled = !program.weekOneGate?.complete;
   $('#completeWeek').textContent = 'Woche abschließen →';
   renderClaraJourney();
+  applyWeekReadOnlyState(done === statuses.length);
 }
 
 async function updateGuidedWeek(stepAction) {
@@ -697,15 +807,17 @@ function renderGuidedWeek() {
   }
 
   const statuses = guidedStepStatuses(state);
-  const statusSymbol = { open: '○', in_progress: '●', completed: '✓' };
-  $('#taskList').innerHTML = statuses.map((item) => `<div class="task week-one-task ${item.status}"><span class="step-state" aria-hidden="true">${statusSymbol[item.status]}</span><span><b>${escapeHtml(item.title)}</b>${item.status === 'in_progress' ? '<small>Gerade dabei</small>' : ''}</span></div>`).join('');
-  $('#taskCount').textContent = `${statuses.filter((item) => item.status === 'completed').length} / ${statuses.length}`;
+  $('#taskList').innerHTML = statuses.map(stepTaskMarkup).join('');
+  wireStepReviewButtons();
+  const completedSteps = statuses.filter((item) => item.status === 'completed').length;
+  $('#taskCount').textContent = `${completedSteps} / ${statuses.length}`;
   $('#uploadButton').classList.add('week-one-upload');
   $('#gateNote').textContent = program.weekGate?.complete ? `Alle Pflichtschritte in Woche ${currentWeek} sind abgeschlossen.` : '';
   $('#completeWeek').disabled = !program.weekGate?.complete;
   $('#completeWeek').textContent = currentWeek === 8 ? 'Digitalen Prozess abschließen →' : 'Woche abschließen →';
   $('#claraJourney').classList.toggle('hidden', ['upload', 'scale', 'external'].includes(active?.kind));
   renderClaraJourney();
+  applyWeekReadOnlyState(completedSteps === statuses.length);
 }
 
 function render() {
@@ -771,6 +883,11 @@ function render() {
     $('#clarityValue').textContent = local.clarityEnd || local.clarityStart || '—';
     renderProgramDashboard();
   } else if (content) {
+    $('#activeWeek').classList.remove('week-read-only');
+    $('#uploadButton').hidden = false;
+    const weekActions = $('#reopenCurrentWeek')?.closest('details');
+    if (weekActions) weekActions.hidden = false;
+    $('#claraJourneyForm').hidden = false;
     $('#revokePrivacy').classList.add('hidden');
     $('#todayLabel').textContent = `Woche ${currentWeek} · ${content.mode}`;
     $('#welcomeTitle').innerHTML = `${content.title}. <em>Schritt für Schritt.</em>`;
@@ -860,6 +977,10 @@ function renderPortalAppointments() {
 }
 
 $('#openCurrentWeek').addEventListener('click', (event) => openWeek(Number(event.currentTarget.dataset.dashboardWeek || program?.access?.currentWeek || 1)));
+$('#closeStepReview').addEventListener('click', () => $('#stepReviewDialog').close());
+$('#stepReviewDialog').addEventListener('click', (event) => {
+  if (event.target === $('#stepReviewDialog')) $('#stepReviewDialog').close();
+});
 $('#closeWeekPreview').addEventListener('click', () => $('#weekPreviewDialog').close());
 $('#openPreviewWeek').addEventListener('click', (event) => {
   const week = Number(event.currentTarget.dataset.previewWeek);

@@ -1,8 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateProgramAccess, isOnboardingComplete, programWeekSchedule, reopenWeekState, resetParticipantProgressState } from '../lib/program-access.js';
+import { calculateProgramAccess, isOnboardingComplete, isProgramWeekFinalized, programWeekSchedule, reopenWeekState, resetParticipantProgressState } from '../lib/program-access.js';
 
 const requiredGates = (week, completed = true) => [1, 2, 3].map((index) => ({ week, gate_key: `w${week}_${index}`, required: true, completed_at: completed ? '2026-08-01T10:00:00Z' : null }));
+
+test('abgeschlossene Wochen sind nach dem Weiterschalten unveränderlich', () => {
+  assert.equal(isProgramWeekFinalized({ current_week: 3, process_status: 'WEEK_3' }, 1), true);
+  assert.equal(isProgramWeekFinalized({ current_week: 3, process_status: 'WEEK_3' }, 2), true);
+  assert.equal(isProgramWeekFinalized({ current_week: 3, process_status: 'WEEK_3' }, 3), false);
+  assert.equal(isProgramWeekFinalized({ current_week: 8, process_status: 'WEEK_8' }, 8), false);
+  assert.equal(isProgramWeekFinalized({ current_week: 8, process_status: 'FINAL_REPORT' }, 8), true);
+});
 
 test('resetParticipantProgressState setzt den Prozess auf Onboarding zurück und öffnet die Wiederholung', () => {
   const reset = resetParticipantProgressState();

@@ -1,6 +1,6 @@
 import { requireCurrentPermission } from '../lib/user-auth.js';
 import { getParticipantProgramAccess, patchParticipantProgress, serviceHeaders } from '../lib/program-access-service.js';
-import { isOnboardingComplete } from '../lib/program-access.js';
+import { isOnboardingComplete, isProgramWeekFinalized } from '../lib/program-access.js';
 import { applyWeekOneAction, createWeekOneState, missingWeekOneRequirements, stepStatuses, weekOneComplete, weekOnePrompt } from '../lib/week-one.js';
 import { applyGuidedWeekAction, createGuidedWeekState, guidedStepStatuses, guidedWeekComplete, guidedWeekDefinition, missingGuidedRequirements, normalizeGuidedWeekState } from '../lib/guided-weeks.js';
 import { readClarityQuestionOverrides, resolveClarityPrompt } from '../lib/clarity-questions.js';
@@ -179,6 +179,7 @@ export default async function handler(request, response) {
       return response.status(201).json({ ok: true, question: rows[0] });
     } else if (action === 'week_1_update') {
       if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
+      if (isProgramWeekFinalized(result.progress, 1)) return response.status(409).json({ error: 'Woche 1 ist abgeschlossen und kann nur noch angesehen werden.' });
       const currentState = await readWeekOneState(result, session.participantId);
       const update = applyWeekOneAction(currentState, request.body?.stepAction || {});
       if (!update.ok) return response.status(400).json({ error: update.error, details: update.details, weekOne: update.state });
@@ -192,6 +193,7 @@ export default async function handler(request, response) {
       if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const week = Number(request.body?.week);
       if (!Number.isInteger(week) || week < 2 || week > 8 || !result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist nicht freigeschaltet.' });
+      if (isProgramWeekFinalized(result.progress, week)) return response.status(409).json({ error: `Woche ${week} ist abgeschlossen und kann nur noch angesehen werden.` });
       const stepAction = request.body?.stepAction || {};
       if (stepAction.type === 'external_completed') return response.status(403).json({ error: 'Technische Ergebnisse können nur durch den zuständigen serverseitigen Dienst bestätigt werden.' });
       if (stepAction.type === 'document_uploaded') {
@@ -218,6 +220,7 @@ export default async function handler(request, response) {
       const week = Number(request.body?.week);
       if (week === 1) return response.status(400).json({ error: 'Der Fortschritt in Woche 1 wird automatisch aus deinen Antworten ermittelt.' });
       if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist nicht freigeschaltet.' });
+      if (isProgramWeekFinalized(result.progress, week)) return response.status(409).json({ error: `Woche ${week} ist abgeschlossen und kann nur noch angesehen werden.` });
       const gate = result.gates.find((item) => item.id === request.body?.gateId && Number(item.week) === week);
       if (!gate) return response.status(404).json({ error: 'Pflichtaufgabe wurde nicht gefunden.' });
       await setGate(result.service, session.participantId, gate.id, Boolean(request.body?.completed));
@@ -229,6 +232,7 @@ export default async function handler(request, response) {
       if (!answer) return response.status(400).json({ error: 'Antwort fehlt.' });
       if (week === 1) return response.status(400).json({ error: 'Bitte beantworte den aktuell angezeigten Schritt in Woche 1.' });
       if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist nicht freigeschaltet.' });
+      if (isProgramWeekFinalized(result.progress, week)) return response.status(409).json({ error: `Woche ${week} ist abgeschlossen und kann nur noch angesehen werden.` });
       const insert = await fetch(`${result.service.url}/rest/v1/process_entries`, { method: 'POST', headers: serviceHeaders(result.service.key), body: JSON.stringify({ user_profile_id: session.participantId, week, data_block: `week_${week}_dialog`, raw_answer: answer, evidence_level: 'participant_statement' }) });
       if (!insert.ok) throw new Error('Antwort konnte nicht gespeichert werden.');
       const firstGate = result.gates.find((gate) => Number(gate.week) === week && gate.required !== false);
@@ -239,11 +243,13 @@ export default async function handler(request, response) {
       const week = Number(request.body?.week);
       if (!Number.isInteger(week) || week < 1 || week > 8) return response.status(400).json({ error: 'Ungültige Woche für den Replay.' });
       if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist derzeit nicht zugänglich.' });
+      if (isProgramWeekFinalized(result.progress, week)) return response.status(409).json({ error: `Woche ${week} ist abgeschlossen und kann nicht erneut gestartet werden.` });
       const resetState = await deleteWeekData(result.service, session.participantId, week);
       await patchParticipantProgress(result.service, session.participantId, { current_week: resetState.week, process_status: resetState.processStatus, last_activity_at: new Date().toISOString() });
     } else if (action === 'complete_week') {
       if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const week = Number(request.body?.week);
+      if (isProgramWeekFinalized(result.progress, week)) return response.status(409).json({ error: `Woche ${week} wurde bereits abgeschlossen.` });
       if (week === 1) {
         const weekOneState = await readWeekOneState(result, session.participantId);
         const preconditions = weekOnePreconditions(result.progress);
