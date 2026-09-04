@@ -41,10 +41,19 @@
 .lead-sales-call-overview b { color: #2b3d40; font-size: 11px; }
 .lead-sales-call-overview small { color: #738185; font-size: 10px; margin-top: 3px; }
 .lead-contact-card,.lead-balance-card,.lead-communication-card,.lead-contract-card { grid-column: span 6; }
-.lead-task-card { grid-column: span 7; }
-.lead-notes-card { grid-column: span 5; }
-.lead-bank-card { grid-column: span 7; }
-.lead-next-card { grid-column: span 5; }
+.lead-task-card,.lead-notes-card,.lead-bank-card,.lead-next-card {
+  display: flex;
+  flex-direction: column;
+  grid-column: span 6;
+  min-height: 270px;
+}
+.lead-task-card .lead-task-list,
+.lead-notes-card>p,
+.lead-bank-card>dl,
+.lead-next-card #leadNextSteps { flex: 1 1 auto; }
+.lead-task-card .lead-card-action,
+.lead-notes-card .lead-card-action,
+.lead-bank-card .lead-card-action { align-self: flex-start; margin-top: auto; }
 .lead-card-icon { align-items: center; background: #e7f6f1; border-radius: 9px; color: #16846f; display: flex; font-size: 14px; font-weight: 900; height: 34px; justify-content: center; width: 34px; }
 .lead-card-menu { background: transparent; border: 0; color: #708185; cursor: pointer; font-size: 15px; font-weight: 900; letter-spacing: 2px; padding: 8px; }
 .lead-card-menu:hover { color: #16846f; }

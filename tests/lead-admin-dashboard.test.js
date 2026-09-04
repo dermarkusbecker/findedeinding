@@ -13,6 +13,8 @@ test('Interessenten öffnen eine vollständige CRM-Detailakte statt nur eines Be
   assert.match(script, /openLeadSalesCall/);
   assert.match(script, /Akte öffnen/);
   assert.match(styles, /\.lead-dashboard-grid/);
+  assert.match(styles, /\.lead-task-card,\.lead-notes-card,\.lead-bank-card,\.lead-next-card\s*\{[^}]*grid-column:\s*span 6;/s);
+  assert.doesNotMatch(styles, /\.lead-(?:task|bank)-card\s*\{\s*grid-column:\s*span 7;/);
   assert.match(styles, /\.lead-profile-hero/);
   assert.match(styles, /\.lead-sales-call-card/);
   assert.doesNotMatch(html.slice(html.indexOf('id="leadDashboard"'), html.indexOf('data-panel="users"')), /Wirtschaftliche Verhältnisse/i);
