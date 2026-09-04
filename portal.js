@@ -1,5 +1,6 @@
 import { journeyStepStatuses, weekOnePrompt } from './lib/week-one.js';
 import { currentGuidedStep, guidedClarityStep, guidedStepStatuses, guidedWeekDefinition, needsGuidedClarityCheckin } from './lib/guided-weeks.js';
+import { buildProgressCelebration } from './lib/progress-celebration.js';
 
 const resolveSpeechRecognition = (windowObject = window) => {
   if (!windowObject) return null;
@@ -363,6 +364,53 @@ function activeProcessWeek(access = program?.access) {
   if (Number.isInteger(week) && week >= 1 && week <= 8) return week;
   const completed = new Set((access?.completedWeeks || []).map(Number));
   return Array.from({ length: 8 }, (_, index) => index + 1).find((item) => !completed.has(item)) || 8;
+}
+
+function currentWeekStepProgress(week) {
+  if (!program?.onboardingComplete) return { completed: 0, total: 0 };
+  let statuses = [];
+  if (Number(week) === 1 && program.weekOne) statuses = journeyStepStatuses(program.weekOne);
+  else if (Number(program.selectedWeek) === Number(week) && program.weekState) statuses = guidedStepStatuses(program.weekState);
+  return { completed: statuses.filter((item) => item.status === 'completed').length, total: statuses.length };
+}
+
+function renderProgressCelebration() {
+  if (!program?.access) return null;
+  const week = activeProcessWeek(program.access);
+  const summary = (program.programWeeks || []).find((item) => Number(item.week) === week);
+  const steps = currentWeekStepProgress(week);
+  const celebration = buildProgressCelebration({
+    activeWeek: week,
+    completedWeeks: program.access.completedWeeks,
+    clarityHistory: program.clarityHistory,
+    completedSteps: steps.completed,
+    totalSteps: steps.total,
+    currentWeekTitle: summary?.title || `Woche ${week}`,
+    onboardingComplete: program.onboardingComplete,
+  });
+  $('#celebrationWeekBadge').textContent = celebration.isComplete ? 'Programm abgeschlossen' : `Woche ${celebration.week} von 8`;
+  $('#progressCelebrationTitle').textContent = celebration.title;
+  $('#progressCelebrationPraise').textContent = celebration.praise;
+  $('#celebrationPercent').textContent = `${celebration.percent} %`;
+  $('#celebrationProgress').style.setProperty('--celebration-progress', `${celebration.percent}%`);
+  $('#celebrationCompletedWeeks').textContent = celebration.completedWeeks;
+  $('#celebrationClarity').textContent = `${celebration.currentScore ?? '—'} / 10`;
+  $('#celebrationWeekSteps').textContent = celebration.totalSteps ? `${celebration.completedSteps} / ${celebration.totalSteps}` : '—';
+  $('#celebrationClaraTitle').textContent = celebration.claraTitle;
+  $('#celebrationClaraCopy').textContent = celebration.claraCopy;
+  $('#celebrationContinue').textContent = celebration.ctaLabel;
+  $('#celebrationContinue').dataset.week = String(celebration.week);
+  $('#openProgressCelebration').setAttribute('aria-label', `${celebration.percent} Prozent abgeschlossen. Fortschritt ansehen.`);
+  return celebration;
+}
+
+function openProgressCelebration() {
+  const celebration = renderProgressCelebration();
+  if (!celebration) return;
+  const dialog = $('#progressCelebrationDialog');
+  dialog.classList.remove('is-celebrating');
+  dialog.showModal();
+  requestAnimationFrame(() => dialog.classList.add('is-celebrating'));
 }
 
 async function loadProgram(week = null) {
@@ -910,6 +958,7 @@ function render() {
   $('#sideClarityValue').textContent = `${currentClarity?.score || '—'} / 10`;
   $('#headerClarity').textContent = `Klarheit ${currentClarity?.score || '—'} / 10`;
   $('#headerPhase').textContent = !showOnboarding && started ? `Woche ${showDashboard ? dashboardWeek : currentWeek} von 8 · ${(showDashboard ? dashboardSummary?.title : content?.title) || 'Dein Prozess'}` : 'Onboarding';
+  renderProgressCelebration();
   const name = program.profile?.name || 'Teilnehmer';
   const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
   $('#portalProfileAvatar').innerHTML = customerWorkspace?.profile?.photoUrl ? `<img src="${escapeHtml(customerWorkspace.profile.photoUrl)}" alt="Dein Profilbild">` : escapeHtml(initials);
@@ -1053,6 +1102,24 @@ function renderPortalAppointments() {
 }
 
 $('#openCurrentWeek').addEventListener('click', (event) => openWeek(Number(event.currentTarget.dataset.dashboardWeek || program?.access?.currentWeek || 1)));
+$('#openProgressCelebration').addEventListener('click', openProgressCelebration);
+$('#openProgressCelebration').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    openProgressCelebration();
+  }
+});
+$('#closeProgressCelebration').addEventListener('click', () => $('#progressCelebrationDialog').close());
+$('#progressCelebrationDialog').addEventListener('click', (event) => {
+  if (event.target === $('#progressCelebrationDialog')) $('#progressCelebrationDialog').close();
+});
+$('#progressCelebrationDialog').addEventListener('close', () => $('#progressCelebrationDialog').classList.remove('is-celebrating'));
+$('#celebrationContinue').addEventListener('click', (event) => {
+  const week = Number(event.currentTarget.dataset.week || 1);
+  $('#progressCelebrationDialog').close();
+  if (program?.access?.completedWeeks?.length === 8) showView('insights');
+  else openWeek(week);
+});
 $('#closeStepReview').addEventListener('click', () => $('#stepReviewDialog').close());
 $('#stepReviewDialog').addEventListener('click', (event) => {
   if (event.target === $('#stepReviewDialog')) $('#stepReviewDialog').close();
