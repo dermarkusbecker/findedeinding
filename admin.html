@@ -496,38 +496,72 @@
       <section class="view communication-view" data-panel="communications">
         <div class="intro communication-intro">
           <div>
-            <p class="eyebrow">Zentrales Postfach</p>
-            <h1>Kommunikation</h1>
-            <p>Alle Nachrichten mit Interessenten und Teilnehmern in einem gemeinsamen Verlauf.</p>
+            <p class="eyebrow">Admin-Kommunikation</p>
+            <h1>Kommunikations-Center</h1>
+            <p>Postfach, Vorlagen, Seriennachrichten und automatisierte Kundenkommunikation zentral verwalten.</p>
           </div>
-          <button class="primary" id="openCommunicationComposer" type="button">+ Neue Nachricht</button>
         </div>
         <div class="mail-transport-banner" id="mailTransportBanner">
           <span>!</span><div><strong>Domain-Mail noch nicht verbunden</strong><small>Nachrichten werden sicher als Entwurf gespeichert. Bestehende System- und Kommunikationseinträge sind vollständig sichtbar.</small></div><button type="button" class="secondary" data-open-mail-settings>Schnittstelle ansehen →</button>
         </div>
-        <section class="communication-metrics" aria-label="Kommunikationsübersicht">
-          <article><small>Alle Nachrichten</small><strong id="communicationTotal">0</strong></article>
-          <article><small>Ungelesen</small><strong id="communicationUnread">0</strong></article>
-          <article><small>Teilnehmer</small><strong id="communicationCustomers">0</strong></article>
-          <article><small>Interessenten</small><strong id="communicationLeads">0</strong></article>
+        <section class="communication-center-section active" data-communication-section="mailbox" id="communicationMailboxSection">
+          <div class="communication-section-head"><div><p class="eyebrow">Postfach</p><h2>Alle Gespräche an einem Ort</h2><p>Interessenten und Teilnehmer bleiben automatisch mit ihrer CRM-Akte verbunden.</p></div><button class="primary" id="openCommunicationComposer" type="button">+ Neue Nachricht</button></div>
+          <section class="communication-metrics" aria-label="Kommunikationsübersicht">
+            <article><small>Alle Nachrichten</small><strong id="communicationTotal">0</strong></article>
+            <article><small>Ungelesen</small><strong id="communicationUnread">0</strong></article>
+            <article><small>Teilnehmer</small><strong id="communicationCustomers">0</strong></article>
+            <article><small>Interessenten</small><strong id="communicationLeads">0</strong></article>
+          </section>
+          <section class="communication-mailbox" id="communicationMailbox">
+            <aside class="mail-folders" aria-label="Postfachordner">
+              <p>Postfach</p>
+              <button class="active" type="button" data-mail-folder="all"><span>▤</span>Alle Nachrichten <i id="mailAllCount">0</i></button>
+              <button type="button" data-mail-folder="inbound"><span>↓</span>Posteingang <i id="mailInboxCount">0</i></button>
+              <button type="button" data-mail-folder="outbound"><span>↑</span>Gesendet <i id="mailSentCount">0</i></button>
+              <button type="button" data-mail-folder="draft"><span>✎</span>Entwürfe <i id="mailDraftCount">0</i></button>
+              <button type="button" data-mail-folder="system"><span>⚙</span>System <i id="mailSystemCount">0</i></button>
+              <div class="mail-folder-note"><b>Ein Postfach für alle</b><small>Kunden und Interessenten bleiben automatisch ihrer CRM-Akte zugeordnet.</small></div>
+            </aside>
+            <div class="mail-list-panel">
+              <div class="mail-list-toolbar"><label>⌕<input id="communicationSearch" type="search" placeholder="Name, E-Mail, Betreff oder Inhalt suchen" /></label><button type="button" id="refreshCommunications" aria-label="Kommunikation aktualisieren">↻</button></div>
+              <div class="mail-list" id="communicationList"><div class="empty">Kommunikationen werden geladen …</div></div>
+            </div>
+            <article class="mail-reading-pane" id="communicationReadingPane">
+              <div class="mail-reading-empty"><span>✉</span><h2>Nachricht auswählen</h2><p>Öffne links eine Nachricht, um den vollständigen Verlauf und die zugehörige CRM-Akte zu sehen.</p></div>
+            </article>
+          </section>
         </section>
-        <section class="communication-mailbox" id="communicationMailbox">
-          <aside class="mail-folders" aria-label="Postfachordner">
-            <p>Postfach</p>
-            <button class="active" type="button" data-mail-folder="all"><span>▤</span>Alle Nachrichten <i id="mailAllCount">0</i></button>
-            <button type="button" data-mail-folder="inbound"><span>↓</span>Posteingang <i id="mailInboxCount">0</i></button>
-            <button type="button" data-mail-folder="outbound"><span>↑</span>Gesendet <i id="mailSentCount">0</i></button>
-            <button type="button" data-mail-folder="draft"><span>✎</span>Entwürfe <i id="mailDraftCount">0</i></button>
-            <button type="button" data-mail-folder="system"><span>⚙</span>System <i id="mailSystemCount">0</i></button>
-            <div class="mail-folder-note"><b>Ein Postfach für alle</b><small>Kunden und Interessenten bleiben automatisch ihrer CRM-Akte zugeordnet.</small></div>
-          </aside>
-          <div class="mail-list-panel">
-            <div class="mail-list-toolbar"><label>⌕<input id="communicationSearch" type="search" placeholder="Name, E-Mail, Betreff oder Inhalt suchen" /></label><button type="button" id="refreshCommunications" aria-label="Kommunikation aktualisieren">↻</button></div>
-            <div class="mail-list" id="communicationList"><div class="empty">Kommunikationen werden geladen …</div></div>
+
+        <section class="communication-center-section" data-communication-section="templates" id="communicationTemplatesSection">
+          <div class="communication-section-head"><div><p class="eyebrow">Vorlagencenter</p><h2>Nachrichtenvorlagen</h2><p>Freigegebene Texte und CRM-Platzhalter für persönliche, wiederkehrende Nachrichten.</p></div><button class="primary" id="openCommunicationTemplate" type="button">+ Vorlage erstellen</button></div>
+          <section class="communication-metrics communication-center-metrics" aria-label="Vorlagenübersicht">
+            <article><small>Vorlagen</small><strong id="templateTotal">0</strong></article>
+            <article><small>Freigegeben</small><strong id="templateActive">0</strong></article>
+            <article><small>Entwürfe</small><strong id="templateDraft">0</strong></article>
+            <article><small>Kanäle</small><strong id="templateChannels">1</strong></article>
+          </section>
+          <div class="communication-filterbar"><label>⌕<input id="templateSearch" type="search" placeholder="Vorlage, Betreff oder Platzhalter suchen" /></label><select id="templateCategory"><option value="">Alle Kategorien</option><option value="lead">Interessenten</option><option value="appointment">Termine</option><option value="contract">Vertrag</option><option value="participant">Teilnehmer</option><option value="program">8-Wochen-Prozess</option><option value="general">Allgemein</option></select></div>
+          <div class="template-workspace">
+            <div class="template-library"><div class="workspace-title"><span>Bibliothek</span><small id="templateResultCount">0 Vorlagen</small></div><div id="communicationTemplateList" class="template-list"><div class="empty">Vorlagen werden geladen …</div></div></div>
+            <article class="template-preview" id="communicationTemplatePreview"><div class="template-preview-empty"><span>▧</span><h3>Vorlage auswählen</h3><p>Wähle links eine Vorlage aus, um Inhalt, Platzhalter und Freigabestatus zu prüfen.</p></div></article>
           </div>
-          <article class="mail-reading-pane" id="communicationReadingPane">
-            <div class="mail-reading-empty"><span>✉</span><h2>Nachricht auswählen</h2><p>Öffne links eine Nachricht, um den vollständigen Verlauf und die zugehörige CRM-Akte zu sehen.</p></div>
-          </article>
+        </section>
+
+        <section class="communication-center-section" data-communication-section="campaigns" id="communicationCampaignsSection">
+          <div class="communication-section-head"><div><p class="eyebrow">E-Mail-Marketing</p><h2>Seriennachrichten</h2><p>Zielgruppen auswählen, Inhalte vorbereiten und einen Versandzeitpunkt festlegen.</p></div><button class="primary" id="openCommunicationCampaign" type="button">+ Seriennachricht planen</button></div>
+          <div class="audience-overview">
+            <article><span>◎</span><div><small>Alle Kontakte</small><strong id="audienceAll">0</strong></div></article>
+            <article><span>↗</span><div><small>Interessenten</small><strong id="audienceLeads">0</strong></div></article>
+            <article><span>✓</span><div><small>Teilnehmer</small><strong id="audienceCustomers">0</strong></div></article>
+            <article><span>◷</span><div><small>Geplant</small><strong id="campaignScheduled">0</strong></div></article>
+          </div>
+          <div class="communication-list-card"><div class="workspace-title"><div><span>Versandplanung</span><small>Mailversand startet nach Verbindung des Domain-Anbieters.</small></div><label>⌕<input id="campaignSearch" type="search" placeholder="Seriennachricht suchen" /></label></div><div class="campaign-list" id="communicationCampaignList"><div class="empty">Seriennachrichten werden geladen …</div></div></div>
+        </section>
+
+        <section class="communication-center-section" data-communication-section="automations" id="communicationAutomationsSection">
+          <div class="communication-section-head"><div><p class="eyebrow">Automatisierung</p><h2>Automatisierte Nachrichten</h2><p>Ereignisse aus Vertrieb und 8-Wochen-Prozess lösen zum richtigen Zeitpunkt die passende Vorlage aus.</p></div><button class="primary" id="openCommunicationAutomation" type="button">+ Automation erstellen</button></div>
+          <div class="automation-explainer"><span>⚡</span><div><strong>Auslöser → Wartezeit → Vorlage → Empfänger</strong><small>Regeln können jetzt vollständig vorbereitet werden. Bis zur Mail-Anbindung bleiben geplante Ausführungen sicher angehalten.</small></div><b id="automationActiveCount">0 aktiv</b></div>
+          <div class="automation-grid" id="communicationAutomationList"><div class="empty">Automationen werden geladen …</div></div>
         </section>
       </section>
       <section class="view" data-panel="users">
@@ -1291,10 +1325,64 @@
           <button type="button" data-close-communication-composer>×</button>
         </div>
         <label>Empfänger<select name="leadId" id="communicationRecipient" required><option value="">Kontakt auswählen</option></select></label>
+        <label>Vorlage verwenden<select name="templateId" id="communicationComposerTemplate"><option value="">Ohne Vorlage</option></select></label>
         <label>Betreff<input name="subject" maxlength="220" required /></label>
         <label>Nachricht<textarea name="body" rows="9" maxlength="10000" required></textarea></label>
         <p class="compose-provider-note">Bis zur Verbindung des Domain-Mail-Anbieters wird diese Nachricht als Entwurf gespeichert und nicht als versendet dargestellt.</p>
         <div class="dialog-actions"><button type="button" class="secondary" data-close-communication-composer>Abbrechen</button><button type="submit" class="primary">Als Entwurf speichern</button></div>
+      </form>
+    </dialog>
+    <dialog id="communicationTemplateDialog" class="communication-center-dialog">
+      <form id="communicationTemplateForm">
+        <input type="hidden" name="id" />
+        <div class="dialog-head"><div><p class="eyebrow">Vorlagencenter</p><h2 id="communicationTemplateDialogTitle">Vorlage erstellen</h2><small>Platzhalter werden beim späteren Versand automatisch aus der CRM-Akte eingesetzt.</small></div><button type="button" data-close-template-dialog>×</button></div>
+        <div class="communication-form-grid">
+          <label>Vorlagenname<input name="name" maxlength="140" required placeholder="z. B. Terminerinnerung" /></label>
+          <label>Kategorie<select name="category"><option value="lead">Interessenten</option><option value="appointment">Termine</option><option value="contract">Vertrag</option><option value="participant">Teilnehmer</option><option value="program">8-Wochen-Prozess</option><option value="general">Allgemein</option></select></label>
+          <label>Kanal<select name="channel"><option value="email">E-Mail</option><option value="whatsapp">WhatsApp · geplant</option></select></label>
+          <label>Status<select name="status"><option value="draft">Entwurf</option><option value="active">Freigegeben</option></select></label>
+          <label class="wide">Kurzbeschreibung<input name="description" maxlength="400" placeholder="Wann und wofür wird diese Vorlage verwendet?" /></label>
+          <label class="wide">Betreff<input name="subject" maxlength="220" required /></label>
+          <label class="wide">Nachricht<textarea name="body" rows="11" maxlength="20000" required></textarea></label>
+        </div>
+        <div class="placeholder-picker"><small>Platzhalter einfügen</small><div><button type="button" data-insert-placeholder="{{vorname}}">{{vorname}}</button><button type="button" data-insert-placeholder="{{datum}}">{{datum}}</button><button type="button" data-insert-placeholder="{{uhrzeit}}">{{uhrzeit}}</button><button type="button" data-insert-placeholder="{{termin}}">{{termin}}</button><button type="button" data-insert-placeholder="{{meet_link}}">{{meet_link}}</button><button type="button" data-insert-placeholder="{{woche}}">{{woche}}</button><button type="button" data-insert-placeholder="{{portal_link}}">{{portal_link}}</button></div></div>
+        <div class="dialog-actions"><button type="button" class="secondary" data-close-template-dialog>Abbrechen</button><button type="submit" class="primary">Vorlage speichern</button></div>
+      </form>
+    </dialog>
+    <dialog id="communicationCampaignDialog" class="communication-center-dialog">
+      <form id="communicationCampaignForm">
+        <input type="hidden" name="id" />
+        <div class="dialog-head"><div><p class="eyebrow">Seriennachricht</p><h2 id="communicationCampaignDialogTitle">Versand vorbereiten</h2><small>Zielgruppe, Vorlage und Zeitpunkt werden in einem Schritt festgelegt.</small></div><button type="button" data-close-campaign-dialog>×</button></div>
+        <div class="communication-form-grid">
+          <label class="wide">Interner Name<input name="name" maxlength="140" required placeholder="z. B. September-Information für Interessenten" /></label>
+          <label>Vorlage<select name="templateId" id="campaignTemplate"><option value="">Ohne Vorlage</option></select></label>
+          <label>Zielgruppe<select name="audienceType" id="campaignAudience"><option value="leads">Alle Interessenten</option><option value="customers">Alle Teilnehmer</option><option value="all">Alle Kontakte</option><option value="selected">Einzelne Kontakte auswählen</option></select></label>
+          <div class="wide campaign-contact-selector" id="campaignContactSelector" hidden><div class="workspace-title"><span>Kontakte auswählen</span><small id="campaignSelectedCount">0 ausgewählt</small></div><label>⌕<input id="campaignContactSearch" type="search" placeholder="Name oder E-Mail suchen" /></label><div id="campaignContactOptions"></div></div>
+          <label class="wide">Betreff<input name="subject" maxlength="220" required /></label>
+          <label class="wide">Nachricht<textarea name="body" rows="10" maxlength="20000" required></textarea></label>
+          <label>Geplanter Versand<input name="scheduledAt" type="datetime-local" /></label>
+          <div class="campaign-recipient-preview"><small>Aktuelle Auswahl</small><strong id="campaignRecipientPreview">0 Empfänger</strong><span id="campaignTransportHint">Versand wartet auf Mail-Schnittstelle</span></div>
+        </div>
+        <div class="dialog-actions split-actions"><button type="button" class="secondary" data-close-campaign-dialog>Abbrechen</button><div><button type="submit" class="secondary" data-campaign-submit="draft">Als Entwurf speichern</button><button type="submit" class="primary" data-campaign-submit="scheduled">Versand planen</button></div></div>
+      </form>
+    </dialog>
+    <dialog id="communicationAutomationDialog" class="communication-center-dialog">
+      <form id="communicationAutomationForm">
+        <input type="hidden" name="id" />
+        <div class="dialog-head"><div><p class="eyebrow">Automatisierte Nachricht</p><h2 id="communicationAutomationDialogTitle">Automation erstellen</h2><small>Die Nachricht wird aus einem CRM-Ereignis heraus vorbereitet.</small></div><button type="button" data-close-automation-dialog>×</button></div>
+        <div class="communication-form-grid">
+          <label class="wide">Name der Automation<input name="name" maxlength="140" required placeholder="z. B. Erinnerung 24 Stunden vor Termin" /></label>
+          <label>Auslöser<select name="triggerType" id="automationTrigger" required><option value="lead_created">Interessent neu angelegt</option><option value="appointment_scheduled">Termin vereinbart</option><option value="contract_signed">Vertrag abgeschlossen</option><option value="participant_activated">Teilnehmer aktiviert</option><option value="week_unlocked">Programmwoche freigeschaltet</option><option value="inactivity">Keine Aktivität</option></select></label>
+          <label>Nachrichtenvorlage<select name="templateId" id="automationTemplate" required></select></label>
+          <label>Wartezeit<input name="delayValue" type="number" min="0" max="365" value="0" required /></label>
+          <label>Einheit<select name="delayUnit"><option value="minutes">Minuten</option><option value="hours">Stunden</option><option value="days">Tage</option></select></label>
+          <label>Bevorzugte Uhrzeit<input name="sendTime" type="time" /></label>
+          <label>Empfänger<select name="audienceType"><option value="event_contact">Betroffener Kontakt</option><option value="leads">Alle Interessenten</option><option value="customers">Alle Teilnehmer</option></select></label>
+          <label class="automation-conditional" data-automation-condition="week_unlocked" hidden>Programmwoche<select name="week"><option value="1">Woche 1</option><option value="2">Woche 2</option><option value="3">Woche 3</option><option value="4">Woche 4</option><option value="5">Woche 5</option><option value="6">Woche 6</option><option value="7">Woche 7</option><option value="8">Woche 8</option></select></label>
+          <label class="automation-conditional" data-automation-condition="inactivity" hidden>Inaktiv seit Tagen<input name="inactiveDays" type="number" min="1" max="90" value="3" /></label>
+          <label class="wide communication-switch"><input name="enabled" type="checkbox" /><span><b>Automation aktivieren</b><small>Die Regel arbeitet nach der Mail-Anbindung automatisch.</small></span></label>
+        </div>
+        <div class="dialog-actions"><button type="button" class="secondary" data-close-automation-dialog>Abbrechen</button><button type="submit" class="primary">Automation speichern</button></div>
       </form>
     </dialog>
     <dialog id="programDialog" class="program-dialog">
@@ -1389,5 +1477,6 @@
     </dialog>
     <div id="toast"></div>
     <script src="admin.js"></script>
+    <script src="admin-communication-center.js"></script>
   </body>
 </html>

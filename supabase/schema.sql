@@ -134,6 +134,51 @@ create table if not exists public.lead_tasks (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.communication_templates (
+  id uuid primary key default gen_random_uuid(),
+  template_key text unique,
+  name text not null,
+  description text,
+  category text not null default 'general' check (category in ('general', 'lead', 'appointment', 'contract', 'participant', 'program')),
+  channel text not null default 'email' check (channel in ('email', 'whatsapp')),
+  subject text not null,
+  body text not null,
+  status text not null default 'draft' check (status in ('draft', 'active', 'archived')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.communication_campaigns (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  template_id uuid references public.communication_templates(id) on delete set null,
+  audience_type text not null default 'leads' check (audience_type in ('all', 'leads', 'customers', 'selected')),
+  audience_filter jsonb not null default '{}'::jsonb,
+  recipient_count integer not null default 0 check (recipient_count >= 0),
+  subject text not null,
+  body text not null,
+  scheduled_at timestamptz,
+  status text not null default 'draft' check (status in ('draft', 'scheduled', 'paused', 'completed', 'cancelled')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.communication_automations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  trigger_type text not null check (trigger_type in ('lead_created', 'appointment_scheduled', 'contract_signed', 'participant_activated', 'week_unlocked', 'inactivity')),
+  trigger_config jsonb not null default '{}'::jsonb,
+  delay_value integer not null default 0 check (delay_value between 0 and 365),
+  delay_unit text not null default 'hours' check (delay_unit in ('minutes', 'hours', 'days')),
+  send_time time,
+  template_id uuid not null references public.communication_templates(id) on delete restrict,
+  audience_type text not null default 'event_contact' check (audience_type in ('event_contact', 'leads', 'customers')),
+  enabled boolean not null default false,
+  last_run_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.lead_bank_accounts (
   lead_id uuid primary key references public.leads(id) on delete cascade,
   account_holder text,
@@ -298,6 +343,9 @@ alter table public.lead_payments enable row level security;
 alter table public.lead_communications enable row level security;
 alter table public.lead_tasks enable row level security;
 alter table public.lead_bank_accounts enable row level security;
+alter table public.communication_templates enable row level security;
+alter table public.communication_campaigns enable row level security;
+alter table public.communication_automations enable row level security;
 alter table public.user_profiles enable row level security;
 alter table public.participant_progress enable row level security;
 alter table public.customer_questions enable row level security;
@@ -320,6 +368,9 @@ create index if not exists lead_contracts_lead_created_idx on public.lead_contra
 create index if not exists lead_payments_lead_booked_idx on public.lead_payments(lead_id, booked_at desc);
 create index if not exists lead_communications_lead_occurred_idx on public.lead_communications(lead_id, occurred_at desc);
 create index if not exists lead_tasks_lead_due_idx on public.lead_tasks(lead_id, completed, due_at);
+create index if not exists communication_templates_status_idx on public.communication_templates(status, category, updated_at desc);
+create index if not exists communication_campaigns_schedule_idx on public.communication_campaigns(status, scheduled_at);
+create index if not exists communication_automations_trigger_idx on public.communication_automations(enabled, trigger_type);
 create index if not exists customer_questions_profile_created_idx on public.customer_questions(user_profile_id, created_at desc);
 create index if not exists process_entries_participant_idx on public.process_entries(user_profile_id, week);
 create index if not exists week_gates_participant_idx on public.week_gates(user_profile_id, week);

@@ -12,10 +12,18 @@ test('CRM besitzt ein zentrales Postfach für Interessenten und Teilnehmer', asy
   assert.match(html, /data-panel="communications"/);
   for (const id of ['communicationMailbox', 'communicationList', 'communicationReadingPane', 'communicationSearch', 'communicationComposerDialog']) assert.match(html, new RegExp(`id="${id}"`));
   for (const folder of ['all', 'inbound', 'outbound', 'draft', 'system']) assert.match(html, new RegExp(`data-mail-folder="${folder}"`));
-  assert.match(script, /communications:\{icon:'✉',label:'Postfach'/);
+  assert.match(script, /communications:\{icon:'✉',label:'Kommunikations-Center'/);
   assert.match(script, /contact\.type==='customer'\?'Teilnehmer':'Interessent'/);
   assert.match(styles, /\.communication-mailbox/);
   assert.match(styles, /\.mail-reading-pane/);
+});
+
+test('Kommunikationsnavigation trennt Postfach, Vorlagen, Seriennachrichten und Automationen', async () => {
+  const [html, script] = await Promise.all([file('admin.html'), file('admin.js')]);
+  for (const section of ['mailbox', 'templates', 'campaigns', 'automations']) assert.match(html, new RegExp(`data-communication-section="${section}"`));
+  for (const label of ['Postfach', 'Vorlagen', 'Seriennachrichten', 'Automatisierte Nachrichten']) assert.match(script, new RegExp(label));
+  assert.match(script, /data-context-communication/);
+  assert.match(html, /admin-communication-center\.js/);
 });
 
 test('Kommunikations-API liefert ein vereintes Postfach und verwaltet Entwürfe und Lesestatus', async () => {

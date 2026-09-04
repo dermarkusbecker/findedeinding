@@ -90,3 +90,151 @@
   .mail-reading-actions { align-items: stretch; flex-direction: column; }
   .mail-reading-actions button { margin: 0!important; width: 100%; }
 }
+
+/* Kommunikations-Center: Vorlagen, Kampagnen und Automationen */
+.communication-center-section { display: none; }
+.communication-center-section.active { display: block; }
+.communication-section-head { align-items: flex-end; display: flex; gap: 24px; justify-content: space-between; margin: 26px 0 22px; }
+.communication-section-head h2 { color: #173832; font-size: clamp(25px, 2vw, 32px); letter-spacing: -.04em; line-height: 1.15; margin: 0; }
+.communication-section-head>div>p:last-child { color: #6f7f7b; font-size: 13px; line-height: 1.6; margin: 8px 0 0; }
+.communication-center-metrics article { min-height: 94px; }
+.communication-filterbar { align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 15px; display: flex; gap: 10px; margin-bottom: 16px; padding: 14px; }
+.communication-filterbar label, .communication-list-card .workspace-title label { align-items: center; background: #f6f9f8; border: 1px solid #dce5e2; border-radius: 10px; color: #81908c; display: flex; flex: 1; gap: 8px; padding: 10px 12px; }
+.communication-filterbar input, .communication-list-card .workspace-title input { background: transparent; border: 0; color: var(--ink); font: 500 12px Manrope; outline: 0; width: 100%; }
+.communication-filterbar select { background: #f6f9f8; border: 1px solid #dce5e2; border-radius: 10px; color: #405b55; font: 700 12px Manrope; min-height: 42px; padding: 0 12px; }
+.template-workspace { display: grid; gap: 16px; grid-template-columns: minmax(350px, .8fr) minmax(480px, 1.35fr); }
+.template-library, .template-preview, .communication-list-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 14px 35px rgba(24,60,55,.06); min-width: 0; overflow: hidden; }
+.workspace-title { align-items: center; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; min-height: 63px; padding: 14px 17px; }
+.workspace-title span { color: #2d4943; font-size: 13px; font-weight: 850; }
+.workspace-title small { color: #82908c; font-size: 10px; }
+.template-list { max-height: 660px; overflow-y: auto; }
+.template-list-item { background: #fff; border: 0; border-bottom: 1px solid #e7ecea; cursor: pointer; display: block; padding: 18px 19px; text-align: left; transition: .18s ease; width: 100%; }
+.template-list-item:hover, .template-list-item.active { background: #edf7f5; box-shadow: inset 3px 0 #149b82; }
+.template-list-item>div:first-child { align-items: center; display: flex; gap: 8px; justify-content: space-between; }
+.template-list-item h3 { color: #24433c; font-size: 14px; line-height: 1.35; margin: 0; }
+.template-list-item>p { color: #71817c; font-size: 11px; line-height: 1.55; margin: 7px 0 12px; }
+.template-tags { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; }
+.communication-badge { background: #edf1f0; border-radius: 20px; color: #61736e; display: inline-flex; font: 700 9px DM Mono; padding: 5px 8px; }
+.communication-badge.active, .communication-badge.scheduled { background: #dbf4ec; color: #08725e; }
+.communication-badge.draft { background: #fff0df; color: #9b622a; }
+.communication-badge.paused, .communication-badge.cancelled { background: #f2e8e5; color: #8a5950; }
+.template-preview { min-height: 610px; padding: 27px; }
+.template-preview-empty { color: #7b8985; margin: 145px auto 0; max-width: 370px; text-align: center; }
+.template-preview-empty>span { align-items: center; background: #e8f4f1; border-radius: 50%; color: #16806d; display: flex; font-size: 25px; height: 72px; justify-content: center; margin: auto; width: 72px; }
+.template-preview-empty h3 { color: #28453f; font-size: 20px; margin: 18px 0 8px; }
+.template-preview-empty p { font-size: 12px; line-height: 1.7; }
+.template-preview-head { align-items: flex-start; border-bottom: 1px solid var(--line); display: flex; gap: 16px; justify-content: space-between; padding-bottom: 20px; }
+.template-preview-head h3 { color: #193a33; font-size: 22px; margin: 8px 0 5px; }
+.template-preview-head p { color: #75847f; font-size: 11px; line-height: 1.55; margin: 0; }
+.template-preview-head>button { flex: 0 0 auto; }
+.template-mail-preview { background: #f7faf9; border: 1px solid #dce7e4; border-radius: 13px; margin-top: 22px; min-height: 330px; padding: 22px; }
+.template-mail-preview>small { color: #80908b; display: block; font: 700 9px DM Mono; letter-spacing: .08em; text-transform: uppercase; }
+.template-mail-preview>h4 { color: #25433c; font-size: 17px; margin: 8px 0 20px; }
+.template-mail-body { background: #fff; border: 1px solid #e0e8e6; border-radius: 10px; color: #415550; font-size: 13px; line-height: 1.8; min-height: 220px; padding: 20px; white-space: pre-wrap; }
+.template-placeholders { align-items: center; display: flex; flex-wrap: wrap; gap: 7px; margin-top: 18px; }
+.template-placeholders small { color: #758680; font-size: 10px; margin-right: 4px; }
+.template-placeholders code { background: #e9f1fa; border: 1px solid #cbdbea; border-radius: 6px; color: #496a91; font: 700 9px DM Mono; padding: 5px 7px; }
+.audience-overview { display: grid; gap: 13px; grid-template-columns: repeat(4,1fr); margin-bottom: 16px; }
+.audience-overview article { align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 14px; display: flex; gap: 13px; padding: 18px; }
+.audience-overview article>span { align-items: center; background: #e4f3ef; border-radius: 10px; color: #14806d; display: flex; font-size: 17px; height: 42px; justify-content: center; width: 42px; }
+.audience-overview small, .audience-overview strong { display: block; }
+.audience-overview small { color: #82908c; font: 700 9px DM Mono; text-transform: uppercase; }
+.audience-overview strong { color: #213f39; font-size: 23px; margin-top: 4px; }
+.communication-list-card .workspace-title { gap: 18px; }
+.communication-list-card .workspace-title>div small { display: block; margin-top: 4px; }
+.communication-list-card .workspace-title label { flex: 0 1 340px; }
+.campaign-list { min-height: 280px; }
+.campaign-row { align-items: center; border-bottom: 1px solid #e6ecea; display: grid; gap: 16px; grid-template-columns: minmax(210px, 1.4fr) .65fr .8fr .8fr auto; padding: 18px 20px; }
+.campaign-row:last-child { border-bottom: 0; }
+.campaign-row h3 { color: #26443d; font-size: 14px; margin: 0; }
+.campaign-row p { color: #788782; font-size: 10px; margin: 5px 0 0; }
+.campaign-row dl { margin: 0; }
+.campaign-row dt { color: #8a9692; font: 700 8px DM Mono; text-transform: uppercase; }
+.campaign-row dd { color: #38534d; font-size: 11px; font-weight: 750; margin: 4px 0 0; }
+.campaign-actions { display: flex; gap: 7px; }
+.campaign-actions button { min-height: 38px; }
+.automation-explainer { align-items: center; background: #173c35; border-radius: 15px; color: #fff; display: flex; gap: 14px; margin-bottom: 16px; padding: 19px 21px; }
+.automation-explainer>span { align-items: center; background: #ff9860; border-radius: 10px; display: flex; font-size: 19px; height: 43px; justify-content: center; width: 43px; }
+.automation-explainer>div { flex: 1; }
+.automation-explainer strong, .automation-explainer small { display: block; }
+.automation-explainer strong { font-size: 14px; }
+.automation-explainer small { color: #b8cac5; font-size: 11px; line-height: 1.55; margin-top: 4px; }
+.automation-explainer>b { background: #28554d; border-radius: 20px; color: #a9e2d2; font-size: 10px; padding: 8px 11px; }
+.automation-grid { display: grid; gap: 14px; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.automation-card { background: #fff; border: 1px solid var(--line); border-radius: 15px; box-shadow: 0 10px 28px rgba(24,60,55,.05); padding: 20px; }
+.automation-card-head { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; }
+.automation-card-icon { align-items: center; background: #e5f3ef; border-radius: 10px; color: #0f7b68; display: flex; font-size: 17px; height: 40px; justify-content: center; width: 40px; }
+.automation-card-title { flex: 1; }
+.automation-card-title h3 { color: #24423b; font-size: 15px; margin: 0; }
+.automation-card-title small { color: #82908b; display: block; font-size: 10px; margin-top: 5px; }
+.automation-card-flow { align-items: center; background: #f5f9f8; border-radius: 11px; display: grid; gap: 7px; grid-template-columns: 1fr auto 1fr auto 1fr; margin: 17px 0; padding: 13px; }
+.automation-card-flow div { min-width: 0; text-align: center; }
+.automation-card-flow small, .automation-card-flow b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.automation-card-flow small { color: #899792; font: 700 8px DM Mono; text-transform: uppercase; }
+.automation-card-flow b { color: #36534c; font-size: 10px; margin-top: 4px; }
+.automation-card-flow>span { color: #a5b2ae; }
+.automation-card-foot { align-items: center; display: flex; gap: 8px; justify-content: space-between; }
+.automation-card-foot>div { display: flex; gap: 7px; }
+.communication-center-dialog { max-height: calc(100vh - 34px); max-width: 820px; overflow: auto; }
+.communication-center-dialog form { display: flex; flex-direction: column; gap: 18px; }
+.communication-center-dialog .dialog-head { border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+.communication-form-grid { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+.communication-form-grid>label { color: #687a75; display: flex; flex-direction: column; font-size: 11px; font-weight: 800; gap: 7px; }
+.communication-form-grid .wide { grid-column: 1/-1; }
+.communication-center-dialog input, .communication-center-dialog select, .communication-center-dialog textarea { background: #f9fbfb; border: 1px solid #cfddda; border-radius: 10px; color: #253f39; font: 500 13px/1.55 Manrope; padding: 11px 12px; width: 100%; }
+.communication-center-dialog textarea { min-height: 160px; resize: vertical; }
+.communication-center-dialog input:focus, .communication-center-dialog select:focus, .communication-center-dialog textarea:focus { background: #fff; border-color: #149b82; box-shadow: 0 0 0 3px rgba(20,155,130,.1); outline: 0; }
+.placeholder-picker { background: #edf5f3; border-radius: 11px; padding: 12px 14px; }
+.placeholder-picker>small { color: #667a75; display: block; font-size: 10px; font-weight: 800; margin-bottom: 8px; }
+.placeholder-picker>div { display: flex; flex-wrap: wrap; gap: 6px; }
+.placeholder-picker button { background: #fff; border: 1px solid #c9dcd7; border-radius: 6px; color: #24695c; cursor: pointer; font: 700 9px DM Mono; padding: 6px 8px; }
+.campaign-contact-selector { background: #f5f8f7; border: 1px solid #dce5e2; border-radius: 11px; padding: 12px; }
+.campaign-contact-selector .workspace-title { border: 0; min-height: auto; padding: 0 0 9px; }
+.campaign-contact-selector>label { align-items: center; background: #fff; border: 1px solid #d7e2df; border-radius: 8px; display: flex; gap: 7px; padding: 8px 10px; }
+.campaign-contact-selector>label input { background: transparent; border: 0; box-shadow: none; min-height: 0; padding: 0; }
+#campaignContactOptions { display: grid; gap: 6px; grid-template-columns: 1fr 1fr; margin-top: 10px; max-height: 190px; overflow-y: auto; }
+#campaignContactOptions label { align-items: center; background: #fff; border: 1px solid #e0e8e6; border-radius: 8px; cursor: pointer; display: grid; gap: 8px; grid-template-columns: auto 1fr; padding: 9px; }
+#campaignContactOptions input { height: 16px; min-height: 0; width: 16px; }
+#campaignContactOptions b, #campaignContactOptions small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#campaignContactOptions b { color: #34514a; font-size: 10px; }
+#campaignContactOptions small { color: #82908c; font-size: 8px; margin-top: 2px; }
+.campaign-recipient-preview { align-self: end; background: #eaf4f1; border-radius: 10px; min-height: 72px; padding: 12px 14px; width: 100%; }
+.campaign-recipient-preview small, .campaign-recipient-preview strong, .campaign-recipient-preview span { display: block; }
+.campaign-recipient-preview small { color: #71827d; font-size: 9px; }
+.campaign-recipient-preview strong { color: #176c5d; font-size: 16px; margin-top: 4px; }
+.campaign-recipient-preview span { color: #84918d; font-size: 8px; margin-top: 3px; }
+.split-actions { justify-content: space-between; }
+.split-actions>div { display: flex; gap: 8px; }
+.communication-switch { align-items: center!important; background: #edf5f3; border-radius: 11px; flex-direction: row!important; padding: 13px 15px; }
+.communication-switch input { height: 19px; min-height: 0; width: 19px; }
+.communication-switch b, .communication-switch small { display: block; }
+.communication-switch b { color: #2f5048; font-size: 12px; }
+.communication-switch small { color: #74857f; font-size: 9px; margin-top: 3px; }
+
+@media(max-width:1100px){
+  .template-workspace { grid-template-columns: 1fr; }
+  .template-preview { min-height: 500px; }
+  .audience-overview { grid-template-columns: 1fr 1fr; }
+}
+@media(max-width:800px){
+  .communication-section-head { align-items: flex-start; flex-direction: column; }
+  .communication-filterbar { align-items: stretch; flex-direction: column; }
+  .campaign-row { grid-template-columns: 1fr 1fr; }
+  .campaign-row>div:first-child, .campaign-actions { grid-column: 1/-1; }
+  .automation-grid { grid-template-columns: 1fr; }
+  .automation-explainer { align-items: flex-start; flex-wrap: wrap; }
+  .automation-explainer>b { margin-left: 57px; }
+  .communication-form-grid { grid-template-columns: 1fr; }
+  .communication-form-grid .wide { grid-column: auto; }
+  #campaignContactOptions { grid-template-columns: 1fr; }
+}
+@media(max-width:520px){
+  .audience-overview { grid-template-columns: 1fr 1fr; }
+  .audience-overview article { padding: 13px; }
+  .communication-list-card .workspace-title { align-items: stretch; flex-direction: column; }
+  .communication-list-card .workspace-title label { flex-basis: auto; }
+  .template-preview { padding: 18px; }
+  .automation-card-flow { grid-template-columns: 1fr; }
+  .automation-card-flow>span { transform: rotate(90deg); }
+  .split-actions, .split-actions>div { align-items: stretch; flex-direction: column; width: 100%; }
+}
