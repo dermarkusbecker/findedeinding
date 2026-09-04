@@ -53,6 +53,29 @@ async function completedContract(service, leadId) {
   return rows[0] || null;
 }
 
+async function communicationInbox(service) {
+  const [communicationRows, leadRows] = await Promise.all([
+    readJson(await fetch(`${service.url}/rest/v1/lead_communications?select=*&order=occurred_at.desc&limit=500`, { headers: headers(service.key) }), 'Kommunikationen konnten nicht geladen werden.'),
+    readJson(await fetch(`${service.url}/rest/v1/leads?select=id,name,email,status,converted_user_profile_id&order=created_at.desc&limit=500`, { headers: headers(service.key) }), 'Kontakte konnten nicht geladen werden.'),
+  ]);
+  const contacts = new Map(leadRows.map((lead) => [lead.id, { id: lead.id, name: lead.name, email: lead.email, type: lead.converted_user_profile_id ? 'customer' : 'lead', status: lead.status }]));
+  const communications = communicationRows.map((item) => ({ ...item, contact: contacts.get(item.lead_id) || { id: item.lead_id, name: 'Unbekannter Kontakt', email: '', type: 'lead', status: 'unknown' } }));
+  return {
+    communications,
+    contacts: [...contacts.values()],
+    summary: {
+      total: communications.length,
+      inbox: communications.filter((item) => item.direction === 'inbound').length,
+      unread: communications.filter((item) => item.direction === 'inbound' && !item.read_at).length,
+      sent: communications.filter((item) => item.direction === 'outbound' && item.delivery_status !== 'draft').length,
+      drafts: communications.filter((item) => item.delivery_status === 'draft').length,
+      customers: new Set(communications.filter((item) => item.contact.type === 'customer').map((item) => item.lead_id)).size,
+      leads: new Set(communications.filter((item) => item.contact.type === 'lead').map((item) => item.lead_id)).size,
+    },
+    mailTransport: { active: false, provider: null, label: 'Domain-Mail-Schnittstelle geplant' },
+  };
+}
+
 async function leadDashboard(service, id) {
   const lead = await leadById(service, id);
   const leadFilter = `lead_id=eq.${encodeURIComponent(lead.id)}`;
@@ -101,8 +124,9 @@ async function recordDashboardMutation(service, request) {
   if (recordType === 'communication') {
     const subject = clean(request.body?.subject, 220);
     const direction = ['inbound', 'outbound', 'system'].includes(request.body?.direction) ? request.body.direction : 'outbound';
+    const body = clean(request.body?.preview, 10000);
     if (!subject) throw Object.assign(new Error('Ein Betreff ist erforderlich.'), { status: 400 });
-    return { record: await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, subject, direction, preview: clean(request.body?.preview, 2000) || null }) };
+    return { record: await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, subject, direction, preview: body.slice(0, 500) || null, body: body || null, delivery_status: direction === 'inbound' ? 'received' : direction === 'system' ? 'system' : 'logged' }) };
   }
   if (recordType === 'task') {
     const title = clean(request.body?.title, 220);
@@ -214,6 +238,22 @@ export default async function handler(request, response) {
         openaiConfigured: Boolean(openai.apiKey),
         openaiModel: openai.model,
       }));
+    }
+    if (request.method === 'GET' && action === 'communications') {
+      return response.status(200).json(await communicationInbox(service));
+    }
+    if (request.method === 'POST' && action === 'communication-draft') {
+      const lead = await leadById(service, request.body?.leadId);
+      const subject = clean(request.body?.subject, 220), body = clean(request.body?.body, 10000);
+      if (!subject || !body) return response.status(400).json({ error: 'Empfänger, Betreff und Nachricht sind erforderlich.' });
+      const record = await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', channel: 'email', subject, preview: body.slice(0, 500), body, delivery_status: 'draft' });
+      return response.status(201).json({ record, message: 'Nachricht wurde als Entwurf gespeichert. Der Versand wird nach Anschluss der Domain-Mail-Schnittstelle aktiviert.' });
+    }
+    if (request.method === 'PATCH' && action === 'communication-read') {
+      const id = clean(request.body?.id, 80);
+      if (!uuidValid(id)) return response.status(400).json({ error: 'Gültige Nachrichten-ID fehlt.' });
+      const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?id=eq.${encodeURIComponent(id)}&direction=eq.inbound`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ read_at: new Date().toISOString(), updated_at: new Date().toISOString() }) }), 'Nachricht konnte nicht als gelesen markiert werden.');
+      return response.status(200).json({ record: rows[0] || null });
     }
     if (request.method === 'GET' && action === 'booking-settings') {
       return response.status(200).json({ settings: await bookingSettings(service) });

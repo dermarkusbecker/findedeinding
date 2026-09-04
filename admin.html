@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="admin-program.css" />
     <link rel="stylesheet" href="admin-crm-refresh.css" />
     <link rel="stylesheet" href="admin-lead-dashboard.css" />
+    <link rel="stylesheet" href="admin-communication.css" />
   </head>
   <body>
     <aside class="sidebar">
@@ -37,6 +38,7 @@
         </button>
         <p>Vertrieb & System</p>
         <button data-view="leads"><span>↗</span>Interessenten</button
+        ><button data-view="communications"><span>✉</span>Kommunikation <i id="communicationNavCount">0</i></button
         ><button data-view="users"><span>♙</span>Benutzer</button>
         <p>Konfiguration</p>
         <button data-view="settings"><span>⚙</span>Einstellungen</button>
@@ -489,6 +491,43 @@
             <section class="lead-dashboard-card lead-bank-card" id="leadBankCard"><div class="lead-card-heading"><div><span class="lead-card-icon">▦</span><h2>Bankverbindung</h2></div><button class="lead-card-menu" type="button" data-lead-record="bank" aria-label="Bankverbindung bearbeiten">•••</button></div><dl id="leadBankDetails"></dl><button class="lead-card-action" type="button" data-lead-record="bank">Bankdaten hinterlegen</button></section>
             <section class="lead-dashboard-card lead-next-card" id="leadNextStepsCard"><div class="lead-card-heading"><div><span class="lead-card-icon">↗</span><h2>Nächste Schritte</h2></div></div><div id="leadNextSteps"></div></section>
           </div>
+        </section>
+      </section>
+      <section class="view communication-view" data-panel="communications">
+        <div class="intro communication-intro">
+          <div>
+            <p class="eyebrow">Zentrales Postfach</p>
+            <h1>Kommunikation</h1>
+            <p>Alle Nachrichten mit Interessenten und Teilnehmern in einem gemeinsamen Verlauf.</p>
+          </div>
+          <button class="primary" id="openCommunicationComposer" type="button">+ Neue Nachricht</button>
+        </div>
+        <div class="mail-transport-banner" id="mailTransportBanner">
+          <span>!</span><div><strong>Domain-Mail noch nicht verbunden</strong><small>Nachrichten werden sicher als Entwurf gespeichert. Bestehende System- und Kommunikationseinträge sind vollständig sichtbar.</small></div><button type="button" class="secondary" data-open-mail-settings>Schnittstelle ansehen →</button>
+        </div>
+        <section class="communication-metrics" aria-label="Kommunikationsübersicht">
+          <article><small>Alle Nachrichten</small><strong id="communicationTotal">0</strong></article>
+          <article><small>Ungelesen</small><strong id="communicationUnread">0</strong></article>
+          <article><small>Teilnehmer</small><strong id="communicationCustomers">0</strong></article>
+          <article><small>Interessenten</small><strong id="communicationLeads">0</strong></article>
+        </section>
+        <section class="communication-mailbox" id="communicationMailbox">
+          <aside class="mail-folders" aria-label="Postfachordner">
+            <p>Postfach</p>
+            <button class="active" type="button" data-mail-folder="all"><span>▤</span>Alle Nachrichten <i id="mailAllCount">0</i></button>
+            <button type="button" data-mail-folder="inbound"><span>↓</span>Posteingang <i id="mailInboxCount">0</i></button>
+            <button type="button" data-mail-folder="outbound"><span>↑</span>Gesendet <i id="mailSentCount">0</i></button>
+            <button type="button" data-mail-folder="draft"><span>✎</span>Entwürfe <i id="mailDraftCount">0</i></button>
+            <button type="button" data-mail-folder="system"><span>⚙</span>System <i id="mailSystemCount">0</i></button>
+            <div class="mail-folder-note"><b>Ein Postfach für alle</b><small>Kunden und Interessenten bleiben automatisch ihrer CRM-Akte zugeordnet.</small></div>
+          </aside>
+          <div class="mail-list-panel">
+            <div class="mail-list-toolbar"><label>⌕<input id="communicationSearch" type="search" placeholder="Name, E-Mail, Betreff oder Inhalt suchen" /></label><button type="button" id="refreshCommunications" aria-label="Kommunikation aktualisieren">↻</button></div>
+            <div class="mail-list" id="communicationList"><div class="empty">Kommunikationen werden geladen …</div></div>
+          </div>
+          <article class="mail-reading-pane" id="communicationReadingPane">
+            <div class="mail-reading-empty"><span>✉</span><h2>Nachricht auswählen</h2><p>Öffne links eine Nachricht, um den vollständigen Verlauf und die zugehörige CRM-Akte zu sehen.</p></div>
+          </article>
         </section>
       </section>
       <section class="view" data-panel="users">
@@ -1243,6 +1282,19 @@
           <button type="button" class="secondary" data-close-participant-login>Abbrechen</button>
           <button class="primary" type="submit">Login speichern</button>
         </div>
+      </form>
+    </dialog>
+    <dialog id="communicationComposerDialog" class="communication-composer-dialog">
+      <form id="communicationComposerForm">
+        <div class="dialog-head">
+          <div><p class="eyebrow">Kommunikation</p><h2>Neue Nachricht vorbereiten</h2><small>Der Kontakt wird automatisch mit seiner CRM-Akte verknüpft.</small></div>
+          <button type="button" data-close-communication-composer>×</button>
+        </div>
+        <label>Empfänger<select name="leadId" id="communicationRecipient" required><option value="">Kontakt auswählen</option></select></label>
+        <label>Betreff<input name="subject" maxlength="220" required /></label>
+        <label>Nachricht<textarea name="body" rows="9" maxlength="10000" required></textarea></label>
+        <p class="compose-provider-note">Bis zur Verbindung des Domain-Mail-Anbieters wird diese Nachricht als Entwurf gespeichert und nicht als versendet dargestellt.</p>
+        <div class="dialog-actions"><button type="button" class="secondary" data-close-communication-composer>Abbrechen</button><button type="submit" class="primary">Als Entwurf speichern</button></div>
       </form>
     </dialog>
     <dialog id="programDialog" class="program-dialog">

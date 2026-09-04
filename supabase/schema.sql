@@ -114,7 +114,12 @@ create table if not exists public.lead_communications (
   direction text not null default 'outbound' check (direction in ('inbound', 'outbound', 'system')),
   subject text not null,
   preview text,
+  body text,
+  channel text not null default 'email',
+  delivery_status text not null default 'logged',
+  read_at timestamptz,
   occurred_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
 
