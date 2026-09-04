@@ -419,14 +419,18 @@
         <div id="leadListView">
           <div class="intro">
             <div>
-              <p class="eyebrow">Vertrieb</p>
-              <h1>Interessenten</h1>
-              <p>
+              <p class="eyebrow" id="leadListEyebrow">Interessenten · Gewinnung</p>
+              <h1 id="leadListTitle">Eingang</h1>
+              <p id="leadListDescription">
                 Anfragen qualifizieren, freie Kalenderzeiten auswählen,
                 Meet-Termine planen und nach dem Kauf sicher als Kunden
                 aktivieren.
               </p>
             </div>
+          </div>
+          <div class="lead-list-toolbar">
+            <label for="leadListSearch"><span aria-hidden="true">⌕</span><input id="leadListSearch" type="search" placeholder="Vorname, Nachname, Herkunft, Telefon oder Referenz …" autocomplete="off" /></label>
+            <span id="leadListCount">0 Interessenten</span>
           </div>
           <div class="participant-table card">
             <div class="table-head">
@@ -945,8 +949,9 @@
               <option value="scheduled">Termin vereinbart</option>
               <option value="consultation">Gespräch geführt</option>
               <option value="offer">Angebot offen</option>
+              <option value="later">Später Interesse</option>
               <option value="customer" disabled>Teilnehmer (automatisch)</option>
-              <option value="lost">Nicht passend</option>
+              <option value="lost">Kein Interesse</option>
             </select></label
           >
         </div>

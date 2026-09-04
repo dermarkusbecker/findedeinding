@@ -45,7 +45,7 @@ create table if not exists public.leads (
   utm_source text,
   utm_medium text,
   utm_campaign text,
-  status text not null default 'new' check (status in ('new', 'contacted', 'scheduled', 'consultation', 'offer', 'customer', 'lost')),
+  status text not null default 'new' check (status in ('new', 'contacted', 'scheduled', 'consultation', 'offer', 'later', 'customer', 'lost')),
   first_name text,
   last_name text,
   internal_notes text,

@@ -4,7 +4,7 @@ import { provisionProgramUser, requireCurrentAdmin, supabaseAuthConfig } from '.
 import { claraConfig } from '../lib/clara/config.js';
 import { buildSystemRegistry } from '../lib/system-registry.js';
 
-const VALID_STATUSES = ['new', 'contacted', 'scheduled', 'consultation', 'offer', 'customer', 'lost'];
+const VALID_STATUSES = ['new', 'contacted', 'scheduled', 'consultation', 'offer', 'later', 'customer', 'lost'];
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const emailValid = (value) => /^\S+@\S+\.\S+$/.test(value || '');
 const uuidValid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || '');
@@ -169,7 +169,7 @@ async function commandDashboard(service, admin) {
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const newCustomers = activeProgress.filter((progress) => new Date(profileMap.get(progress.user_profile_id)?.created_at || 0) >= monthStart).length;
-  const activeLeads = leads.filter((lead) => !lead.converted_user_profile_id && !['customer', 'lost'].includes(lead.status)).length;
+  const activeLeads = leads.filter((lead) => !lead.converted_user_profile_id && !['customer', 'lost', 'later'].includes(lead.status)).length;
   const distribution = Array.from({ length: 9 }, (_, week) => activeProgress.filter((progress) => Number(progress.current_week) === week).length);
 
   const measurementsByParticipant = new Map();

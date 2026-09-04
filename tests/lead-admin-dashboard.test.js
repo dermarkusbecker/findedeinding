@@ -11,11 +11,38 @@ test('Interessenten öffnen eine vollständige CRM-Detailakte statt nur eines Be
   assert.match(script, /renderLeadDashboard/);
   assert.match(script, /renderSalesCallCard/);
   assert.match(script, /openLeadSalesCall/);
-  assert.match(script, /Dashboard öffnen/);
+  assert.match(script, /Akte öffnen/);
   assert.match(styles, /\.lead-dashboard-grid/);
   assert.match(styles, /\.lead-profile-hero/);
   assert.match(styles, /\.lead-sales-call-card/);
   assert.doesNotMatch(html.slice(html.indexOf('id="leadDashboard"'), html.indexOf('data-panel="users"')), /Wirtschaftliche Verhältnisse/i);
+});
+
+test('Interessenten-Navigation bildet Eingang, aktive Fälle, kein und späteres Interesse mit Echtdaten ab', async () => {
+  const [html, script, styles, api, schema, migration] = await Promise.all([
+    file('admin.html'),
+    file('admin.js'),
+    file('admin-crm-refresh.css'),
+    file('api/leads.js'),
+    file('supabase/schema.sql'),
+    file('supabase/migrations/20260904235900_lead_interest_navigation.sql'),
+  ]);
+  assert.match(script, /groups:\[\{label:'Gewinnung'/);
+  for (const label of ['Eingang', 'Aktive Interessenten', 'Kein Interesse', 'Später Interesse']) assert.match(script, new RegExp(label));
+  assert.match(script, /function leadNavigationCounts/);
+  assert.match(script, /function setLeadListFilter/);
+  assert.match(script, /function resetLeadListView/);
+  assert.match(script, /lead\.converted_user_profile_id\|\|lead\.status==='customer'/);
+  assert.match(script, /renderContextNavigation\('leads'\)/);
+  assert.match(html, /id="leadListSearch"/);
+  assert.match(html, /option value="later">Später Interesse/);
+  assert.match(styles, /\.lead-context-group\s*\{/);
+  assert.match(styles, /\.lead-context-filter\.active/);
+  assert.match(api, /'offer', 'later', 'customer'/);
+  assert.match(api, /\['customer', 'lost', 'later'\]/);
+  assert.match(schema, /'offer', 'later', 'customer'/);
+  assert.match(migration, /leads_status_check/);
+  assert.match(migration, /'later'/);
 });
 
 test('CRM-Akte unterstützt Verträge, Zahlungen, E-Mail, Aufgaben, Notizen und Bankdaten', async () => {
