@@ -33,9 +33,7 @@
         ><button data-view="participants"><span>◎</span>Kunden</button
         ><button data-view="clarity"><span>✦</span>Klarheitsanalyse</button
         ><button data-view="gates"><span>✓</span>Wochen-Gates</button
-        ><button data-view="escalations">
-          <span>!</span>Eskalationen <i class="alert">2</i>
-        </button>
+        >
         <p>Vertrieb & System</p>
         <button data-view="leads"><span>↗</span>Interessenten</button
         ><button data-view="communications"><span>✉</span>Kommunikation <i id="communicationNavCount">0</i></button
@@ -114,10 +112,6 @@
           <article class="yellow">
             <span>Offene Gates</span><strong id="dashboardOpenGates">0</strong>
             <p id="dashboardOpenGateCopy">Keine offenen Pflichtschritte</p>
-          </article>
-          <article class="sage">
-            <span>Coach benötigt</span><strong id="dashboardCoachNeeded">0</strong>
-            <p id="dashboardCoachCopy">Keine offenen Eskalationen</p>
           </article>
         </div>
         <div class="main-grid">
@@ -431,41 +425,6 @@
           </div>
         </div>
         <div class="gate-grid" id="gateGrid"></div>
-      </section>
-      <section class="view" data-panel="escalations">
-        <div class="intro">
-          <div>
-            <p class="eyebrow">Menschliche Begleitung</p>
-            <h1>Coach-Eskalationen</h1>
-            <p>Feststecken unterstützen – Entscheidungen niemals erzwingen.</p>
-          </div>
-        </div>
-        <div class="escalation-grid">
-          <article class="card urgent">
-            <span>Woche 7 · Entscheidung</span>
-            <h2>Julia Werner</h2>
-            <p>
-              Beide Zukunftswege wurden bearbeitet, aber es entstand keine klare
-              Tendenz. Clara hat korrekt gestoppt.
-            </p>
-            <div>
-              <button class="primary">Gespräch planen</button
-              ><button class="secondary">Dossier öffnen</button>
-            </div>
-          </article>
-          <article class="card">
-            <span>Woche 5 · Gate blockiert</span>
-            <h2>David Klein</h2>
-            <p>
-              Grabrede-Upload fehlt seit 51 Stunden. Q&A-Hinweis möglich, Gate
-              bleibt geschlossen.
-            </p>
-            <div>
-              <button class="primary">Kontaktieren</button
-              ><button class="secondary">Verlauf öffnen</button>
-            </div>
-          </article>
-        </div>
       </section>
       <section class="view" data-panel="leads">
         <div id="leadListView">

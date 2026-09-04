@@ -25,8 +25,8 @@ test('Systemregister unterscheidet fehlende Konfiguration und geplanten Ausbau',
   assert.equal(registry.integrations.find((item) => item.id === 'google_calendar').status.key, 'missing');
   assert.equal(registry.integrations.find((item) => item.id === 'domain_email').status.key, 'planned');
   assert.equal(registry.agents.find((item) => item.id === 'situation_recognition').status.key, 'missing');
-  assert.equal(registry.agents.find((item) => item.id === 'decision_escalation').status.key, 'planned');
-  assert.ok(registry.summary.planned >= 5);
+  assert.equal(registry.agents.some((item) => item.id === 'decision_escalation'), false);
+  assert.ok(registry.summary.planned >= 4);
 });
 
 test('Systemregister listet die tatsächlich implementierten KI-Aufgaben nachvollziehbar', () => {

@@ -351,17 +351,6 @@ create table if not exists public.clarity_measurements (
   unique(user_profile_id, phase)
 );
 
-create table if not exists public.coach_escalations (
-  id uuid primary key default gen_random_uuid(),
-  user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
-  reason text not null,
-  escalation_type text not null check (escalation_type in ('q_and_a', 'blocked_gate', 'week_7_decision', 'technical')),
-  status text not null default 'open' check (status in ('open', 'scheduled', 'resolved')),
-  resolution text,
-  created_at timestamptz not null default now(),
-  resolved_at timestamptz
-);
-
 create table if not exists public.implementation_plans (
   id uuid primary key default gen_random_uuid(),
   user_profile_id uuid not null references public.user_profiles(id) on delete cascade unique,
@@ -413,7 +402,6 @@ alter table public.week_gates enable row level security;
 alter table public.gate_week_settings enable row level security;
 alter table public.gate_template_settings enable row level security;
 alter table public.clarity_measurements enable row level security;
-alter table public.coach_escalations enable row level security;
 alter table public.implementation_plans enable row level security;
 alter table public.clarity_questions enable row level security;
 
@@ -438,7 +426,6 @@ create unique index if not exists customer_appointments_google_event_unique on p
 create index if not exists customer_appointments_participant_start_idx on public.customer_appointments(user_profile_id, starts_at desc);
 create index if not exists week_gates_participant_idx on public.week_gates(user_profile_id, week);
 create index if not exists gate_template_settings_week_order_idx on public.gate_template_settings(week, sort_order);
-create index if not exists coach_escalations_status_idx on public.coach_escalations(status, created_at desc);
 create index if not exists clarity_questions_week_order_idx on public.clarity_questions(week, sort_order);
 
 -- Idempotente Migration für Projekte, in denen die Basistabellen bereits existieren.

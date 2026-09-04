@@ -71,11 +71,11 @@ test('Upload- und externe Schritte lassen sich nicht durch Chattext umgehen', ()
   assert.equal(applyGuidedWeekAction(external, { type: 'external_completed', stepId: 'human_design', external: 'human_design', verified: true, resultId: 'chart_1' }).ok, true);
 });
 
-test('Woche 7 benötigt nach der Tendenz eine verifizierte Entscheidung oder Coach-Eskalation', () => {
+test('Woche 7 benötigt nach der Tendenz eine persönlich bestätigte Entscheidung', () => {
   const definition = guidedWeekDefinition(7);
   const resolution = definition.steps.find((step) => step.id === 'decision_resolution');
   assert.equal(resolution.kind, 'external');
-  assert.equal(resolution.external, 'decision_or_escalation');
+  assert.equal(resolution.external, 'decision_confirmation');
   const state = createGuidedWeekState(7);
   state.current_step = resolution.id;
   state.completed_steps = definition.steps.filter((step) => step.id !== resolution.id).map((step) => step.id);

@@ -6,7 +6,8 @@ const file = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('Command Center besitzt keine fest eingebauten Demo-Kennzahlen mehr', async () => {
   const html = await file('admin.html');
-  for (const id of ['dashboardDate', 'dashboardLiveSummary', 'activeCustomerCount', 'dashboardClarityGain', 'dashboardOpenGates', 'dashboardCoachNeeded', 'dashboardAttentionList', 'dashboardWeekCounts']) assert.match(html, new RegExp(`id="${id}"`));
+  for (const id of ['dashboardDate', 'dashboardLiveSummary', 'activeCustomerCount', 'dashboardClarityGain', 'dashboardOpenGates', 'dashboardAttentionList', 'dashboardWeekCounts']) assert.match(html, new RegExp(`id="${id}"`));
+  assert.doesNotMatch(html, /dashboardCoachNeeded|dashboardCoachCopy|Coach benötigt/);
   assert.doesNotMatch(html, /Freitag, 28\. August 2026/);
   assert.doesNotMatch(html, /Julia · Entscheidung offen|David · Gate blockiert|Leonie · Abschlusscall/);
   assert.doesNotMatch(html, /<strong>\+4,2<\/strong>|<strong>7<\/strong>\s*<p>3 davon/);
@@ -16,7 +17,8 @@ test('geschützte Dashboard-API aggregiert die fachlichen Supabase-Echtdaten', a
   const api = await file('api/leads.js');
   assert.match(api, /action === 'command-dashboard'/);
   assert.match(api, /async function commandDashboard/);
-  for (const table of ['user_profiles', 'participant_progress', 'clarity_measurements', 'week_gates', 'coach_escalations', 'customer_questions', 'lead_tasks', 'leads', 'lead_communications']) assert.match(api, new RegExp(`rest/v1/${table}`));
+  for (const table of ['user_profiles', 'participant_progress', 'clarity_measurements', 'week_gates', 'customer_questions', 'lead_tasks', 'leads', 'lead_communications']) assert.match(api, new RegExp(`rest/v1/${table}`));
+  assert.doesNotMatch(api, /coach_escalations|coachNeeded|escalationCounts/);
   assert.match(api, /required=eq\.true&completed_at=is\.null/);
   assert.match(api, /direction=eq\.inbound&read_at=is\.null/);
   assert.match(api, /completedGains/);

@@ -350,7 +350,7 @@ main>header {
 .note { color: var(--muted); font-size: 10px; }
 
 /* Command Center */
-.metrics { gap: 17px; }
+.metrics { gap: 17px; grid-template-columns: 1.35fr repeat(2, 1fr); }
 .metrics article {
   background: #fff;
   border-radius: 17px;
@@ -462,8 +462,8 @@ main>header {
 .option-grid strong { font-size: 28px; }
 .option-grid p { font-size: 12px; }
 
-/* Gates and escalation cards */
-.gate-grid, .escalation-grid { gap: 18px; }
+/* Gate cards */
+.gate-grid { gap: 18px; }
 .gate-card { border-radius: 16px; box-shadow: var(--crm-shadow); padding: 27px; position: relative; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
 .gate-card:hover { border-color: #b9cfca; box-shadow: 0 18px 42px rgba(24, 60, 55, .12); transform: translateY(-2px); }
 .gate-top span { font-size: 23px; }
@@ -480,10 +480,6 @@ main>header {
 .gate-card li button small { color: #168473; font-size: 9px; font-weight: 800; opacity: 0; transform: translateX(-4px); transition: .18s ease; }
 .gate-card li button:hover small, .gate-card li button:focus-visible small { opacity: 1; transform: none; }
 .gate-card li button:focus-visible { outline: 2px solid rgba(20, 155, 130, .35); outline-offset: -2px; }
-.escalation-grid article>span { font-size: 10px; }
-.escalation-grid h2 { font-size: 23px; }
-.escalation-grid p { font-size: 13px; }
-
 /* Settings */
 .settings-admin-badge { font-size: 10px; padding: 8px 11px; }
 .settings-layout { display: block; }
@@ -836,7 +832,7 @@ dialog form>p { font-size: 12px; }
   .view { padding: 34px 18px 60px; }
   .intro { align-items: flex-start; display: block; }
   .intro>.primary, .intro>.secondary { margin-top: 18px; }
-  .metrics, .evidence-grid, .option-grid, .gate-grid, .escalation-grid { grid-template-columns: 1fr; }
+  .metrics, .evidence-grid, .option-grid, .gate-grid { grid-template-columns: 1fr; }
   .table-head { display: none; }
   .table-data { grid-template-columns: 1fr 1fr; }
   .table-data>*:last-child { grid-column: 1/-1; }

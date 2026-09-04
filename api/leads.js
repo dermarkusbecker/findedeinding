@@ -154,14 +154,13 @@ async function commandDashboard(service, admin) {
     fetch(`${service.url}/rest/v1/participant_progress?select=user_profile_id,current_week,process_status,program_start_date,program_status,last_activity_at,updated_at&limit=1000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/clarity_measurements?select=user_profile_id,phase,score,measured_at&limit=3000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/week_gates?required=eq.true&completed_at=is.null&select=id,user_profile_id,week,label&limit=5000`, { headers: headers(service.key) }),
-    fetch(`${service.url}/rest/v1/coach_escalations?status=neq.resolved&select=id,user_profile_id,reason,escalation_type,status,created_at&order=created_at.asc&limit=200`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/customer_questions?status=eq.open&select=id,user_profile_id,week,question,created_at&order=created_at.asc&limit=200`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/lead_tasks?completed=eq.false&select=id,lead_id,title,details,due_at,created_at&order=due_at.asc.nullslast&limit=200`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/leads?select=id,name,email,status,appointment_start,converted_user_profile_id,created_at&limit=1000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/lead_communications?direction=eq.inbound&read_at=is.null&select=id,lead_id,subject,occurred_at&order=occurred_at.asc&limit=200`, { headers: headers(service.key) }),
   ];
   const results = await Promise.all(requests);
-  const [profiles, progressRows, measurements, openGateRows, escalations, questions, tasks, leads, unreadMessages] = await Promise.all(results.map((result) => readJson(result, 'Dashboard-Daten konnten nicht geladen werden.')));
+  const [profiles, progressRows, measurements, openGateRows, questions, tasks, leads, unreadMessages] = await Promise.all(results.map((result) => readJson(result, 'Dashboard-Daten konnten nicht geladen werden.')));
   const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
   const leadMap = new Map(leads.map((lead) => [lead.id, lead]));
   const activeProgress = progressRows.filter((progress) => progress.program_status === 'active' && profileMap.get(progress.user_profile_id)?.status === 'active');
@@ -180,9 +179,7 @@ async function commandDashboard(service, admin) {
   const relevantOpenGates = openGateRows.filter((gate) => { const progress = progressMap.get(gate.user_profile_id); return progress && Number(gate.week) <= Number(progress.current_week); });
   const staleThreshold = now.getTime() - 48 * 60 * 60 * 1000;
   const overdueGates = relevantOpenGates.filter((gate) => new Date(progressMap.get(gate.user_profile_id)?.last_activity_at || progressMap.get(gate.user_profile_id)?.updated_at || now).getTime() < staleThreshold);
-  const escalationTypeLabels = { q_and_a: 'Rückfrage offen', blocked_gate: 'Gate blockiert', week_7_decision: 'Entscheidung offen', technical: 'Technische Klärung' };
   const attention = [];
-  escalations.forEach((item) => { const profile = profileMap.get(item.user_profile_id); attention.push({ id: `escalation-${item.id}`, priority: 0, tone: 'red', icon: '!', title: `${profile?.name || 'Teilnehmer'} · ${escalationTypeLabels[item.escalation_type] || 'Coach benötigt'}`, subtitle: item.reason, actionLabel: 'Öffnen', entityType: 'participant', entityId: item.user_profile_id, createdAt: item.created_at }); });
   questions.forEach((item) => { const profile = profileMap.get(item.user_profile_id); attention.push({ id: `question-${item.id}`, priority: 1, tone: 'orange', icon: '?', title: `${profile?.name || 'Teilnehmer'} · Kundenfrage`, subtitle: `Woche ${item.week} · ${item.question}`, actionLabel: 'Antworten', entityType: 'participant', entityId: item.user_profile_id, createdAt: item.created_at }); });
   const gatesByParticipant = new Map();
   overdueGates.forEach((gate) => { const list = gatesByParticipant.get(gate.user_profile_id) || []; list.push(gate); gatesByParticipant.set(gate.user_profile_id, list); });
@@ -193,11 +190,10 @@ async function commandDashboard(service, admin) {
   const upcomingEnd = now.getTime() + 48 * 60 * 60 * 1000;
   leads.filter((lead) => { const time = new Date(lead.appointment_start || 0).getTime(); return time >= now.getTime() && time <= upcomingEnd; }).forEach((lead) => attention.push({ id: `appointment-${lead.id}`, priority: 3, tone: 'green', icon: '◷', title: `${lead.name} · Gespräch steht an`, subtitle: new Date(lead.appointment_start).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' }), actionLabel: 'Öffnen', entityType: 'lead', entityId: lead.id, createdAt: lead.appointment_start }));
   attention.sort((a, b) => a.priority - b.priority || new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
-  const escalationCounts = escalations.reduce((counts, item) => ({ ...counts, [item.escalation_type]: (counts[item.escalation_type] || 0) + 1 }), {});
   return {
     generatedAt: now.toISOString(),
     adminName: admin?.profile?.name || admin?.name || 'Markus',
-    summary: { activeCustomers: activeProgress.length, newCustomers, activeLeads, unreadMessages: unreadMessages.length, openGates: relevantOpenGates.length, overdueGates: overdueGates.length, coachNeeded: escalations.length, escalationCounts, onboarding: distribution[0] || 0 },
+    summary: { activeCustomers: activeProgress.length, newCustomers, activeLeads, unreadMessages: unreadMessages.length, openGates: relevantOpenGates.length, overdueGates: overdueGates.length, onboarding: distribution[0] || 0 },
     clarity: { averageGain: average(completedGains), completedComparisons: completedGains.length, phases: clarityPhases },
     weekDistribution: distribution.slice(1),
     attention: { total: attention.length, items: attention.slice(0, 6) },
