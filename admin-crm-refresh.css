@@ -198,6 +198,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .context-foot strong { font-size: 11px; }
 .context-foot small { color: var(--muted); font-size: 9px; margin-top: 2px; }
 main { margin-left: 530px; width: calc(100% - 530px); }
+body.dashboard-view .context-nav { display: none; }
+body.dashboard-view main { margin-left: 270px; width: calc(100% - 270px); }
 main>header {
   background: rgba(255, 255, 255, .88);
   border-bottom-color: var(--line);
@@ -661,6 +663,7 @@ dialog form>p { font-size: 12px; }
   .sidebar { width: 235px; }
   .context-nav { left: 235px; width: 230px; }
   main { margin-left: 465px; width: calc(100% - 465px); }
+  body.dashboard-view main { margin-left: 235px; width: calc(100% - 235px); }
   .metrics { grid-template-columns: 1fr 1fr; }
   .main-grid, .lower-grid { grid-template-columns: 1fr; }
   .analysis-layout, .settings-layout { grid-template-columns: 1fr; }
@@ -688,6 +691,7 @@ dialog form>p { font-size: 12px; }
   .context-body button { min-height: 58px; }
   .context-foot { display: none; }
   main { margin: 0; width: 100%; }
+  body.dashboard-view main { margin: 0; width: 100%; }
   main>header { height: 68px; padding: 0 19px; }
   .global-crm-search { width: min(100%,560px); }
   .global-crm-search-box { min-height: 44px; }

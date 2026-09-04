@@ -35,6 +35,23 @@ test('CRM besitzt eine kontextabhängige zweite Navigation', async () => {
   assert.match(styles, /\.context-nav\s*\{/);
 });
 
+test('Dashboard nutzt die volle Fläche ohne zweite Navigation', async () => {
+  const [html, script, styles] = await Promise.all([
+    readFile(htmlUrl, 'utf8'),
+    readFile(scriptUrl, 'utf8'),
+    readFile(stylesUrl, 'utf8'),
+  ]);
+  assert.match(html, /<body class="dashboard-view">/);
+  assert.match(html, /data-view="command">[\s\S]*?<span>⌂<\/span>Dashboard/);
+  assert.match(html, /class="context-nav" aria-label="Unterkategorien" hidden/);
+  assert.match(script, /const isDashboard=name==='command'/);
+  assert.match(script, /contextNav\.hidden=isDashboard/);
+  assert.match(script, /if\(!isDashboard\)renderContextNavigation\(name\)/);
+  assert.doesNotMatch(script, /renderContextNavigation\('command'\)/);
+  assert.match(styles, /body\.dashboard-view \.context-nav\s*\{[^}]*display:\s*none/s);
+  assert.match(styles, /body\.dashboard-view main\s*\{[^}]*margin-left:\s*270px/s);
+});
+
 test('CRM verwendet Kunden und Interessenten und bietet editierbare Klarheitsfragen', async () => {
   const [html, script] = await Promise.all([
     readFile(htmlUrl, 'utf8'),

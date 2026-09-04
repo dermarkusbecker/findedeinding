@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="admin-lead-dashboard.css" />
     <link rel="stylesheet" href="admin-communication.css" />
   </head>
-  <body>
+  <body class="dashboard-view">
     <aside class="sidebar">
       <a class="brand" href="/"
         ><span>f</span><b>finde dein ding</b><i>Studio</i></a
@@ -29,7 +29,7 @@
       <nav>
         <p>Steuerung</p>
         <button class="active" data-view="command">
-          <span>⌂</span>Command Center</button
+          <span>⌂</span>Dashboard</button
         ><button data-view="participants"><span>◎</span>Kunden</button
         ><button data-view="clarity"><span>✦</span>Klarheitsanalyse</button
         ><button data-view="gates"><span>✓</span>Wochen-Gates</button
@@ -51,12 +51,12 @@
         </div>
       </div>
     </aside>
-    <aside class="context-nav" aria-label="Unterkategorien">
+    <aside class="context-nav" aria-label="Unterkategorien" hidden>
       <div class="context-head">
         <span id="contextIcon">⌂</span>
         <div>
           <small>FDD Bereich</small
-          ><strong id="contextTitle">Command Center</strong>
+          ><strong id="contextTitle">Dashboard</strong>
         </div>
       </div>
       <div class="context-body" id="contextNav"></div>
@@ -77,7 +77,7 @@
           </label>
           <div class="global-crm-search-results" id="globalCrmSearchResults" role="listbox" aria-label="Gefundene CRM-Kontakte" hidden></div>
         </div>
-        <strong id="viewTitle" class="sr-only">Command Center</strong>
+        <strong id="viewTitle" class="sr-only">Dashboard</strong>
         <div class="header-actions">
           <button class="square">♢</button
           ><button class="primary" data-jump="leads">
