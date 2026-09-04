@@ -35,6 +35,16 @@ test('Dashboard rendert acht Wochen mit Titel, Status und Freischaltungsdatum', 
   assert.match(api, /access_mode: 'time_based'/);
 });
 
+test('Wochenkarten verwenden die scharfe Landingpage-Typografie und einen gut lesbaren Kartenaufbau', async () => {
+  const styles = await readFile(stylesUrl, 'utf8');
+  assert.match(styles, /-webkit-font-smoothing:\s*antialiased/);
+  assert.match(styles, /\.dashboard-week-tile\s*\{[\s\S]*?min-height:\s*208px/);
+  assert.match(styles, /\.dashboard-week-tile small\s*\{[\s\S]*?font-family:\s*Manrope/);
+  assert.match(styles, /\.dashboard-week-tile b\s*\{[\s\S]*?font-size:\s*16px/);
+  assert.match(styles, /\.dashboard-week-tile\.current\s*\{[\s\S]*?var\(--navy-2\)/);
+  assert.doesNotMatch(styles, /\.dashboard-week-tile\.locked\s*\{[^}]*opacity:/);
+});
+
 test('auch gesperrte Wochen zeigen Inhalt und öffnen eine zentrale Detailvorschau', async () => {
   const [html, script, styles, api] = await Promise.all([
     readFile(htmlUrl, 'utf8'),
