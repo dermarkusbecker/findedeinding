@@ -5,10 +5,29 @@ const menu = document.querySelector('.menu');
 const navigation = document.querySelector('.site-header nav');
 const navWrap = document.querySelector('.nav-wrap');
 const leadDialog = document.querySelector('#leadDialog');
+const claraDetailsDialog = document.querySelector('#claraDetailsDialog');
 let leadDialogTrigger = null;
+let claraDetailsTrigger = null;
+let restoreClaraDetailsFocus = true;
+
+const openClaraDetails = (trigger = null) => {
+  if (!claraDetailsDialog || claraDetailsDialog.open) return;
+  claraDetailsTrigger = trigger;
+  restoreClaraDetailsFocus = true;
+  document.body.classList.add('lead-dialog-open');
+  claraDetailsDialog.showModal();
+  requestAnimationFrame(() => claraDetailsDialog.querySelector('[data-close-clara-details]')?.focus());
+};
+
+const closeClaraDetails = ({ restoreFocus = true } = {}) => {
+  if (!claraDetailsDialog?.open) return;
+  restoreClaraDetailsFocus = restoreFocus;
+  claraDetailsDialog.close();
+};
 
 const openLeadDialog = (trigger = null) => {
   if (!leadDialog || leadDialog.open) return;
+  closeClaraDetails({ restoreFocus: false });
   leadDialogTrigger = trigger;
   document.body.classList.add('lead-dialog-open');
   leadDialog.showModal();
@@ -43,6 +62,15 @@ document.querySelectorAll('[data-open-lead-dialog]').forEach((trigger) => trigge
   event.preventDefault();
   openLeadDialog(trigger);
 }));
+document.querySelectorAll('[data-open-clara-details]').forEach((trigger) => trigger.addEventListener('click', () => openClaraDetails(trigger)));
+document.querySelectorAll('[data-close-clara-details]').forEach((trigger) => trigger.addEventListener('click', () => closeClaraDetails()));
+claraDetailsDialog?.addEventListener('click', (event) => { if (event.target === claraDetailsDialog) closeClaraDetails(); });
+claraDetailsDialog?.addEventListener('close', () => {
+  if (!leadDialog?.open) document.body.classList.remove('lead-dialog-open');
+  if (restoreClaraDetailsFocus) claraDetailsTrigger?.focus();
+  claraDetailsTrigger = null;
+  restoreClaraDetailsFocus = true;
+});
 document.querySelector('[data-close-lead-dialog]')?.addEventListener('click', closeLeadDialog);
 leadDialog?.addEventListener('click', (event) => { if (event.target === leadDialog) closeLeadDialog(); });
 leadDialog?.addEventListener('close', () => {

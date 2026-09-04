@@ -27,15 +27,23 @@ test('landing hero uses modern, differentiated status badges without brown fills
   assert.doesNotMatch(css, /\.hero-float\{[^}]*background:rgba\(55,38,31,.91\)/);
 });
 
-test('landing page introduces Clara briefly as a personal guide without taking the decision', () => {
+test('landing page introduces Clara as a personal guide with a live chat and detailed explanation', () => {
   assert.match(html, /id="clara"/);
   assert.match(html, /assets\/clara-progress-guide-v1\.png/);
+  assert.match(html, /class="typing" role="status" aria-label="Clara schreibt gerade"/);
   assert.match(html, /Sie erinnert sich\./);
   assert.match(html, /Sie erkennt Zusammenhänge\./);
   assert.match(html, /Sie bringt dich ins Handeln\./);
   assert.match(html, /Clara entscheidet nie für dich\./);
+  assert.match(html, /data-open-clara-details>Mehr zu Clara/);
+  assert.match(html, /<dialog class="clara-details-dialog" id="claraDetailsDialog"/);
+  assert.match(html, /Was Clara nicht ist:/);
   assert.match(html, /data-clara="decision"/);
   assert.match(script, /decision: \['Welche kleine Handlung/);
+  assert.match(script, /claraDetailsDialog\.showModal\(\)/);
+  assert.match(script, /event\.target === claraDetailsDialog/);
   assert.match(css, /\.clara-portrait-stage\{/);
+  assert.match(css, /\.clara-details-grid\{/);
+  assert.match(css, /\.clara-live-card \.typing i\{/);
   assert.match(css, /@keyframes landingClaraFloat/);
 });
