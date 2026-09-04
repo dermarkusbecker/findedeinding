@@ -66,6 +66,6 @@ test('Teilnehmerlisten enthalten keine fest eingebauten Demo-Datensätze', async
   const [script, html] = await Promise.all([file('admin.js'), file('admin.html')]);
   assert.match(script, /let participants = \[\];/);
   assert.doesNotMatch(script, /demoParticipants|demo-/);
-  assert.match(html, /id="participantNavCount">0</);
+  assert.doesNotMatch(html, /participantNavCount/);
   assert.match(html, /id="activeCustomerCount">0</);
 });
