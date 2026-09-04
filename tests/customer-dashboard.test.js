@@ -46,11 +46,16 @@ test('Mein Bereich zeigt den serverseitigen Klarheitsverlauf und den goldenen Zi
   assert.match(html, /data-view="today"><svg[\s\S]*?<span>Mein Bereich<\/span>/);
   assert.match(html, /id="sideClarityValue"/);
   assert.match(html, /id="dashboardClarityChart"/);
+  assert.match(html, /id="dashboardClarityDelta"/);
+  assert.match(html, /id="dashboardClarityCount"/);
   assert.match(html, /Zielbereich 7–10/);
   assert.match(script, /function renderDashboardClarityChart/);
+  assert.match(script, /clarity-progress-glow/);
   assert.match(script, /save_clarity_checkin/);
   assert.match(styles, /\.clarity-target-band/);
-  assert.match(styles, /#c89a2e/);
+  assert.match(styles, /@keyframes clarityDraw/);
+  assert.match(styles, /@keyframes clarityPointPulse/);
+  assert.match(styles, /prefers-reduced-motion/);
   assert.match(api, /clarityHistory/);
   assert.match(api, /currentClarity/);
   assert.match(guided, /clarity_checkin/);
