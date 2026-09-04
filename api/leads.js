@@ -42,7 +42,7 @@ async function insertLeadRecord(service, table, payload) {
 
 async function activateContractedLead(service, lead, programStartDate) {
   if (lead.converted_user_profile_id) return { profileId: lead.converted_user_profile_id, alreadyActive: true };
-  const profile = await provisionProgramUser(service, { name: lead.name, email: lead.email, startDate: programStartDate, permissions: ['customer_portal', 'clara_program', 'documents'] });
+  const profile = await provisionProgramUser(service, { name: lead.name, email: lead.email, phone: lead.phone, startDate: programStartDate, permissions: ['customer_portal', 'clara_program', 'documents'] });
   await patchLead(service, lead.id, { status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
   await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Teilnehmer-Login automatisch erstellt', preview: `Login ${profile.portal_username || 'wird vergeben'} wurde angelegt. Ein sicherer Einmal-Link zur Passwortvergabe wurde per System-E-Mail versendet.` }).catch(() => null);
   return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, oneTimePassword: profile.oneTimePassword, alreadyActive: false };

@@ -5,6 +5,26 @@ import { getParticipantProgramAccess, isUuid, patchParticipantProgress, serviceH
 import { applyGuidedWeekAction, currentGuidedStep, guidedGateStatus, guidedWeekDefinition, normalizeGuidedWeekState } from '../lib/guided-weeks.js';
 
 const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
+const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
+
+async function patchCustomerProfile(service, participantId, input) {
+  const changes = {
+    name: clean(input?.name, 160),
+    birth_date: validDate(input?.birthDate) ? input.birthDate : null,
+    street: clean(input?.street, 200) || null,
+    postal_code: clean(input?.postalCode, 20) || null,
+    city: clean(input?.city, 120) || null,
+    country: clean(input?.country, 80) || 'Deutschland',
+    phone: clean(input?.phone, 40) || null,
+    whatsapp_phone: clean(input?.whatsappPhone, 40) || null,
+    preferred_communication_channel: ['email', 'phone', 'whatsapp'].includes(input?.preferredCommunicationChannel) ? input.preferredCommunicationChannel : 'email',
+    postal_mail_active: input?.postalMailActive === true,
+  };
+  if (!changes.name) throw Object.assign(new Error('Der vollständige Kundenname ist erforderlich.'), { status: 400 });
+  const result = await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(participantId)}&role=eq.user`, { method: 'PATCH', headers: serviceHeaders(service.key, { Prefer: 'return=representation' }), body: JSON.stringify(changes) });
+  const rows = await result.json().catch(() => ([]));
+  if (!result.ok || !rows[0]) throw new Error(rows.message || 'Kundenstammdaten konnten nicht gespeichert werden.');
+}
 async function readGuidedStates(result, participantId) {
   const id = encodeURIComponent(participantId);
   return Promise.all(Array.from({ length: 7 }, (_, index) => index + 2).map(async (week) => {
@@ -74,6 +94,7 @@ export default async function handler(request, response) {
 
     const current = await getParticipantProgramAccess(participantId);
     const body = request.body || {};
+    if (body.customerProfile) await patchCustomerProfile(current.service, participantId, body.customerProfile);
     if (body.technicalConfirmation) {
       await confirmTechnicalResult(current, participantId, admin, body.technicalConfirmation);
       return response.status(200).json(await publicResult(await getParticipantProgramAccess(participantId), participantId));

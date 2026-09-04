@@ -1374,6 +1374,29 @@
             >Aktuelle Freigabe wird geladen …</span
           ><i id="programAccessBadge">Automatisch · 7 Tage</i>
         </div>
+        <section class="customer-address-card" aria-labelledby="customerAddressTitle">
+          <div class="customer-address-head">
+            <span aria-hidden="true">♙</span>
+            <div>
+              <p class="eyebrow">Kundenstammdaten</p>
+              <h3 id="customerAddressTitle">Name &amp; Adresse</h3>
+            </div>
+            <i id="customerPostalState">Postanschrift aktiv</i>
+          </div>
+          <div class="customer-address-grid">
+            <label class="wide">Vollständiger Name<input id="customerProfileName" name="customerProfileName" required maxlength="160" /></label>
+            <label>Geburtsdatum<input id="customerBirthDate" name="customerBirthDate" type="date" /></label>
+            <label>Telefonnummer<input id="customerPhone" name="customerPhone" type="tel" maxlength="40" /></label>
+            <label class="wide">Straße &amp; Hausnummer<input id="customerStreet" name="customerStreet" maxlength="200" placeholder="Noch nicht hinterlegt" /></label>
+            <label>Postleitzahl<input id="customerPostalCode" name="customerPostalCode" maxlength="20" /></label>
+            <label>Ort<input id="customerCity" name="customerCity" maxlength="120" /></label>
+            <label>Land<input id="customerCountry" name="customerCountry" maxlength="80" /></label>
+            <label>E-Mail-Adresse<input id="customerProfileEmail" name="customerProfileEmail" type="email" readonly /></label>
+            <label>WhatsApp-Nummer<input id="customerWhatsappPhone" name="customerWhatsappPhone" type="tel" maxlength="40" /></label>
+            <label>Bevorzugter Kanal<select id="customerPreferredChannel" name="customerPreferredChannel"><option value="email">E-Mail</option><option value="phone">Telefon</option><option value="whatsapp">WhatsApp</option></select></label>
+            <label class="customer-postal-toggle"><input id="customerPostalActive" name="customerPostalActive" type="checkbox" /> Postanschrift aktiv verwenden</label>
+          </div>
+        </section>
         <div class="program-fields">
           <label
             >Programmstart<input
