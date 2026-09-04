@@ -179,7 +179,7 @@
             >⌕
             <input
               id="participantSearch"
-              placeholder="Name oder E-Mail suchen" /></label
+              placeholder="Name, Kundennummer, E-Mail, Telefon oder Ort suchen" /></label
           ><select id="weekFilter">
             <option value="">Alle Wochen</option>
             <option value="0">Onboarding</option>
@@ -191,6 +191,18 @@
             <option value="6">Woche 6</option>
             <option value="7">Woche 7</option>
             <option value="8">Woche 8</option>
+          </select
+          ><select id="participantStatusFilter" aria-label="Kundenstatus filtern">
+            <option value="">Alle Status</option>
+            <option value="active">Aktive Kunden</option>
+            <option value="paused">Pausiert</option>
+            <option value="completed">Programm abgeschlossen</option>
+          </select
+          ><select id="participantSort" aria-label="Kunden sortieren">
+            <option value="newest">Neueste Kunden zuerst</option>
+            <option value="name">Name A–Z</option>
+            <option value="process">Prozessschritt</option>
+            <option value="progress">Fortschritt</option>
           </select>
           <span class="participant-result-count" id="participantResultCount">0 Kunden</span>
           <div class="participant-view-switch" aria-label="Kundenansicht auswählen">
@@ -232,9 +244,9 @@
             <section class="card customer-week-progress"><div class="lead-card-heading"><div><p class="eyebrow">8-Wochen-Prozess</p><h2 id="customerProgramHeadline">Aktueller Kundenfortschritt</h2></div><span id="customerProgramProgress">0 %</span></div><div class="customer-week-track" id="customerWeekTrack"></div></section>
             <div class="customer-dashboard-summary">
               <article class="lead-dashboard-card"><div class="lead-card-heading"><div><span class="lead-card-icon">◎</span><h2>Name &amp; Adresse</h2></div></div><div id="customerSummaryContact"></div></article>
-              <article class="lead-dashboard-card lead-balance-card"><div class="lead-card-heading"><div><span class="lead-card-icon">€</span><h2>Kontostand</h2></div></div><div class="lead-balance-summary"><small>Offener Saldo</small><strong id="customerOpenBalance">0,00 €</strong><span id="customerBalanceState">Keine offenen Forderungen</span></div></article>
-              <article class="lead-dashboard-card"><div class="lead-card-heading"><div><span class="lead-card-icon">✉</span><h2>Kommunikation</h2></div></div><div id="customerCommunicationSummary" class="customer-summary-copy"></div></article>
-              <article class="lead-dashboard-card"><div class="lead-card-heading"><div><span class="lead-card-icon">✓</span><h2>Aufgaben &amp; Fragen</h2></div></div><div id="customerTaskSummary" class="customer-summary-copy"></div></article>
+              <article class="lead-dashboard-card lead-balance-card" data-customer-summary-permission="finance"><div class="lead-card-heading"><div><span class="lead-card-icon">€</span><h2>Kontostand</h2></div></div><div class="lead-balance-summary"><small>Offener Saldo</small><strong id="customerOpenBalance">0,00 €</strong><span id="customerBalanceState">Keine offenen Forderungen</span></div></article>
+              <article class="lead-dashboard-card" data-customer-summary-permission="communications"><div class="lead-card-heading"><div><span class="lead-card-icon">✉</span><h2>Kommunikation</h2></div></div><div id="customerCommunicationSummary" class="customer-summary-copy"></div></article>
+              <article class="lead-dashboard-card" data-customer-summary-permission="program"><div class="lead-card-heading"><div><span class="lead-card-icon">✓</span><h2>Aufgaben &amp; Fragen</h2></div></div><div id="customerTaskSummary" class="customer-summary-copy"></div></article>
             </div>
           </div>
           <div class="customer-dashboard-page" data-customer-page="data" hidden>

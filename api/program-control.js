@@ -83,7 +83,7 @@ async function confirmTechnicalResult(current, participantId, admin, confirmatio
 }
 
 export default async function handler(request, response) {
-  const admin = await requireCurrentAdmin(request, response, ['customers', 'program']);
+  const admin = await requireCurrentAdmin(request, response, request.method === 'GET' ? ['customers', 'program', 'sales_calls'] : ['customers', 'program']);
   if (!admin) return;
   const participantId = request.query?.participantId || request.body?.participantId;
   if (!isUuid(participantId)) return response.status(400).json({ error: 'Gültige Teilnehmer-ID fehlt.' });
