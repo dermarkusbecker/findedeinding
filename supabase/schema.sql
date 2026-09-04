@@ -175,6 +175,21 @@ create table if not exists public.implementation_plans (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.clarity_questions (
+  question_key text primary key,
+  week integer not null check (week between 1 and 8),
+  step_id text not null,
+  title text not null,
+  prompt_text text not null check (char_length(prompt_text) between 5 and 2000),
+  default_prompt_text text not null check (char_length(default_prompt_text) between 5 and 2000),
+  prompt_type text not null default 'dialog',
+  sort_order integer not null default 0,
+  enabled boolean not null default true,
+  updated_at timestamptz not null default now(),
+  updated_by uuid references public.user_profiles(id) on delete set null,
+  unique (week, step_id)
+);
+
 alter table public.contacts enable row level security;
 alter table public.deals enable row level security;
 alter table public.tasks enable row level security;
@@ -188,6 +203,7 @@ alter table public.week_gates enable row level security;
 alter table public.clarity_measurements enable row level security;
 alter table public.coach_escalations enable row level security;
 alter table public.implementation_plans enable row level security;
+alter table public.clarity_questions enable row level security;
 
 create index if not exists contacts_company_idx on public.contacts(company);
 create index if not exists deals_stage_idx on public.deals(stage);
@@ -198,6 +214,7 @@ create index if not exists leads_status_idx on public.leads(status);
 create index if not exists process_entries_participant_idx on public.process_entries(user_profile_id, week);
 create index if not exists week_gates_participant_idx on public.week_gates(user_profile_id, week);
 create index if not exists coach_escalations_status_idx on public.coach_escalations(status, created_at desc);
+create index if not exists clarity_questions_week_order_idx on public.clarity_questions(week, sort_order);
 
 -- Idempotente Migration für Projekte, in denen die Basistabellen bereits existieren.
 alter table public.user_profiles add column if not exists portal_username text;

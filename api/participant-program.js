@@ -1,8 +1,9 @@
 import { requireCurrentPermission } from '../lib/user-auth.js';
 import { getParticipantProgramAccess, patchParticipantProgress, serviceHeaders } from '../lib/program-access-service.js';
 import { isOnboardingComplete } from '../lib/program-access.js';
-import { applyWeekOneAction, createWeekOneState, missingWeekOneRequirements, stepStatuses, weekOneComplete } from '../lib/week-one.js';
+import { applyWeekOneAction, createWeekOneState, missingWeekOneRequirements, stepStatuses, weekOneComplete, weekOnePrompt } from '../lib/week-one.js';
 import { applyGuidedWeekAction, createGuidedWeekState, guidedStepStatuses, guidedWeekComplete, guidedWeekDefinition, missingGuidedRequirements, normalizeGuidedWeekState } from '../lib/guided-weeks.js';
+import { readClarityQuestionOverrides, resolveClarityPrompt } from '../lib/clarity-questions.js';
 import { handleClaraMessage } from '../lib/clara/api-handler.js';
 import { handleParticipantDocument } from '../lib/documents/api-handler.js';
 import { weekResetScope } from '../lib/week-reset.js';
@@ -18,13 +19,17 @@ const programWeeks = [
   { week: 8, title: 'Umsetzung', mode: 'Handeln', question: 'Was sind die ein bis drei konkreten Dinge, die du innerhalb der nächsten 24 Stunden tun kannst, damit deine Entscheidung nicht nur auf Papier steht?', help: 'Kontrollierbare Handlungen zählen mehr als Ergebnisse, die du nicht direkt beeinflussen kannst.', upload: 'Commitment erforderlich' },
 ];
 
-const weekContent = (week, gates, weekOneState = null, guidedState = null) => {
+const weekContent = (week, gates, weekOneState = null, guidedState = null, questionOverrides = []) => {
   const content = programWeeks.find((item) => item.week === Number(week));
   if (!content) return null;
-  if (Number(week) === 1 && weekOneState) return { ...content, tasks: stepStatuses(weekOneState) };
+  if (Number(week) === 1 && weekOneState) {
+    const prompt = weekOnePrompt(weekOneState);
+    return { ...content, question: resolveClarityPrompt(questionOverrides, 1, weekOneState.current_step, prompt.question || content.question), help: prompt.help || content.help, tasks: stepStatuses(weekOneState) };
+  }
   if (Number(week) >= 2 && guidedState) {
     const definition = guidedWeekDefinition(week);
-    return { ...content, title: definition.title, mode: definition.mode, question: definition.steps.find((step) => step.id === guidedState.current_step)?.question || 'Diese Woche ist bereit zum Abschluss.', help: definition.intro, tasks: guidedStepStatuses(guidedState) };
+    const activeStep = definition.steps.find((step) => step.id === guidedState.current_step);
+    return { ...content, title: definition.title, mode: definition.mode, question: activeStep ? resolveClarityPrompt(questionOverrides, week, activeStep.id, activeStep.question) : 'Diese Woche ist bereit zum Abschluss.', help: definition.intro, tasks: guidedStepStatuses(guidedState) };
   }
   return { ...content, tasks: gates.filter((gate) => Number(gate.week) === Number(week) && gate.required !== false).map((gate) => ({ id: gate.id, key: gate.gate_key, label: gate.label, completed: Boolean(gate.completed_at) })) };
 };
@@ -146,7 +151,8 @@ export default async function handler(request, response) {
       const recordedWeekAccessible = access.weekStates.some((state) => state.week === Number(result.progress.current_week) && state.accessible);
       const selectedWeek = onboardingComplete ? (requestedWeek || (recordedWeekAccessible ? Number(result.progress.current_week) : access.unlockedWeeks[0] || 1)) : 0;
       const guidedState = selectedWeek >= 2 ? await readGuidedWeekState(result, session.participantId, selectedWeek) : null;
-      return response.status(200).json({ profile: { id: result.profile.id, name: result.profile.name }, access, onboardingComplete, accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null });
+      const questionOverrides = selectedWeek ? await readClarityQuestionOverrides(result.service, selectedWeek) : [];
+      return response.status(200).json({ profile: { id: result.profile.id, name: result.profile.name }, access, onboardingComplete, accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null });
     }
     if (request.method !== 'PATCH') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
     const action = request.body?.action;

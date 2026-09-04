@@ -375,7 +375,7 @@ main>header {
 .escalation-grid p { font-size: 13px; }
 
 /* Settings */
-.settings-admin-badge, .benni-admin-badge { font-size: 10px; padding: 8px 11px; }
+.settings-admin-badge { font-size: 10px; padding: 8px 11px; }
 .settings-layout { display: block; }
 .settings-view .settings-nav { display: none; }
 .settings-nav { padding: 15px; top: 102px; }
@@ -413,50 +413,24 @@ main>header {
 .settings-link-grid { gap: 18px; }
 .settings-link-grid article>span { font-size: 19px; height: 50px; width: 50px; }
 
-/* Benni evaluation */
-.sidebar .benni-nav>span { font-size: 11px; height: 24px; width: 24px; }
-.benni-layout { gap: 22px; grid-template-columns: 330px minmax(0, 1fr); }
-.benni-participants { padding: 22px; top: 102px; }
-.benni-side-head h2, .benni-section-head h3 { font-size: 18px; }
-.benni-side-head>span { font-size: 11px; height: 35px; width: 35px; }
-.benni-search { border-radius: 11px; font-size: 14px; margin: 21px 0 13px; padding: 12px; }
-.benni-search input { font-size: 12px; }
-.benni-person { border-radius: 11px; gap: 12px; grid-template-columns: 43px 1fr auto; margin-bottom: 6px; padding: 12px; }
-.benni-person>span, .benni-person-heading>span { font-size: 11px; height: 43px; width: 43px; }
-.benni-person b { font-size: 12px; }
-.benni-person small { font-size: 10px; margin-top: 4px; }
-.benni-person i { font-size: 9px; padding: 5px 7px; }
-.benni-content { gap: 19px; }
-.benni-welcome, .benni-loading { border-radius: 17px; min-height: 540px; }
-.benni-welcome>span, .benni-loading>span { font-size: 31px; height: 76px; width: 76px; }
-.benni-welcome h2, .benni-loading h2 { font-size: 31px; }
-.benni-welcome>p:last-child, .benni-loading p { font-size: 13px; }
-.benni-hero { border-radius: 17px; padding: 32px; }
-.benni-person-heading>span { height: 60px; width: 60px; }
-.benni-person-heading h2 { font-size: 27px; }
-.benni-person-heading small { font-size: 11px; }
-.benni-progress small { font-size: 10px; }
-.benni-progress strong { font-size: 24px; }
-.benni-progress span { font-size: 10px; }
-.benni-metrics { gap: 14px; }
-.benni-metrics article { border-radius: 14px; padding: 20px; }
-.benni-metrics small { font-size: 10px; }
-.benni-metrics strong { font-size: 23px; }
-.benni-evidence { padding: 24px; }
-.benni-evidence>div:last-child>span { font-size: 10px; padding: 9px 11px; }
-.benni-evidence span i { height: 23px; width: 23px; }
-.benni-section-head>span { font-size: 10px; }
-.benni-block { margin-top: 12px; }
-.benni-block>summary { padding: 21px 23px; }
-.benni-block summary b { font-size: 14px; }
-.benni-block summary small { font-size: 10px; }
-.benni-block>summary>i { font-size: 17px; height: 34px; width: 34px; }
-.benni-entry-list { padding: 0 23px 20px; }
-.benni-entry-list>article { padding: 19px 0; }
-.benni-entry-list article span, .benni-entry-list article em { font-size: 9px; }
-.benni-entry-list article>p { font-size: 13px; }
-.benni-entry-list article details summary { font-size: 10px; }
-.benni-entry-list pre { font-size: 10px; }
+/* Admin-editable clarity questions */
+.clarity-question-settings { padding: 28px; }
+.question-toolbar { display: grid; gap: 14px; grid-template-columns: 180px minmax(260px, 1fr); margin: 25px 0 20px; }
+.question-toolbar label { color: var(--muted); display: flex; flex-direction: column; font-size: 11px; font-weight: 800; gap: 7px; }
+.question-toolbar input, .question-toolbar select { background: #f8fbfb; border: 1px solid var(--line); border-radius: 10px; font-size: 13px; min-height: 44px; padding: 10px 12px; }
+.clarity-question-list { display: flex; flex-direction: column; gap: 14px; }
+.clarity-question-card { background: #f9fbfb; border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+.question-card-head { align-items: flex-start; display: flex; gap: 14px; justify-content: space-between; }
+.question-card-head span { color: #178875; display: block; font: 500 10px DM Mono; letter-spacing: .08em; text-transform: uppercase; }
+.question-card-head h4 { font-size: 16px; margin: 6px 0 0; }
+.question-card-head>i { background: #e5f4f0; border-radius: 99px; color: #147766; font-size: 10px; font-style: normal; font-weight: 800; padding: 6px 9px; white-space: nowrap; }
+.clarity-question-card>label { color: var(--muted); display: flex; flex-direction: column; font-size: 11px; font-weight: 800; gap: 7px; margin-top: 16px; }
+.clarity-question-card textarea { background: #fff; border: 1px solid #cfdcdf; border-radius: 10px; color: var(--ink); font: 500 14px/1.65 Manrope; min-height: 105px; padding: 13px 14px; resize: vertical; width: 100%; }
+.clarity-question-card textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(20, 155, 130, .1); outline: 0; }
+.question-card-actions { align-items: center; display: flex; gap: 14px; justify-content: space-between; margin-top: 14px; }
+.question-card-actions>small { color: var(--muted); font-size: 10px; }
+.question-card-actions>div { display: flex; gap: 8px; }
+.question-card-actions button { min-height: 38px; }
 
 /* Dialogs, forms and program controls */
 dialog { border-radius: 18px; max-width: 560px; padding: 31px; }
@@ -528,7 +502,6 @@ dialog form>p { font-size: 12px; }
   .analysis-layout, .settings-layout { grid-template-columns: 1fr; }
   .analysis-person, .settings-nav { position: static; }
   .analysis-person nav { grid-template-columns: repeat(3, 1fr); }
-  .benni-layout { grid-template-columns: 280px minmax(0, 1fr); }
 }
 
 @media (max-width: 800px) {
@@ -561,8 +534,6 @@ dialog form>p { font-size: 12px; }
   .analysis-hero { align-items: flex-start; gap: 22px; padding: 26px; }
   .analysis-hero>span { height: 90px; min-width: 90px; width: 90px; }
   .map-core { height: 115px; width: 115px; }
-  .benni-layout { grid-template-columns: 1fr; }
-  .benni-participants { height: auto; position: static; }
   .settings-nav { grid-template-columns: 1fr 1fr; }
   .settings-summary-grid { grid-template-columns: 1fr 1fr; }
   .program-fields, .mode-options { grid-template-columns: 1fr; }
@@ -582,8 +553,8 @@ dialog form>p { font-size: 12px; }
   .map-grid { grid-template-columns: 1fr; }
   .map-core { margin: 12px auto; position: static; transform: none; }
   .settings-summary-grid, .settings-nav, .week-overrides { grid-template-columns: 1fr; }
-  .benni-hero { align-items: flex-start; flex-direction: column; }
-  .benni-progress { text-align: left; }
-  .benni-metrics { grid-template-columns: 1fr 1fr; }
+  .question-toolbar { grid-template-columns: 1fr; }
+  .question-card-actions { align-items: stretch; flex-direction: column; }
+  .question-card-actions>div { flex-direction: column; }
   .available-slots article { grid-template-columns: 1fr; }
 }

@@ -1,43 +1,1247 @@
 <!doctype html>
 <html lang="de">
-<head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Finde dein Ding Prozess-CRM"><title>FDD Prozess-CRM</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="admin-app.css">
-  <link rel="stylesheet" href="admin-program.css">
-  <link rel="stylesheet" href="admin-benni.css">
-  <link rel="stylesheet" href="admin-crm-refresh.css">
-</head>
-<body>
-  <aside class="sidebar"><a class="brand" href="/"><span>f</span><b>finde dein ding</b><i>Studio</i></a><div class="workspace"><span></span><div><small>Arbeitsbereich</small><strong>FDD Prozess-CRM</strong></div></div><nav><p>Steuerung</p><button class="active" data-view="command"><span>⌂</span>Command Center</button><button data-view="participants"><span>◎</span>Teilnehmende <i>6</i></button><button data-view="clarity"><span>✦</span>Klarheitsanalyse</button><button data-view="gates"><span>✓</span>Wochen-Gates</button><button data-view="escalations"><span>!</span>Eskalationen <i class="alert">2</i></button><p>Vertrieb & System</p><button data-view="leads"><span>↗</span>Leads</button><button data-view="users"><span>♙</span>Benutzer</button><p>Konfiguration</p><button data-view="settings"><span>⚙</span>Einstellungen</button><button class="benni-nav" data-view="benni"><span>B</span>Benni</button></nav><div class="sidebar-foot"><button id="logout">↪ <span>Abmelden</span></button><div class="admin"><span>MB</span><div><strong>Markus Becker</strong><small>Coach & Admin</small></div></div></div></aside>
-  <aside class="context-nav" aria-label="Unterkategorien"><div class="context-head"><span id="contextIcon">⌂</span><div><small>FDD Bereich</small><strong id="contextTitle">Command Center</strong></div></div><div class="context-body" id="contextNav"></div><div class="context-foot"><span></span><div><strong>System verbunden</strong><small>Supabase · Vercel</small></div></div></aside>
-  <main><header><div class="crumb"><span>FDD</span><b>/</b><strong id="viewTitle">Command Center</strong></div><div class="header-actions"><button class="square">⌕</button><button class="square">♢</button><button class="primary" data-open-participant>+ Teilnehmer aufnehmen</button></div></header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="Finde dein Ding Prozess-CRM" />
+    <title>FDD Prozess-CRM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="admin-app.css" />
+    <link rel="stylesheet" href="admin-program.css" />
+    <link rel="stylesheet" href="admin-crm-refresh.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="/"
+        ><span>f</span><b>finde dein ding</b><i>Studio</i></a
+      >
+      <div class="workspace">
+        <span></span>
+        <div><small>Arbeitsbereich</small><strong>FDD Prozess-CRM</strong></div>
+      </div>
+      <nav>
+        <p>Steuerung</p>
+        <button class="active" data-view="command">
+          <span>⌂</span>Command Center</button
+        ><button data-view="participants"><span>◎</span>Kunden <i>6</i></button
+        ><button data-view="clarity"><span>✦</span>Klarheitsanalyse</button
+        ><button data-view="gates"><span>✓</span>Wochen-Gates</button
+        ><button data-view="escalations">
+          <span>!</span>Eskalationen <i class="alert">2</i>
+        </button>
+        <p>Vertrieb & System</p>
+        <button data-view="leads"><span>↗</span>Interessenten</button
+        ><button data-view="users"><span>♙</span>Benutzer</button>
+        <p>Konfiguration</p>
+        <button data-view="settings"><span>⚙</span>Einstellungen</button>
+      </nav>
+      <div class="sidebar-foot">
+        <button id="logout">↪ <span>Abmelden</span></button>
+        <div class="admin">
+          <span>MB</span>
+          <div><strong>Markus Becker</strong><small>Coach & Admin</small></div>
+        </div>
+      </div>
+    </aside>
+    <aside class="context-nav" aria-label="Unterkategorien">
+      <div class="context-head">
+        <span id="contextIcon">⌂</span>
+        <div>
+          <small>FDD Bereich</small
+          ><strong id="contextTitle">Command Center</strong>
+        </div>
+      </div>
+      <div class="context-body" id="contextNav"></div>
+      <div class="context-foot">
+        <span></span>
+        <div>
+          <strong>System verbunden</strong><small>Supabase · Vercel</small>
+        </div>
+      </div>
+    </aside>
+    <main>
+      <header>
+        <div class="crumb">
+          <span>FDD</span><b>/</b><strong id="viewTitle">Command Center</strong>
+        </div>
+        <div class="header-actions">
+          <button class="square">⌕</button><button class="square">♢</button
+          ><button class="primary" data-open-participant>
+            + Kunden aufnehmen
+          </button>
+        </div>
+      </header>
 
-    <section class="view benni-view" data-panel="benni"><div class="intro"><div><p class="eyebrow">Teilnehmerauswertungen</p><h1>Benni</h1><p>Alle Antworten, Erkenntnisse und Auswertungsgrundlagen der Teilnehmenden übersichtlich an einem Ort.</p></div><span class="benni-admin-badge">Nur für Administratoren</span></div><div class="benni-layout"><aside class="card benni-participants"><div class="benni-side-head"><div><p class="eyebrow">Teilnehmende</p><h2>Auswertung öffnen</h2></div><span id="benniParticipantCount">0</span></div><label class="benni-search">⌕ <input id="benniSearch" placeholder="Name oder E-Mail suchen"></label><div id="benniParticipantList"><div class="empty">Teilnehmende werden geladen …</div></div></aside><div class="benni-content" id="benniContent"><section class="benni-welcome"><span>B</span><p class="eyebrow">Benni · Auswertungsbereich</p><h2>Wähle einen Teilnehmer aus.</h2><p>Danach siehst du hier den aktuellen Programmstand, die vorhandenen Datenblöcke und alle belegten Auswertungsgrundlagen.</p></section></div></div></section>
+      <section class="view active" data-panel="command">
+        <div class="intro">
+          <div>
+            <p class="eyebrow">Freitag, 28. August 2026</p>
+            <h1>Guten Abend, Markus. <em>✦</em></h1>
+            <p>
+              Hier siehst du, welche Kunden Klarheit gewinnen – und wo du
+              gebraucht wirst.
+            </p>
+          </div>
+          <button class="secondary">Diese Woche⌄</button>
+        </div>
+        <div class="metrics">
+          <article class="dark">
+            <div><span>Aktive Kunden</span><b>+2 diesen Monat</b></div>
+            <strong>18</strong>
+            <p>über alle acht Prozesswochen</p>
+            <div class="bars">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+          </article>
+          <article class="peach">
+            <span>Ø Klarheitsgewinn</span><strong>+4,2</strong>
+            <p>Start- zu Endmessung · Skala 1–10</p>
+          </article>
+          <article class="yellow">
+            <span>Offene Gates</span><strong>7</strong>
+            <p>3 davon länger als 48 Stunden</p>
+          </article>
+          <article class="sage">
+            <span>Coach benötigt</span><strong>2</strong>
+            <p>1 Entscheidung · 1 blockierte Aufgabe</p>
+          </article>
+        </div>
+        <div class="main-grid">
+          <section class="card participants-card">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Prozesssteuerung</p>
+                <h2>Kunden im Prozess</h2>
+              </div>
+              <button class="link" data-jump="participants">
+                Alle ansehen →
+              </button>
+            </div>
+            <div class="participant-list" id="dashboardParticipants"></div>
+          </section>
+          <section class="card attention">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Dein Fokus</p>
+                <h2>Heute braucht es dich</h2>
+              </div>
+              <span class="count">3</span>
+            </div>
+            <article>
+              <i class="red">!</i>
+              <div>
+                <strong>Julia · Entscheidung offen</strong>
+                <p>Woche 7 · Option A/B weiterhin unklar</p>
+              </div>
+              <button>Öffnen</button>
+            </article>
+            <article>
+              <i class="orange">↗</i>
+              <div>
+                <strong>David · Gate blockiert</strong>
+                <p>Woche 5 · Grabrede-Upload fehlt</p>
+              </div>
+              <button>Erinnern</button>
+            </article>
+            <article>
+              <i class="green">✓</i>
+              <div>
+                <strong>Leonie · Abschlusscall</strong>
+                <p>Dossier vollständig · Termin ausstehend</p>
+              </div>
+              <button>Planen</button>
+            </article>
+          </section>
+        </div>
+        <div class="lower-grid">
+          <section class="card clarity-mini">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Klarheitsentwicklung</p>
+                <h2>Messbar, nicht erfunden</h2>
+              </div>
+              <span class="note">Selbsteinschätzung 1–10</span>
+            </div>
+            <div class="chart">
+              <div class="chart-line"></div>
+              <span style="left: 4%; bottom: 20%">2,1<small>Start</small></span
+              ><span style="left: 30%; bottom: 32%"
+                >3,4<small>Woche 3</small></span
+              ><span style="left: 58%; bottom: 51%"
+                >5,8<small>Halbzeit</small></span
+              ><span style="left: 88%; bottom: 74%"
+                >8,1<small>Ende</small></span
+              >
+            </div>
+          </section>
+          <section class="card weekly">
+            <p class="eyebrow">Verteilung</p>
+            <h2>Aktive Wochen</h2>
+            <div class="week-row">
+              <span>1</span><span>2</span><span class="current">3</span
+              ><span>4</span><span>5</span><span>6</span><span>7</span
+              ><span>8</span>
+            </div>
+            <div class="week-counts">
+              <i>3</i><i>2</i><i>4</i><i>3</i><i>2</i><i>1</i><i>2</i><i>1</i>
+            </div>
+          </section>
+        </div>
+      </section>
 
-    <section class="view active" data-panel="command"><div class="intro"><div><p class="eyebrow">Freitag, 28. August 2026</p><h1>Guten Abend, Markus. <em>✦</em></h1><p>Hier siehst du, wer Klarheit gewinnt – und wo du gebraucht wirst.</p></div><button class="secondary">Diese Woche⌄</button></div><div class="metrics"><article class="dark"><div><span>Aktive Teilnehmende</span><b>+2 diesen Monat</b></div><strong>18</strong><p>über alle acht Prozesswochen</p><div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article><article class="peach"><span>Ø Klarheitsgewinn</span><strong>+4,2</strong><p>Start- zu Endmessung · Skala 1–10</p></article><article class="yellow"><span>Offene Gates</span><strong>7</strong><p>3 davon länger als 48 Stunden</p></article><article class="sage"><span>Coach benötigt</span><strong>2</strong><p>1 Entscheidung · 1 blockierte Aufgabe</p></article></div>
-      <div class="main-grid"><section class="card participants-card"><div class="card-head"><div><p class="eyebrow">Prozesssteuerung</p><h2>Teilnehmende im Prozess</h2></div><button class="link" data-jump="participants">Alle ansehen →</button></div><div class="participant-list" id="dashboardParticipants"></div></section><section class="card attention"><div class="card-head"><div><p class="eyebrow">Dein Fokus</p><h2>Heute braucht es dich</h2></div><span class="count">3</span></div><article><i class="red">!</i><div><strong>Julia · Entscheidung offen</strong><p>Woche 7 · Option A/B weiterhin unklar</p></div><button>Öffnen</button></article><article><i class="orange">↗</i><div><strong>David · Gate blockiert</strong><p>Woche 5 · Grabrede-Upload fehlt</p></div><button>Erinnern</button></article><article><i class="green">✓</i><div><strong>Leonie · Abschlusscall</strong><p>Dossier vollständig · Termin ausstehend</p></div><button>Planen</button></article></section></div>
-      <div class="lower-grid"><section class="card clarity-mini"><div class="card-head"><div><p class="eyebrow">Klarheitsentwicklung</p><h2>Messbar, nicht erfunden</h2></div><span class="note">Selbsteinschätzung 1–10</span></div><div class="chart"><div class="chart-line"></div><span style="left:4%;bottom:20%">2,1<small>Start</small></span><span style="left:30%;bottom:32%">3,4<small>Woche 3</small></span><span style="left:58%;bottom:51%">5,8<small>Halbzeit</small></span><span style="left:88%;bottom:74%">8,1<small>Ende</small></span></div></section><section class="card weekly"><p class="eyebrow">Verteilung</p><h2>Aktive Wochen</h2><div class="week-row"><span>1</span><span>2</span><span class="current">3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span></div><div class="week-counts"><i>3</i><i>2</i><i>4</i><i>3</i><i>2</i><i>1</i><i>2</i><i>1</i></div></section></div>
-    </section>
+      <section class="view" data-panel="participants">
+        <div class="intro">
+          <div>
+            <p class="eyebrow">Prozesssteuerung</p>
+            <h1>Kunden</h1>
+            <p>
+              Zugangsmodus, Startdatum, Fortschritt und manuelle Freigaben
+              zentral steuern.
+            </p>
+          </div>
+          <button class="primary" data-open-participant>
+            + Kunden aufnehmen
+          </button>
+        </div>
+        <div class="toolbar">
+          <label
+            >⌕
+            <input
+              id="participantSearch"
+              placeholder="Name oder E-Mail suchen" /></label
+          ><select id="weekFilter">
+            <option value="">Alle Wochen</option>
+            <option value="0">Onboarding</option>
+            <option value="1">Woche 1</option>
+            <option value="2">Woche 2</option>
+            <option value="3">Woche 3</option>
+            <option value="4">Woche 4</option>
+            <option value="5">Woche 5</option>
+            <option value="6">Woche 6</option>
+            <option value="7">Woche 7</option>
+            <option value="8">Woche 8</option>
+          </select>
+        </div>
+        <div class="participant-table card">
+          <div class="table-head">
+            <span>Kunde</span><span>Phase</span><span>Fortschritt & Modus</span
+            ><span>Startdatum</span><span>Programmsteuerung</span>
+          </div>
+          <div id="participantRows"></div>
+        </div>
+      </section>
 
-    <section class="view" data-panel="participants"><div class="intro"><div><p class="eyebrow">Prozesssteuerung</p><h1>Teilnehmende</h1><p>Zugangsmodus, Startdatum, Fortschritt und manuelle Freigaben zentral steuern.</p></div><button class="primary" data-open-participant>+ Teilnehmer aufnehmen</button></div><div class="toolbar"><label>⌕ <input id="participantSearch" placeholder="Name oder E-Mail suchen"></label><select id="weekFilter"><option value="">Alle Wochen</option><option value="0">Onboarding</option><option value="1">Woche 1</option><option value="2">Woche 2</option><option value="3">Woche 3</option><option value="4">Woche 4</option><option value="5">Woche 5</option><option value="6">Woche 6</option><option value="7">Woche 7</option><option value="8">Woche 8</option></select></div><div class="participant-table card"><div class="table-head"><span>Teilnehmer</span><span>Phase</span><span>Fortschritt & Modus</span><span>Startdatum</span><span>Programmsteuerung</span></div><div id="participantRows"></div></div></section>
+      <section class="view" data-panel="clarity">
+        <div class="intro">
+          <div>
+            <p class="eyebrow">Synthese</p>
+            <h1>Klarheitsanalyse</h1>
+            <p>
+              Rohantworten, Evidenz und vorsichtige Ableitungen bleiben
+              nachvollziehbar getrennt.
+            </p>
+          </div>
+          <button class="secondary">Analyse exportieren</button>
+        </div>
+        <div class="analysis-layout">
+          <aside class="analysis-person card">
+            <div class="person">
+              <span>JW</span>
+              <div>
+                <strong>Julia Werner</strong><small>Woche 7 · 79 %</small>
+              </div>
+            </div>
+            <div class="clarity-score">
+              <small>Klarheit</small><strong>3 → 7</strong><i>+4 Punkte</i>
+            </div>
+            <nav>
+              <button class="active">Gesamtbild</button
+              ><button>Motivatoren</button><button>Werte</button
+              ><button>Ding / Leben</button><button>Optionen A / B</button
+              ><button>Umsetzungsplan</button>
+            </nav>
+          </aside>
+          <div class="analysis-content">
+            <section class="analysis-hero">
+              <div>
+                <p class="eyebrow light">
+                  Arbeitsstand · keine endgültige Wahrheit
+                </p>
+                <h2>Was sich über mehrere Übungen hinweg zeigt</h2>
+                <p>
+                  Die Analyse priorisiert wiederkehrende Kundenaussagen und
+                  konkrete Erfahrungen. Human Design und LILA bleiben ergänzende
+                  Reflexionssignale.
+                </p>
+              </div>
+              <span>7<small>/ 10 Klarheit</small></span>
+            </section>
+            <div class="evidence-grid">
+              <article class="card">
+                <p class="eyebrow">Starke Evidenz</p>
+                <h3>Wiederkehrende Muster</h3>
+                <ul>
+                  <li>
+                    <b>Eigenverantwortung</b
+                    ><span>5 unabhängige Datenquellen</span>
+                  </li>
+                  <li>
+                    <b>Menschen entwickeln</b
+                    ><span>4 konkrete Erfahrungsbeispiele</span>
+                  </li>
+                  <li>
+                    <b>Gestaltungsfreiheit</b
+                    ><span>Werte, Motivatoren, perfekter Tag</span>
+                  </li>
+                </ul>
+              </article>
+              <article class="card">
+                <p class="eyebrow">Spannungsfelder</p>
+                <h3>Bewusst offenhalten</h3>
+                <ul>
+                  <li>
+                    <b>Sicherheit ↔ Freiheit</b
+                    ><span>reales Risiko, kein Glaubenssatz</span>
+                  </li>
+                  <li>
+                    <b>Sichtbarkeit ↔ Rückzug</b><span>kontextabhängig</span>
+                  </li>
+                  <li>
+                    <b>Vielfalt ↔ Fokus</b
+                    ><span>im Realitätskontakt prüfen</span>
+                  </li>
+                </ul>
+              </article>
+            </div>
+            <section class="card map">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Dein-Ding-Map</p>
+                  <h2>Vier Bereiche, ein engerer Suchraum</h2>
+                </div>
+                <span class="evidence-badge">12 starke Belege</span>
+              </div>
+              <div class="map-grid">
+                <article class="peach">
+                  <span>Begeistert</span
+                  ><b>Kreative Konzepte<br />echte Gespräche</b>
+                </article>
+                <article class="yellow">
+                  <span>Steckt in mir</span
+                  ><b>Struktur geben<br />Menschen lesen</b>
+                </article>
+                <article class="sage">
+                  <span>Unterschied</span
+                  ><b>Orientierung<br />Mut ermöglichen</b>
+                </article>
+                <article class="white">
+                  <span>Wert schaffen</span><b>Workshops<br />Begleitung</b>
+                </article>
+                <div class="map-core">
+                  Entwicklung<br /><em>mit Klarheit</em>
+                </div>
+              </div>
+            </section>
+            <section class="card options">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Woche 7</p>
+                  <h2>Finale Optionen</h2>
+                </div>
+                <span class="note">Score 0–10, qualitativ begründet</span>
+              </div>
+              <div class="option-grid">
+                <article>
+                  <small>Option A</small>
+                  <h3>People Development</h3>
+                  <strong>8 / 10</strong>
+                  <p><b>Stark:</b> Menschen, Struktur, Wirkung</p>
+                  <p><b>Offen:</b> Organisationskontext</p>
+                </article>
+                <article>
+                  <small>Option B</small>
+                  <h3>Selbstständige Beratung</h3>
+                  <strong>7 / 10</strong>
+                  <p><b>Stark:</b> Freiheit, Gestaltung, Vielfalt</p>
+                  <p><b>Offen:</b> Sicherheit und Vertrieb</p>
+                </article>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
 
-    <section class="view" data-panel="clarity"><div class="intro"><div><p class="eyebrow">Synthese</p><h1>Klarheitsanalyse</h1><p>Rohantworten, Evidenz und vorsichtige Ableitungen bleiben nachvollziehbar getrennt.</p></div><button class="secondary">Analyse exportieren</button></div><div class="analysis-layout"><aside class="analysis-person card"><div class="person"><span>JW</span><div><strong>Julia Werner</strong><small>Woche 7 · 79 %</small></div></div><div class="clarity-score"><small>Klarheit</small><strong>3 → 7</strong><i>+4 Punkte</i></div><nav><button class="active">Gesamtbild</button><button>Motivatoren</button><button>Werte</button><button>Ding / Leben</button><button>Optionen A / B</button><button>Umsetzungsplan</button></nav></aside><div class="analysis-content"><section class="analysis-hero"><div><p class="eyebrow light">Arbeitsstand · keine endgültige Wahrheit</p><h2>Was sich über mehrere Übungen hinweg zeigt</h2><p>Die Analyse priorisiert wiederkehrende Teilnehmeraussagen und konkrete Erfahrungen. Human Design und LILA bleiben ergänzende Reflexionssignale.</p></div><span>7<small>/ 10 Klarheit</small></span></section><div class="evidence-grid"><article class="card"><p class="eyebrow">Starke Evidenz</p><h3>Wiederkehrende Muster</h3><ul><li><b>Eigenverantwortung</b><span>5 unabhängige Datenquellen</span></li><li><b>Menschen entwickeln</b><span>4 konkrete Erfahrungsbeispiele</span></li><li><b>Gestaltungsfreiheit</b><span>Werte, Motivatoren, perfekter Tag</span></li></ul></article><article class="card"><p class="eyebrow">Spannungsfelder</p><h3>Bewusst offenhalten</h3><ul><li><b>Sicherheit ↔ Freiheit</b><span>reales Risiko, kein Glaubenssatz</span></li><li><b>Sichtbarkeit ↔ Rückzug</b><span>kontextabhängig</span></li><li><b>Vielfalt ↔ Fokus</b><span>im Realitätskontakt prüfen</span></li></ul></article></div><section class="card map"><div class="card-head"><div><p class="eyebrow">Dein-Ding-Map</p><h2>Vier Bereiche, ein engerer Suchraum</h2></div><span class="evidence-badge">12 starke Belege</span></div><div class="map-grid"><article class="peach"><span>Begeistert</span><b>Kreative Konzepte<br>echte Gespräche</b></article><article class="yellow"><span>Steckt in mir</span><b>Struktur geben<br>Menschen lesen</b></article><article class="sage"><span>Unterschied</span><b>Orientierung<br>Mut ermöglichen</b></article><article class="white"><span>Wert schaffen</span><b>Workshops<br>Begleitung</b></article><div class="map-core">Entwicklung<br><em>mit Klarheit</em></div></div></section><section class="card options"><div class="card-head"><div><p class="eyebrow">Woche 7</p><h2>Finale Optionen</h2></div><span class="note">Score 0–10, qualitativ begründet</span></div><div class="option-grid"><article><small>Option A</small><h3>People Development</h3><strong>8 / 10</strong><p><b>Stark:</b> Menschen, Struktur, Wirkung</p><p><b>Offen:</b> Organisationskontext</p></article><article><small>Option B</small><h3>Selbstständige Beratung</h3><strong>7 / 10</strong><p><b>Stark:</b> Freiheit, Gestaltung, Vielfalt</p><p><b>Offen:</b> Sicherheit und Vertrieb</p></article></div></section></div></div></section>
+      <section class="view" data-panel="gates">
+        <div class="intro">
+          <div>
+            <p class="eyebrow">Qualitätssicherung</p>
+            <h1>Wochen-Gates</h1>
+            <p>
+              Ein Schritt zählt erst, wenn die fachliche Pflicht wirklich
+              erfüllt ist.
+            </p>
+          </div>
+        </div>
+        <div class="gate-grid" id="gateGrid"></div>
+      </section>
+      <section class="view" data-panel="escalations">
+        <div class="intro">
+          <div>
+            <p class="eyebrow">Menschliche Begleitung</p>
+            <h1>Coach-Eskalationen</h1>
+            <p>Feststecken unterstützen – Entscheidungen niemals erzwingen.</p>
+          </div>
+        </div>
+        <div class="escalation-grid">
+          <article class="card urgent">
+            <span>Woche 7 · Entscheidung</span>
+            <h2>Julia Werner</h2>
+            <p>
+              Beide Zukunftswege wurden bearbeitet, aber es entstand keine klare
+              Tendenz. Clara hat korrekt gestoppt.
+            </p>
+            <div>
+              <button class="primary">Gespräch planen</button
+              ><button class="secondary">Dossier öffnen</button>
+            </div>
+          </article>
+          <article class="card">
+            <span>Woche 5 · Gate blockiert</span>
+            <h2>David Klein</h2>
+            <p>
+              Grabrede-Upload fehlt seit 51 Stunden. Q&A-Hinweis möglich, Gate
+              bleibt geschlossen.
+            </p>
+            <div>
+              <button class="primary">Kontaktieren</button
+              ><button class="secondary">Verlauf öffnen</button>
+            </div>
+          </article>
+        </div>
+      </section>
+      <section class="view" data-panel="leads">
+        <div class="intro">
+          <div>
+            <p class="eyebrow">Vertrieb</p>
+            <h1>Interessenten</h1>
+            <p>
+              Anfragen qualifizieren, freie Kalenderzeiten auswählen,
+              Meet-Termine planen und nach dem Kauf sicher als Kunden
+              aktivieren.
+            </p>
+          </div>
+        </div>
+        <div class="participant-table card">
+          <div class="table-head">
+            <span>Interessent</span><span>Quelle</span><span>Status</span
+            ><span>Eingang</span><span>Nächster Schritt</span>
+          </div>
+          <div id="leadRows">
+            <div class="empty">Interessenten werden geladen …</div>
+          </div>
+        </div>
+      </section>
+      <section class="view" data-panel="users">
+        <div class="intro">
+          <div>
+            <p class="eyebrow">Zugänge</p>
+            <h1>Benutzer</h1>
+            <p>
+              Rollen, Kontostatus und individuelle Zugangsrechte zentral
+              verwalten.
+            </p>
+          </div>
+          <button class="primary" id="openUser">+ Benutzer anlegen</button>
+        </div>
+        <div class="participant-table card user-table">
+          <div class="table-head">
+            <span>Benutzer</span><span>Rolle & Status</span><span>Zugänge</span
+            ><span>Programmstatus</span><span>Verwalten</span>
+          </div>
+          <div id="userRows">
+            <div class="empty">Benutzer werden geladen …</div>
+          </div>
+        </div>
+      </section>
+      <section class="view settings-view" data-panel="settings">
+        <div class="intro">
+          <div>
+            <p class="eyebrow">Systemverwaltung</p>
+            <h1>Einstellungen</h1>
+            <p>
+              Alle zentralen Dashboard-, Termin-, Integrations- und
+              Zugangsoptionen an einem Ort.
+            </p>
+          </div>
+          <span class="settings-admin-badge">Nur für Administratoren</span>
+        </div>
+        <div class="settings-layout">
+          <aside class="card settings-nav">
+            <p>Einstellungsbereiche</p>
+            <button class="active" data-settings-tab="general">
+              <span>⌂</span>
+              <div>
+                <b>Allgemein</b><small>Arbeitsbereich & System</small>
+              </div></button
+            ><button data-settings-tab="appointments">
+              <span>◷</span>
+              <div>
+                <b>Termine</b><small>Verfügbarkeit & Regeln</small>
+              </div></button
+            ><button data-settings-tab="integrations">
+              <span>↔</span>
+              <div>
+                <b>Integrationen</b><small>Google Calendar & Meet</small>
+              </div></button
+            ><button data-settings-tab="questions">
+              <span>?</span>
+              <div>
+                <b>Klarheitsanalyse</b><small>Fragen des Prozesses</small>
+              </div></button
+            ><button data-settings-tab="access">
+              <span>♙</span>
+              <div>
+                <b>Benutzer & Zugänge</b><small>Rollen & Programme</small>
+              </div>
+            </button>
+          </aside>
+          <div class="settings-content">
+            <section
+              class="settings-panel active"
+              data-settings-panel="general"
+            >
+              <div class="card settings-hero">
+                <span class="settings-icon">⌂</span>
+                <div>
+                  <p class="eyebrow">Allgemein</p>
+                  <h2>Arbeitsbereich</h2>
+                  <p>
+                    Grundlegende Informationen und systemweite Standards deines
+                    Prozess-CRM.
+                  </p>
+                </div>
+              </div>
+              <section class="card settings-card">
+                <div class="settings-card-head">
+                  <div>
+                    <h3>Arbeitsbereich & Lokalisierung</h3>
+                    <p>Diese Werte gelten für das gesamte Dashboard.</p>
+                  </div>
+                  <span class="settings-state active">Aktiv</span>
+                </div>
+                <div class="settings-data-list">
+                  <div>
+                    <span>Name des Arbeitsbereichs</span><b>FDD Prozess-CRM</b>
+                  </div>
+                  <div><span>Sprache</span><b>Deutsch</b></div>
+                  <div><span>Zeitzone</span><b>Europe/Berlin</b></div>
+                  <div><span>Währung</span><b>EUR (€)</b></div>
+                </div>
+              </section>
+            </section>
+            <section class="settings-panel" data-settings-panel="appointments">
+              <div class="card settings-hero">
+                <span class="settings-icon peach">◷</span>
+                <div>
+                  <p class="eyebrow">Terminplanung</p>
+                  <h2>Verfügbarkeit & Buchungsregeln</h2>
+                  <p>
+                    Lege fest, an welchen Tagen und zu welchen Zeiten
+                    Erstgespräche stattfinden dürfen.
+                  </p>
+                </div>
+              </div>
+              <section class="card settings-card">
+                <div class="settings-card-head">
+                  <div>
+                    <h3>Freigegebene Gesprächszeiten</h3>
+                    <p>
+                      Belegte Google-Termine werden automatisch herausgefiltert.
+                    </p>
+                  </div>
+                  <span class="settings-state" id="bookingConfigStatus"
+                    >Wird geladen …</span
+                  >
+                </div>
+                <div class="settings-summary-grid">
+                  <article>
+                    <small>Aktive Tage</small
+                    ><strong id="bookingDaysSummary">—</strong>
+                  </article>
+                  <article>
+                    <small>Standarddauer</small
+                    ><strong id="bookingDurationSummary">—</strong>
+                  </article>
+                  <article>
+                    <small>Mindestvorlauf</small
+                    ><strong id="bookingNoticeSummary">—</strong>
+                  </article>
+                  <article>
+                    <small>Buchungshorizont</small
+                    ><strong id="bookingHorizonSummary">—</strong>
+                  </article>
+                </div>
+                <div class="settings-action-row">
+                  <div>
+                    <b>Wöchentliche Verfügbarkeit bearbeiten</b
+                    ><small
+                      >Zeitfenster, Dauer und Terminraster zentral
+                      konfigurieren.</small
+                    >
+                  </div>
+                  <button class="primary" id="bookingSettings">
+                    Verfügbarkeit festlegen
+                  </button>
+                </div>
+              </section>
+            </section>
+            <section class="settings-panel" data-settings-panel="integrations">
+              <div class="card settings-hero">
+                <span class="settings-icon sage">↔</span>
+                <div>
+                  <p class="eyebrow">Integrationen</p>
+                  <h2>Verbundene Dienste</h2>
+                  <p>
+                    Externe Systeme für Terminplanung, Kommunikation und
+                    Automatisierung verwalten.
+                  </p>
+                </div>
+              </div>
+              <section class="card integration-card">
+                <div class="integration-logo google-logo">G</div>
+                <div class="integration-copy">
+                  <h3>Google Calendar & Meet</h3>
+                  <p>
+                    Prüft freie Kalenderzeiten und erstellt Termine inklusive
+                    Google-Meet-Link.
+                  </p>
+                  <span id="googleStatus">Google Calendar wird geprüft …</span>
+                </div>
+                <button class="secondary" id="googleConnect">
+                  Google Calendar verbinden
+                </button>
+              </section>
+              <section class="card settings-coming">
+                <span>+</span>
+                <div>
+                  <b>Weitere Integrationen</b>
+                  <p>Neue Dienste werden zukünftig hier gebündelt ergänzt.</p>
+                </div>
+              </section>
+            </section>
+            <section class="settings-panel" data-settings-panel="questions">
+              <div class="card settings-hero clarity-settings-hero">
+                <span class="settings-icon sage">?</span>
+                <div>
+                  <p class="eyebrow">Klarheitsanalyse</p>
+                  <h2>Fragen des FDD-Prozesses</h2>
+                  <p>
+                    Alle Fragen und Arbeitsanweisungen aus den acht Wochen
+                    zentral prüfen und verändern.
+                  </p>
+                </div>
+              </div>
+              <section class="card clarity-question-settings">
+                <div class="settings-card-head">
+                  <div>
+                    <h3>Fragen verwalten</h3>
+                    <p>
+                      Änderungen werden direkt für neue und noch offene
+                      Kundenschritte verwendet. Pflichtlogik und Gates bleiben
+                      unverändert.
+                    </p>
+                  </div>
+                  <span class="settings-state active" id="clarityQuestionCount"
+                    >Wird geladen …</span
+                  >
+                </div>
+                <div class="question-toolbar">
+                  <label
+                    >Woche<select id="clarityQuestionWeek">
+                      <option value="">Alle Wochen</option>
+                      <option value="1">Woche 1</option>
+                      <option value="2">Woche 2</option>
+                      <option value="3">Woche 3</option>
+                      <option value="4">Woche 4</option>
+                      <option value="5">Woche 5</option>
+                      <option value="6">Woche 6</option>
+                      <option value="7">Woche 7</option>
+                      <option value="8">Woche 8</option>
+                    </select></label
+                  ><label
+                    >Frage suchen<input
+                      id="clarityQuestionSearch"
+                      type="search"
+                      placeholder="Titel oder Fragetext"
+                  /></label>
+                </div>
+                <div class="clarity-question-list" id="clarityQuestionList">
+                  <div class="empty">Klarheitsfragen werden geladen …</div>
+                </div>
+              </section>
+            </section>
+            <section class="settings-panel" data-settings-panel="access">
+              <div class="card settings-hero">
+                <span class="settings-icon yellow">♙</span>
+                <div>
+                  <p class="eyebrow">Zugangssteuerung</p>
+                  <h2>Benutzer & Programme</h2>
+                  <p>
+                    Rollen, Berechtigungen und individuelle Programmfreigaben
+                    verwalten.
+                  </p>
+                </div>
+              </div>
+              <div class="settings-link-grid">
+                <article class="card">
+                  <span>♙</span>
+                  <h3>Benutzerverwaltung</h3>
+                  <p>
+                    Konten, Rollen, Status und individuelle Zugänge bearbeiten.
+                  </p>
+                  <button class="secondary" data-settings-jump="users">
+                    Benutzer verwalten →
+                  </button>
+                </article>
+                <article class="card">
+                  <span>◎</span>
+                  <h3>Programmsteuerung</h3>
+                  <p>
+                    Startdaten, Freischaltungsmodi, Wochen und Fortschritt
+                    steuern.
+                  </p>
+                  <button class="secondary" data-settings-jump="participants">
+                    Kunden öffnen →
+                  </button>
+                </article>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
 
-    <section class="view" data-panel="gates"><div class="intro"><div><p class="eyebrow">Qualitätssicherung</p><h1>Wochen-Gates</h1><p>Ein Schritt zählt erst, wenn die fachliche Pflicht wirklich erfüllt ist.</p></div></div><div class="gate-grid" id="gateGrid"></div></section>
-    <section class="view" data-panel="escalations"><div class="intro"><div><p class="eyebrow">Menschliche Begleitung</p><h1>Coach-Eskalationen</h1><p>Feststecken unterstützen – Entscheidungen niemals erzwingen.</p></div></div><div class="escalation-grid"><article class="card urgent"><span>Woche 7 · Entscheidung</span><h2>Julia Werner</h2><p>Beide Zukunftswege wurden bearbeitet, aber es entstand keine klare Tendenz. Clara hat korrekt gestoppt.</p><div><button class="primary">Gespräch planen</button><button class="secondary">Dossier öffnen</button></div></article><article class="card"><span>Woche 5 · Gate blockiert</span><h2>David Klein</h2><p>Grabrede-Upload fehlt seit 51 Stunden. Q&A-Hinweis möglich, Gate bleibt geschlossen.</p><div><button class="primary">Kontaktieren</button><button class="secondary">Verlauf öffnen</button></div></article></div></section>
-    <section class="view" data-panel="leads"><div class="intro"><div><p class="eyebrow">Vertrieb</p><h1>Leads</h1><p>Anfragen qualifizieren, freie Kalenderzeiten auswählen, Meet-Termine planen und nach dem Kauf sicher aktivieren.</p></div></div><div class="participant-table card"><div class="table-head"><span>Lead</span><span>Quelle</span><span>Status</span><span>Eingang</span><span>Nächster Schritt</span></div><div id="leadRows"><div class="empty">Leads werden geladen …</div></div></div></section>
-    <section class="view" data-panel="users"><div class="intro"><div><p class="eyebrow">Zugänge</p><h1>Benutzer</h1><p>Rollen, Kontostatus und individuelle Zugangsrechte zentral verwalten.</p></div><button class="primary" id="openUser">+ Benutzer anlegen</button></div><div class="participant-table card user-table"><div class="table-head"><span>Benutzer</span><span>Rolle & Status</span><span>Zugänge</span><span>Programmstatus</span><span>Verwalten</span></div><div id="userRows"><div class="empty">Benutzer werden geladen …</div></div></div></section>
-    <section class="view settings-view" data-panel="settings"><div class="intro"><div><p class="eyebrow">Systemverwaltung</p><h1>Einstellungen</h1><p>Alle zentralen Dashboard-, Termin-, Integrations- und Zugangsoptionen an einem Ort.</p></div><span class="settings-admin-badge">Nur für Administratoren</span></div><div class="settings-layout"><aside class="card settings-nav"><p>Einstellungsbereiche</p><button class="active" data-settings-tab="general"><span>⌂</span><div><b>Allgemein</b><small>Arbeitsbereich & System</small></div></button><button data-settings-tab="appointments"><span>◷</span><div><b>Termine</b><small>Verfügbarkeit & Regeln</small></div></button><button data-settings-tab="integrations"><span>↔</span><div><b>Integrationen</b><small>Google Calendar & Meet</small></div></button><button data-settings-tab="access"><span>♙</span><div><b>Benutzer & Zugänge</b><small>Rollen & Programme</small></div></button></aside><div class="settings-content"><section class="settings-panel active" data-settings-panel="general"><div class="card settings-hero"><span class="settings-icon">⌂</span><div><p class="eyebrow">Allgemein</p><h2>Arbeitsbereich</h2><p>Grundlegende Informationen und systemweite Standards deines Prozess-CRM.</p></div></div><section class="card settings-card"><div class="settings-card-head"><div><h3>Arbeitsbereich & Lokalisierung</h3><p>Diese Werte gelten für das gesamte Dashboard.</p></div><span class="settings-state active">Aktiv</span></div><div class="settings-data-list"><div><span>Name des Arbeitsbereichs</span><b>FDD Prozess-CRM</b></div><div><span>Sprache</span><b>Deutsch</b></div><div><span>Zeitzone</span><b>Europe/Berlin</b></div><div><span>Währung</span><b>EUR (€)</b></div></div></section></section><section class="settings-panel" data-settings-panel="appointments"><div class="card settings-hero"><span class="settings-icon peach">◷</span><div><p class="eyebrow">Terminplanung</p><h2>Verfügbarkeit & Buchungsregeln</h2><p>Lege fest, an welchen Tagen und zu welchen Zeiten Erstgespräche stattfinden dürfen.</p></div></div><section class="card settings-card"><div class="settings-card-head"><div><h3>Freigegebene Gesprächszeiten</h3><p>Belegte Google-Termine werden automatisch herausgefiltert.</p></div><span class="settings-state" id="bookingConfigStatus">Wird geladen …</span></div><div class="settings-summary-grid"><article><small>Aktive Tage</small><strong id="bookingDaysSummary">—</strong></article><article><small>Standarddauer</small><strong id="bookingDurationSummary">—</strong></article><article><small>Mindestvorlauf</small><strong id="bookingNoticeSummary">—</strong></article><article><small>Buchungshorizont</small><strong id="bookingHorizonSummary">—</strong></article></div><div class="settings-action-row"><div><b>Wöchentliche Verfügbarkeit bearbeiten</b><small>Zeitfenster, Dauer und Terminraster zentral konfigurieren.</small></div><button class="primary" id="bookingSettings">Verfügbarkeit festlegen</button></div></section></section><section class="settings-panel" data-settings-panel="integrations"><div class="card settings-hero"><span class="settings-icon sage">↔</span><div><p class="eyebrow">Integrationen</p><h2>Verbundene Dienste</h2><p>Externe Systeme für Terminplanung, Kommunikation und Automatisierung verwalten.</p></div></div><section class="card integration-card"><div class="integration-logo google-logo">G</div><div class="integration-copy"><h3>Google Calendar & Meet</h3><p>Prüft freie Kalenderzeiten und erstellt Termine inklusive Google-Meet-Link.</p><span id="googleStatus">Google Calendar wird geprüft …</span></div><button class="secondary" id="googleConnect">Google Calendar verbinden</button></section><section class="card settings-coming"><span>+</span><div><b>Weitere Integrationen</b><p>Neue Dienste werden zukünftig hier gebündelt ergänzt.</p></div></section></section><section class="settings-panel" data-settings-panel="access"><div class="card settings-hero"><span class="settings-icon yellow">♙</span><div><p class="eyebrow">Zugangssteuerung</p><h2>Benutzer & Programme</h2><p>Rollen, Berechtigungen und individuelle Programmfreigaben verwalten.</p></div></div><div class="settings-link-grid"><article class="card"><span>♙</span><h3>Benutzerverwaltung</h3><p>Konten, Rollen, Status und individuelle Zugänge bearbeiten.</p><button class="secondary" data-settings-jump="users">Benutzer verwalten →</button></article><article class="card"><span>◎</span><h3>Programmsteuerung</h3><p>Startdaten, Freischaltungsmodi, Wochen und Fortschritt steuern.</p><button class="secondary" data-settings-jump="participants">Teilnehmende öffnen →</button></article></div></section></div></div></section>
-  </main>
-
-  <dialog id="participantDialog"><form id="participantForm"><div class="dialog-head"><div><p class="eyebrow">Onboarding</p><h2>Teilnehmer aufnehmen</h2></div><button type="button" data-close>×</button></div><label>Name<input name="name" required></label><label>E-Mail<input name="email" type="email" required></label><label>Programmstart<input name="programStartDate" type="date" required></label><p>Neue Teilnehmende starten standardmäßig im Modus „Abschlussbasiert“. Datenschutz-Einwilligung und Start-Commitment bleiben getrennte Pflicht-Gates.</p><div class="dialog-actions"><button type="button" class="secondary" data-close>Abbrechen</button><button class="primary" type="submit">Aufnehmen</button></div></form></dialog>
-  <dialog id="leadDialog" class="lead-dialog"><form id="leadForm"><div class="dialog-head"><div><p class="eyebrow">Lead · Verkaufsgespräch</p><h2 id="leadDialogTitle">Lead bearbeiten</h2><small id="leadDialogSource"></small></div><button type="button" data-close-lead>×</button></div><input type="hidden" name="id"><div class="lead-contact-grid"><label>Vorname<input name="firstName" required></label><label>Nachname<input name="lastName" required></label><label>E-Mail-Adresse<input name="email" type="email" required></label><label>Telefon<input name="phone" type="tel"></label><label>Status<select name="status"><option value="new">Neu</option><option value="contacted">Kontaktiert</option><option value="scheduled">Termin vereinbart</option><option value="consultation">Gespräch geführt</option><option value="offer">Angebot offen</option><option value="customer">Kunde</option><option value="lost">Nicht passend</option></select></label></div><label>Anliegen des Leads<textarea name="challenge" rows="3"></textarea></label><label>Interne Notizen<textarea name="internalNotes" rows="3"></textarea></label><section class="lead-appointment"><div class="lead-section-head"><div><p class="eyebrow">Google Calendar & Meet</p><h3>Erstgespräch planen</h3></div><span id="leadAppointmentState">Noch kein Termin</span></div><input name="appointmentStart" type="hidden"><div class="availability-toolbar"><label>Freie Termine ab<input id="slotRangeStart" type="date"></label><label>Dauer<select name="appointmentDuration"><option value="30">30 Minuten</option><option value="45" selected>45 Minuten</option><option value="60">60 Minuten</option><option value="90">90 Minuten</option></select></label><button type="button" class="secondary" id="refreshSlots">Freie Zeiten laden</button></div><div class="selected-slot" id="selectedSlot">Noch keinen freien Termin ausgewählt</div><div class="available-slots" id="availableSlots"><p>Freie Zeiten werden beim Öffnen geladen …</p></div><div class="lead-appointment-actions"><button type="button" class="primary" id="scheduleLead">Termin + Meet erstellen</button><a class="secondary hidden" id="openMeet" target="_blank" rel="noopener">Meet öffnen</a><a class="secondary hidden" id="openCalendarEvent" target="_blank" rel="noopener">Kalendereintrag</a><button type="button" class="secondary hidden" id="cancelLeadAppointment">Termin absagen</button></div></section><section class="lead-questions"><div class="lead-section-head"><div><p class="eyebrow">Gesprächsleitfaden</p><h3>Sechs Qualifizierungsfragen</h3></div><span>Antworten werden im Lead gespeichert</span></div><label><b>1. Sind Name, E-Mail-Adresse und Telefonnummer korrekt?</b><textarea name="q1" rows="2"></textarea></label><label><b>2. Wie sieht deine berufliche Situation momentan aus?</b><textarea name="q2" rows="2"></textarea></label><label><b>3. Was möchtest du durch das Coaching konkret erreichen?</b><textarea name="q3" rows="2"></textarea></label><label><b>4. Was hindert dich momentan am stärksten daran?</b><textarea name="q4" rows="2"></textarea></label><label><b>5. Was hast du bisher versucht und warum hat es noch nicht funktioniert?</b><textarea name="q5" rows="2"></textarea></label><label><b>6. Bist du bereit, acht Wochen Zeit und Energie in die Umsetzung zu investieren?</b><textarea name="q6" rows="2"></textarea></label></section><section class="lead-conversion"><div class="lead-section-head"><div><p class="eyebrow">Kaufabschluss</p><h3>Kundenkonto aktivieren</h3></div><span id="leadConversionState">Noch kein Konto angelegt</span></div><label>Programmstart<input name="programStartDate" type="date"></label><fieldset class="permission-options"><legend>Zugänge nach dem Kauf</legend><label><input type="checkbox" name="leadPermissions" value="customer_portal" checked> Kundenportal</label><label><input type="checkbox" name="leadPermissions" value="clara_program" checked> Clara-Programm</label><label><input type="checkbox" name="leadPermissions" value="documents" checked> Dokumente</label><label><input type="checkbox" name="leadPermissions" value="community"> Community</label></fieldset><p>Nach Bestätigung erhält der Kunde eine sichere E-Mail zur eigenen Passwortvergabe.</p></section><div class="dialog-actions lead-dialog-actions"><button type="button" class="secondary" data-close-lead>Schließen</button><button class="secondary" type="submit">Lead speichern</button><button class="primary" type="button" id="convertLead">Kauf bestätigen & Zugang senden</button></div></form></dialog>
-  <dialog id="bookingSettingsDialog" class="booking-settings-dialog"><form id="bookingSettingsForm"><div class="dialog-head"><div><p class="eyebrow">Admin-Einstellungen</p><h2>Verfügbarkeit für Erstgespräche</h2><small>Nur Zeiten in diesen Fenstern werden im Lead angezeigt und serverseitig akzeptiert.</small></div><button type="button" data-close-booking-settings>×</button></div><div class="booking-settings-note">Google-Kalendertermine innerhalb deiner Zeitfenster werden automatisch als belegt herausgefiltert.</div><div class="weekly-availability" id="weeklyAvailabilityRows"></div><div class="booking-rule-grid"><label>Standarddauer<select name="defaultDurationMinutes"><option value="30">30 Minuten</option><option value="45">45 Minuten</option><option value="60">60 Minuten</option><option value="90">90 Minuten</option></select></label><label>Terminraster<select name="slotIntervalMinutes"><option value="15">Alle 15 Minuten</option><option value="30">Alle 30 Minuten</option></select></label><label>Mindestvorlauf<input name="minNoticeHours" type="number" min="0" max="168" step="1"><small>Stunden</small></label><label>Buchungshorizont<input name="bookingHorizonDays" type="number" min="7" max="180" step="1"><small>Tage</small></label></div><div class="dialog-actions"><button type="button" class="secondary" data-close-booking-settings>Abbrechen</button><button type="submit" class="primary">Verfügbarkeit speichern</button></div></form></dialog>
-  <dialog id="userDialog"><form id="userForm"><div class="dialog-head"><div><p class="eyebrow">Zugang</p><h2>Benutzer anlegen</h2></div><button type="button" data-close-user>×</button></div><label>Name<input name="name" required></label><label>E-Mail<input name="email" type="email" required></label><label>Startpasswort <small>(optional)</small><input name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Leer lassen für Passwort-E-Mail"></label><label>Rolle<select name="role"><option value="user">Benutzer</option><option value="admin">Admin</option></select></label><fieldset class="permission-options"><legend>Individuelle Zugänge</legend><label><input type="checkbox" name="permissions" value="customer_portal"> Kundenportal</label><label><input type="checkbox" name="permissions" value="clara_program"> Clara-Programm</label><label><input type="checkbox" name="permissions" value="documents"> Dokumente</label><label><input type="checkbox" name="permissions" value="community"> Community</label></fieldset><p>Mit Startpasswort ist der Zugang sofort nutzbar. Ohne Startpasswort erhält der Benutzer eine sichere E-Mail zur eigenen Passwortvergabe.</p><div class="dialog-actions"><button type="button" class="secondary" data-close-user>Abbrechen</button><button class="primary" type="submit">Anlegen</button></div></form></dialog>
-  <dialog id="userEditDialog"><form id="userEditForm"><div class="dialog-head"><div><p class="eyebrow">Benutzerverwaltung</p><h2 id="editUserName">Benutzer bearbeiten</h2><small id="editUserEmail"></small></div><button type="button" data-close-user-edit>×</button></div><input type="hidden" name="id"><div class="program-fields"><label>Rolle<select name="role"><option value="user">Benutzer</option><option value="admin">Admin</option></select></label><label>Kontostatus<select name="status"><option value="active">Aktiv</option><option value="inactive">Deaktiviert</option></select></label></div><fieldset class="permission-options"><legend>Individuelle Zugänge</legend><label><input type="checkbox" name="permissions" value="customer_portal"> Kundenportal</label><label><input type="checkbox" name="permissions" value="clara_program"> Clara-Programm</label><label><input type="checkbox" name="permissions" value="documents"> Dokumente</label><label><input type="checkbox" name="permissions" value="community"> Community</label></fieldset><div class="user-security"><div><strong>Passwort vergessen?</strong><small>Versendet eine sichere E-Mail zur neuen Passwortvergabe.</small></div><button type="button" class="secondary" id="resetUserPassword">Passwort-Reset auslösen</button></div><div class="dialog-actions"><button type="button" class="secondary" data-close-user-edit>Abbrechen</button><button class="primary" type="submit">Änderungen speichern</button></div></form></dialog>
-  <dialog id="programDialog" class="program-dialog"><form id="programForm"><div class="dialog-head"><div><p class="eyebrow">Teilnehmerprofil · Programmsteuerung</p><h2 id="programParticipantName">Programmzugang</h2><small id="programParticipantEmail"></small></div><button type="button" data-close-program>×</button></div><input type="hidden" name="participantId" id="programParticipantId"><div class="program-status-bar"><span id="programCalculatedWeek">Aktuelle Freigabe wird geladen …</span><i id="programAccessBadge">Abschlussbasiert</i></div><div class="program-fields"><label>Programmstart<input id="programStartDate" name="programStartDate" type="date" required></label><label>Programmstatus<select id="programStatus" name="programStatus"><option value="active">Aktiv</option><option value="paused">Pausiert</option></select></label><label>Aktuelle Arbeitswoche<select id="programCurrentWeek" name="currentWeek"><option value="0">Onboarding</option><option value="1">Woche 1</option><option value="2">Woche 2</option><option value="3">Woche 3</option><option value="4">Woche 4</option><option value="5">Woche 5</option><option value="6">Woche 6</option><option value="7">Woche 7</option><option value="8">Woche 8</option></select></label></div><fieldset class="mode-options"><legend>Freischaltungsmodus</legend><label><input type="radio" name="accessMode" value="completion_based" checked><span><b>Abschlussbasiert <i>Standard</i></b><small>Nächste Woche nach Abschluss aller Pflichtaufgaben.</small></span></label><label><input type="radio" name="accessMode" value="time_based"><span><b>Zeitbasiert</b><small>Automatisch alle sieben Tage ab individuellem Startdatum.</small></span></label><label><input type="radio" name="accessMode" value="full_access"><span><b>Alles freigegeben</b><small>Sofortiger Zugriff auf alle acht Wochen und Aufgaben.</small></span></label></fieldset><div class="program-reset-banner" role="alert"><div><strong>Onboarding zurücksetzen</strong><small>Damit springt der Teilnehmer wieder auf den kompletten Start mit DSGVO + Start-Commitment.</small></div><button type="button" class="secondary danger" id="resetParticipantToOnboarding">Auf Onboarding zurücksetzen</button></div><div class="override-head"><div><strong>Manuelle Wochen-Overrides</strong><small>Ein manueller Lock hat immer höchste Priorität.</small></div><div><button type="button" class="secondary" id="unlockAllWeeks">Alle freigeben</button><button type="button" class="secondary" id="clearWeekOverrides">Overrides löschen</button></div></div><div class="week-overrides" id="weekOverrides"></div><details class="progress-correction"><summary>Fortschritt und Pflichtaufgaben korrigieren</summary><p>Änderungen markieren nur das jeweilige Gate. Sie schließen keine anderen Wochen automatisch ab.</p><div id="programGateList"></div></details><details class="technical-confirmations" open><summary>Technische Ergebnisse sicher bestätigen</summary><p>Nur aktuell erreichte externe Schritte können bestätigt werden. Jede Bestätigung wird mit Admin, Zeitpunkt und Prüfvermerk protokolliert.</p><div id="technicalConfirmationList"></div></details><div class="dialog-actions"><button type="button" class="secondary" data-close-program>Abbrechen</button><button class="primary" type="submit" id="saveProgram">Programmsteuerung speichern</button></div></form></dialog>
-  <div id="toast"></div><script src="admin.js"></script>
-</body></html>
+    <dialog id="participantDialog">
+      <form id="participantForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Onboarding</p>
+            <h2>Kunden aufnehmen</h2>
+          </div>
+          <button type="button" data-close>×</button>
+        </div>
+        <label>Name<input name="name" required /></label
+        ><label>E-Mail<input name="email" type="email" required /></label
+        ><label
+          >Programmstart<input name="programStartDate" type="date" required
+        /></label>
+        <p>
+          Neue Kunden starten standardmäßig im Modus „Abschlussbasiert“.
+          Datenschutz-Einwilligung und Start-Commitment bleiben getrennte
+          Pflicht-Gates.
+        </p>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" data-close>Abbrechen</button
+          ><button class="primary" type="submit">Aufnehmen</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="leadDialog" class="lead-dialog">
+      <form id="leadForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Interessent · Verkaufsgespräch</p>
+            <h2 id="leadDialogTitle">Interessenten bearbeiten</h2>
+            <small id="leadDialogSource"></small>
+          </div>
+          <button type="button" data-close-lead>×</button>
+        </div>
+        <input type="hidden" name="id" />
+        <div class="lead-contact-grid">
+          <label>Vorname<input name="firstName" required /></label
+          ><label>Nachname<input name="lastName" required /></label
+          ><label
+            >E-Mail-Adresse<input name="email" type="email" required /></label
+          ><label>Telefon<input name="phone" type="tel" /></label
+          ><label
+            >Status<select name="status">
+              <option value="new">Neu</option>
+              <option value="contacted">Kontaktiert</option>
+              <option value="scheduled">Termin vereinbart</option>
+              <option value="consultation">Gespräch geführt</option>
+              <option value="offer">Angebot offen</option>
+              <option value="customer">Kunde</option>
+              <option value="lost">Nicht passend</option>
+            </select></label
+          >
+        </div>
+        <label
+          >Anliegen des Interessenten<textarea
+            name="challenge"
+            rows="3"
+          ></textarea></label
+        ><label
+          >Interne Notizen<textarea name="internalNotes" rows="3"></textarea>
+        </label>
+        <section class="lead-appointment">
+          <div class="lead-section-head">
+            <div>
+              <p class="eyebrow">Google Calendar & Meet</p>
+              <h3>Erstgespräch planen</h3>
+            </div>
+            <span id="leadAppointmentState">Noch kein Termin</span>
+          </div>
+          <input name="appointmentStart" type="hidden" />
+          <div class="availability-toolbar">
+            <label
+              >Freie Termine ab<input id="slotRangeStart" type="date" /></label
+            ><label
+              >Dauer<select name="appointmentDuration">
+                <option value="30">30 Minuten</option>
+                <option value="45" selected>45 Minuten</option>
+                <option value="60">60 Minuten</option>
+                <option value="90">90 Minuten</option>
+              </select></label
+            ><button type="button" class="secondary" id="refreshSlots">
+              Freie Zeiten laden
+            </button>
+          </div>
+          <div class="selected-slot" id="selectedSlot">
+            Noch keinen freien Termin ausgewählt
+          </div>
+          <div class="available-slots" id="availableSlots">
+            <p>Freie Zeiten werden beim Öffnen geladen …</p>
+          </div>
+          <div class="lead-appointment-actions">
+            <button type="button" class="primary" id="scheduleLead">
+              Termin + Meet erstellen</button
+            ><a
+              class="secondary hidden"
+              id="openMeet"
+              target="_blank"
+              rel="noopener"
+              >Meet öffnen</a
+            ><a
+              class="secondary hidden"
+              id="openCalendarEvent"
+              target="_blank"
+              rel="noopener"
+              >Kalendereintrag</a
+            ><button
+              type="button"
+              class="secondary hidden"
+              id="cancelLeadAppointment"
+            >
+              Termin absagen
+            </button>
+          </div>
+        </section>
+        <section class="lead-questions">
+          <div class="lead-section-head">
+            <div>
+              <p class="eyebrow">Gesprächsleitfaden</p>
+              <h3>Sechs Qualifizierungsfragen</h3>
+            </div>
+            <span>Antworten werden beim Interessenten gespeichert</span>
+          </div>
+          <label
+            ><b>1. Sind Name, E-Mail-Adresse und Telefonnummer korrekt?</b
+            ><textarea name="q1" rows="2"></textarea></label
+          ><label
+            ><b>2. Wie sieht deine berufliche Situation momentan aus?</b
+            ><textarea name="q2" rows="2"></textarea></label
+          ><label
+            ><b>3. Was möchtest du durch das Coaching konkret erreichen?</b
+            ><textarea name="q3" rows="2"></textarea></label
+          ><label
+            ><b>4. Was hindert dich momentan am stärksten daran?</b
+            ><textarea name="q4" rows="2"></textarea></label
+          ><label
+            ><b
+              >5. Was hast du bisher versucht und warum hat es noch nicht
+              funktioniert?</b
+            ><textarea name="q5" rows="2"></textarea></label
+          ><label
+            ><b
+              >6. Bist du bereit, acht Wochen Zeit und Energie in die Umsetzung
+              zu investieren?</b
+            ><textarea name="q6" rows="2"></textarea>
+          </label>
+        </section>
+        <section class="lead-conversion">
+          <div class="lead-section-head">
+            <div>
+              <p class="eyebrow">Kaufabschluss</p>
+              <h3>Kundenkonto aktivieren</h3>
+            </div>
+            <span id="leadConversionState">Noch kein Konto angelegt</span>
+          </div>
+          <label
+            >Programmstart<input name="programStartDate" type="date"
+          /></label>
+          <fieldset class="permission-options">
+            <legend>Zugänge nach dem Kauf</legend>
+            <label
+              ><input
+                type="checkbox"
+                name="leadPermissions"
+                value="customer_portal"
+                checked
+              />
+              Kundenportal</label
+            ><label
+              ><input
+                type="checkbox"
+                name="leadPermissions"
+                value="clara_program"
+                checked
+              />
+              Clara-Programm</label
+            ><label
+              ><input
+                type="checkbox"
+                name="leadPermissions"
+                value="documents"
+                checked
+              />
+              Dokumente</label
+            ><label
+              ><input
+                type="checkbox"
+                name="leadPermissions"
+                value="community"
+              />
+              Community</label
+            >
+          </fieldset>
+          <p>
+            Nach Bestätigung erhält der Kunde eine sichere E-Mail zur eigenen
+            Passwortvergabe.
+          </p>
+        </section>
+        <div class="dialog-actions lead-dialog-actions">
+          <button type="button" class="secondary" data-close-lead>
+            Schließen</button
+          ><button class="secondary" type="submit">Interessenten speichern</button
+          ><button class="primary" type="button" id="convertLead">
+            Kauf bestätigen & Zugang senden
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="bookingSettingsDialog" class="booking-settings-dialog">
+      <form id="bookingSettingsForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Admin-Einstellungen</p>
+            <h2>Verfügbarkeit für Erstgespräche</h2>
+            <small
+              >Nur Zeiten in diesen Fenstern werden beim Interessenten angezeigt und
+              serverseitig akzeptiert.</small
+            >
+          </div>
+          <button type="button" data-close-booking-settings>×</button>
+        </div>
+        <div class="booking-settings-note">
+          Google-Kalendertermine innerhalb deiner Zeitfenster werden automatisch
+          als belegt herausgefiltert.
+        </div>
+        <div class="weekly-availability" id="weeklyAvailabilityRows"></div>
+        <div class="booking-rule-grid">
+          <label
+            >Standarddauer<select name="defaultDurationMinutes">
+              <option value="30">30 Minuten</option>
+              <option value="45">45 Minuten</option>
+              <option value="60">60 Minuten</option>
+              <option value="90">90 Minuten</option>
+            </select></label
+          ><label
+            >Terminraster<select name="slotIntervalMinutes">
+              <option value="15">Alle 15 Minuten</option>
+              <option value="30">Alle 30 Minuten</option>
+            </select></label
+          ><label
+            >Mindestvorlauf<input
+              name="minNoticeHours"
+              type="number"
+              min="0"
+              max="168"
+              step="1"
+            /><small>Stunden</small></label
+          ><label
+            >Buchungshorizont<input
+              name="bookingHorizonDays"
+              type="number"
+              min="7"
+              max="180"
+              step="1"
+            /><small>Tage</small></label
+          >
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" data-close-booking-settings>
+            Abbrechen</button
+          ><button type="submit" class="primary">
+            Verfügbarkeit speichern
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="userDialog">
+      <form id="userForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Zugang</p>
+            <h2>Benutzer anlegen</h2>
+          </div>
+          <button type="button" data-close-user>×</button>
+        </div>
+        <label>Name<input name="name" required /></label
+        ><label>E-Mail<input name="email" type="email" required /></label
+        ><label
+          >Startpasswort <small>(optional)</small
+          ><input
+            name="password"
+            type="password"
+            minlength="8"
+            autocomplete="new-password"
+            placeholder="Leer lassen für Passwort-E-Mail" /></label
+        ><label
+          >Rolle<select name="role">
+            <option value="user">Benutzer</option>
+            <option value="admin">Admin</option>
+          </select></label
+        >
+        <fieldset class="permission-options">
+          <legend>Individuelle Zugänge</legend>
+          <label
+            ><input
+              type="checkbox"
+              name="permissions"
+              value="customer_portal"
+            />
+            Kundenportal</label
+          ><label
+            ><input type="checkbox" name="permissions" value="clara_program" />
+            Clara-Programm</label
+          ><label
+            ><input type="checkbox" name="permissions" value="documents" />
+            Dokumente</label
+          ><label
+            ><input type="checkbox" name="permissions" value="community" />
+            Community</label
+          >
+        </fieldset>
+        <p>
+          Mit Startpasswort ist der Zugang sofort nutzbar. Ohne Startpasswort
+          erhält der Benutzer eine sichere E-Mail zur eigenen Passwortvergabe.
+        </p>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" data-close-user>
+            Abbrechen</button
+          ><button class="primary" type="submit">Anlegen</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="userEditDialog">
+      <form id="userEditForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Benutzerverwaltung</p>
+            <h2 id="editUserName">Benutzer bearbeiten</h2>
+            <small id="editUserEmail"></small>
+          </div>
+          <button type="button" data-close-user-edit>×</button>
+        </div>
+        <input type="hidden" name="id" />
+        <div class="program-fields">
+          <label
+            >Rolle<select name="role">
+              <option value="user">Benutzer</option>
+              <option value="admin">Admin</option>
+            </select></label
+          ><label
+            >Kontostatus<select name="status">
+              <option value="active">Aktiv</option>
+              <option value="inactive">Deaktiviert</option>
+            </select></label
+          >
+        </div>
+        <fieldset class="permission-options">
+          <legend>Individuelle Zugänge</legend>
+          <label
+            ><input
+              type="checkbox"
+              name="permissions"
+              value="customer_portal"
+            />
+            Kundenportal</label
+          ><label
+            ><input type="checkbox" name="permissions" value="clara_program" />
+            Clara-Programm</label
+          ><label
+            ><input type="checkbox" name="permissions" value="documents" />
+            Dokumente</label
+          ><label
+            ><input type="checkbox" name="permissions" value="community" />
+            Community</label
+          >
+        </fieldset>
+        <div class="user-security">
+          <div>
+            <strong>Passwort vergessen?</strong
+            ><small
+              >Versendet eine sichere E-Mail zur neuen Passwortvergabe.</small
+            >
+          </div>
+          <button type="button" class="secondary" id="resetUserPassword">
+            Passwort-Reset auslösen
+          </button>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" data-close-user-edit>
+            Abbrechen</button
+          ><button class="primary" type="submit">Änderungen speichern</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="programDialog" class="program-dialog">
+      <form id="programForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Kundenprofil · Programmsteuerung</p>
+            <h2 id="programParticipantName">Programmzugang</h2>
+            <small id="programParticipantEmail"></small>
+          </div>
+          <button type="button" data-close-program>×</button>
+        </div>
+        <input type="hidden" name="participantId" id="programParticipantId" />
+        <div class="program-status-bar">
+          <span id="programCalculatedWeek"
+            >Aktuelle Freigabe wird geladen …</span
+          ><i id="programAccessBadge">Abschlussbasiert</i>
+        </div>
+        <div class="program-fields">
+          <label
+            >Programmstart<input
+              id="programStartDate"
+              name="programStartDate"
+              type="date"
+              required /></label
+          ><label
+            >Programmstatus<select id="programStatus" name="programStatus">
+              <option value="active">Aktiv</option>
+              <option value="paused">Pausiert</option>
+            </select></label
+          ><label
+            >Aktuelle Arbeitswoche<select
+              id="programCurrentWeek"
+              name="currentWeek"
+            >
+              <option value="0">Onboarding</option>
+              <option value="1">Woche 1</option>
+              <option value="2">Woche 2</option>
+              <option value="3">Woche 3</option>
+              <option value="4">Woche 4</option>
+              <option value="5">Woche 5</option>
+              <option value="6">Woche 6</option>
+              <option value="7">Woche 7</option>
+              <option value="8">Woche 8</option>
+            </select></label
+          >
+        </div>
+        <fieldset class="mode-options">
+          <legend>Freischaltungsmodus</legend>
+          <label
+            ><input
+              type="radio"
+              name="accessMode"
+              value="completion_based"
+              checked
+            /><span
+              ><b>Abschlussbasiert <i>Standard</i></b
+              ><small
+                >Nächste Woche nach Abschluss aller Pflichtaufgaben.</small
+              ></span
+            ></label
+          ><label
+            ><input type="radio" name="accessMode" value="time_based" /><span
+              ><b>Zeitbasiert</b
+              ><small
+                >Automatisch alle sieben Tage ab individuellem
+                Startdatum.</small
+              ></span
+            ></label
+          ><label
+            ><input type="radio" name="accessMode" value="full_access" /><span
+              ><b>Alles freigegeben</b
+              ><small
+                >Sofortiger Zugriff auf alle acht Wochen und Aufgaben.</small
+              ></span
+            ></label
+          >
+        </fieldset>
+        <div class="program-reset-banner" role="alert">
+          <div>
+            <strong>Onboarding zurücksetzen</strong
+            ><small
+              >Damit springt der Kunde wieder auf den kompletten Start mit
+              DSGVO + Start-Commitment.</small
+            >
+          </div>
+          <button
+            type="button"
+            class="secondary danger"
+            id="resetParticipantToOnboarding"
+          >
+            Auf Onboarding zurücksetzen
+          </button>
+        </div>
+        <div class="override-head">
+          <div>
+            <strong>Manuelle Wochen-Overrides</strong
+            ><small>Ein manueller Lock hat immer höchste Priorität.</small>
+          </div>
+          <div>
+            <button type="button" class="secondary" id="unlockAllWeeks">
+              Alle freigeben</button
+            ><button type="button" class="secondary" id="clearWeekOverrides">
+              Overrides löschen
+            </button>
+          </div>
+        </div>
+        <div class="week-overrides" id="weekOverrides"></div>
+        <details class="progress-correction">
+          <summary>Fortschritt und Pflichtaufgaben korrigieren</summary>
+          <p>
+            Änderungen markieren nur das jeweilige Gate. Sie schließen keine
+            anderen Wochen automatisch ab.
+          </p>
+          <div id="programGateList"></div>
+        </details>
+        <details class="technical-confirmations" open>
+          <summary>Technische Ergebnisse sicher bestätigen</summary>
+          <p>
+            Nur aktuell erreichte externe Schritte können bestätigt werden. Jede
+            Bestätigung wird mit Admin, Zeitpunkt und Prüfvermerk protokolliert.
+          </p>
+          <div id="technicalConfirmationList"></div>
+        </details>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" data-close-program>
+            Abbrechen</button
+          ><button class="primary" type="submit" id="saveProgram">
+            Programmsteuerung speichern
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <div id="toast"></div>
+    <script src="admin.js"></script>
+  </body>
+</html>
