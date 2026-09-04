@@ -143,6 +143,67 @@ async function saveCommunicationAutomation(service, body) {
   return uuidValid(body?.id) ? patchCommunicationRecord(service, 'communication_automations', body.id, payload) : insertLeadRecord(service, 'communication_automations', payload);
 }
 
+function average(values) {
+  const numbers = values.map(Number).filter(Number.isFinite);
+  return numbers.length ? numbers.reduce((sum, value) => sum + value, 0) / numbers.length : null;
+}
+
+async function commandDashboard(service, admin) {
+  const requests = [
+    fetch(`${service.url}/rest/v1/user_profiles?role=eq.user&select=id,name,email,status,created_at&limit=1000`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/participant_progress?select=user_profile_id,current_week,process_status,program_start_date,program_status,last_activity_at,updated_at&limit=1000`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/clarity_measurements?select=user_profile_id,phase,score,measured_at&limit=3000`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/week_gates?required=eq.true&completed_at=is.null&select=id,user_profile_id,week,label&limit=5000`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/coach_escalations?status=neq.resolved&select=id,user_profile_id,reason,escalation_type,status,created_at&order=created_at.asc&limit=200`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/customer_questions?status=eq.open&select=id,user_profile_id,week,question,created_at&order=created_at.asc&limit=200`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/lead_tasks?completed=eq.false&select=id,lead_id,title,details,due_at,created_at&order=due_at.asc.nullslast&limit=200`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/leads?select=id,name,email,status,appointment_start,converted_user_profile_id,created_at&limit=1000`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/lead_communications?direction=eq.inbound&read_at=is.null&select=id,lead_id,subject,occurred_at&order=occurred_at.asc&limit=200`, { headers: headers(service.key) }),
+  ];
+  const results = await Promise.all(requests);
+  const [profiles, progressRows, measurements, openGateRows, escalations, questions, tasks, leads, unreadMessages] = await Promise.all(results.map((result) => readJson(result, 'Dashboard-Daten konnten nicht geladen werden.')));
+  const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
+  const leadMap = new Map(leads.map((lead) => [lead.id, lead]));
+  const activeProgress = progressRows.filter((progress) => progress.program_status === 'active' && profileMap.get(progress.user_profile_id)?.status === 'active');
+  const progressMap = new Map(activeProgress.map((progress) => [progress.user_profile_id, progress]));
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const newCustomers = activeProgress.filter((progress) => new Date(profileMap.get(progress.user_profile_id)?.created_at || 0) >= monthStart).length;
+  const activeLeads = leads.filter((lead) => !lead.converted_user_profile_id && !['customer', 'lost'].includes(lead.status)).length;
+  const distribution = Array.from({ length: 9 }, (_, week) => activeProgress.filter((progress) => Number(progress.current_week) === week).length);
+
+  const measurementsByParticipant = new Map();
+  measurements.forEach((measurement) => { const entry = measurementsByParticipant.get(measurement.user_profile_id) || {}; entry[measurement.phase] = Number(measurement.score); measurementsByParticipant.set(measurement.user_profile_id, entry); });
+  const completedGains = [...measurementsByParticipant.values()].filter((item) => Number.isFinite(item.start) && Number.isFinite(item.end)).map((item) => item.end - item.start);
+  const clarityPhases = ['start', 'midpoint', 'end'].map((phase) => ({ phase, average: average(measurements.filter((item) => item.phase === phase).map((item) => item.score)), count: measurements.filter((item) => item.phase === phase).length }));
+
+  const relevantOpenGates = openGateRows.filter((gate) => { const progress = progressMap.get(gate.user_profile_id); return progress && Number(gate.week) <= Number(progress.current_week); });
+  const staleThreshold = now.getTime() - 48 * 60 * 60 * 1000;
+  const overdueGates = relevantOpenGates.filter((gate) => new Date(progressMap.get(gate.user_profile_id)?.last_activity_at || progressMap.get(gate.user_profile_id)?.updated_at || now).getTime() < staleThreshold);
+  const escalationTypeLabels = { q_and_a: 'Rückfrage offen', blocked_gate: 'Gate blockiert', week_7_decision: 'Entscheidung offen', technical: 'Technische Klärung' };
+  const attention = [];
+  escalations.forEach((item) => { const profile = profileMap.get(item.user_profile_id); attention.push({ id: `escalation-${item.id}`, priority: 0, tone: 'red', icon: '!', title: `${profile?.name || 'Teilnehmer'} · ${escalationTypeLabels[item.escalation_type] || 'Coach benötigt'}`, subtitle: item.reason, actionLabel: 'Öffnen', entityType: 'participant', entityId: item.user_profile_id, createdAt: item.created_at }); });
+  questions.forEach((item) => { const profile = profileMap.get(item.user_profile_id); attention.push({ id: `question-${item.id}`, priority: 1, tone: 'orange', icon: '?', title: `${profile?.name || 'Teilnehmer'} · Kundenfrage`, subtitle: `Woche ${item.week} · ${item.question}`, actionLabel: 'Antworten', entityType: 'participant', entityId: item.user_profile_id, createdAt: item.created_at }); });
+  const gatesByParticipant = new Map();
+  overdueGates.forEach((gate) => { const list = gatesByParticipant.get(gate.user_profile_id) || []; list.push(gate); gatesByParticipant.set(gate.user_profile_id, list); });
+  gatesByParticipant.forEach((gates, profileId) => { const profile = profileMap.get(profileId), progress = progressMap.get(profileId); attention.push({ id: `gate-${profileId}`, priority: 1, tone: 'orange', icon: '↗', title: `${profile?.name || 'Teilnehmer'} · Gate blockiert`, subtitle: `Woche ${progress?.current_week || 0} · ${gates.length} offene Pflichtschritte`, actionLabel: 'Prüfen', entityType: 'participant', entityId: profileId, createdAt: progress?.last_activity_at || progress?.updated_at }); });
+  const tomorrowEnd = new Date(now.getTime() + 36 * 60 * 60 * 1000);
+  tasks.filter((item) => item.due_at && new Date(`${item.due_at}T23:59:59`) <= tomorrowEnd).forEach((item) => { const lead = leadMap.get(item.lead_id); attention.push({ id: `task-${item.id}`, priority: 1, tone: 'orange', icon: '✓', title: `${lead?.name || 'Interessent'} · Aufgabe fällig`, subtitle: item.title, actionLabel: 'Öffnen', entityType: 'lead', entityId: item.lead_id, createdAt: item.due_at }); });
+  unreadMessages.forEach((item) => { const lead = leadMap.get(item.lead_id); attention.push({ id: `message-${item.id}`, priority: 2, tone: 'green', icon: '✉', title: `${lead?.name || 'Kontakt'} · Neue Nachricht`, subtitle: item.subject, actionLabel: 'Lesen', entityType: 'lead', entityId: item.lead_id, createdAt: item.occurred_at }); });
+  const upcomingEnd = now.getTime() + 48 * 60 * 60 * 1000;
+  leads.filter((lead) => { const time = new Date(lead.appointment_start || 0).getTime(); return time >= now.getTime() && time <= upcomingEnd; }).forEach((lead) => attention.push({ id: `appointment-${lead.id}`, priority: 3, tone: 'green', icon: '◷', title: `${lead.name} · Gespräch steht an`, subtitle: new Date(lead.appointment_start).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' }), actionLabel: 'Öffnen', entityType: 'lead', entityId: lead.id, createdAt: lead.appointment_start }));
+  attention.sort((a, b) => a.priority - b.priority || new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+  const escalationCounts = escalations.reduce((counts, item) => ({ ...counts, [item.escalation_type]: (counts[item.escalation_type] || 0) + 1 }), {});
+  return {
+    generatedAt: now.toISOString(),
+    adminName: admin?.profile?.name || admin?.name || 'Markus',
+    summary: { activeCustomers: activeProgress.length, newCustomers, activeLeads, unreadMessages: unreadMessages.length, openGates: relevantOpenGates.length, overdueGates: overdueGates.length, coachNeeded: escalations.length, escalationCounts, onboarding: distribution[0] || 0 },
+    clarity: { averageGain: average(completedGains), completedComparisons: completedGains.length, phases: clarityPhases },
+    weekDistribution: distribution.slice(1),
+    attention: { total: attention.length, items: attention.slice(0, 6) },
+  };
+}
+
 async function leadDashboard(service, id) {
   const lead = await leadById(service, id);
   const leadFilter = `lead_id=eq.${encodeURIComponent(lead.id)}`;
@@ -305,6 +366,9 @@ export default async function handler(request, response) {
         openaiConfigured: Boolean(openai.apiKey),
         openaiModel: openai.model,
       }));
+    }
+    if (request.method === 'GET' && action === 'command-dashboard') {
+      return response.status(200).json(await commandDashboard(service, admin));
     }
     if (request.method === 'GET' && action === 'communications') {
       return response.status(200).json(await communicationInbox(service));

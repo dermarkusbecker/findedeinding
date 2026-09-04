@@ -83,18 +83,18 @@
       <section class="view active" data-panel="command">
         <div class="intro">
           <div>
-            <p class="eyebrow">Freitag, 28. August 2026</p>
-            <h1>Guten Abend, Markus. <em>✦</em></h1>
+            <p class="eyebrow" id="dashboardDate">Dashboard wird aktualisiert …</p>
+            <h1><span id="dashboardGreeting">Willkommen, Markus.</span> <em>✦</em></h1>
             <p>
               Hier siehst du, welche Kunden Klarheit gewinnen – und wo du
               gebraucht wirst.
             </p>
           </div>
-          <button class="secondary">Diese Woche⌄</button>
+          <span class="dashboard-live-state"><i></i><span id="dashboardLiveSummary">Live-Daten werden geladen</span></span>
         </div>
         <div class="metrics">
           <article class="dark">
-            <div><span>Aktive Kunden</span><b>+2 diesen Monat</b></div>
+            <div><span>Aktive Kunden</span><b id="dashboardNewCustomers">0 diesen Monat</b></div>
             <strong id="activeCustomerCount">0</strong>
             <p>über alle acht Prozesswochen</p>
             <div class="bars">
@@ -102,16 +102,16 @@
             </div>
           </article>
           <article class="peach">
-            <span>Ø Klarheitsgewinn</span><strong>+4,2</strong>
-            <p>Start- zu Endmessung · Skala 1–10</p>
+            <span>Ø Klarheitsgewinn</span><strong id="dashboardClarityGain">—</strong>
+            <p id="dashboardClarityCopy">Noch keine vollständige Start-/Endmessung</p>
           </article>
           <article class="yellow">
-            <span>Offene Gates</span><strong>7</strong>
-            <p>3 davon länger als 48 Stunden</p>
+            <span>Offene Gates</span><strong id="dashboardOpenGates">0</strong>
+            <p id="dashboardOpenGateCopy">Keine offenen Pflichtschritte</p>
           </article>
           <article class="sage">
-            <span>Coach benötigt</span><strong>2</strong>
-            <p>1 Entscheidung · 1 blockierte Aufgabe</p>
+            <span>Coach benötigt</span><strong id="dashboardCoachNeeded">0</strong>
+            <p id="dashboardCoachCopy">Keine offenen Eskalationen</p>
           </article>
         </div>
         <div class="main-grid">
@@ -133,32 +133,9 @@
                 <p class="eyebrow">Dein Fokus</p>
                 <h2>Heute braucht es dich</h2>
               </div>
-              <span class="count">3</span>
+              <span class="count" id="dashboardAttentionCount">0</span>
             </div>
-            <article>
-              <i class="red">!</i>
-              <div>
-                <strong>Julia · Entscheidung offen</strong>
-                <p>Woche 7 · Option A/B weiterhin unklar</p>
-              </div>
-              <button>Öffnen</button>
-            </article>
-            <article>
-              <i class="orange">↗</i>
-              <div>
-                <strong>David · Gate blockiert</strong>
-                <p>Woche 5 · Grabrede-Upload fehlt</p>
-              </div>
-              <button>Erinnern</button>
-            </article>
-            <article>
-              <i class="green">✓</i>
-              <div>
-                <strong>Leonie · Abschlusscall</strong>
-                <p>Dossier vollständig · Termin ausstehend</p>
-              </div>
-              <button>Planen</button>
-            </article>
+            <div id="dashboardAttentionList"><div class="empty">Offene Vorgänge werden geladen …</div></div>
           </section>
         </div>
         <div class="lower-grid">
@@ -170,29 +147,14 @@
               </div>
               <span class="note">Selbsteinschätzung 1–10</span>
             </div>
-            <div class="chart">
-              <div class="chart-line"></div>
-              <span style="left: 4%; bottom: 20%">2,1<small>Start</small></span
-              ><span style="left: 30%; bottom: 32%"
-                >3,4<small>Woche 3</small></span
-              ><span style="left: 58%; bottom: 51%"
-                >5,8<small>Halbzeit</small></span
-              ><span style="left: 88%; bottom: 74%"
-                >8,1<small>Ende</small></span
-              >
-            </div>
+            <div class="chart" id="dashboardClarityChart"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polyline id="dashboardClarityLine" points=""></polyline></svg><div id="dashboardClarityPoints"></div><p class="chart-empty" id="dashboardClarityEmpty">Noch keine Klarheitsmessungen vorhanden.</p></div>
           </section>
           <section class="card weekly">
             <p class="eyebrow">Verteilung</p>
             <h2>Aktive Wochen</h2>
-            <div class="week-row">
-              <span>1</span><span>2</span><span class="current">3</span
-              ><span>4</span><span>5</span><span>6</span><span>7</span
-              ><span>8</span>
-            </div>
-            <div class="week-counts">
-              <i>3</i><i>2</i><i>4</i><i>3</i><i>2</i><i>1</i><i>2</i><i>1</i>
-            </div>
+            <div class="week-row" id="dashboardWeekLabels"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span></div>
+            <div class="week-counts" id="dashboardWeekCounts"><i>0</i><i>0</i><i>0</i><i>0</i><i>0</i><i>0</i><i>0</i><i>0</i></div>
+            <p class="weekly-footnote" id="dashboardOnboardingCount">0 Kunden im Onboarding</p>
           </section>
         </div>
       </section>
