@@ -6,9 +6,9 @@ async function login(request, response) {
   try {
     const profile = await authenticateUser(request.body?.identifier || request.body?.email, request.body?.password);
     const mustChangePassword = profile.role === 'user' && profile.must_change_password === true;
-    const token = createSession(profile.email, profile.role, { userId: profile.auth_user_id, profileId: profile.id, participantId: profile.id, name: profile.name, email: profile.email, permissions: profile.permissions || [], mustChangePassword });
+    const token = createSession(profile.email, profile.role, { userId: profile.auth_user_id, profileId: profile.id, participantId: profile.id, name: profile.name, email: profile.email, permissions: profile.permissions || [], staffRole: profile.staff_role || null, staffPermissions: profile.staff_permissions || [], mustChangePassword });
     response.setHeader('Set-Cookie', sessionCookie(token));
-    return response.status(200).json({ ok: true, destination: mustChangePassword ? '/login?change=required' : profile.role === 'admin' ? '/admin' : '/portal', mustChangePassword, user: { name: profile.name, email: profile.email, loginName: profile.portal_username, role: profile.role, permissions: profile.permissions || [] } });
+    return response.status(200).json({ ok: true, destination: mustChangePassword ? '/login?change=required' : profile.role === 'admin' ? '/admin' : '/portal', mustChangePassword, user: { name: profile.name, email: profile.email, loginName: profile.portal_username, role: profile.role, permissions: profile.permissions || [], staffRole: profile.staff_role || null, staffPermissions: profile.staff_permissions || [] } });
   } catch (error) { return response.status(error.status || 500).json({ error: error.message || 'Anmeldung fehlgeschlagen.' }); }
 }
 

@@ -42,7 +42,7 @@ test('globale CRM-Suche schlägt ab drei Zeichen Interessenten und Kunden vor un
   assert.match(script, /normalized\.length<3/);
   assert.match(script, /collectContactSearchValues/);
   assert.match(script, /lead\.converted_user_profile_id/);
-  assert.match(script, /showView\('participants'\);await openProgramControl/);
+  assert.match(script, /showView\('participants'\);await openCustomerDashboard/);
   assert.match(script, /showView\('leads'\);await openLeadDashboard/);
   assert.match(styles, /\.global-crm-search-results\s*\{/);
   assert.match(styles, /\.global-contact-result:hover/);

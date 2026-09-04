@@ -46,7 +46,7 @@ async function handleQuestionSettings(request, response, service, admin) {
 }
 
 export default async function handler(request, response) {
-  const admin = await requireCurrentAdmin(request, response);
+  const admin = await requireCurrentAdmin(request, response, ['settings', 'program']);
   if (!admin) return;
   const service = config(), participantId = request.query?.participantId;
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });

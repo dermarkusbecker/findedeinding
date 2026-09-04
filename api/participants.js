@@ -3,13 +3,19 @@ import { authHeaders, profileById, randomTemporaryPassword, requireCurrentAdmin,
 function config() { const url = process.env.SUPABASE_URL?.replace(/\/$/, ''); const key = process.env.SUPABASE_SERVICE_ROLE_KEY; return url && key ? { url, key } : null; }
 function headers(key, extra = {}) { return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...extra }; }
 export default async function handler(request, response) {
-  if (!await requireCurrentAdmin(request, response)) return;
+  if (!await requireCurrentAdmin(request, response, ['customers', 'program'])) return;
   const service = config();
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
   if (request.method === 'GET') {
-    const result = await fetch(`${service.url}/rest/v1/user_profiles?role=eq.user&select=*,participant_progress!inner(*)&order=created_at.desc`, { headers: headers(service.key) });
-    const participants = await result.json();
-    return response.status(result.status).json(result.ok ? { participants } : { error: participants.message });
+    const [result, linksResult] = await Promise.all([
+      fetch(`${service.url}/rest/v1/user_profiles?role=eq.user&select=*,participant_progress!inner(*)&order=created_at.desc`, { headers: headers(service.key) }),
+      fetch(`${service.url}/rest/v1/leads?converted_user_profile_id=not.is.null&select=id,converted_user_profile_id`, { headers: headers(service.key) }),
+    ]);
+    const participants = await result.json(), links = await linksResult.json();
+    if (!result.ok) return response.status(result.status).json({ error: participants.message });
+    if (!linksResult.ok) return response.status(linksResult.status).json({ error: links.message });
+    const leadByCustomer = new Map(links.map((lead) => [lead.converted_user_profile_id, lead.id]));
+    return response.status(200).json({ participants: participants.map((participant) => ({ ...participant, linked_lead_id: leadByCustomer.get(participant.id) || null })) });
   }
   if (request.method === 'POST') {
     return response.status(409).json({ error: 'Teilnehmer werden ausschließlich nach einem vollständig bestätigten Lead-Vertragsabschluss automatisch angelegt.' });

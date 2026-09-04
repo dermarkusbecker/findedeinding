@@ -51,7 +51,7 @@ async function handleGateSettings(request,response,service,admin){
 }
 
 export default async function handler(request,response){
-  const admin=await requireCurrentAdmin(request,response);if(!admin)return;
+  const admin=await requireCurrentAdmin(request,response,['settings','program']);if(!admin)return;
   const service=config(),participantId=request.query?.participantId||request.body?.participantId;
   if(!service)return response.status(503).json({error:'Supabase ist noch nicht konfiguriert.'});
   if(request.query?.action==='settings'){

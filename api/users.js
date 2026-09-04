@@ -1,5 +1,6 @@
 import { USER_PERMISSIONS } from '../lib/auth.js';
 import { authHeaders, createManagedAuthUser, profileById, requireCurrentAdmin, sendPasswordReset, supabaseAuthConfig } from '../lib/user-auth.js';
+import { STAFF_ROLES, staffPermissionsFor, validStaffRole } from '../lib/staff-roles.js';
 
 const clean = (value, max = 160) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const emailValid = (email) => /^\S+@\S+\.\S+$/.test(email);
@@ -17,24 +18,25 @@ async function hasParticipantProgram(service, profileId) {
 }
 
 export default async function handler(request, response) {
-  const admin = await requireCurrentAdmin(request, response);
+  const admin = await requireCurrentAdmin(request, response, 'users');
   if (!admin) return;
   const service = supabaseAuthConfig();
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
   try {
     if (request.method === 'GET') {
-      const users = await data(await fetch(`${service.url}/rest/v1/user_profiles?select=id,auth_user_id,name,email,role,status,permissions,created_at,participant_progress(current_week,process_status,program_status,access_mode)&order=created_at.desc`, { headers: authHeaders(service.serviceKey) }));
-      return response.status(200).json({ users, permissions: USER_PERMISSIONS });
+      const users = await data(await fetch(`${service.url}/rest/v1/user_profiles?select=id,auth_user_id,name,email,role,status,permissions,staff_role,staff_permissions,created_at,participant_progress(current_week,process_status,program_status,access_mode)&order=created_at.desc`, { headers: authHeaders(service.serviceKey) }));
+      return response.status(200).json({ users, permissions: USER_PERMISSIONS, staffRoles: STAFF_ROLES });
     }
     if (request.method === 'POST') {
       const name = clean(request.body?.name, 120), email = clean(request.body?.email, 254).toLowerCase(), role = clean(request.body?.role, 20) || 'user';
       const password = typeof request.body?.password === 'string' ? request.body.password : '';
       const permissions = permissionsFrom(request.body?.permissions);
+      const staffRole = role === 'admin' && validStaffRole(request.body?.staffRole) ? request.body.staffRole : role === 'admin' ? 'administrator' : null;
       if (!name || !emailValid(email) || !['admin', 'user'].includes(role)) return response.status(400).json({ error: 'Name, gültige E-Mail und Rolle sind erforderlich.' });
       if (password && password.length < 8) return response.status(400).json({ error: 'Das Startpasswort muss mindestens acht Zeichen lang sein.' });
       if (role === 'user' && permissions.includes('clara_program')) return response.status(409).json({ error: 'Teilnehmerzugänge entstehen ausschließlich automatisch nach dem vollständig bestätigten Lead-Vertragsabschluss.' });
       const authUser = await createManagedAuthUser(service, email, name, password);
-      const profiles = await data(await fetch(`${service.url}/rest/v1/user_profiles`, { method: 'POST', headers: { ...authHeaders(service.serviceKey), Prefer: 'return=representation' }, body: JSON.stringify({ auth_user_id: authUser.id, name, email, role, status: 'active', permissions }) }));
+      const profiles = await data(await fetch(`${service.url}/rest/v1/user_profiles`, { method: 'POST', headers: { ...authHeaders(service.serviceKey), Prefer: 'return=representation' }, body: JSON.stringify({ auth_user_id: authUser.id, name, email, role, status: 'active', permissions, staff_role: staffRole, staff_permissions: staffRole ? staffPermissionsFor(staffRole) : [] }) }));
       return response.status(201).json({ user: profiles[0], passwordResetSent: !password, programCreated: false });
     }
     if (request.method === 'PATCH') {
@@ -67,6 +69,12 @@ export default async function handler(request, response) {
         if (existing.id === admin.profileId && request.body.role !== 'admin') return response.status(409).json({ error: 'Du kannst deinem eigenen Konto nicht die Adminrolle entziehen.' });
         changes.role = request.body.role;
       }
+      if (request.body?.staffRole !== undefined) {
+        if (request.body.staffRole && !validStaffRole(request.body.staffRole)) return response.status(400).json({ error: 'Ungültige interne Rolle.' });
+        if (existing.id === admin.profileId && existing.staff_role === 'owner' && request.body.staffRole !== 'owner') return response.status(409).json({ error: 'Du kannst deinem eigenen Konto die Systeminhaberrolle nicht entziehen.' });
+        changes.staff_role = request.body.staffRole || null;
+        changes.staff_permissions = request.body.staffRole ? staffPermissionsFor(request.body.staffRole) : [];
+      }
       if (request.body?.status !== undefined) {
         if (!['active', 'inactive'].includes(request.body.status)) return response.status(400).json({ error: 'Ungültiger Kontostatus.' });
         if (existing.id === admin.profileId && request.body.status === 'inactive') return response.status(409).json({ error: 'Du kannst dein eigenes Konto nicht deaktivieren.' });
@@ -76,6 +84,7 @@ export default async function handler(request, response) {
       if (!Object.keys(changes).length) return response.status(400).json({ error: 'Keine Änderung übermittelt.' });
       const targetRole = changes.role || existing.role;
       const targetPermissions = changes.permissions || existing.permissions || [];
+      if (targetRole === 'user') { changes.staff_role = null; changes.staff_permissions = []; }
       if (targetRole === 'user' && targetPermissions.includes('clara_program') && !await hasParticipantProgram(service, existing.id)) return response.status(409).json({ error: 'Dieser Benutzer ist noch kein Teilnehmer. Der Clara-Zugang wird erst nach dem vollständig bestätigten Lead-Vertragsabschluss vergeben.' });
       const users = await data(await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { ...authHeaders(service.serviceKey), Prefer: 'return=representation' }, body: JSON.stringify(changes) }));
       return response.status(200).json({ user: users[0], programCreated: false });

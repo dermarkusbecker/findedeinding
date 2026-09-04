@@ -166,6 +166,7 @@
       </section>
 
       <section class="view" data-panel="participants">
+        <section id="participantOverview" class="participant-overview">
         <div class="intro">
           <div>
             <p class="eyebrow">Prozesssteuerung</p>
@@ -197,15 +198,16 @@
             <option value="7">Woche 7</option>
             <option value="8">Woche 8</option>
           </select>
-        </div>
-        <div class="participant-table card">
-          <div class="table-head">
-            <span>Kunde</span><span>Phase</span><span>Fortschritt & Modus</span
-            ><span>Startdatum</span><span>Programmsteuerung</span>
+          <span class="participant-result-count" id="participantResultCount">0 Kunden</span>
+          <div class="participant-view-switch" aria-label="Kundenansicht auswählen">
+            <button type="button" class="active" data-participant-view="tiles" aria-label="Kachelansicht">▦ <span>Kacheln</span></button>
+            <button type="button" data-participant-view="list" aria-label="Listenansicht">☷ <span>Liste</span></button>
+            <button type="button" data-participant-view="details" aria-label="Detailansicht">▤ <span>Details</span></button>
           </div>
-          <div id="participantRows"></div>
         </div>
-        <section class="card participant-login-manager" id="participantLoginManager">
+        <div id="participantRows" class="customer-overview-results tiles"></div>
+        </section>
+        <section class="card participant-login-manager" id="participantLoginManager" hidden>
           <div class="settings-card-head">
             <div>
               <p class="eyebrow">Sichere Portalzugänge</p>
@@ -223,6 +225,34 @@
               ><span>Zugangsstatus</span><span>Verwaltung</span>
             </div>
             <div id="participantLoginRows"></div>
+          </div>
+        </section>
+        <section id="customerDashboard" class="customer-crm-dashboard" hidden aria-label="Kunden-Dashboard">
+          <button class="lead-back" id="closeCustomerDashboard" type="button">← Zurück zu allen Kunden</button>
+          <section class="lead-profile-hero customer-profile-hero">
+            <div class="lead-profile-main"><span id="customerDashboardInitials">KD</span><div><p class="eyebrow">Kundenakte</p><div class="lead-name-line"><h1 id="customerDashboardName">Kunde</h1><i id="customerDashboardPhase">Onboarding</i></div><p id="customerDashboardContact">E-Mail · Telefon</p></div></div>
+            <div class="lead-profile-actions"><button class="secondary" id="openCustomerProgram" type="button">Programm steuern</button><button class="primary" id="openCustomerLogin" type="button">Teilnehmer-Login →</button></div>
+          </section>
+          <div class="customer-dashboard-page active" data-customer-page="dashboard">
+            <section class="card customer-week-progress"><div class="lead-card-heading"><div><p class="eyebrow">8-Wochen-Prozess</p><h2 id="customerProgramHeadline">Aktueller Kundenfortschritt</h2></div><span id="customerProgramProgress">0 %</span></div><div class="customer-week-track" id="customerWeekTrack"></div></section>
+            <div class="customer-dashboard-summary">
+              <article class="lead-dashboard-card"><div class="lead-card-heading"><div><span class="lead-card-icon">◎</span><h2>Name &amp; Adresse</h2></div></div><div id="customerSummaryContact"></div></article>
+              <article class="lead-dashboard-card lead-balance-card"><div class="lead-card-heading"><div><span class="lead-card-icon">€</span><h2>Kontostand</h2></div></div><div class="lead-balance-summary"><small>Offener Saldo</small><strong id="customerOpenBalance">0,00 €</strong><span id="customerBalanceState">Keine offenen Forderungen</span></div></article>
+              <article class="lead-dashboard-card"><div class="lead-card-heading"><div><span class="lead-card-icon">✉</span><h2>Kommunikation</h2></div></div><div id="customerCommunicationSummary" class="customer-summary-copy"></div></article>
+              <article class="lead-dashboard-card"><div class="lead-card-heading"><div><span class="lead-card-icon">✓</span><h2>Aufgaben &amp; Fragen</h2></div></div><div id="customerTaskSummary" class="customer-summary-copy"></div></article>
+            </div>
+          </div>
+          <div class="customer-dashboard-page" data-customer-page="data" hidden>
+            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Kundenstammdaten</p><h2>Name &amp; Adresse</h2></div><button class="lead-card-menu" id="editCustomerData" type="button" aria-label="Kundendaten bearbeiten">•••</button></div><div id="customerDataPage"></div></section>
+          </div>
+          <div class="customer-dashboard-page" data-customer-page="conversation" hidden>
+            <section class="card customer-page-card customer-conversation-page"><div class="lead-card-heading"><div><p class="eyebrow">Persönliche Betreuung</p><h2>Kundengespräch</h2><p>Gesprächsleitfaden, Antworten und nächster Schritt direkt in der Kundenakte bearbeiten.</p></div><span id="customerConversationState">Noch nicht dokumentiert</span></div><form id="customerConversationForm"><div id="customerConversationQuestions" class="customer-conversation-questions"></div><label>Gesprächsnotiz<textarea name="internalNotes" rows="5" placeholder="Erkenntnisse, Einwände und nächste Schritte …"></textarea></label><div class="customer-conversation-actions"><div id="customerConversationAppointment"></div><button class="primary" type="submit">Kundengespräch speichern</button></div></form></section>
+          </div>
+          <div class="customer-dashboard-page" data-customer-page="program" hidden>
+            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Programmsteuerung</p><h2>Acht Wochen im Überblick</h2></div><button class="primary" id="editCustomerProgram" type="button">Programm verwalten</button></div><div class="customer-week-track large" id="customerProgramPageWeeks"></div></section>
+          </div>
+          <div class="customer-dashboard-page" data-customer-page="login" hidden>
+            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Sicherer Portalzugang</p><h2>Teilnehmer-Login</h2></div><button class="primary" id="manageCustomerLogin" type="button">Zugang verwalten</button></div><div id="customerLoginPage" class="customer-login-page"></div></section>
           </div>
         </section>
       </section>
@@ -548,6 +578,17 @@
           </div>
           <button class="primary" id="openUser">+ Benutzer anlegen</button>
         </div>
+        <section class="card role-system-card">
+          <div class="settings-card-head"><div><p class="eyebrow">Rollen &amp; Rechte</p><h2>Klare Zuständigkeiten im CRM</h2><p>Jede interne Rolle erhält automatisch nur die für ihren Arbeitsbereich notwendigen Rechte.</p></div><span class="settings-state active">Serverseitig geschützt</span></div>
+          <div class="role-system-grid" id="staffRoleOverview">
+            <article><span>01</span><h3>Systeminhaber</h3><p>Vollzugriff einschließlich Rollen, Benutzer und Einstellungen.</p></article>
+            <article><span>02</span><h3>Administration</h3><p>Operative Gesamtverwaltung ohne Änderung der Inhaberrolle.</p></article>
+            <article><span>03</span><h3>Vertrieb</h3><p>Interessenten, Verkaufsgespräche und Kommunikation.</p></article>
+            <article><span>04</span><h3>Kundenbetreuung</h3><p>Kundenakten, Kundengespräche und Acht-Wochen-Prozess.</p></article>
+            <article><span>05</span><h3>Kommunikation</h3><p>Postfach, Vorlagen, Seriennachrichten und Automationen.</p></article>
+            <article><span>06</span><h3>Finanzen</h3><p>Verträge, Kontostände und Zahlungsabgleich.</p></article>
+          </div>
+        </section>
         <div class="participant-table card user-table">
           <div class="table-head">
             <span>Benutzer</span><span>Rolle & Status</span><span>Zugänge</span
@@ -1158,6 +1199,15 @@
             <option value="user">Benutzer</option>
             <option value="admin">Admin</option>
           </select></label
+        ><label
+          >Interne CRM-Rolle<select name="staffRole">
+            <option value="administrator">Administration</option>
+            <option value="sales">Vertrieb</option>
+            <option value="customer_success">Kundenbetreuung</option>
+            <option value="communications">Kommunikation</option>
+            <option value="finance">Finanzen</option>
+            <option value="owner">Systeminhaber</option>
+          </select></label
         >
         <fieldset class="permission-options">
           <legend>Individuelle Zugänge</legend>
@@ -1210,6 +1260,16 @@
             >Kontostatus<select name="status">
               <option value="active">Aktiv</option>
               <option value="inactive">Deaktiviert</option>
+            </select></label
+          ><label
+            >Interne CRM-Rolle<select name="staffRole">
+              <option value="">Keine interne Rolle</option>
+              <option value="owner">Systeminhaber</option>
+              <option value="administrator">Administration</option>
+              <option value="sales">Vertrieb</option>
+              <option value="customer_success">Kundenbetreuung</option>
+              <option value="communications">Kommunikation</option>
+              <option value="finance">Finanzen</option>
             </select></label
           >
         </div>

@@ -208,6 +208,8 @@ create table if not exists public.user_profiles (
   whatsapp_phone text,
   preferred_communication_channel text not null default 'email' check (preferred_communication_channel in ('email', 'phone', 'whatsapp')),
   postal_mail_active boolean not null default true,
+  staff_role text check (staff_role is null or staff_role in ('owner', 'administrator', 'sales', 'customer_success', 'communications', 'finance')),
+  staff_permissions text[] not null default '{}'::text[],
   role text not null default 'user' check (role in ('admin', 'user')),
   status text not null default 'active' check (status in ('active', 'inactive')),
   permissions text[] not null default '{}'::text[],

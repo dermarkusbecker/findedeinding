@@ -22,7 +22,7 @@ function clean(value, max = 160) {
 }
 
 export default async function handler(request, response) {
-  if (!await requireCurrentAdmin(request, response)) return;
+  if (!await requireCurrentAdmin(request, response, 'leads')) return;
   const config = configuration();
   if (!config) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
 

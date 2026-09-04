@@ -34,7 +34,7 @@ test('zweite Navigation und Adminbereich verwalten Login, Einmalpasswort und Mai
   const [html, client, participantsApi, styles] = await Promise.all([
     file('admin.html'), file('admin.js'), file('api/participants.js'), file('admin-crm-refresh.css'),
   ]);
-  assert.match(client, /\['Teilnehmer-Login','Login, Einmalpasswort & Versand','#participantLoginManager'\]/);
+  assert.match(client, /\['Teilnehmer-Login','Login, Einmalpasswort & Versand','#participantLoginManager'/);
   for (const id of ['participantLoginManager', 'participantLoginDialog', 'issueOneTimePassword', 'sendParticipantLoginMail', 'oneTimePasswordResult']) assert.match(html, new RegExp(`id="${id}"`));
   assert.match(participantsApi, /action === 'update-login'/);
   assert.match(participantsApi, /action === 'issue-one-time-password'/);

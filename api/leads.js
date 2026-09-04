@@ -326,6 +326,17 @@ async function publicLead(request, response, service) {
   return response.status(201).json({ ok: true });
 }
 
+function permissionForAction(action) {
+  if (action === 'command-dashboard') return 'dashboard';
+  if (action.startsWith('communication')) return 'communications';
+  if (action === 'available-slots') return ['settings', 'sales_calls', 'leads'];
+  if (['google-connect', 'google-callback', 'booking-settings', 'system-status'].includes(action)) return 'settings';
+  if (['dashboard', 'dashboard-record'].includes(action)) return ['leads', 'customers', 'finance'];
+  if (action === 'update') return ['leads', 'sales_calls', 'customers'];
+  if (['schedule', 'cancel-appointment'].includes(action)) return ['leads', 'sales_calls'];
+  return 'leads';
+}
+
 export default async function handler(request, response) {
   const service = serviceConfig();
   const action = request.query?.action || request.body?.action || '';
@@ -334,7 +345,7 @@ export default async function handler(request, response) {
     try { return await publicLead(request, response, service); }
     catch (error) { return response.status(error.status || 500).json({ error: error.message }); }
   }
-  const admin = await requireCurrentAdmin(request, response);
+  const admin = await requireCurrentAdmin(request, response, permissionForAction(action));
   if (!admin) return;
   try {
     if (request.method === 'GET' && action === 'google-connect') {
