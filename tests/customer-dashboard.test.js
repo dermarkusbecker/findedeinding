@@ -79,6 +79,9 @@ test('Aktueller Prozessschritt folgt dem Fortschritt statt der letzten Freischal
   ]);
   assert.match(access, /function recordedProgramWeek/);
   assert.match(access, /const processWeek = progress\.process_status === 'FINAL_REPORT'/);
+  assert.match(access, /function reconcileProgramPosition/);
+  assert.match(portal, /activeProcessWeek\(program\.access\)/);
+  assert.match(await readFile(new URL('../api/participant-program.js', import.meta.url), 'utf8'), /reconcileProgramPosition\(rawAccess, verifiedCompletedWeeks\)/);
   assert.match(access, /completed: completedWeeks\.includes\(week\), readyToComplete: gateCompletedWeeks\.includes\(week\)/);
   assert.match(portal, /function activeProcessWeek/);
   assert.match(portal, /sidePhase.*dashboardWeek.*dashboardSummary/s);

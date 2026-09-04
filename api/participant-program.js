@@ -1,6 +1,6 @@
 import { requireCurrentPermission } from '../lib/user-auth.js';
 import { getParticipantProgramAccess, patchParticipantProgress, serviceHeaders } from '../lib/program-access-service.js';
-import { isOnboardingComplete, isProgramWeekFinalized } from '../lib/program-access.js';
+import { isOnboardingComplete, isProgramWeekFinalized, reconcileProgramPosition } from '../lib/program-access.js';
 import { applyWeekOneAction, createWeekOneState, missingWeekOneRequirements, stepStatuses, weekOneComplete, weekOnePrompt } from '../lib/week-one.js';
 import { applyGuidedWeekAction, createGuidedWeekState, guidedClarityStep, guidedStepStatuses, guidedWeekComplete, guidedWeekDefinition, missingGuidedRequirements, needsGuidedClarityCheckin, normalizeGuidedWeekState } from '../lib/guided-weeks.js';
 import { readClarityQuestionOverrides, resolveClarityPrompt } from '../lib/clarity-questions.js';
@@ -154,20 +154,29 @@ export default async function handler(request, response) {
       const weekOneState = await readWeekOneState(result, session.participantId);
       const preconditions = weekOnePreconditions(result.progress);
       const weekOneGateComplete = weekOneComplete(weekOneState, preconditions);
-      const access = result.serializedAccess;
+      const rawAccess = result.serializedAccess;
       const requestedWeek = request.query?.week === undefined ? null : Number(request.query.week);
       if (requestedWeek !== null && (!Number.isInteger(requestedWeek) || requestedWeek < 1 || requestedWeek > 8)) return response.status(400).json({ error: 'Ungültige Woche.' });
       if (requestedWeek !== null && !preconditions.privacyConsent) return response.status(403).json({ error: 'Bevor es losgehen kann, brauchen wir noch deine bestätigte Datenschutz-Einwilligung.' });
       if (requestedWeek !== null && !preconditions.startCommitment) return response.status(403).json({ error: 'Bevor es losgehen kann, fehlt noch dein unterschriebenes persönliches Commitment.' });
       if (!onboardingComplete && requestedWeek !== null) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
-      if (requestedWeek !== null && !access.weekStates.some((state) => state.week === requestedWeek && state.accessible)) return response.status(403).json({ error: 'Diese Woche ist noch nicht freigeschaltet.', access });
+      if (requestedWeek !== null && !rawAccess.weekStates.some((state) => state.week === requestedWeek && state.accessible)) return response.status(403).json({ error: 'Diese Woche ist noch nicht freigeschaltet.', access: rawAccess });
+      const guidedStates = await readGuidedWeekStates(result, session.participantId);
+      const verifiedCompletedWeeks = rawAccess.completedWeeks.filter((week) => {
+        if (Number(week) === 1) return weekOneGateComplete;
+        const state = guidedStates.get(Number(week));
+        return Boolean(state) && guidedWeekComplete(state);
+      });
+      const access = reconcileProgramPosition(rawAccess, verifiedCompletedWeeks);
+      if (access.processWeek < Number(rawAccess.processWeek || 1)) {
+        await patchParticipantProgress(result.service, session.participantId, { current_week: access.processWeek, process_status: `WEEK_${access.processWeek}` });
+      }
       const accessibleWeeks = (onboardingComplete ? access.unlockedWeeks : []).map((week) => {
         const content = programWeeks.find((item) => item.week === week);
         return { week, title: content.title, mode: content.mode };
       });
       const processWeekAccessible = access.weekStates.some((state) => state.week === Number(access.processWeek) && state.accessible);
       const selectedWeek = onboardingComplete ? (requestedWeek || (processWeekAccessible ? Number(access.processWeek) : access.unlockedWeeks[0] || 1)) : 0;
-      const guidedStates = await readGuidedWeekStates(result, session.participantId);
       const guidedState = selectedWeek >= 2 ? (guidedStates.get(selectedWeek) || createGuidedWeekState(selectedWeek)) : null;
       const clarityHistory = buildClarityHistory(weekOneState, guidedStates);
       const currentClarity = clarityHistory.filter((item) => Number.isInteger(item.score)).at(-1) || null;
@@ -292,6 +301,9 @@ export default async function handler(request, response) {
         if (!guidedWeekComplete(guidedState)) return response.status(409).json({ error: `Fast geschafft. Es fehlt noch: ${missingGuidedRequirements(guidedState).join(', ')}.` });
         const required = result.gates.filter((gate) => Number(gate.week) === week && gate.required !== false);
         if (!required.length || required.some((gate) => !gate.completed_at)) return response.status(409).json({ error: 'Die Woche ist erst abgeschlossen, wenn alle Pflichtaufgaben bestätigt sind.' });
+        guidedState.status = 'completed';
+        guidedState.completed_at = new Date().toISOString();
+        await saveGuidedWeekState(result, session.participantId, week, guidedState, `Woche ${week} abgeschlossen`);
       }
       const nextWeek = Math.min(8, week + 1);
       await patchParticipantProgress(result.service, session.participantId, { current_week: nextWeek, process_status: week === 8 ? 'FINAL_REPORT' : `WEEK_${nextWeek}`, last_activity_at: new Date().toISOString() });

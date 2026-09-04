@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateProgramAccess, isOnboardingComplete, isProgramWeekFinalized, programWeekSchedule, reopenWeekState, resetParticipantProgressState } from '../lib/program-access.js';
+import { calculateProgramAccess, isOnboardingComplete, isProgramWeekFinalized, programWeekSchedule, reconcileProgramPosition, reopenWeekState, resetParticipantProgressState } from '../lib/program-access.js';
 
 const requiredGates = (week, completed = true) => [1, 2, 3].map((index) => ({ week, gate_key: `w${week}_${index}`, required: true, completed_at: completed ? '2026-08-01T10:00:00Z' : null }));
 
@@ -82,6 +82,30 @@ test('Prozessposition bleibt nach zwei Abschlüssen in Woche 3, auch wenn Woche 
   assert.equal(access.recordedCurrentWeek, 3);
   assert.deepEqual(access.completedWeeks, [1, 2]);
   assert.equal(access.processWeek, 3);
+});
+
+test('unbelegte alte Prozessstände springen zur ersten wirklich offenen Woche zurück', () => {
+  const claimed = calculateProgramAccess({
+    progress: { current_week: 3, process_status: 'WEEK_3', privacy_consent_at: '2026-09-04', start_commitment_at: '2026-09-04', program_start_date: '2026-09-04' },
+    now: new Date('2026-09-25T12:00:00Z'),
+  });
+  const corrected = reconcileProgramPosition(claimed, []);
+  assert.equal(corrected.processWeek, 1);
+  assert.equal(corrected.recordedCurrentWeek, 1);
+  assert.equal(corrected.recordedProcessStatus, 'WEEK_1');
+  assert.deepEqual(corrected.completedWeeks, []);
+  assert.ok(corrected.weekStates.every((week) => week.completed === false));
+});
+
+test('belegte Wochen ergeben überall dieselbe nächste Prozesswoche', () => {
+  const claimed = calculateProgramAccess({
+    progress: { current_week: 5, process_status: 'WEEK_5', privacy_consent_at: '2026-08-01', start_commitment_at: '2026-08-01', program_start_date: '2026-08-01' },
+    now: new Date('2026-09-25T12:00:00Z'),
+  });
+  const corrected = reconcileProgramPosition(claimed, [1, 2]);
+  assert.equal(corrected.processWeek, 3);
+  assert.deepEqual(corrected.completedWeeks, [1, 2]);
+  assert.deepEqual(corrected.weekStates.filter((week) => week.completed).map((week) => week.week), [1, 2]);
 });
 
 test('erledigte Pflichtschritte markieren die aktuelle Woche noch nicht als abgeschlossen', () => {

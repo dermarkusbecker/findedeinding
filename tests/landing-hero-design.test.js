@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
-const [html, css] = await Promise.all([
+const [html, css, script] = await Promise.all([
   readFile(new URL('index.html', root), 'utf8'),
   readFile(new URL('landing-reference.css', root), 'utf8'),
+  readFile(new URL('landing.js', root), 'utf8'),
 ]);
 
 test('landing hero uses modern, differentiated status badges without brown fills', () => {
@@ -24,4 +25,17 @@ test('landing hero uses modern, differentiated status badges without brown fills
 
   assert.doesNotMatch(css, /\.trust-line span>b\{[^}]*background:#a96543/);
   assert.doesNotMatch(css, /\.hero-float\{[^}]*background:rgba\(55,38,31,.91\)/);
+});
+
+test('landing page introduces Clara briefly as a personal guide without taking the decision', () => {
+  assert.match(html, /id="clara"/);
+  assert.match(html, /assets\/clara-progress-guide-v1\.png/);
+  assert.match(html, /Sie erinnert sich\./);
+  assert.match(html, /Sie erkennt Zusammenhänge\./);
+  assert.match(html, /Sie bringt dich ins Handeln\./);
+  assert.match(html, /Clara entscheidet nie für dich\./);
+  assert.match(html, /data-clara="decision"/);
+  assert.match(script, /decision: \['Welche kleine Handlung/);
+  assert.match(css, /\.clara-portrait-stage\{/);
+  assert.match(css, /@keyframes landingClaraFloat/);
 });

@@ -90,7 +90,7 @@ document.querySelectorAll('.process-tab').forEach((button) => button.addEventLis
 const claraContent = {
   memory: ['Was würde sich in deinem Leben verändern, wenn dieser Wunsch erfüllt wäre?', 'Ich hätte wieder das Gefühl, meine Zeit für etwas zu nutzen, das mir wirklich wichtig ist.', 'MUSTER FESTGEHALTEN', 'Sinn · Selbstbestimmung · Wirkung'],
   patterns: ['Wenn du an deine besten Tage denkst: Was war dort anders als sonst?', 'Ich konnte etwas gestalten, hatte Freiheit und war trotzdem mit Menschen im Austausch.', 'ZUSAMMENHANG ERKANNT', 'Gestalten · Autonomie · Verbindung'],
-  human: ['An dieser Stelle kann ein persönlicher Blick helfen. Soll Markus dazukommen?', 'Ja. Ich möchte meine beiden Möglichkeiten mit ihm gemeinsam sortieren.', 'PERSÖNLICHE BEGLEITUNG', 'Gespräch mit Markus vorbereitet']
+  decision: ['Welche kleine Handlung würde diese Richtung in den nächsten 24 Stunden realer machen?', 'Ich vereinbare ein Gespräch und prüfe meine Idee an der Realität.', 'NÄCHSTER SCHRITT', 'Eigene Entscheidung · konkret umgesetzt']
 };
 const activateClara = (item) => {
   document.querySelectorAll('.clara-feature').forEach((feature) => feature.classList.remove('active'));

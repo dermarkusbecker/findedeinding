@@ -45,6 +45,9 @@ test('Prozesskarte öffnet ein zugängliches, schließbares Clara-Fortschrittsfe
   assert.match(script, /progressCelebrationDialog.*showModal/s);
   assert.match(script, /event\.key === 'Enter'.*event\.key === ' '/s);
   assert.match(styles, /\.progress-celebration-dialog::backdrop/);
+  assert.match(styles, /\.progress-celebration-head \{[\s\S]*?display: block;/);
+  assert.match(styles, /\.progress-celebration-shell \{[\s\S]*?display: grid;/);
+  assert.match(styles, /\.celebration-clara \{[\s\S]*?position: relative;/);
   assert.match(styles, /@keyframes claraFloat/);
   assert.match(styles, /prefers-reduced-motion/);
 });
