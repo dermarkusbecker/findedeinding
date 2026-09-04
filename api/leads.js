@@ -33,6 +33,81 @@ async function patchLead(service, id, changes) {
   return rows[0];
 }
 
+async function insertLeadRecord(service, table, payload) {
+  const rows = await readJson(await fetch(`${service.url}/rest/v1/${table}`, { method: 'POST', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify(payload) }), 'CRM-Eintrag konnte nicht gespeichert werden.');
+  return rows[0] || null;
+}
+
+async function leadDashboard(service, id) {
+  const lead = await leadById(service, id);
+  const leadFilter = `lead_id=eq.${encodeURIComponent(lead.id)}`;
+  const requests = [
+    fetch(`${service.url}/rest/v1/lead_contracts?${leadFilter}&select=*&order=created_at.desc`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/lead_payments?${leadFilter}&select=*&order=booked_at.desc,created_at.desc`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/lead_communications?${leadFilter}&select=*&order=occurred_at.desc`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/lead_tasks?${leadFilter}&select=*&order=completed.asc,due_at.asc.nullslast,created_at.desc`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/lead_bank_accounts?${leadFilter}&select=*&limit=1`, { headers: headers(service.key) }),
+  ];
+  if (lead.converted_user_profile_id) {
+    requests.push(fetch(`${service.url}/rest/v1/customer_questions?user_profile_id=eq.${encodeURIComponent(lead.converted_user_profile_id)}&select=*&order=status.asc,created_at.desc`, { headers: headers(service.key) }));
+    requests.push(fetch(`${service.url}/rest/v1/participant_progress?user_profile_id=eq.${encodeURIComponent(lead.converted_user_profile_id)}&select=current_week,process_status,program_start_date,program_status&limit=1`, { headers: headers(service.key) }));
+  }
+  const results = await Promise.all(requests);
+  const bodies = await Promise.all(results.map((result) => readJson(result, 'Lead-Dashboard konnte nicht geladen werden.')));
+  const [contracts, payments, communications, tasks, bankAccounts, questions = [], progressRows = []] = bodies;
+  const contractTotal = contracts.filter((item) => item.status === 'signed').reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const paidTotal = payments.filter((item) => item.status === 'booked').reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  return { lead, contracts, payments, communications, tasks, bankAccount: bankAccounts[0] || null, questions, progress: progressRows[0] || null, finance: { contractTotal, paidTotal, openBalance: Math.max(0, contractTotal - paidTotal) } };
+}
+
+async function recordDashboardMutation(service, request) {
+  const lead = await leadById(service, request.body?.id);
+  const recordType = clean(request.body?.recordType, 40);
+  if (recordType === 'contract') {
+    const amount = Number(request.body?.amount);
+    const status = ['draft', 'sent', 'signed', 'cancelled'].includes(request.body?.status) ? request.body.status : 'draft';
+    const title = clean(request.body?.title, 180);
+    if (!title || !Number.isFinite(amount) || amount < 0) throw Object.assign(new Error('Vertragsbezeichnung und gültiger Betrag sind erforderlich.'), { status: 400 });
+    return insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, title, contract_number: clean(request.body?.contractNumber, 80) || null, amount, status, signed_at: status === 'signed' ? new Date().toISOString() : null });
+  }
+  if (recordType === 'payment') {
+    const amount = Number(request.body?.amount);
+    const bookedAt = /^\d{4}-\d{2}-\d{2}$/.test(request.body?.bookedAt || '') ? request.body.bookedAt : new Date().toISOString().slice(0, 10);
+    if (!Number.isFinite(amount) || amount <= 0) throw Object.assign(new Error('Ein positiver Zahlungsbetrag ist erforderlich.'), { status: 400 });
+    return insertLeadRecord(service, 'lead_payments', { lead_id: lead.id, amount, status: 'booked', booked_at: bookedAt, reference: clean(request.body?.reference, 180) || null });
+  }
+  if (recordType === 'communication') {
+    const subject = clean(request.body?.subject, 220);
+    const direction = ['inbound', 'outbound', 'system'].includes(request.body?.direction) ? request.body.direction : 'outbound';
+    if (!subject) throw Object.assign(new Error('Ein Betreff ist erforderlich.'), { status: 400 });
+    return insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, subject, direction, preview: clean(request.body?.preview, 2000) || null });
+  }
+  if (recordType === 'task') {
+    const title = clean(request.body?.title, 220);
+    if (!title) throw Object.assign(new Error('Eine Aufgabenbezeichnung ist erforderlich.'), { status: 400 });
+    return insertLeadRecord(service, 'lead_tasks', { lead_id: lead.id, title, details: clean(request.body?.details, 2000) || null, due_at: /^\d{4}-\d{2}-\d{2}$/.test(request.body?.dueAt || '') ? request.body.dueAt : null });
+  }
+  if (recordType === 'bank') {
+    const payload = { lead_id: lead.id, account_holder: clean(request.body?.accountHolder, 180) || null, iban: clean(request.body?.iban, 50).replace(/\s+/g, '').toUpperCase() || null, bic: clean(request.body?.bic, 20).replace(/\s+/g, '').toUpperCase() || null, payment_reference: clean(request.body?.paymentReference, 180) || null, updated_at: new Date().toISOString() };
+    const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_bank_accounts?on_conflict=lead_id`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify(payload) }), 'Bankverbindung konnte nicht gespeichert werden.');
+    return rows[0] || null;
+  }
+  if (recordType === 'note') return patchLead(service, lead.id, { internal_notes: clean(request.body?.notes, 10000) || null });
+  if (recordType === 'toggle_task') {
+    if (!uuidValid(request.body?.taskId)) throw Object.assign(new Error('Gültige Aufgaben-ID fehlt.'), { status: 400 });
+    const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_tasks?id=eq.${encodeURIComponent(request.body.taskId)}&lead_id=eq.${encodeURIComponent(lead.id)}`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ completed: request.body?.completed === true, updated_at: new Date().toISOString() }) }), 'Aufgabe konnte nicht aktualisiert werden.');
+    if (!rows[0]) throw Object.assign(new Error('Aufgabe wurde nicht gefunden.'), { status: 404 });
+    return rows[0];
+  }
+  if (recordType === 'answer_question') {
+    if (!uuidValid(request.body?.questionId) || !lead.converted_user_profile_id) throw Object.assign(new Error('Gültige Kundenfrage fehlt.'), { status: 400 });
+    const rows = await readJson(await fetch(`${service.url}/rest/v1/customer_questions?id=eq.${encodeURIComponent(request.body.questionId)}&user_profile_id=eq.${encodeURIComponent(lead.converted_user_profile_id)}`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ status: 'answered', admin_note: clean(request.body?.adminNote, 2000) || null, updated_at: new Date().toISOString() }) }), 'Kundenfrage konnte nicht aktualisiert werden.');
+    if (!rows[0]) throw Object.assign(new Error('Kundenfrage wurde nicht gefunden.'), { status: 404 });
+    return rows[0];
+  }
+  throw Object.assign(new Error('Unbekannter Dashboard-Eintrag.'), { status: 400 });
+}
+
 async function googleConnection(service) {
   const rows = await readJson(await fetch(`${service.url}/rest/v1/integration_settings?provider=eq.google_calendar&select=encrypted_credentials,connected_email,updated_at&limit=1`, { headers: headers(service.key) }), 'Google-Verbindung konnte nicht geladen werden.');
   if (!rows[0]?.encrypted_credentials) throw Object.assign(new Error('Google Calendar ist noch nicht mit dem CRM verbunden.'), { status: 409 });
@@ -124,6 +199,11 @@ export default async function handler(request, response) {
       const slots = generateAvailableSlots({ settings, from: clean(request.query?.from, 10), to: clean(request.query?.to, 10), duration: Number(request.query?.duration), busyIntervals, now: new Date() });
       return response.status(200).json({ settings, slots });
     }
+    if (request.method === 'GET' && action === 'dashboard') return response.status(200).json(await leadDashboard(service, request.query?.id));
+    if (request.method === 'POST' && action === 'dashboard-record') {
+      const record = await recordDashboardMutation(service, request);
+      return response.status(200).json({ ok: true, record });
+    }
     if (request.method === 'GET') {
       const leads = await readJson(await fetch(`${service.url}/rest/v1/leads?select=*&order=created_at.desc&limit=200`, { headers: headers(service.key) }), 'Leads konnten nicht geladen werden.');
       return response.status(200).json({ leads });
@@ -151,6 +231,7 @@ export default async function handler(request, response) {
       const event = await saveCalendarEvent(accessToken, lead, startDate.toISOString(), endDate.toISOString());
       const meetUrl = event.hangoutLink || event.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || lead.meet_url || null;
       const updated = await patchLead(service, lead.id, { appointment_start: startDate.toISOString(), appointment_end: endDate.toISOString(), appointment_timezone: 'Europe/Berlin', calendar_event_id: event.id, calendar_event_url: event.htmlLink || lead.calendar_event_url, meet_url: meetUrl, status: 'scheduled' });
+      await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Kalendereinladung zum Erstgespräch', preview: `Termin am ${startDate.toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} mit Google Meet.` }).catch(() => null);
       return response.status(200).json({ lead: updated, event: { id: event.id, htmlLink: event.htmlLink, meetUrl } });
     }
     if (request.method === 'POST' && action === 'cancel-appointment') {
@@ -167,6 +248,7 @@ export default async function handler(request, response) {
       const permissions = Array.isArray(request.body?.permissions) ? request.body.permissions : ['customer_portal', 'clara_program', 'documents'];
       const profile = await provisionProgramUser(service, { name, email, startDate: request.body?.programStartDate, permissions });
       const updated = await patchLead(service, lead.id, { first_name: firstName || lead.first_name, last_name: lastName || lead.last_name, name, email, status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
+      await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Kundenportal-Zugang versendet', preview: 'Der Kunde hat die E-Mail zur sicheren Passwortvergabe erhalten.' }).catch(() => null);
       return response.status(200).json({ lead: updated, profile: { id: profile.id, name: profile.name, email: profile.email }, invitationSent: true });
     }
     return response.status(405).json({ error: 'Aktion oder Methode nicht erlaubt.' });

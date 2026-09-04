@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="admin-app.css" />
     <link rel="stylesheet" href="admin-program.css" />
     <link rel="stylesheet" href="admin-crm-refresh.css" />
+    <link rel="stylesheet" href="admin-lead-dashboard.css" />
   </head>
   <body>
     <aside class="sidebar">
@@ -425,26 +426,49 @@
         </div>
       </section>
       <section class="view" data-panel="leads">
-        <div class="intro">
-          <div>
-            <p class="eyebrow">Vertrieb</p>
-            <h1>Interessenten</h1>
-            <p>
-              Anfragen qualifizieren, freie Kalenderzeiten auswählen,
-              Meet-Termine planen und nach dem Kauf sicher als Kunden
-              aktivieren.
-            </p>
+        <div id="leadListView">
+          <div class="intro">
+            <div>
+              <p class="eyebrow">Vertrieb</p>
+              <h1>Interessenten</h1>
+              <p>
+                Anfragen qualifizieren, freie Kalenderzeiten auswählen,
+                Meet-Termine planen und nach dem Kauf sicher als Kunden
+                aktivieren.
+              </p>
+            </div>
+          </div>
+          <div class="participant-table card">
+            <div class="table-head">
+              <span>Interessent</span><span>Quelle</span><span>Status</span
+              ><span>Eingang</span><span>Nächster Schritt</span>
+            </div>
+            <div id="leadRows">
+              <div class="empty">Interessenten werden geladen …</div>
+            </div>
           </div>
         </div>
-        <div class="participant-table card">
-          <div class="table-head">
-            <span>Interessent</span><span>Quelle</span><span>Status</span
-            ><span>Eingang</span><span>Nächster Schritt</span>
+        <section id="leadDashboard" class="lead-crm-dashboard hidden" aria-label="Interessenten-Dashboard">
+          <button class="lead-back" id="closeLeadDashboard" type="button">← Zurück zu allen Interessenten</button>
+          <section class="lead-profile-hero" id="leadDashboardOverview">
+            <div class="lead-profile-main"><span id="leadDashboardInitials">IN</span><div><p class="eyebrow">Interessentenakte</p><div class="lead-name-line"><h1 id="leadDashboardName">Interessent</h1><i id="leadDashboardStatus">Neu</i></div><p id="leadDashboardContact">E-Mail · Telefon</p></div></div>
+            <div class="lead-profile-actions"><button class="secondary" id="editLeadProfile" type="button">Kontaktdaten & Termin</button><button class="primary" id="leadDashboardConvert" type="button">Vertrag & Kundenstart →</button></div>
+          </section>
+          <section class="lead-sales-progress card">
+            <div class="lead-card-heading"><div><p class="eyebrow">Vertriebsfortschritt</p><h2 id="leadSalesProgressTitle">Vom Erstkontakt bis zum Kundenstart</h2></div><span id="leadSalesProgressCount">Schritt 1 von 7</span></div>
+            <div class="lead-progress-track" id="leadProgressTrack"></div>
+          </section>
+          <div class="lead-dashboard-grid">
+            <section class="lead-dashboard-card lead-contact-card" id="leadContactCard"><div class="lead-card-heading"><div><span class="lead-card-icon">◎</span><h2>Kontakt & Anfrage</h2></div><button class="lead-card-menu" type="button" data-lead-edit="profile" aria-label="Kontakt bearbeiten">•••</button></div><div id="leadContactDetails"></div></section>
+            <section class="lead-dashboard-card lead-balance-card" id="leadFinanceCard"><div class="lead-card-heading"><div><span class="lead-card-icon">€</span><h2>Kontostand</h2></div><button class="lead-card-menu" type="button" data-lead-record="payment" aria-label="Zahlung erfassen">•••</button></div><div class="lead-balance-summary"><small>Offener Saldo</small><strong id="leadOpenBalance">0,00 €</strong><span id="leadBalanceState">Keine offenen Forderungen</span></div><dl id="leadBalanceDetails"></dl><button class="lead-card-action" type="button" data-lead-record="payment">+ Zahlungseingang erfassen</button></section>
+            <section class="lead-dashboard-card lead-communication-card" id="leadCommunicationCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✉</span><h2>E-Mail-Verkehr</h2></div><button class="lead-card-menu" type="button" data-lead-record="communication" aria-label="E-Mail protokollieren">•••</button></div><div class="lead-timeline" id="leadCommunicationList"></div><button class="lead-card-action" type="button" data-lead-record="communication">+ E-Mail protokollieren</button></section>
+            <section class="lead-dashboard-card lead-contract-card" id="leadContractsCard"><div class="lead-card-heading"><div><span class="lead-card-icon">▤</span><h2>Verträge</h2></div><button class="lead-card-menu" type="button" data-lead-record="contract" aria-label="Vertrag anlegen">•••</button></div><div class="lead-contract-list" id="leadContractList"></div><button class="lead-card-action" type="button" data-lead-record="contract">+ Vertrag anlegen</button></section>
+            <section class="lead-dashboard-card lead-task-card" id="leadTasksCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✓</span><h2>Aufgaben & Kundenfragen</h2></div><button class="lead-card-menu" type="button" data-lead-record="task" aria-label="Aufgabe anlegen">•••</button></div><div class="lead-task-tabs"><button class="active" type="button" data-lead-task-filter="all">Alle</button><button type="button" data-lead-task-filter="questions">Fragen aus 8 Wochen</button></div><div class="lead-task-list" id="leadTaskList"></div><button class="lead-card-action" type="button" data-lead-record="task">+ Aufgabe anlegen</button></section>
+            <section class="lead-dashboard-card lead-notes-card" id="leadNotesCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✎</span><h2>Notizen</h2></div><button class="lead-card-menu" type="button" data-lead-record="note" aria-label="Notizen bearbeiten">•••</button></div><p id="leadNotesText">Noch keine internen Notizen vorhanden.</p><button class="lead-card-action" type="button" data-lead-record="note">Notizen bearbeiten</button></section>
+            <section class="lead-dashboard-card lead-bank-card" id="leadBankCard"><div class="lead-card-heading"><div><span class="lead-card-icon">▦</span><h2>Bankverbindung</h2></div><button class="lead-card-menu" type="button" data-lead-record="bank" aria-label="Bankverbindung bearbeiten">•••</button></div><dl id="leadBankDetails"></dl><button class="lead-card-action" type="button" data-lead-record="bank">Bankdaten hinterlegen</button></section>
+            <section class="lead-dashboard-card lead-next-card" id="leadNextStepsCard"><div class="lead-card-heading"><div><span class="lead-card-icon">↗</span><h2>Nächste Schritte</h2></div></div><div id="leadNextSteps"></div></section>
           </div>
-          <div id="leadRows">
-            <div class="empty">Interessenten werden geladen …</div>
-          </div>
-        </div>
+        </section>
       </section>
       <section class="view" data-panel="users">
         <div class="intro">
@@ -820,7 +844,7 @@
           >Programmstart<input name="programStartDate" type="date" required
         /></label>
         <p>
-          Neue Kunden starten standardmäßig im Modus „Abschlussbasiert“.
+          Neue Kunden starten standardmäßig im Modus „Zeitbasiert“.
           Datenschutz-Einwilligung und Start-Commitment bleiben getrennte
           Pflicht-Gates.
         </p>
@@ -1011,6 +1035,17 @@
             Kauf bestätigen & Zugang senden
           </button>
         </div>
+      </form>
+    </dialog>
+    <dialog id="leadRecordDialog" class="lead-record-dialog">
+      <form id="leadRecordForm">
+        <div class="dialog-head">
+          <div><p class="eyebrow">Interessentenakte</p><h2 id="leadRecordTitle">Eintrag hinzufügen</h2><small id="leadRecordCopy">Der Eintrag wird sicher in der Kundenakte gespeichert.</small></div>
+          <button type="button" data-close-lead-record>×</button>
+        </div>
+        <input type="hidden" name="recordType" />
+        <div id="leadRecordFields"></div>
+        <div class="dialog-actions"><button type="button" class="secondary" data-close-lead-record>Abbrechen</button><button type="submit" class="primary">Speichern</button></div>
       </form>
     </dialog>
     <dialog id="bookingSettingsDialog" class="booking-settings-dialog">

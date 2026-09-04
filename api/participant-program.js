@@ -175,6 +175,15 @@ export default async function handler(request, response) {
     } else if (action === 'revoke_privacy') {
       const now = new Date().toISOString();
       await patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: null, current_week: 0, process_status: 'ONBOARDING', last_activity_at: now });
+    } else if (action === 'support_question') {
+      if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
+      const question = String(request.body?.question || '').trim().slice(0, 3000);
+      const week = Number(request.body?.week);
+      if (!question || !Number.isInteger(week) || week < 1 || week > 8) return response.status(400).json({ error: 'Bitte gib eine gültige Frage ein.' });
+      const created = await fetch(`${result.service.url}/rest/v1/customer_questions`, { method: 'POST', headers: serviceHeaders(result.service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ user_profile_id: session.participantId, week, question }) });
+      const rows = await created.json().catch(() => ([]));
+      if (!created.ok || !rows[0]) return response.status(created.status || 500).json({ error: rows.message || 'Deine Frage konnte nicht gespeichert werden.' });
+      return response.status(201).json({ ok: true, question: rows[0] });
     } else if (action === 'week_1_update') {
       if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const currentState = await readWeekOneState(result, session.participantId);

@@ -972,7 +972,20 @@ $('#completeWeek').addEventListener('click', async () => {
   try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'complete_week', week: completedWeek }) }); if (completedWeek === 8 && !local.clarityEnd) { const score = Number(prompt('Wie klar ist dir heute auf einer Skala von 1 bis 10, was dein Ding ist?')); if (score >= 1 && score <= 10) { local.clarityEnd = score; saveLocal(); } } todayMode = 'dashboard'; await loadProgram(); showView('today'); toast(completedWeek === 8 ? 'Digitaler Prozess abgeschlossen.' : `Woche ${completedWeek} abgeschlossen. Deine Übersicht wurde aktualisiert.`); }
   catch (error) { toast(error.message); }
 });
-$('#saveSupport').addEventListener('click', () => { const text = $('#supportText').value.trim(); if (!text) return; local.support.push({ text, week: currentWeek, at: new Date().toISOString() }); $('#supportText').value = ''; saveLocal(); toast('Deine Frage wurde für das Q&A gespeichert.'); });
+$('#saveSupport').addEventListener('click', async () => {
+  const text = $('#supportText').value.trim();
+  if (!text) return;
+  const button = $('#saveSupport');
+  button.disabled = true;
+  try {
+    const result = await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'support_question', week: currentWeek, question: text }) });
+    local.support.push({ id: result.question?.id, text, week: currentWeek, at: result.question?.created_at || new Date().toISOString() });
+    $('#supportText').value = '';
+    saveLocal();
+    toast('Deine Frage wurde an Markus übermittelt.');
+  } catch (error) { toast(error.message); }
+  finally { button.disabled = false; }
+});
 $('#customerLogout').addEventListener('click', async () => { await fetch('/api/auth?action=session', { method: 'DELETE' }); location.replace('/login'); });
 
 loadProgram().catch((error) => { if (error.status === 401) location.replace('/kunden-login'); else toast(error.message); });
