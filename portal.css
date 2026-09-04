@@ -1764,7 +1764,7 @@ header strong { font-size: 14px; }
 .dashboard-week-tile.current>span { background: var(--accent-strong); color: #fff; }
 .dashboard-week-tile.available { background: #fffdfb; border-color: #f1c9ad; }
 .dashboard-week-tile:not(:disabled):hover,.dashboard-week-tile:not(:disabled):focus-visible { border-color: var(--accent-strong); box-shadow: 0 15px 30px rgba(213,92,32,.13); outline: 0; transform: translateY(-3px); }
-.dashboard-week-tile.locked { cursor: default; opacity: .68; }
+.dashboard-week-tile.locked { cursor: pointer; opacity: .82; }
 .dashboard-detail-grid { display: grid; gap: 18px; grid-template-columns: 1.35fr .85fr; }
 .dashboard-current-week,.dashboard-schedule { background: linear-gradient(145deg,rgba(255,255,255,.96),rgba(255,248,243,.9)); border: 1px solid rgba(93,62,43,.11); border-radius: 22px; box-shadow: var(--shadow-soft); padding: 26px; }
 .dashboard-current-week { align-items: flex-end; display: flex; gap: 25px; justify-content: space-between; }
@@ -1780,6 +1780,26 @@ header strong { font-size: 14px; }
 .dashboard-schedule>p:last-child { color: var(--muted); font-size: 12px; line-height: 1.55; margin: 0; }
 .back-dashboard { background: transparent; border: 0; color: #326f94; cursor: pointer; font-size: 13px; font-weight: 850; grid-column: 1/-1; justify-self: start; padding: 4px 0; }
 .back-dashboard:hover { color: var(--accent-strong); }
+
+.week-preview-dialog { width: min(720px,calc(100vw - 28px)); max-height: min(820px,calc(100vh - 28px)); padding: 0; overflow: auto; border: 0; border-radius: 26px; background: transparent; box-shadow: 0 34px 90px rgba(9,31,45,.32); }
+.week-preview-dialog::backdrop { background: rgba(8,25,37,.62); backdrop-filter: blur(8px); }
+.week-preview-shell { padding: clamp(26px,4vw,46px); background: linear-gradient(145deg,#fffefd,#fff5ec); color: var(--ink); }
+.week-preview-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 22px; }
+.week-preview-head h2 { margin: 7px 0 0; font-size: clamp(31px,5vw,48px); line-height: 1.04; letter-spacing: -.055em; }
+.week-preview-head>button { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; padding: 0; border: 1px solid rgba(93,62,43,.14); border-radius: 50%; background: rgba(255,255,255,.75); color: var(--ink); cursor: pointer; font-size: 25px; }
+.week-preview-description { margin: 24px 0; max-width: 620px; color: var(--muted-strong); font-size: 16px; line-height: 1.75; }
+.week-preview-shell>section { padding: 22px; border: 1px solid rgba(242,118,46,.18); border-radius: 19px; background: rgba(255,255,255,.65); }
+.week-preview-shell>section>span { color: var(--accent-strong); font: 800 10px DM Mono; letter-spacing: .11em; text-transform: uppercase; }
+.week-preview-shell ul { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 11px 18px; margin: 17px 0 0; padding: 0; list-style: none; }
+.week-preview-shell li { display: flex; align-items: flex-start; gap: 9px; color: var(--ink); font-size: 13px; font-weight: 750; line-height: 1.45; }
+.week-preview-shell li span { display: grid; place-items: center; flex: 0 0 21px; width: 21px; height: 21px; border-radius: 50%; background: #e5f8ef; color: #13825b; font-size: 10px; }
+.week-preview-access { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; margin-top: 24px; }
+.week-preview-access small,.week-preview-access strong { display: block; }
+.week-preview-access small { color: var(--muted); font: 700 9px DM Mono; letter-spacing: .1em; text-transform: uppercase; }
+.week-preview-access strong { margin-top: 6px; font-size: 15px; }
+.week-preview-access p { margin: 4px 0 0; color: var(--muted-strong); font-size: 12px; }
+.week-preview-access .primary { min-width: 190px; min-height: 50px; }
+.week-preview-access .primary:disabled { background: #e9e4df; color: #786f69; cursor: default; opacity: 1; }
 
 @media (max-width: 1100px) {
   .welcome h1 { white-space: normal; }
@@ -1848,4 +1868,8 @@ header strong { font-size: 14px; }
   .dashboard-current-week { align-items: stretch; flex-direction: column; padding: 21px; }
   .dashboard-current-week>.primary { width: 100%; }
   .dashboard-schedule { padding: 21px; }
+  .week-preview-shell { padding: 25px 20px; }
+  .week-preview-shell ul { grid-template-columns: 1fr; }
+  .week-preview-access { align-items: stretch; flex-direction: column; }
+  .week-preview-access .primary { width: 100%; }
 }

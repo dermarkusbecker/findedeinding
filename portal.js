@@ -165,9 +165,7 @@ async function request(url, options = {}) {
   return data;
 }
 
-function modeLabel(mode) {
-  return mode === 'time_based' ? 'Zeitbasierte Freischaltung' : mode === 'full_access' ? 'Alles freigegeben' : 'Abschlussbasierte Freischaltung';
-}
+function modeLabel() { return 'Automatische Freischaltung alle sieben Tage'; }
 
 
 function escapeHtml(value = '') {
@@ -420,6 +418,25 @@ function formatProgramDate(value) {
   return new Date(`${value}T12:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function openWeekPreview(week) {
+  const summary = (program?.programWeeks || []).find((item) => Number(item.week) === Number(week));
+  const state = (program?.access?.weekStates || []).find((item) => Number(item.week) === Number(week));
+  if (!summary || !state) return;
+  const completed = Boolean(state.completed);
+  const accessible = Boolean(state.accessible) && program.access.status !== 'paused';
+  $('#weekPreviewEyebrow').textContent = `Woche ${week} · ${summary.mode}`;
+  $('#weekPreviewTitle').textContent = summary.title;
+  $('#weekPreviewDescription').textContent = summary.description || 'Diese Woche führt dich Schritt für Schritt durch den nächsten Teil deines Prozesses.';
+  $('#weekPreviewTopics').innerHTML = (summary.topics || []).map((topic) => `<li><span>✓</span>${escapeHtml(topic)}</li>`).join('');
+  $('#weekPreviewStatus').textContent = completed ? 'Woche abgeschlossen' : accessible ? 'Jetzt freigeschaltet' : program.access.status === 'paused' ? 'Programm pausiert' : 'Wird automatisch freigeschaltet';
+  $('#weekPreviewDate').textContent = completed ? 'Du kannst deine Inhalte weiterhin ansehen.' : accessible ? `Freigeschaltet seit ${formatProgramDate(state.unlocksAt)}` : `Verfügbar ab ${formatProgramDate(state.unlocksAt)}`;
+  const openButton = $('#openPreviewWeek');
+  openButton.dataset.previewWeek = String(week);
+  openButton.disabled = !accessible;
+  openButton.textContent = accessible ? 'Woche öffnen →' : `Freigabe am ${formatProgramDate(state.unlocksAt)}`;
+  $('#weekPreviewDialog').showModal();
+}
+
 function renderProgramDashboard() {
   if (!program?.access) return;
   const summaries = new Map((program.programWeeks || []).map((week) => [Number(week.week), week]));
@@ -446,9 +463,9 @@ function renderProgramDashboard() {
     const className = state.completed ? 'completed' : isCurrent && state.accessible ? 'current' : state.accessible ? 'available' : 'locked';
     const status = state.completed ? 'Abgeschlossen' : isCurrent && state.accessible ? 'Aktuell' : state.accessible ? 'Verfügbar' : `Ab ${formatProgramDate(state.unlocksAt)}`;
     const icon = state.completed ? '✓' : isCurrent && state.accessible ? '●' : state.accessible ? '→' : '○';
-    return `<button type="button" class="dashboard-week-tile ${className}" ${state.accessible ? `data-dashboard-week="${state.week}"` : 'disabled'}><span>${icon}</span><small>Woche ${state.week}</small><b>${escapeHtml(summary?.title || `Woche ${state.week}`)}</b><i>${escapeHtml(status)}</i></button>`;
+    return `<button type="button" class="dashboard-week-tile ${className}" data-preview-week="${state.week}"><span>${icon}</span><small>Woche ${state.week}</small><b>${escapeHtml(summary?.title || `Woche ${state.week}`)}</b><i>${escapeHtml(status)}</i></button>`;
   }).join('');
-  $$('[data-dashboard-week]').forEach((button) => button.addEventListener('click', () => openWeek(Number(button.dataset.dashboardWeek))));
+  $$('#dashboardWeekGrid [data-preview-week]').forEach((button) => button.addEventListener('click', () => openWeekPreview(Number(button.dataset.previewWeek))));
 }
 
 function renderPausedState() {
@@ -777,7 +794,7 @@ function render() {
       $('#uploadButtonLabel').textContent = `↑ ${content.upload}`;
       $('#completeWeek').disabled = paused || done < content.tasks.length;
       $('#completeWeek').textContent = currentWeek === 8 ? 'Digitalen Prozess abschließen →' : 'Woche abschließen →';
-      $('#gateNote').textContent = program.access.accessMode === 'completion_based' ? 'Die nächste Woche öffnet sich nach Abschluss aller Pflichtaufgaben.' : program.access.accessMode === 'time_based' ? 'Weitere Wochen öffnen sich automatisch alle sieben Tage.' : 'Alle Wochen sind freigeschaltet; Pflichtaufgaben dokumentieren deinen Fortschritt.';
+      $('#gateNote').textContent = 'Weitere Wochen öffnen sich automatisch alle sieben Tage ab deinem Projektstart.';
     }
   }
   renderJourney(); renderInsights(); renderDocuments();
@@ -792,11 +809,11 @@ function renderJourney() {
     const active = state.week === currentWeek;
     const status = state.completed ? '✓ abgeschlossen' : active ? '● geöffnet' : state.accessible ? '○ verfügbar' : 'gesperrt';
     const reason = state.reason === 'admin_unlocked' ? 'Vom Admin freigegeben' : state.reason === 'admin_locked' ? 'Vom Admin gesperrt' : state.reason === 'scheduled_release' ? `Freigeschaltet seit ${formatProgramDate(state.unlocksAt)}` : state.reason === 'scheduled_wait' ? `Öffnet am ${formatProgramDate(state.unlocksAt)}` : state.accessible ? 'Zugriff freigegeben' : 'Noch nicht freigeschaltet';
-    return `<article class="week-card ${state.completed ? 'completed' : active ? 'active' : state.accessible ? 'available' : 'locked'}" ${state.accessible ? `data-open-week="${state.week}" tabindex="0" role="button"` : ''}><span>Woche ${state.week}</span><i>${status}</i><h2>${summary ? summary.title : 'Noch gesperrt'}</h2><p>${summary ? summary.mode : 'Inhalte werden nach der Freischaltung sichtbar.'}</p><b>${reason}</b></article>`;
+    return `<article class="week-card ${state.completed ? 'completed' : active ? 'active' : state.accessible ? 'available' : 'locked'}" data-preview-week="${state.week}" tabindex="0" role="button"><span>Woche ${state.week}</span><i>${status}</i><h2>${escapeHtml(summary?.title || `Woche ${state.week}`)}</h2><p>${escapeHtml(summary?.description || summary?.mode || 'Dein nächster Schritt im Acht-Wochen-Prozess.')}</p><b>${reason} · Details ansehen</b></article>`;
   }).join('');
-  $$('[data-open-week]').forEach((card) => {
-    card.addEventListener('click', () => openWeek(Number(card.dataset.openWeek)));
-    card.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') openWeek(Number(card.dataset.openWeek)); });
+  $$('#journeyGrid [data-preview-week]').forEach((card) => {
+    card.addEventListener('click', () => openWeekPreview(Number(card.dataset.previewWeek)));
+    card.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWeekPreview(Number(card.dataset.previewWeek)); } });
   });
 }
 
@@ -816,6 +833,17 @@ function renderDocuments() {
 }
 
 $('#openCurrentWeek').addEventListener('click', (event) => openWeek(Number(event.currentTarget.dataset.dashboardWeek || program?.access?.currentWeek || 1)));
+$('#closeWeekPreview').addEventListener('click', () => $('#weekPreviewDialog').close());
+$('#openPreviewWeek').addEventListener('click', (event) => {
+  const week = Number(event.currentTarget.dataset.previewWeek);
+  if (!event.currentTarget.disabled && week) {
+    $('#weekPreviewDialog').close();
+    openWeek(week);
+  }
+});
+$('#weekPreviewDialog').addEventListener('click', (event) => {
+  if (event.target === $('#weekPreviewDialog')) $('#weekPreviewDialog').close();
+});
 $('#backToDashboard').addEventListener('click', () => {
   todayMode = 'dashboard';
   showView('today');

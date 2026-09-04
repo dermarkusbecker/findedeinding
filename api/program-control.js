@@ -1,12 +1,10 @@
 import crypto from 'node:crypto';
 import { requireCurrentAdmin } from '../lib/user-auth.js';
-import { ACCESS_MODES, PROGRAM_STATUSES, PROGRAM_WEEKS } from '../lib/program-access.js';
+import { PROGRAM_STATUSES } from '../lib/program-access.js';
 import { getParticipantProgramAccess, isUuid, patchParticipantProgress, serviceHeaders } from '../lib/program-access-service.js';
 import { applyGuidedWeekAction, currentGuidedStep, guidedGateStatus, guidedWeekDefinition, normalizeGuidedWeekState } from '../lib/guided-weeks.js';
 
 const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
-const normalizeWeeks = (value) => [...new Set((Array.isArray(value) ? value : []).map(Number).filter((week) => PROGRAM_WEEKS.includes(week)))].sort((a, b) => a - b);
-
 async function readGuidedStates(result, participantId) {
   const id = encodeURIComponent(participantId);
   return Promise.all(Array.from({ length: 7 }, (_, index) => index + 2).map(async (week) => {
@@ -81,10 +79,7 @@ export default async function handler(request, response) {
       return response.status(200).json(await publicResult(await getParticipantProgramAccess(participantId), participantId));
     }
     const changes = {};
-    if (body.accessMode !== undefined) {
-      if (!Object.values(ACCESS_MODES).includes(body.accessMode)) return response.status(400).json({ error: 'Ungültiger Freischaltungsmodus.' });
-      changes.access_mode = body.accessMode;
-    }
+    if (body.accessMode !== undefined || body.manuallyUnlockedWeeks !== undefined || body.manuallyLockedWeeks !== undefined) return response.status(409).json({ error: 'Die Wochenfreischaltung ist fest zeitbasiert und erfolgt automatisch alle sieben Tage ab Projektstart.' });
     if (body.programStartDate !== undefined) {
       if (!validDate(body.programStartDate)) return response.status(400).json({ error: 'Ungültiges Startdatum.' });
       changes.program_start_date = body.programStartDate;
@@ -99,8 +94,6 @@ export default async function handler(request, response) {
       changes.current_week = currentWeek;
       changes.process_status = currentWeek ? `WEEK_${currentWeek}` : 'ONBOARDING';
     }
-    if (body.manuallyUnlockedWeeks !== undefined) changes.manually_unlocked_weeks = normalizeWeeks(body.manuallyUnlockedWeeks);
-    if (body.manuallyLockedWeeks !== undefined) changes.manually_locked_weeks = normalizeWeeks(body.manuallyLockedWeeks);
     if (body.resetToOnboarding === true) {
       Object.assign(changes, {
         current_week: 0,
@@ -115,9 +108,6 @@ export default async function handler(request, response) {
         last_activity_at: null,
       });
     }
-    const overlaps = (changes.manually_unlocked_weeks || current.progress.manually_unlocked_weeks || []).filter((week) => (changes.manually_locked_weeks || current.progress.manually_locked_weeks || []).includes(week));
-    if (overlaps.length) return response.status(400).json({ error: `Eine Woche kann nicht gleichzeitig manuell frei und gesperrt sein: ${overlaps.join(', ')}` });
-
     if (Object.keys(changes).length) await patchParticipantProgress(current.service, participantId, changes);
     if (Array.isArray(body.gateUpdates)) {
       for (const update of body.gateUpdates) {

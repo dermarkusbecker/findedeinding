@@ -492,6 +492,9 @@ dialog form>p { font-size: 12px; }
 .mode-options b { font-size: 13px; }
 .mode-options b i { font-size: 9px; }
 .mode-options small { font-size: 11px; }
+.program-fixed-schedule { border-radius: 12px; padding: 18px 20px; }
+.program-fixed-schedule strong { font-size: 14px; }
+.program-fixed-schedule small { font-size: 11px; }
 .program-reset-banner { border-radius: 12px; padding: 17px 18px; }
 .program-reset-banner strong, .override-head strong { font-size: 14px; }
 .program-reset-banner small, .override-head small { font-size: 11px; }

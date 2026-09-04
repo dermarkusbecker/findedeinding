@@ -162,7 +162,7 @@ create table if not exists public.participant_progress (
   process_status text not null default 'ONBOARDING',
   current_week integer not null default 0 check (current_week between 0 and 8),
   program_start_date date not null default current_date,
-  access_mode text not null default 'time_based' check (access_mode in ('completion_based', 'time_based', 'full_access')),
+  access_mode text not null default 'time_based' check (access_mode = 'time_based'),
   program_status text not null default 'active' check (program_status in ('active', 'paused')),
   manually_unlocked_weeks integer[] not null default '{}'::integer[],
   manually_locked_weeks integer[] not null default '{}'::integer[],
@@ -328,12 +328,18 @@ alter table public.participant_progress add column if not exists manually_locked
 create unique index if not exists participant_progress_user_profile_unique on public.participant_progress(user_profile_id);
 create unique index if not exists user_profiles_portal_username_unique on public.user_profiles(portal_username) where portal_username is not null;
 
-update public.participant_progress set access_mode = 'time_based' where access_mode is null;
+update public.participant_progress
+set access_mode = 'time_based',
+    manually_unlocked_weeks = '{}'::integer[],
+    manually_locked_weeks = '{}'::integer[]
+where access_mode is distinct from 'time_based'
+   or cardinality(manually_unlocked_weeks) > 0
+   or cardinality(manually_locked_weeks) > 0;
 update public.participant_progress set program_status = 'active' where program_status is null;
 
 do $$ begin
   alter table public.participant_progress add constraint participant_progress_access_mode_check
-    check (access_mode in ('completion_based', 'time_based', 'full_access'));
+    check (access_mode = 'time_based');
 exception when duplicate_object then null;
 end $$;
 
