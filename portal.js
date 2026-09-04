@@ -420,7 +420,7 @@ async function loadProgram(week = null) {
     try { customerWorkspace = await request('/api/customer-records?action=overview'); }
     catch { customerWorkspace = null; }
   }
-  const initialView = !initialViewResolved ? (program.onboardingComplete ? 'today' : 'onboarding') : null;
+  const initialView = !initialViewResolved ? 'today' : null;
   currentWeek = program.selectedWeek || week || program.access.unlockedWeeks[0] || 1;
   currentContent = program.week;
   if (program.onboardingComplete && currentWeek >= 1) {
@@ -946,26 +946,30 @@ function render() {
   const paused = program.access.status === 'paused';
   const activeView = document.querySelector('aside nav button.active')?.dataset.view || 'onboarding';
   const reviewingOnboarding = activeView === 'onboarding';
-  const showOnboarding = !started || reviewingOnboarding;
+  const showOnboarding = reviewingOnboarding;
+  const showPreOnboarding = !started && activeView === 'today';
   const showDashboard = started && !showOnboarding && activeView === 'today' && todayMode === 'dashboard';
   const dashboardWeek = activeProcessWeek(program.access);
-  const dashboardSummary = (program.programWeeks || []).find((item) => Number(item.week) === Number(dashboardWeek));
+  const displayedWeek = Number(currentWeek || dashboardWeek);
+  const displayedSummary = (program.programWeeks || []).find((item) => Number(item.week) === displayedWeek);
   const currentClarity = currentClarityMeasurement();
   document.querySelector('aside nav button[data-view="today"] span').textContent = 'Mein Bereich';
+  document.querySelector('aside nav button[data-view="onboarding"] span').textContent = started ? 'Onboarding ✓' : 'Onboarding';
   $('#sideProgress').style.width = `${pct}%`;
   $('#sidePercent').textContent = `${pct} % abgeschlossen`;
-  $('#sidePhase').textContent = !showOnboarding && started ? `Woche ${dashboardWeek} · ${dashboardSummary?.title || 'Dein Prozess'}` : 'Onboarding';
+  $('#sidePhase').textContent = !showOnboarding && started ? `Woche ${displayedWeek} · ${displayedSummary?.title || 'Dein Prozess'}` : 'Onboarding';
   $('#sideClarityValue').textContent = `${currentClarity?.score || '—'} / 10`;
   $('#headerClarity').textContent = `Klarheit ${currentClarity?.score || '—'} / 10`;
-  $('#headerPhase').textContent = !showOnboarding && started ? `Woche ${showDashboard ? dashboardWeek : currentWeek} von 8 · ${(showDashboard ? dashboardSummary?.title : content?.title) || 'Dein Prozess'}` : 'Onboarding';
+  $('#headerPhase').textContent = !showOnboarding && started ? `Woche ${displayedWeek} von 8 · ${displayedSummary?.title || content?.title || 'Dein Prozess'}` : 'Onboarding';
   renderProgressCelebration();
   const name = program.profile?.name || 'Teilnehmer';
   const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
   $('#portalProfileAvatar').innerHTML = customerWorkspace?.profile?.photoUrl ? `<img src="${escapeHtml(customerWorkspace.profile.photoUrl)}" alt="Dein Profilbild">` : escapeHtml(initials);
   document.querySelector('.portal-profile strong').textContent = name;
   $('#onboarding').classList.toggle('hidden', !showOnboarding);
+  $('#preOnboardingDashboard').classList.toggle('hidden', !showPreOnboarding);
   $('#programDashboard').classList.toggle('hidden', !showDashboard);
-  $('#activeWeek').classList.toggle('hidden', showOnboarding || showDashboard || !started || !content);
+  $('#activeWeek').classList.toggle('hidden', showOnboarding || showPreOnboarding || showDashboard || !started || !content);
   $('.welcome').classList.toggle('week-hero-compact', Boolean(
     started
     && !showOnboarding
@@ -978,6 +982,10 @@ function render() {
   if (showOnboarding) {
     $('#mobileWeekGreeting').classList.add('hidden');
     renderCommitmentUploadState(started);
+    $('#onboarding').classList.toggle('is-complete', started);
+    $('#onboarding').setAttribute('aria-readonly', String(started));
+    $('#onboardingCompleteState').classList.toggle('hidden', !started);
+    $('#onboarding .start-gates>h2').textContent = started ? 'Dein abgeschlossenes Onboarding' : 'Zwei Dinge noch, dann starten wir.';
     $('#todayLabel').textContent = started ? 'Onboarding abgeschlossen' : paused ? 'Programm pausiert' : 'Dein Start';
     $('#welcomeTitle').innerHTML = 'Willkommen bei <em>Finde dein Ding.</em>';
     $('#welcomeCopy').innerHTML = paused
@@ -985,17 +993,26 @@ function render() {
       : 'In den nächsten Wochen geht es um eine zentrale Frage: <strong>Was ist wirklich dein Ding – und wie machst du daraus deinen Weg?</strong><br>Clara begleitet dich dabei Schritt für Schritt. Du musst heute noch keine Antworten haben. Du musst nur bereit sein, ehrlich hinzuschauen.';
     $('#clarityValue').textContent = '—';
     $('#startProcess').classList.toggle('hidden', started);
-    $('#revokePrivacy').classList.toggle('hidden', !started);
+    $('#revokePrivacy').classList.add('hidden');
     if (started) {
       $('#privacy').checked = true;
       $('#privacy').disabled = true;
       $('#commitment').checked = true;
       $('#commitment').disabled = true;
+      $('#signedCommitmentUpload').disabled = true;
     } else {
       $('#privacy').disabled = false;
+      $('#signedCommitmentUpload').disabled = false;
       refreshOnboardingGateState();
       $('#startProcess').disabled = paused || $('#startProcess').disabled;
     }
+  } else if (showPreOnboarding) {
+    $('#mobileWeekGreeting').classList.add('hidden');
+    $('#revokePrivacy').classList.add('hidden');
+    $('#todayLabel').textContent = 'Mein Bereich';
+    $('#welcomeTitle').innerHTML = `Hallo ${escapeHtml(name.trim().split(/\s+/)[0] || 'du')}. <em>Schön, dass du da bist.</em>`;
+    $('#welcomeCopy').textContent = 'Hier findest du nach deinem Start deine persönliche Programmübersicht, deinen Fortschritt und alle kommenden Wochen.';
+    $('#clarityValue').textContent = '—';
   } else if (showDashboard) {
     $('#mobileWeekGreeting').classList.add('hidden');
     $('#revokePrivacy').classList.add('hidden');
@@ -1139,6 +1156,7 @@ $('#backToDashboard').addEventListener('click', () => {
   todayMode = 'dashboard';
   showView('today');
 });
+$('#openOnboarding').addEventListener('click', () => showView('onboarding'));
 $('#privacy').addEventListener('change', refreshOnboardingGateState);
 $('#commitment').addEventListener('change', refreshOnboardingGateState);
 $('#printCommitment').addEventListener('click', openCommitmentPrintView);

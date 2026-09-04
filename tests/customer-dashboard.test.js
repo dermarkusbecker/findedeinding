@@ -19,6 +19,23 @@ test('Kundenlogin landet zuerst auf dem Acht-Wochen-Dashboard', async () => {
   assert.match(script, /backToDashboard/);
 });
 
+test('Kundenlogin öffnet immer Mein Bereich und zeigt abgeschlossenes Onboarding nur lesbar', async () => {
+  const [html, script, api] = await Promise.all([
+    readFile(htmlUrl, 'utf8'),
+    readFile(scriptUrl, 'utf8'),
+    readFile(new URL('../api/participant-program.js', import.meta.url), 'utf8'),
+  ]);
+  assert.match(script, /const initialView = !initialViewResolved \? 'today' : null/);
+  assert.match(script, /const showOnboarding = reviewingOnboarding/);
+  assert.match(html, /id="preOnboardingDashboard"/);
+  assert.match(html, /id="openOnboarding"/);
+  assert.match(html, /id="onboardingCompleteState"/);
+  assert.match(script, /signedCommitmentUpload'\)\.disabled = true/);
+  assert.match(script, /Onboarding ✓/);
+  assert.match(api, /Onboarding ist bereits abgeschlossen und schreibgeschützt/);
+  assert.match(api, /abgeschlossene Onboarding ist schreibgeschützt/);
+});
+
 test('Dashboard rendert acht Wochen mit Titel, Status und Freischaltungsdatum', async () => {
   const [script, styles, api] = await Promise.all([
     readFile(scriptUrl, 'utf8'),
@@ -82,10 +99,12 @@ test('Aktueller Prozessschritt folgt dem Fortschritt statt der letzten Freischal
   assert.match(access, /function reconcileProgramPosition/);
   assert.match(portal, /activeProcessWeek\(program\.access\)/);
   assert.match(await readFile(new URL('../api/participant-program.js', import.meta.url), 'utf8'), /reconcileProgramPosition\(rawAccess, verifiedCompletedWeeks\)/);
-  assert.match(access, /completed: completedWeeks\.includes\(week\), readyToComplete: gateCompletedWeeks\.includes\(week\)/);
+  assert.match(await readFile(new URL('../api/participant-program.js', import.meta.url), 'utf8'), /rawAccess\.recordedCurrentWeek \|\| rawAccess\.processWeek/);
+  assert.match(access, /resolvedWeekStates = weekStates\.map\(\(state\) => \(\{ \.\.\.state, completed: completedWeeks\.includes\(state\.week\) \}\)\)/);
   assert.match(portal, /function activeProcessWeek/);
-  assert.match(portal, /sidePhase.*dashboardWeek.*dashboardSummary/s);
-  assert.doesNotMatch(portal, /sidePhase.*showDashboard \? dashboardWeek : currentWeek/);
+  assert.match(portal, /const displayedWeek = Number\(currentWeek \|\| dashboardWeek\)/);
+  assert.match(portal, /sidePhase.*displayedWeek.*displayedSummary/s);
+  assert.match(portal, /headerPhase.*displayedWeek.*displayedSummary/s);
   assert.match(admin, /function customerProcessWeek/);
   assert.match(admin, /Aktueller Prozessschritt/);
 });

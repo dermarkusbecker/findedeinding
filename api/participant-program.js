@@ -168,7 +168,7 @@ export default async function handler(request, response) {
         return Boolean(state) && guidedWeekComplete(state);
       });
       const access = reconcileProgramPosition(rawAccess, verifiedCompletedWeeks);
-      if (access.processWeek < Number(rawAccess.processWeek || 1)) {
+      if (access.processWeek < Number(rawAccess.recordedCurrentWeek || rawAccess.processWeek || 1)) {
         await patchParticipantProgress(result.service, session.participantId, { current_week: access.processWeek, process_status: `WEEK_${access.processWeek}` });
       }
       const accessibleWeeks = (onboardingComplete ? access.unlockedWeeks : []).map((week) => {
@@ -186,6 +186,7 @@ export default async function handler(request, response) {
     if (request.method !== 'PATCH') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
     const action = request.body?.action;
     if (action === 'start') {
+      if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
       if (result.access.status !== 'active') return response.status(423).json({ error: 'Dein Programm ist aktuell pausiert.' });
       const commitmentConfirmed = request.body?.commitment === true;
       const signedDocumentUploaded = request.body?.signedDocument === true;
@@ -202,8 +203,7 @@ export default async function handler(request, response) {
       ]);
       return response.status(200).json({ ok: true, started: true, week: 1 });
     } else if (action === 'revoke_privacy') {
-      const now = new Date().toISOString();
-      await patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: null, current_week: 0, process_status: 'ONBOARDING', last_activity_at: now });
+      return response.status(409).json({ error: 'Das abgeschlossene Onboarding ist schreibgeschützt. Bitte wende dich bei Änderungen an Markus.' });
     } else if (action === 'support_question') {
       if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const question = String(request.body?.question || '').trim().slice(0, 3000);

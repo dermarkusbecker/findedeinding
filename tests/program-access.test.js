@@ -45,9 +45,12 @@ test('zeitbasiert ist der Standard und öffnet am Projektstart nur Woche 1', () 
 });
 
 test('gespeicherte Woche 3 überspringt am neuen Projektstart nicht Woche 1', () => {
-  const access = calculateProgramAccess({ progress: { current_week: 3, access_mode: 'time_based', program_start_date: '2026-09-04' }, now: new Date('2026-09-04T12:00:00Z') });
+  const access = calculateProgramAccess({ progress: { current_week: 3, process_status: 'WEEK_3', privacy_consent_at: '2026-09-04', start_commitment_at: '2026-09-04', access_mode: 'time_based', program_start_date: '2026-09-04' }, now: new Date('2026-09-04T12:00:00Z') });
   assert.equal(access.recordedCurrentWeek, 3);
   assert.equal(access.currentWeek, 1);
+  assert.equal(access.processWeek, 1);
+  assert.deepEqual(access.completedWeeks, []);
+  assert.ok(access.weekStates.every((week) => week.completed === false));
   assert.deepEqual(access.unlockedWeeks, [1]);
 });
 

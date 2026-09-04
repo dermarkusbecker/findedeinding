@@ -1,6 +1,6 @@
 import { authHeaders, profileById, randomTemporaryPassword, requireCurrentAdmin, sendPasswordReset } from '../lib/user-auth.js';
 import { handleCustomerRecords } from '../lib/customer-records-service.js';
-import { isOnboardingComplete, isProgramWeekFinalized, recordedProgramWeek } from '../lib/program-access.js';
+import { calculateProgramAccess, isOnboardingComplete, isProgramWeekFinalized, recordedProgramWeek } from '../lib/program-access.js';
 
 function config() { const url = process.env.SUPABASE_URL?.replace(/\/$/, ''); const key = process.env.SUPABASE_SERVICE_ROLE_KEY; return url && key ? { url, key } : null; }
 function headers(key, extra = {}) { return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...extra }; }
@@ -17,11 +17,16 @@ export function summarizeCustomerProgress(gates = [], progress = {}) {
   });
   const onboarding = gatesByWeek.get(0) || [];
   const onboardingComplete = isOnboardingComplete(storedProgress) || (onboarding.length > 0 && onboarding.every((gate) => Boolean(gate.completed_at)));
-  const completed = Array.from({ length: 8 }, (_, index) => index + 1).filter((week) => isProgramWeekFinalized(storedProgress, week));
+  let completed = Array.from({ length: 8 }, (_, index) => index + 1).filter((week) => isProgramWeekFinalized(storedProgress, week));
   const recordedWeek = recordedProgramWeek(storedProgress);
-  const processWeek = onboardingComplete
+  let processWeek = onboardingComplete
     ? (storedProgress.process_status === 'FINAL_REPORT' ? 8 : Math.max(1, recordedWeek || 1))
     : 0;
+  if (onboardingComplete && storedProgress.program_start_date) {
+    const scheduled = calculateProgramAccess({ progress: storedProgress, gates });
+    processWeek = scheduled.processWeek;
+    completed = scheduled.completedWeeks;
+  }
   return { completed_weeks: completed, process_week: processWeek, completion_percent: Math.round(completed.length / 8 * 100) };
 }
 
