@@ -67,6 +67,14 @@ test('time_based öffnet unabhängig vom Abschluss alle sieben Tage eine Woche',
   assert.deepEqual(calculateProgramAccess({ progress, now: new Date('2026-09-14T23:59:00Z') }).unlockedWeeks, [1, 2, 3]);
 });
 
+test('Prozessposition bleibt nach zwei Abschlüssen in Woche 3, auch wenn Woche 8 zeitlich freigeschaltet ist', () => {
+  const gates = [...requiredGates(1), ...requiredGates(2), ...requiredGates(3, false)];
+  const access = calculateProgramAccess({ progress: { current_week: 8, program_start_date: '2026-07-01' }, gates, now: new Date('2026-09-04T12:00:00Z') });
+  assert.equal(access.currentWeek, 8);
+  assert.deepEqual(access.completedWeeks, [1, 2]);
+  assert.equal(access.processWeek, 3);
+});
+
 test('time_based verweigert vor dem individuellen Startdatum jeden Wochenzugriff', () => {
   const access = calculateProgramAccess({ progress: { access_mode: 'time_based', program_start_date: '2026-08-31' }, now: new Date('2026-08-30T21:59:00Z') });
   assert.deepEqual(access.unlockedWeeks, []);

@@ -337,6 +337,13 @@ function progressPercent() {
   return Math.round(program.access.completedWeeks.length / 8 * 100);
 }
 
+function activeProcessWeek(access = program?.access) {
+  const week = Number(access?.processWeek);
+  if (Number.isInteger(week) && week >= 1 && week <= 8) return week;
+  const completed = new Set((access?.completedWeeks || []).map(Number));
+  return Array.from({ length: 8 }, (_, index) => index + 1).find((item) => !completed.has(item)) || 8;
+}
+
 async function loadProgram(week = null) {
   const suffix = week ? `?week=${week}` : '';
   program = await request(`/api/participant-program${suffix}`);
@@ -447,7 +454,7 @@ function renderProgramDashboard() {
   if (!program?.access) return;
   const summaries = new Map((program.programWeeks || []).map((week) => [Number(week.week), week]));
   const states = program.access.weekStates || [];
-  const activeWeek = program.access.currentWeek || program.access.unlockedWeeks?.at(-1) || 1;
+  const activeWeek = activeProcessWeek(program.access);
   const activeSummary = summaries.get(activeWeek) || summaries.get(1);
   const nextState = states.find((state) => !state.accessible && state.unlocksAt);
   const completed = program.access.completedWeeks.length;
@@ -711,12 +718,12 @@ function render() {
   const reviewingOnboarding = activeView === 'onboarding';
   const showOnboarding = !started || reviewingOnboarding;
   const showDashboard = started && !showOnboarding && activeView === 'today' && todayMode === 'dashboard';
-  const dashboardWeek = program.access.currentWeek || program.access.unlockedWeeks?.at(-1) || 1;
+  const dashboardWeek = activeProcessWeek(program.access);
   const dashboardSummary = (program.programWeeks || []).find((item) => Number(item.week) === Number(dashboardWeek));
   document.querySelector('aside nav button[data-view="today"] span').textContent = 'Heute';
   $('#sideProgress').style.width = `${pct}%`;
   $('#sidePercent').textContent = `${pct} % abgeschlossen`;
-  $('#sidePhase').textContent = !showOnboarding && started ? `Woche ${showDashboard ? dashboardWeek : currentWeek} · ${(showDashboard ? dashboardSummary?.title : content?.title) || 'Dein Prozess'}` : 'Onboarding';
+  $('#sidePhase').textContent = !showOnboarding && started ? `Woche ${dashboardWeek} · ${dashboardSummary?.title || 'Dein Prozess'}` : 'Onboarding';
   $('#headerPhase').textContent = !showOnboarding && started ? `Woche ${showDashboard ? dashboardWeek : currentWeek} von 8 · ${(showDashboard ? dashboardSummary?.title : content?.title) || 'Dein Prozess'}` : 'Onboarding';
   const name = program.profile?.name || 'Teilnehmer';
   const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();

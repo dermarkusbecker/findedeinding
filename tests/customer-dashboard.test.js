@@ -35,6 +35,20 @@ test('Dashboard rendert acht Wochen mit Titel, Status und Freischaltungsdatum', 
   assert.match(api, /access_mode: 'time_based'/);
 });
 
+test('Aktueller Prozessschritt folgt dem Fortschritt statt der letzten Freischaltung', async () => {
+  const [portal, admin, access] = await Promise.all([
+    readFile(scriptUrl, 'utf8'),
+    readFile(new URL('../admin.js', import.meta.url), 'utf8'),
+    readFile(new URL('../lib/program-access.js', import.meta.url), 'utf8'),
+  ]);
+  assert.match(access, /const processWeek = completedWeeks\.length/);
+  assert.match(portal, /function activeProcessWeek/);
+  assert.match(portal, /sidePhase.*dashboardWeek.*dashboardSummary/s);
+  assert.doesNotMatch(portal, /sidePhase.*showDashboard \? dashboardWeek : currentWeek/);
+  assert.match(admin, /function customerProcessWeek/);
+  assert.match(admin, /Aktueller Prozessschritt/);
+});
+
 test('Wochenkarten verwenden die scharfe Landingpage-Typografie und einen gut lesbaren Kartenaufbau', async () => {
   const styles = await readFile(stylesUrl, 'utf8');
   assert.match(styles, /-webkit-font-smoothing:\s*antialiased/);
