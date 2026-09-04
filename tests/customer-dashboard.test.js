@@ -43,7 +43,7 @@ test('Mein Bereich zeigt den serverseitigen Klarheitsverlauf und den goldenen Zi
     readFile(new URL('../api/participant-program.js', import.meta.url), 'utf8'),
     readFile(new URL('../lib/guided-weeks.js', import.meta.url), 'utf8'),
   ]);
-  assert.match(html, /data-view="today">⌂ <span>Mein Bereich<\/span>/);
+  assert.match(html, /data-view="today"><svg[\s\S]*?<span>Mein Bereich<\/span>/);
   assert.match(html, /id="sideClarityValue"/);
   assert.match(html, /id="dashboardClarityChart"/);
   assert.match(html, /Zielbereich 7–10/);
@@ -54,6 +54,16 @@ test('Mein Bereich zeigt den serverseitigen Klarheitsverlauf und den goldenen Zi
   assert.match(api, /clarityHistory/);
   assert.match(api, /currentClarity/);
   assert.match(guided, /clarity_checkin/);
+});
+
+test('Kundennavigation übernimmt die moderne Landingpage-Typografie und eigene Linienicons', async () => {
+  const [html, styles] = await Promise.all([readFile(htmlUrl, 'utf8'), readFile(stylesUrl, 'utf8')]);
+  assert.match(html, /<nav aria-label="Kundenportal">/);
+  assert.match(html, /data-view="today"><svg/);
+  assert.match(html, /data-view="support"><svg/);
+  assert.match(styles, /aside nav button\s*\{[\s\S]*?font-family:\s*Manrope/);
+  assert.match(styles, /aside nav button svg\s*\{[\s\S]*?stroke:\s*currentColor/);
+  assert.match(styles, /aside nav button\.active svg/);
 });
 
 test('Aktueller Prozessschritt folgt dem Fortschritt statt der letzten Freischaltung', async () => {
