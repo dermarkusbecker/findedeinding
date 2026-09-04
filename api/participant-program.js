@@ -2,7 +2,7 @@ import { requireCurrentPermission } from '../lib/user-auth.js';
 import { getParticipantProgramAccess, patchParticipantProgress, serviceHeaders } from '../lib/program-access-service.js';
 import { isOnboardingComplete, isProgramWeekFinalized } from '../lib/program-access.js';
 import { applyWeekOneAction, createWeekOneState, missingWeekOneRequirements, stepStatuses, weekOneComplete, weekOnePrompt } from '../lib/week-one.js';
-import { applyGuidedWeekAction, createGuidedWeekState, guidedStepStatuses, guidedWeekComplete, guidedWeekDefinition, missingGuidedRequirements, normalizeGuidedWeekState } from '../lib/guided-weeks.js';
+import { applyGuidedWeekAction, createGuidedWeekState, guidedClarityStep, guidedStepStatuses, guidedWeekComplete, guidedWeekDefinition, missingGuidedRequirements, needsGuidedClarityCheckin, normalizeGuidedWeekState } from '../lib/guided-weeks.js';
 import { readClarityQuestionOverrides, resolveClarityPrompt } from '../lib/clarity-questions.js';
 import { handleClaraMessage } from '../lib/clara/api-handler.js';
 import { handleParticipantDocument } from '../lib/documents/api-handler.js';
@@ -28,7 +28,7 @@ const weekContent = (week, gates, weekOneState = null, guidedState = null, quest
   }
   if (Number(week) >= 2 && guidedState) {
     const definition = guidedWeekDefinition(week);
-    const activeStep = definition.steps.find((step) => step.id === guidedState.current_step);
+    const activeStep = needsGuidedClarityCheckin(guidedState) ? guidedClarityStep(guidedState) : definition.steps.find((step) => step.id === guidedState.current_step);
     return { ...content, title: definition.title, mode: definition.mode, question: activeStep ? resolveClarityPrompt(questionOverrides, week, activeStep.id, activeStep.question) : 'Diese Woche ist bereit zum Abschluss.', help: definition.intro, tasks: guidedStepStatuses(guidedState) };
   }
   return { ...content, tasks: gates.filter((gate) => Number(gate.week) === Number(week) && gate.required !== false).map((gate) => ({ id: gate.id, key: gate.gate_key, label: gate.label, completed: Boolean(gate.completed_at) })) };
@@ -46,6 +46,30 @@ async function readGuidedWeekState(result, participantId, week) {
   const rows = await response.json();
   if (!response.ok) throw new Error(rows.message || `Woche ${week} konnte nicht geladen werden.`);
   return normalizeGuidedWeekState(week, rows[0]?.structured_data?.[`week_${week}`] || createGuidedWeekState(week));
+}
+
+async function readGuidedWeekStates(result, participantId) {
+  const response = await fetch(`${result.service.url}/rest/v1/process_entries?user_profile_id=eq.${encodeURIComponent(participantId)}&week=gte.2&week=lte.8&select=week,data_block,structured_data,created_at&order=created_at.desc&limit=500`, { headers: serviceHeaders(result.service.key) });
+  const rows = await response.json();
+  if (!response.ok) throw new Error(rows.message || 'Die Klarheitsentwicklung konnte nicht geladen werden.');
+  const states = new Map();
+  rows.forEach((row) => {
+    const week = Number(row.week);
+    if (states.has(week) || row.data_block !== `week_${week}_state`) return;
+    const saved = row.structured_data?.[`week_${week}`];
+    if (saved) states.set(week, normalizeGuidedWeekState(week, saved));
+  });
+  return states;
+}
+
+function buildClarityHistory(weekOneState, guidedStates) {
+  const baseline = weekOneState?.clarity_baseline || {};
+  return Array.from({ length: 8 }, (_, index) => {
+    const week = index + 1;
+    if (week === 1) return { week, score: baseline.completed ? Number(baseline.score) : null, changed: null, note: baseline.reason_raw || '', recordedAt: weekOneState?.updated_at || null };
+    const checkin = guidedStates.get(week)?.clarity_checkin || {};
+    return { week, score: checkin.completed ? Number(checkin.score) : null, changed: typeof checkin.changed === 'boolean' ? checkin.changed : null, note: checkin.note || '', recordedAt: checkin.recorded_at || null };
+  });
 }
 
 async function saveGuidedWeekState(result, participantId, week, state, rawAnswer = '') {
@@ -143,9 +167,12 @@ export default async function handler(request, response) {
       });
       const processWeekAccessible = access.weekStates.some((state) => state.week === Number(access.processWeek) && state.accessible);
       const selectedWeek = onboardingComplete ? (requestedWeek || (processWeekAccessible ? Number(access.processWeek) : access.unlockedWeeks[0] || 1)) : 0;
-      const guidedState = selectedWeek >= 2 ? await readGuidedWeekState(result, session.participantId, selectedWeek) : null;
+      const guidedStates = await readGuidedWeekStates(result, session.participantId);
+      const guidedState = selectedWeek >= 2 ? (guidedStates.get(selectedWeek) || createGuidedWeekState(selectedWeek)) : null;
+      const clarityHistory = buildClarityHistory(weekOneState, guidedStates);
+      const currentClarity = clarityHistory.filter((item) => Number.isInteger(item.score)).at(-1) || null;
       const questionOverrides = selectedWeek ? await readClarityQuestionOverrides(result.service, selectedWeek) : [];
-      return response.status(200).json({ profile: { id: result.profile.id, name: result.profile.name }, access, onboardingComplete, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => ({ week, title, mode, description, topics })), accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null });
+      return response.status(200).json({ profile: { id: result.profile.id, name: result.profile.name }, access, onboardingComplete, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => ({ week, title, mode, description, topics })), accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null, clarityHistory, currentClarity });
     }
     if (request.method !== 'PATCH') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
     const action = request.body?.action;
@@ -210,7 +237,7 @@ export default async function handler(request, response) {
       const currentState = await readGuidedWeekState(result, session.participantId, week);
       const update = applyGuidedWeekAction(currentState, stepAction);
       if (!update.ok) return response.status(400).json({ error: update.error, details: update.details, weekState: update.state });
-      const rawAnswer = request.body?.stepAction?.answer || request.body?.stepAction?.fileName || '';
+      const rawAnswer = stepAction.answer || stepAction.note || stepAction.fileName || (stepAction.type === 'save_clarity_checkin' ? `${stepAction.score}/10` : '');
       await saveGuidedWeekState(result, session.participantId, week, update.state, rawAnswer);
       const gateMap = Object.fromEntries([...new Set(guidedWeekDefinition(week).steps.map((step) => step.gateKey))].map((key) => [key, guidedWeekDefinition(week).steps.filter((step) => step.gateKey === key).every((step) => update.state.completed_steps.includes(step.id))]));
       await Promise.allSettled(result.gates.filter((gate) => Number(gate.week) === week && gate.gate_key in gateMap).map((gate) => setGate(result.service, session.participantId, gate.id, gateMap[gate.gate_key])));

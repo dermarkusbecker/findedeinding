@@ -1,5 +1,5 @@
 import { journeyStepStatuses, weekOnePrompt } from './lib/week-one.js';
-import { currentGuidedStep, guidedStepStatuses, guidedWeekDefinition } from './lib/guided-weeks.js';
+import { currentGuidedStep, guidedClarityStep, guidedStepStatuses, guidedWeekDefinition, needsGuidedClarityCheckin } from './lib/guided-weeks.js';
 
 const resolveSpeechRecognition = (windowObject = window) => {
   if (!windowObject) return null;
@@ -390,7 +390,8 @@ async function loadProgram(week = null) {
 function renderClaraJourney() {
   const journey = $('#claraJourney');
   if (!journey) return;
-  journey.classList.toggle('hidden', !program?.onboardingComplete);
+  const clarityCheckinPending = currentWeek >= 2 && needsGuidedClarityCheckin(program?.weekState);
+  journey.classList.toggle('hidden', !program?.onboardingComplete || clarityCheckinPending);
   const guidedStep = currentWeek >= 2 ? currentGuidedStep(program?.weekState) : null;
   const initialPrompt = program?.weekOne?.current_step === 'THREE_WISHES_COLLECTION'
     ? '<article class="clara-message assistant"><span>Clara</span><p>Stell dir vor, du hättest drei Wünsche frei – ganz unabhängig davon, ob sie gerade realistisch sind.<br><br><strong>Welche drei Dinge würdest du dir für dein Leben gerade am meisten wünschen?</strong><br><br>Schreib einfach drauflos. Wir schauen sie uns danach gemeinsam an.</p></article>'
@@ -404,7 +405,7 @@ function renderClaraJourney() {
   const list = $('#journeyMessages');
   list.scrollTop = list.scrollHeight;
   const readOnly = weekIsFinalized() || (currentWeek === 1 ? program?.weekOneGate?.complete : program?.weekGate?.complete);
-  $('#claraJourneyForm').hidden = Boolean(readOnly);
+  $('#claraJourneyForm').hidden = Boolean(readOnly || clarityCheckinPending);
   list.querySelectorAll('button').forEach((button) => { button.disabled = Boolean(readOnly); });
   list.querySelectorAll('[data-clara-confirm]').forEach((button) => button.addEventListener('click', () => confirmClaraResult(button.dataset.claraConfirm, button)));
   list.querySelectorAll('[data-clara-revise]').forEach((button) => button.addEventListener('click', () => {
@@ -519,6 +520,16 @@ function weekOneReviewDetails(stepId) {
 
 function guidedReviewDetails(stepId) {
   const state = program?.weekState || {};
+  if (stepId === 'weekly_clarity') {
+    const checkin = state.clarity_checkin || {};
+    const changeLabel = checkin.changed === true ? 'Ja, ich nehme eine Veränderung wahr.' : checkin.changed === false ? 'Nein, noch keine spürbare Veränderung.' : 'Noch nicht beantwortet.';
+    return {
+      question: guidedClarityStep(state)?.question || 'Wie klar ist dir heute, was dein Ding ist?',
+      content: checkin.completed
+        ? `<div class="step-review-score"><strong>${Number(checkin.score)}</strong><span>von 10</span></div>${reviewParagraph(changeLabel)}${checkin.note ? `<div class="step-review-addition"><small>Deine Beobachtung</small>${reviewParagraph(checkin.note)}</div>` : ''}`
+        : reviewParagraph(''),
+    };
+  }
   const step = guidedWeekDefinition(currentWeek)?.steps.find((item) => item.id === stepId);
   const answer = state.answers?.[stepId];
   const document = state.documents?.[stepId];
@@ -559,6 +570,33 @@ function wireStepReviewButtons() {
   $$('#taskList [data-step-review]').forEach((button) => button.addEventListener('click', () => openStepReview(button.dataset.stepReview)));
 }
 
+function currentClarityMeasurement() {
+  return (program?.clarityHistory || []).filter((item) => Number.isInteger(Number(item.score)) && Number(item.score) >= 1 && Number(item.score) <= 10).at(-1) || null;
+}
+
+function renderDashboardClarityChart() {
+  const target = $('#dashboardClarityChart');
+  if (!target) return;
+  const history = program?.clarityHistory || [];
+  const measurements = history.filter((item) => Number.isInteger(Number(item.score)) && Number(item.score) >= 1 && Number(item.score) <= 10);
+  const latest = measurements.at(-1) || null;
+  $('#dashboardClarityValue').textContent = latest?.score || '—';
+  target.setAttribute('aria-label', measurements.length ? `Klarheitsverlauf: ${measurements.map((item) => `Woche ${item.week}: ${item.score} von 10`).join(', ')}` : 'Noch keine Klarheitswerte vorhanden');
+
+  const left = 66;
+  const right = 842;
+  const top = 24;
+  const bottom = 236;
+  const x = (week) => left + ((Number(week) - 1) / 7) * (right - left);
+  const y = (score) => bottom - ((Number(score) - 1) / 9) * (bottom - top);
+  const points = measurements.map((item) => `${x(item.week)},${y(item.score)}`).join(' ');
+  const scoreColor = (score) => Number(score) >= 7 ? '#c89a2e' : Number(score) >= 4 ? '#e98943' : '#d26758';
+  const gridLines = [1, 4, 7, 10].map((score) => `<g><line x1="${left}" y1="${y(score)}" x2="${right}" y2="${y(score)}"></line><text x="42" y="${y(score) + 4}">${score}</text></g>`).join('');
+  const weekLabels = Array.from({ length: 8 }, (_, index) => `<text class="week-label" x="${x(index + 1)}" y="274">W${index + 1}</text>`).join('');
+  const dots = measurements.map((item) => `<g class="clarity-point"><circle cx="${x(item.week)}" cy="${y(item.score)}" r="8" fill="${scoreColor(item.score)}"></circle><circle cx="${x(item.week)}" cy="${y(item.score)}" r="15" fill="none" stroke="${scoreColor(item.score)}" opacity=".2"></circle><text x="${x(item.week)}" y="${y(item.score) - 17}">${item.score}</text></g>`).join('');
+  target.innerHTML = `<svg viewBox="0 0 880 292" aria-hidden="true" focusable="false"><defs><linearGradient id="clarityLineGradient" x1="0" x2="1"><stop offset="0" stop-color="#d26758"></stop><stop offset=".5" stop-color="#e98943"></stop><stop offset="1" stop-color="#c89a2e"></stop></linearGradient></defs><rect class="clarity-low-band" x="${left}" y="${y(4)}" width="${right - left}" height="${bottom - y(4)}"></rect><rect class="clarity-growth-band" x="${left}" y="${y(7)}" width="${right - left}" height="${y(4) - y(7)}"></rect><rect class="clarity-target-band" x="${left}" y="${top}" width="${right - left}" height="${y(7) - top}"></rect>${gridLines}${points ? `<polyline class="clarity-progress-line" points="${points}"></polyline>` : ''}${dots}${weekLabels}<text class="target-label" x="${right - 10}" y="${top + 18}">ZIELBEREICH 7–10</text></svg>${measurements.length ? '' : '<p>Noch kein Klarheitswert gespeichert. Deine erste Messung entsteht in Woche 1.</p>'}`;
+}
+
 function renderProgramDashboard() {
   if (!program?.access) return;
   const summaries = new Map((program.programWeeks || []).map((week) => [Number(week.week), week]));
@@ -588,6 +626,7 @@ function renderProgramDashboard() {
     return `<button type="button" class="dashboard-week-tile ${className}" data-preview-week="${state.week}"><span>${icon}</span><small>Woche ${state.week}</small><b>${escapeHtml(summary?.title || `Woche ${state.week}`)}</b><i>${escapeHtml(status)}</i></button>`;
   }).join('');
   $$('#dashboardWeekGrid [data-preview-week]').forEach((button) => button.addEventListener('click', () => openWeekPreview(Number(button.dataset.previewWeek))));
+  renderDashboardClarityChart();
 }
 
 function renderPausedState() {
@@ -774,12 +813,14 @@ function renderGuidedWeek() {
   const definition = guidedWeekDefinition(currentWeek);
   if (!state || !definition) return;
   const active = currentGuidedStep(state);
+  const clarityPending = needsGuidedClarityCheckin(state);
+  const displayedStep = clarityPending ? guidedClarityStep(state) : active;
   $('#activeWeek').classList.remove('entry-step');
-  $('#activeWeek').dataset.journeyStep = active?.kind || 'review';
+  $('#activeWeek').dataset.journeyStep = displayedStep?.kind || 'review';
   $('#answerForm').classList.add('hidden');
   $('#savedAnswer').classList.add('hidden');
   $('#questionLabel').textContent = '';
-  $('#questionText').textContent = active?.title || 'Woche geschafft';
+  $('#questionText').textContent = displayedStep?.title || 'Woche geschafft';
   $('#questionHelp').textContent = '';
   $('#weekOneFlow')?.remove();
   let flow = $('#guidedWeekFlow');
@@ -788,7 +829,24 @@ function renderGuidedWeek() {
     flow.id = 'guidedWeekFlow';
     $('#answerForm').before(flow);
   }
-  if (!active) {
+  if (clarityPending) {
+    const previous = (program.clarityHistory || []).filter((item) => Number(item.week) < currentWeek && Number.isInteger(Number(item.score)) && Number(item.score) >= 1 && Number(item.score) <= 10).at(-1);
+    flow.innerHTML = `<section class="weekly-clarity-checkin"><div class="weekly-clarity-intro"><span>${String(currentWeek).padStart(2, '0')}</span><div><strong>Kurzer Check-in zum Wochenstart</strong><p>Bevor es inhaltlich weitergeht: Hat sich seit der letzten Woche etwas verändert?</p>${previous ? `<small>Dein letzter Wert: <b>${Number(previous.score)} von 10</b></small>` : ''}</div></div><div class="weekly-change-choice" role="group" aria-label="Hat sich etwas verändert?"><button type="button" data-clarity-change="true">Ja, ich merke eine Veränderung</button><button type="button" data-clarity-change="false">Nein, noch nicht</button></div><div class="weekly-clarity-question"><strong>Wie klar ist dir heute, was dein Ding ist?</strong><small>1 bedeutet „noch völlig unklar“, 10 bedeutet „sehr klar“.</small></div><div class="clarity-scale weekly" role="group" aria-label="Aktueller Klarheitswert">${Array.from({ length: 10 }, (_, index) => `<button type="button" data-weekly-clarity-score="${index + 1}">${index + 1}</button>`).join('')}</div><label class="weekly-clarity-note"><span>Was hat sich verändert? <small>(optional)</small></span><textarea id="weeklyClarityNote" maxlength="3000" placeholder="Ein Gedanke oder eine kurze Beobachtung …"></textarea></label><button type="button" class="primary weekly-clarity-save" id="saveWeeklyClarity" disabled>Check-in speichern →</button><p class="week-one-error" id="weeklyClarityError"></p></section>`;
+    let selectedChange = null;
+    let selectedScore = null;
+    const updateSaveState = () => { $('#saveWeeklyClarity').disabled = selectedChange === null || selectedScore === null; };
+    flow.querySelectorAll('[data-clarity-change]').forEach((button) => button.addEventListener('click', () => {
+      selectedChange = button.dataset.clarityChange === 'true';
+      flow.querySelectorAll('[data-clarity-change]').forEach((item) => item.classList.toggle('selected', item === button));
+      updateSaveState();
+    }));
+    flow.querySelectorAll('[data-weekly-clarity-score]').forEach((button) => button.addEventListener('click', () => {
+      selectedScore = Number(button.dataset.weeklyClarityScore);
+      flow.querySelectorAll('[data-weekly-clarity-score]').forEach((item) => item.classList.toggle('selected', item === button));
+      updateSaveState();
+    }));
+    $('#saveWeeklyClarity').addEventListener('click', () => updateGuidedWeek({ type: 'save_clarity_checkin', stepId: 'weekly_clarity', score: selectedScore, changed: selectedChange, note: $('#weeklyClarityNote').value }));
+  } else if (!active) {
     flow.innerHTML = '<div class="week-one-review"><span>✓</span><p>Alle Schritte dieser Woche sind abgeschlossen.</p></div>';
   } else if (active.kind === 'upload') {
     flow.innerHTML = `<div class="journey-upload"><div class="journey-upload-copy"><span>⇧</span><div><strong>${escapeHtml(active.title)}</strong><small>${escapeHtml(active.question)}</small></div></div><label class="journey-upload-action" for="fileInput">↑ Datei auswählen</label><small class="journey-upload-meta">PDF, DOCX, JPG oder PNG · maximal 10 MB</small></div>`;
@@ -815,7 +873,7 @@ function renderGuidedWeek() {
   $('#gateNote').textContent = program.weekGate?.complete ? `Alle Pflichtschritte in Woche ${currentWeek} sind abgeschlossen.` : '';
   $('#completeWeek').disabled = !program.weekGate?.complete;
   $('#completeWeek').textContent = currentWeek === 8 ? 'Digitalen Prozess abschließen →' : 'Woche abschließen →';
-  $('#claraJourney').classList.toggle('hidden', ['upload', 'scale', 'external'].includes(active?.kind));
+  $('#claraJourney').classList.toggle('hidden', clarityPending || ['upload', 'scale', 'external'].includes(active?.kind));
   renderClaraJourney();
   applyWeekReadOnlyState(completedSteps === statuses.length);
 }
@@ -832,10 +890,13 @@ function render() {
   const showDashboard = started && !showOnboarding && activeView === 'today' && todayMode === 'dashboard';
   const dashboardWeek = activeProcessWeek(program.access);
   const dashboardSummary = (program.programWeeks || []).find((item) => Number(item.week) === Number(dashboardWeek));
-  document.querySelector('aside nav button[data-view="today"] span').textContent = 'Heute';
+  const currentClarity = currentClarityMeasurement();
+  document.querySelector('aside nav button[data-view="today"] span').textContent = 'Mein Bereich';
   $('#sideProgress').style.width = `${pct}%`;
   $('#sidePercent').textContent = `${pct} % abgeschlossen`;
   $('#sidePhase').textContent = !showOnboarding && started ? `Woche ${dashboardWeek} · ${dashboardSummary?.title || 'Dein Prozess'}` : 'Onboarding';
+  $('#sideClarityValue').textContent = `${currentClarity?.score || '—'} / 10`;
+  $('#headerClarity').textContent = `Klarheit ${currentClarity?.score || '—'} / 10`;
   $('#headerPhase').textContent = !showOnboarding && started ? `Woche ${showDashboard ? dashboardWeek : currentWeek} von 8 · ${(showDashboard ? dashboardSummary?.title : content?.title) || 'Dein Prozess'}` : 'Onboarding';
   const name = program.profile?.name || 'Teilnehmer';
   const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
@@ -880,7 +941,7 @@ function render() {
     $('#todayLabel').textContent = 'Deine Programmübersicht';
     $('#welcomeTitle').innerHTML = `Hallo ${escapeHtml(name.trim().split(/\s+/)[0] || 'du')}. <em>Hier stehst du.</em>`;
     $('#welcomeCopy').textContent = 'Dein persönlicher Acht-Wochen-Plan zeigt dir, was bereits geschafft ist, wo du gerade stehst und wann sich der nächste Bereich öffnet.';
-    $('#clarityValue').textContent = local.clarityEnd || local.clarityStart || '—';
+    $('#clarityValue').textContent = currentClarity?.score || '—';
     renderProgramDashboard();
   } else if (content) {
     $('#activeWeek').classList.remove('week-read-only');
@@ -892,7 +953,7 @@ function render() {
     $('#todayLabel').textContent = `Woche ${currentWeek} · ${content.mode}`;
     $('#welcomeTitle').innerHTML = `${content.title}. <em>Schritt für Schritt.</em>`;
     $('#welcomeCopy').textContent = currentWeek === 1 ? 'Wir schauen, wo du heute stehst und was sich für dich verändern soll.' : `${program.access.completedWeeks.length} von 8 Wochen abgeschlossen · ${modeLabel(program.access.accessMode)}.`;
-    $('#clarityValue').textContent = local.clarityEnd || local.clarityStart || '—';
+    $('#clarityValue').textContent = currentClarity?.score || '—';
     $('#clarityValue').nextElementSibling.textContent = 'Klarheit / 10';
     $('#claraContext').textContent = `Woche ${currentWeek} · ${content.mode}`;
     $('#mobileWeekGreeting').classList.remove('hidden');
@@ -953,7 +1014,10 @@ function renderInsights() {
   $('#motivatorTags').innerHTML = motivators.length ? motivators.map((item) => `<span class="tag">${item}</span>`).join('') : '<i>Entwickelt sich in Woche 3</i>';
   const values = program.access.completedWeeks.includes(5) ? ['Eigenverantwortung', 'Ehrlichkeit', 'Entwicklung'] : [];
   $('#valueTags').innerHTML = values.length ? values.map((item) => `<span class="tag">${item}</span>`).join('') : '<i>Öffnet sich in Woche 5</i>';
-  $('#clarityChart').innerHTML = `<b>Start ${local.clarityStart || '—'}</b><i></i><b>${local.clarityEnd ? 'Ende' : 'Heute'} ${local.clarityEnd || local.clarityStart || '—'}</b>`;
+  const measurements = (program?.clarityHistory || []).filter((item) => Number.isInteger(Number(item.score)) && Number(item.score) >= 1 && Number(item.score) <= 10);
+  const first = measurements[0];
+  const latest = measurements.at(-1);
+  $('#clarityChart').innerHTML = `<b>Start ${first?.score || '—'}</b><i></i><b>Heute ${latest?.score || '—'}</b>`;
 }
 
 function renderDocuments() {
@@ -1039,7 +1103,7 @@ $('#revokePrivacy').addEventListener('click', async () => {
 });
 $('#answerForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const answer = $('#answer').value.trim(); if (!answer) return;
-  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'save_answer', week: currentWeek, answer }) }); local.answers[currentWeek] = answer; if (currentWeek === 1 && !local.clarityStart) { const score = Number(prompt('Wie klar ist dir heute auf einer Skala von 1 bis 10, was dein Ding ist?')); if (score >= 1 && score <= 10) local.clarityStart = score; } saveLocal(); await loadProgram(currentWeek); toast('Deine Antwort wurde serverseitig gespeichert.'); }
+  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'save_answer', week: currentWeek, answer }) }); local.answers[currentWeek] = answer; saveLocal(); await loadProgram(currentWeek); toast('Deine Antwort wurde serverseitig gespeichert.'); }
   catch (error) { toast(error.message); }
 });
 $('#claraJourneyForm').addEventListener('submit', async (event) => {
@@ -1159,7 +1223,7 @@ $('#reopenCurrentWeek').addEventListener('click', async () => {
 });
 $('#completeWeek').addEventListener('click', async () => {
   const completedWeek = currentWeek;
-  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'complete_week', week: completedWeek }) }); if (completedWeek === 8 && !local.clarityEnd) { const score = Number(prompt('Wie klar ist dir heute auf einer Skala von 1 bis 10, was dein Ding ist?')); if (score >= 1 && score <= 10) { local.clarityEnd = score; saveLocal(); } } todayMode = 'dashboard'; await loadProgram(); showView('today'); toast(completedWeek === 8 ? 'Digitaler Prozess abgeschlossen.' : `Woche ${completedWeek} abgeschlossen. Deine Übersicht wurde aktualisiert.`); }
+  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'complete_week', week: completedWeek }) }); todayMode = 'dashboard'; await loadProgram(); showView('today'); toast(completedWeek === 8 ? 'Digitaler Prozess abgeschlossen.' : `Woche ${completedWeek} abgeschlossen. Deine Übersicht wurde aktualisiert.`); }
   catch (error) { toast(error.message); }
 });
 $('#saveSupport').addEventListener('click', async () => {

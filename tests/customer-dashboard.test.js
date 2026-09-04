@@ -35,6 +35,27 @@ test('Dashboard rendert acht Wochen mit Titel, Status und Freischaltungsdatum', 
   assert.match(api, /access_mode: 'time_based'/);
 });
 
+test('Mein Bereich zeigt den serverseitigen Klarheitsverlauf und den goldenen Zielkorridor', async () => {
+  const [html, script, styles, api, guided] = await Promise.all([
+    readFile(htmlUrl, 'utf8'),
+    readFile(scriptUrl, 'utf8'),
+    readFile(stylesUrl, 'utf8'),
+    readFile(new URL('../api/participant-program.js', import.meta.url), 'utf8'),
+    readFile(new URL('../lib/guided-weeks.js', import.meta.url), 'utf8'),
+  ]);
+  assert.match(html, /data-view="today">⌂ <span>Mein Bereich<\/span>/);
+  assert.match(html, /id="sideClarityValue"/);
+  assert.match(html, /id="dashboardClarityChart"/);
+  assert.match(html, /Zielbereich 7–10/);
+  assert.match(script, /function renderDashboardClarityChart/);
+  assert.match(script, /save_clarity_checkin/);
+  assert.match(styles, /\.clarity-target-band/);
+  assert.match(styles, /#c89a2e/);
+  assert.match(api, /clarityHistory/);
+  assert.match(api, /currentClarity/);
+  assert.match(guided, /clarity_checkin/);
+});
+
 test('Aktueller Prozessschritt folgt dem Fortschritt statt der letzten Freischaltung', async () => {
   const [portal, admin, access] = await Promise.all([
     readFile(scriptUrl, 'utf8'),
