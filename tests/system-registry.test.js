@@ -16,13 +16,14 @@ test('Systemregister zeigt aktive Google-, Supabase- und OpenAI-Dienste getrennt
   assert.equal(byId.google_calendar.status.key, 'active');
   assert.equal(byId.google_meet.status.key, 'active');
   assert.match(byId.google_calendar.detail, /admin@example\.com/);
-  assert.equal(registry.summary.activeIntegrations, 4);
+  assert.equal(byId.supabase_auth_mail.status.key, 'active');
+  assert.equal(registry.summary.activeIntegrations, 5);
 });
 
 test('Systemregister unterscheidet fehlende Konfiguration und geplanten Ausbau', () => {
   const registry = buildSystemRegistry({ googleConfigured: false, openaiConfigured: false });
   assert.equal(registry.integrations.find((item) => item.id === 'google_calendar').status.key, 'missing');
-  assert.equal(registry.integrations.find((item) => item.id === 'crm_email').status.key, 'planned');
+  assert.equal(registry.integrations.find((item) => item.id === 'domain_email').status.key, 'planned');
   assert.equal(registry.agents.find((item) => item.id === 'situation_recognition').status.key, 'missing');
   assert.equal(registry.agents.find((item) => item.id === 'decision_escalation').status.key, 'planned');
   assert.ok(registry.summary.planned >= 5);

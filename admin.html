@@ -235,6 +235,26 @@
           </div>
           <div id="participantRows"></div>
         </div>
+        <section class="card participant-login-manager" id="participantLoginManager">
+          <div class="settings-card-head">
+            <div>
+              <p class="eyebrow">Sichere Portalzugänge</p>
+              <h2>Teilnehmer-Login</h2>
+              <p>
+                Nach dem vollständigen Vertragsabschluss erzeugt das System
+                automatisch Kundennummer, Login und Einmalzugang.
+              </p>
+            </div>
+            <span class="settings-state active" id="participantLoginCount">0 Zugänge</span>
+          </div>
+          <div class="participant-login-table">
+            <div class="participant-login-head">
+              <span>Kunde</span><span>Kundennummer</span><span>Teilnehmer-Login</span
+              ><span>Zugangsstatus</span><span>Verwaltung</span>
+            </div>
+            <div id="participantLoginRows"></div>
+          </div>
+        </section>
       </section>
 
       <section class="view" data-panel="clarity">
@@ -1182,6 +1202,46 @@
           <button type="button" class="secondary" data-close-user-edit>
             Abbrechen</button
           ><button class="primary" type="submit">Änderungen speichern</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="participantLoginDialog" class="participant-login-dialog">
+      <form id="participantLoginForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Teilnehmer-Login</p>
+            <h2 id="participantLoginName">Zugang verwalten</h2>
+            <small id="participantLoginEmail"></small>
+          </div>
+          <button type="button" data-close-participant-login>×</button>
+        </div>
+        <input type="hidden" name="id" />
+        <div class="participant-login-fields">
+          <label>Kundennummer<input name="customerNumber" readonly /></label>
+          <label>Teilnehmer-Login<input name="loginName" minlength="3" maxlength="100" required /></label>
+        </div>
+        <div class="login-security-state">
+          <span id="participantPasswordState">Passwortstatus wird geladen …</span>
+          <small>Einmalpasswörter werden aus Sicherheitsgründen nie dauerhaft lesbar gespeichert.</small>
+        </div>
+        <div class="one-time-password-result" id="oneTimePasswordResult" hidden>
+          <div>
+            <small>Nur jetzt sichtbar · sicher an den Kunden übergeben</small>
+            <strong id="oneTimePasswordValue"></strong>
+          </div>
+          <button type="button" class="secondary" id="copyOneTimePassword">Kopieren</button>
+        </div>
+        <div class="participant-login-actions">
+          <button type="button" class="secondary" id="issueOneTimePassword">Neues Einmalpasswort</button>
+          <button type="button" class="secondary" id="sendParticipantLoginMail">Einmal-Link per Mail senden</button>
+        </div>
+        <p class="mail-provider-note">
+          Zugangsmails laufen derzeit sicher über Supabase Auth. Die geplante
+          Domain-Mail-Schnittstelle übernimmt diesen Versand später.
+        </p>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" data-close-participant-login>Abbrechen</button>
+          <button class="primary" type="submit">Login speichern</button>
         </div>
       </form>
     </dialog>

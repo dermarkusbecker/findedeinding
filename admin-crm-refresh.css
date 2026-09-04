@@ -470,6 +470,37 @@ main>header {
 .agent-registry-card dd { color: #43534f; font-size: 10px; line-height: 1.5; margin: 0; }
 .system-error { color: #ad4635; grid-column: 1/-1; }
 
+/* Participant login administration */
+.participant-login-manager { margin-top: 22px; padding: 28px; scroll-margin-top: 24px; }
+.participant-login-manager>.settings-card-head { align-items: center; }
+.participant-login-manager>.settings-card-head h2 { font-size: 21px; margin: 4px 0 7px; }
+.participant-login-manager>.settings-card-head p:last-child { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 0; }
+.participant-login-table { border: 1px solid var(--line); border-radius: 13px; margin-top: 22px; overflow: hidden; }
+.participant-login-head, .participant-login-row { align-items: center; display: grid; gap: 16px; grid-template-columns: minmax(210px,1.25fr) minmax(110px,.65fr) minmax(180px,1fr) minmax(145px,.8fr) 105px; }
+.participant-login-head { background: #f1f6f5; color: #778681; font: 600 9px DM Mono; letter-spacing: .07em; padding: 12px 17px; text-transform: uppercase; }
+.participant-login-row { border-top: 1px solid var(--line); min-height: 78px; padding: 13px 17px; }
+.participant-login-row:first-child { border-top: 0; }
+.participant-login-row>strong { color: #3f514d; font-size: 11px; }
+.participant-login-row code { background: #e9f4f1; border-radius: 7px; color: #116f61; font: 700 11px DM Mono; overflow: hidden; padding: 8px 9px; text-overflow: ellipsis; white-space: nowrap; }
+.login-state { align-items: center; display: inline-flex; font-size: 10px; font-weight: 750; gap: 6px; }
+.login-state::before { background: currentColor; border-radius: 50%; content: ''; height: 7px; width: 7px; }
+.login-state.active { color: #0b826b; }.login-state.change { color: #a06900; }.login-state.pending { color: #a34837; }
+.participant-login-dialog { max-width: 700px; }
+.participant-login-fields { display: grid; gap: 13px; grid-template-columns: 180px 1fr; margin-top: 22px; }
+.participant-login-fields label { color: var(--muted); display: flex; flex-direction: column; font-size: 11px; font-weight: 800; gap: 7px; }
+.participant-login-fields input { background: #f8fbfa; border: 1px solid var(--line); border-radius: 10px; font-size: 13px; min-height: 45px; padding: 11px 12px; }
+.participant-login-fields input[readonly] { color: #71807c; }
+.login-security-state { background: #f1f6f5; border-radius: 11px; margin-top: 16px; padding: 15px; }
+.login-security-state span, .login-security-state small { display: block; }
+.login-security-state span { color: #24554c; font-size: 12px; font-weight: 800; }
+.login-security-state small { color: #71807c; font-size: 10px; line-height: 1.55; margin-top: 5px; }
+.one-time-password-result { align-items: center; background: #fff4d9; border: 1px solid #e9cf91; border-radius: 11px; display: flex; justify-content: space-between; margin-top: 14px; padding: 15px; }
+.one-time-password-result[hidden] { display: none; }
+.one-time-password-result small { color: #866519; display: block; font-size: 9px; }
+.one-time-password-result strong { color: #5e4307; display: block; font: 800 15px DM Mono; margin-top: 6px; word-break: break-all; }
+.participant-login-actions { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; margin-top: 14px; }
+.mail-provider-note { background: #faf9f5; border-left: 3px solid #d7cdb3; color: #6c746f; font-size: 10px!important; line-height: 1.6; margin: 14px 0 0!important; padding: 11px 13px; }
+
 /* Admin-editable clarity questions */
 .clarity-question-settings { padding: 28px; }
 .question-toolbar { display: grid; gap: 14px; grid-template-columns: 180px minmax(260px, 1fr); margin: 25px 0 20px; }
@@ -587,6 +618,9 @@ dialog form>p { font-size: 12px; }
   .analysis-person, .settings-nav { position: static; }
   .analysis-person nav { grid-template-columns: repeat(3, 1fr); }
   .system-summary-grid { grid-template-columns: 1fr 1fr; }
+  .participant-login-head { display: none; }
+  .participant-login-row { grid-template-columns: 1fr 1fr; }
+  .participant-login-row>.participant { grid-column: 1/-1; }
 }
 
 @media (max-width: 800px) {
@@ -643,6 +677,10 @@ dialog form>p { font-size: 12px; }
   .system-summary-grid { grid-template-columns: 1fr; }
   .agent-registry-top { align-items: flex-start; grid-template-columns: auto 1fr; }
   .agent-registry-top .system-status-badge { grid-column: 1/-1; }
+  .participant-login-row { grid-template-columns: 1fr; }
+  .participant-login-row>.participant { grid-column: auto; }
+  .participant-login-fields, .participant-login-actions { grid-template-columns: 1fr; }
+  .one-time-password-result { align-items: stretch; flex-direction: column; gap: 12px; }
   .question-toolbar { grid-template-columns: 1fr; }
   .question-card-actions { align-items: stretch; flex-direction: column; }
   .question-card-actions>div { flex-direction: column; }

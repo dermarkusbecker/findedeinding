@@ -44,8 +44,8 @@ async function activateContractedLead(service, lead, programStartDate) {
   if (lead.converted_user_profile_id) return { profileId: lead.converted_user_profile_id, alreadyActive: true };
   const profile = await provisionProgramUser(service, { name: lead.name, email: lead.email, startDate: programStartDate, permissions: ['customer_portal', 'clara_program', 'documents'] });
   await patchLead(service, lead.id, { status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
-  await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Kundenportal-Zugang versendet', preview: 'Vertragsdokument und Videovertrag sind bestätigt. Der neue Teilnehmer hat die E-Mail zur sicheren Passwortvergabe erhalten.' }).catch(() => null);
-  return { profileId: profile.id, name: profile.name, email: profile.email, alreadyActive: false };
+  await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Teilnehmer-Login automatisch erstellt', preview: `Login ${profile.portal_username || 'wird vergeben'} wurde angelegt. Ein sicherer Einmal-Link zur Passwortvergabe wurde per System-E-Mail versendet.` }).catch(() => null);
+  return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, oneTimePassword: profile.oneTimePassword, alreadyActive: false };
 }
 
 async function completedContract(service, leadId) {
@@ -280,7 +280,7 @@ export default async function handler(request, response) {
       const contract = await completedContract(service, lead.id);
       if (!contract) return response.status(409).json({ error: 'Teilnehmer-Aktivierung gesperrt: Vertragsdokument und Videovertrag müssen vollständig bestätigt sein.' });
       const participant = await activateContractedLead(service, lead, contract.program_start_date || request.body?.programStartDate);
-      return response.status(200).json({ lead: await leadById(service, lead.id), profile: { id: participant.profileId, name: participant.name, email: participant.email }, invitationSent: true });
+      return response.status(200).json({ lead: await leadById(service, lead.id), profile: { id: participant.profileId, name: participant.name, email: participant.email, loginName: participant.loginName, customerNumber: participant.customerNumber }, oneTimePassword: participant.oneTimePassword, invitationSent: true });
     }
     return response.status(405).json({ error: 'Aktion oder Methode nicht erlaubt.' });
   } catch (error) {
