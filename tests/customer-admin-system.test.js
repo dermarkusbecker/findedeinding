@@ -32,7 +32,7 @@ test('Kundenliste unterstützt Kacheln, Liste und große Detailansicht mit aussc
   assert.match(styles, /\.customer-detail-card/);
 });
 
-test('Kundenfortschritt entsteht aus abgeschlossenen Pflicht-Gates statt aus der Zeitfreischaltung', () => {
+test('Kundenfortschritt entsteht erst aus bestätigten Wochenabschlüssen', () => {
   const gates = [
     { week: 0, required: true, completed_at: '2026-09-01T10:00:00Z' },
     { week: 0, required: true, completed_at: '2026-09-01T10:01:00Z' },
@@ -40,8 +40,11 @@ test('Kundenfortschritt entsteht aus abgeschlossenen Pflicht-Gates statt aus der
     { week: 1, required: true, completed_at: '2026-09-02T10:01:00Z' },
     { week: 2, required: true, completed_at: null },
   ];
-  assert.deepEqual(summarizeCustomerProgress(gates, 8), { completed_weeks: [1], process_week: 2, completion_percent: 13 });
-  assert.deepEqual(summarizeCustomerProgress(gates.map((gate) => gate.week === 0 ? { ...gate, completed_at: null } : gate), 8).process_week, 0);
+  const inWeekTwo = { current_week: 2, process_status: 'WEEK_2', privacy_consent_at: '2026-09-01', start_commitment_at: '2026-09-01' };
+  assert.deepEqual(summarizeCustomerProgress(gates, inWeekTwo), { completed_weeks: [1], process_week: 2, completion_percent: 13 });
+  assert.deepEqual(summarizeCustomerProgress(gates.map((gate) => gate.week === 0 ? { ...gate, completed_at: null } : gate), { current_week: 0, process_status: 'ONBOARDING' }).process_week, 0);
+  const weekTwoReadyButNotClosed = gates.map((gate) => gate.week === 2 ? { ...gate, completed_at: '2026-09-03T10:00:00Z' } : gate);
+  assert.deepEqual(summarizeCustomerProgress(weekTwoReadyButNotClosed, inWeekTwo), { completed_weeks: [1], process_week: 2, completion_percent: 13 });
 });
 
 test('Kundenakte öffnet zuerst ein Dashboard und führt das Kundengespräch als eigene Seite', async () => {

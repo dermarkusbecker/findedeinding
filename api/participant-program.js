@@ -141,8 +141,8 @@ export default async function handler(request, response) {
         const content = programWeeks.find((item) => item.week === week);
         return { week, title: content.title, mode: content.mode };
       });
-      const recordedWeekAccessible = access.weekStates.some((state) => state.week === Number(result.progress.current_week) && state.accessible);
-      const selectedWeek = onboardingComplete ? (requestedWeek || (recordedWeekAccessible ? Number(result.progress.current_week) : access.unlockedWeeks[0] || 1)) : 0;
+      const processWeekAccessible = access.weekStates.some((state) => state.week === Number(access.processWeek) && state.accessible);
+      const selectedWeek = onboardingComplete ? (requestedWeek || (processWeekAccessible ? Number(access.processWeek) : access.unlockedWeeks[0] || 1)) : 0;
       const guidedState = selectedWeek >= 2 ? await readGuidedWeekState(result, session.participantId, selectedWeek) : null;
       const questionOverrides = selectedWeek ? await readClarityQuestionOverrides(result.service, selectedWeek) : [];
       return response.status(200).json({ profile: { id: result.profile.id, name: result.profile.name }, access, onboardingComplete, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => ({ week, title, mode, description, topics })), accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null });

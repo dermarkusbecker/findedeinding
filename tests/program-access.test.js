@@ -77,10 +77,21 @@ test('time_based öffnet unabhängig vom Abschluss alle sieben Tage eine Woche',
 
 test('Prozessposition bleibt nach zwei Abschlüssen in Woche 3, auch wenn Woche 8 zeitlich freigeschaltet ist', () => {
   const gates = [...requiredGates(1), ...requiredGates(2), ...requiredGates(3, false)];
-  const access = calculateProgramAccess({ progress: { current_week: 8, program_start_date: '2026-07-01' }, gates, now: new Date('2026-09-04T12:00:00Z') });
+  const access = calculateProgramAccess({ progress: { current_week: 8, process_status: 'WEEK_3', privacy_consent_at: '2026-07-01', start_commitment_at: '2026-07-01', program_start_date: '2026-07-01' }, gates, now: new Date('2026-09-04T12:00:00Z') });
   assert.equal(access.currentWeek, 8);
+  assert.equal(access.recordedCurrentWeek, 3);
   assert.deepEqual(access.completedWeeks, [1, 2]);
   assert.equal(access.processWeek, 3);
+});
+
+test('erledigte Pflichtschritte markieren die aktuelle Woche noch nicht als abgeschlossen', () => {
+  const progress = { current_week: 2, process_status: 'WEEK_2', privacy_consent_at: '2026-08-01', start_commitment_at: '2026-08-01', program_start_date: '2026-08-01' };
+  const access = calculateProgramAccess({ progress, gates: [...requiredGates(1), ...requiredGates(2)], now: new Date('2026-08-10T12:00:00Z') });
+  assert.deepEqual(access.completedWeeks, [1]);
+  assert.deepEqual(access.gateCompletedWeeks, [1, 2]);
+  assert.equal(access.weekStates[1].completed, false);
+  assert.equal(access.weekStates[1].readyToComplete, true);
+  assert.equal(access.processWeek, 2);
 });
 
 test('time_based verweigert vor dem individuellen Startdatum jeden Wochenzugriff', () => {
@@ -109,7 +120,7 @@ test('Pausierung stoppt auch den festen Zeitplan', () => {
 });
 
 test('abgeschlossene Wochen bleiben weiterhin zugänglich', () => {
-  const access = calculateProgramAccess({ progress: { program_start_date: '2026-09-04' }, gates: [...requiredGates(1), ...requiredGates(2), ...requiredGates(3)], now: new Date('2026-09-25T12:00:00Z') });
+  const access = calculateProgramAccess({ progress: { current_week: 4, process_status: 'WEEK_4', privacy_consent_at: '2026-09-04', start_commitment_at: '2026-09-04', program_start_date: '2026-09-04' }, gates: [...requiredGates(1), ...requiredGates(2), ...requiredGates(3)], now: new Date('2026-09-25T12:00:00Z') });
   assert.deepEqual(access.completedWeeks, [1, 2, 3]);
   assert.deepEqual(access.unlockedWeeks, [1, 2, 3, 4]);
 });

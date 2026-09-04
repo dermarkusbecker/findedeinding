@@ -1,15 +1,13 @@
 import { authHeaders, profileById, randomTemporaryPassword, requireCurrentAdmin, sendPasswordReset } from '../lib/user-auth.js';
 import { handleCustomerRecords } from '../lib/customer-records-service.js';
+import { isOnboardingComplete, isProgramWeekFinalized, recordedProgramWeek } from '../lib/program-access.js';
 
 function config() { const url = process.env.SUPABASE_URL?.replace(/\/$/, ''); const key = process.env.SUPABASE_SERVICE_ROLE_KEY; return url && key ? { url, key } : null; }
 function headers(key, extra = {}) { return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...extra }; }
 
-export function summarizeCustomerProgress(gates = [], fallbackWeek = 0) {
+export function summarizeCustomerProgress(gates = [], progress = {}) {
+  const storedProgress = typeof progress === 'object' && progress !== null ? progress : { current_week: Number(progress) || 0 };
   const required = gates.filter((gate) => gate.required !== false);
-  if (!required.length) {
-    const week = Math.max(0, Math.min(8, Number(fallbackWeek) || 0));
-    return { completed_weeks: [], process_week: week, completion_percent: Math.round(week / 8 * 100) };
-  }
   const gatesByWeek = new Map();
   required.forEach((gate) => {
     const week = Number(gate.week);
@@ -17,14 +15,12 @@ export function summarizeCustomerProgress(gates = [], fallbackWeek = 0) {
     rows.push(gate);
     gatesByWeek.set(week, rows);
   });
-  const completed = Array.from({ length: 8 }, (_, index) => index + 1).filter((week) => {
-    const rows = gatesByWeek.get(week) || [];
-    return rows.length > 0 && rows.every((gate) => Boolean(gate.completed_at));
-  });
   const onboarding = gatesByWeek.get(0) || [];
-  const onboardingComplete = onboarding.length > 0 && onboarding.every((gate) => Boolean(gate.completed_at));
+  const onboardingComplete = isOnboardingComplete(storedProgress) || (onboarding.length > 0 && onboarding.every((gate) => Boolean(gate.completed_at)));
+  const completed = Array.from({ length: 8 }, (_, index) => index + 1).filter((week) => isProgramWeekFinalized(storedProgress, week));
+  const recordedWeek = recordedProgramWeek(storedProgress);
   const processWeek = onboardingComplete
-    ? (completed.length === 8 ? 8 : Array.from({ length: 8 }, (_, index) => index + 1).find((week) => !completed.includes(week)))
+    ? (storedProgress.process_status === 'FINAL_REPORT' ? 8 : Math.max(1, recordedWeek || 1))
     : 0;
   return { completed_weeks: completed, process_week: processWeek, completion_percent: Math.round(completed.length / 8 * 100) };
 }
@@ -68,7 +64,7 @@ export default async function handler(request, response) {
         ...visibleProfile,
         linked_lead_id: lead.id,
         customer_since: lead.converted_at || lead.created_at || participant.created_at,
-        ...summarizeCustomerProgress(gatesByCustomer.get(participant.id) || [], progress.current_week),
+        ...summarizeCustomerProgress(gatesByCustomer.get(participant.id) || [], progress),
       };
     });
     return response.status(200).json({ participants: customers });
