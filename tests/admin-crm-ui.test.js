@@ -45,7 +45,7 @@ test('CRM verwendet Kunden und Interessenten und bietet editierbare Klarheitsfra
   assert.match(html, /data-settings-tab="questions"/);
   assert.match(html, /data-settings-panel="questions"/);
   assert.match(html, /id="clarityQuestionList"/);
-  assert.match(script, /fetch\('\/api\/clarity-settings'/);
+  assert.match(script, /fetch\('\/api\/clarity\?action=settings'/);
   assert.match(script, /Kundenprogramme verwalten/);
 });
 

@@ -45,11 +45,12 @@ test('Fragenabruf filtert nur bei ausdrücklich gewählter Woche', async () => {
 
 test('Admin-API schützt und persistiert die konfigurierten Fragen', async () => {
   const [api, participantApi, claraApi] = await Promise.all([
-    readFile(new URL('../api/clarity-settings.js', import.meta.url), 'utf8'),
+    readFile(new URL('../api/clarity.js', import.meta.url), 'utf8'),
     readFile(new URL('../api/participant-program.js', import.meta.url), 'utf8'),
     readFile(new URL('../lib/clara/api-handler.js', import.meta.url), 'utf8'),
   ]);
   assert.match(api, /requireCurrentAdmin/);
+  assert.match(api, /action === 'settings'/);
   assert.match(api, /request\.method === 'GET'/);
   assert.match(api, /request\.method !== 'PATCH'/);
   assert.match(api, /action === 'reset'/);
