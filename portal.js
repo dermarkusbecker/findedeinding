@@ -26,6 +26,7 @@ let program = null;
 let currentWeek = 1;
 let currentContent = null;
 let initialViewResolved = false;
+let todayMode = 'dashboard';
 let journeyMessages = [];
 let journeyLoading = false;
 const speechState = { recognition: null, activeButton: null };
@@ -147,7 +148,10 @@ function attachSpeechButton(button) {
   });
 }
 
-$$('[data-view]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.view)));
+$$('[data-view]').forEach((button) => button.addEventListener('click', () => {
+  if (button.dataset.view === 'today') todayMode = 'dashboard';
+  showView(button.dataset.view);
+}));
 $$('[data-view-link]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.viewLink)));
 wireSpeechControls();
 window.wireSpeechControls = wireSpeechControls;
@@ -407,8 +411,44 @@ async function confirmClaraResult(confirmationToken, button) {
 }
 
 async function openWeek(week) {
-  try { await loadProgram(week); showView('today'); }
+  try { todayMode = 'week'; await loadProgram(week); showView('today'); }
   catch (error) { toast(error.status === 403 ? 'Diese Woche ist noch gesperrt.' : error.message); }
+}
+
+function formatProgramDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return 'Noch nicht festgelegt';
+  return new Date(`${value}T12:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function renderProgramDashboard() {
+  if (!program?.access) return;
+  const summaries = new Map((program.programWeeks || []).map((week) => [Number(week.week), week]));
+  const states = program.access.weekStates || [];
+  const activeWeek = program.access.currentWeek || program.access.unlockedWeeks?.at(-1) || 1;
+  const activeSummary = summaries.get(activeWeek) || summaries.get(1);
+  const nextState = states.find((state) => !state.accessible && state.unlocksAt);
+  const completed = program.access.completedWeeks.length;
+  $('#dashboardProgressTitle').textContent = completed === 8 ? 'Alle 8 Wochen abgeschlossen' : `Woche ${activeWeek} von 8`;
+  $('#dashboardProgressCopy').textContent = `${completed} von 8 Wochen abgeschlossen · Projektstart ${formatProgramDate(program.access.programStartDate)}.`;
+  $('#dashboardStatusBadge').textContent = program.access.status === 'paused' ? 'Programm pausiert' : completed === 8 ? 'Programm abgeschlossen' : 'Programm aktiv';
+  $('#dashboardCurrentNumber').textContent = String(activeWeek).padStart(2, '0');
+  $('#dashboardCurrentTitle').textContent = activeSummary?.title || 'Deine aktuelle Woche';
+  $('#dashboardCurrentCopy').textContent = activeSummary ? `${activeSummary.mode} · Diese Woche ist entsprechend deinem persönlichen Zeitplan freigeschaltet.` : 'Dein nächster Bereich wird vorbereitet.';
+  $('#dashboardStartDate').textContent = formatProgramDate(program.access.programStartDate);
+  $('#dashboardEndDate').textContent = formatProgramDate(program.access.programEndDate);
+  $('#dashboardNextDate').textContent = nextState ? `Woche ${nextState.week} · ${formatProgramDate(nextState.unlocksAt)}` : 'Alle Wochen freigeschaltet';
+  const currentButton = $('#openCurrentWeek');
+  currentButton.dataset.dashboardWeek = String(activeWeek);
+  currentButton.disabled = program.access.status === 'paused' || !states.some((state) => state.week === activeWeek && state.accessible);
+  $('#dashboardWeekGrid').innerHTML = states.map((state) => {
+    const summary = summaries.get(Number(state.week));
+    const isCurrent = Number(state.week) === Number(activeWeek);
+    const className = state.completed ? 'completed' : isCurrent && state.accessible ? 'current' : state.accessible ? 'available' : 'locked';
+    const status = state.completed ? 'Abgeschlossen' : isCurrent && state.accessible ? 'Aktuell' : state.accessible ? 'Verfügbar' : `Ab ${formatProgramDate(state.unlocksAt)}`;
+    const icon = state.completed ? '✓' : isCurrent && state.accessible ? '●' : state.accessible ? '→' : '○';
+    return `<button type="button" class="dashboard-week-tile ${className}" ${state.accessible ? `data-dashboard-week="${state.week}"` : 'disabled'}><span>${icon}</span><small>Woche ${state.week}</small><b>${escapeHtml(summary?.title || `Woche ${state.week}`)}</b><i>${escapeHtml(status)}</i></button>`;
+  }).join('');
+  $$('[data-dashboard-week]').forEach((button) => button.addEventListener('click', () => openWeek(Number(button.dataset.dashboardWeek))));
 }
 
 function renderPausedState() {
@@ -647,20 +687,25 @@ function render() {
   const activeView = document.querySelector('aside nav button.active')?.dataset.view || 'onboarding';
   const reviewingOnboarding = activeView === 'onboarding';
   const showOnboarding = !started || reviewingOnboarding;
+  const showDashboard = started && !showOnboarding && activeView === 'today' && todayMode === 'dashboard';
+  const dashboardWeek = program.access.currentWeek || program.access.unlockedWeeks?.at(-1) || 1;
+  const dashboardSummary = (program.programWeeks || []).find((item) => Number(item.week) === Number(dashboardWeek));
   document.querySelector('aside nav button[data-view="today"] span').textContent = 'Heute';
   $('#sideProgress').style.width = `${pct}%`;
   $('#sidePercent').textContent = `${pct} % abgeschlossen`;
-  $('#sidePhase').textContent = !showOnboarding && started && content ? `Woche ${currentWeek} · ${content.title}` : 'Onboarding';
-  $('#headerPhase').textContent = !showOnboarding && started && content ? `Woche ${currentWeek} von 8 · ${content.title}` : 'Onboarding';
+  $('#sidePhase').textContent = !showOnboarding && started ? `Woche ${showDashboard ? dashboardWeek : currentWeek} · ${(showDashboard ? dashboardSummary?.title : content?.title) || 'Dein Prozess'}` : 'Onboarding';
+  $('#headerPhase').textContent = !showOnboarding && started ? `Woche ${showDashboard ? dashboardWeek : currentWeek} von 8 · ${(showDashboard ? dashboardSummary?.title : content?.title) || 'Dein Prozess'}` : 'Onboarding';
   const name = program.profile?.name || 'Teilnehmer';
   const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
   document.querySelector('.side-foot > div > span').textContent = initials;
   document.querySelector('.side-foot strong').textContent = name;
   $('#onboarding').classList.toggle('hidden', !showOnboarding);
-  $('#activeWeek').classList.toggle('hidden', showOnboarding || !started || !content);
+  $('#programDashboard').classList.toggle('hidden', !showDashboard);
+  $('#activeWeek').classList.toggle('hidden', showOnboarding || showDashboard || !started || !content);
   $('.welcome').classList.toggle('week-hero-compact', Boolean(
     started
     && !showOnboarding
+    && !showDashboard
     && currentWeek === 1
     && program.weekOne?.current_step !== 'WEEK_1_ENTRY'
   ));
@@ -687,6 +732,14 @@ function render() {
       refreshOnboardingGateState();
       $('#startProcess').disabled = paused || $('#startProcess').disabled;
     }
+  } else if (showDashboard) {
+    $('#mobileWeekGreeting').classList.add('hidden');
+    $('#revokePrivacy').classList.add('hidden');
+    $('#todayLabel').textContent = 'Deine Programmübersicht';
+    $('#welcomeTitle').innerHTML = `Hallo ${escapeHtml(name.trim().split(/\s+/)[0] || 'du')}. <em>Hier stehst du.</em>`;
+    $('#welcomeCopy').textContent = 'Dein persönlicher Acht-Wochen-Plan zeigt dir, was bereits geschafft ist, wo du gerade stehst und wann sich der nächste Bereich öffnet.';
+    $('#clarityValue').textContent = local.clarityEnd || local.clarityStart || '—';
+    renderProgramDashboard();
   } else if (content) {
     $('#revokePrivacy').classList.add('hidden');
     $('#todayLabel').textContent = `Woche ${currentWeek} · ${content.mode}`;
@@ -733,12 +786,12 @@ function render() {
 }
 
 function renderJourney() {
-  const summaries = new Map((program?.accessibleWeeks || []).map((week) => [week.week, week]));
+  const summaries = new Map((program?.programWeeks || []).map((week) => [week.week, week]));
   $('#journeyGrid').innerHTML = (program?.access.weekStates || []).map((state) => {
     const summary = summaries.get(state.week);
     const active = state.week === currentWeek;
     const status = state.completed ? '✓ abgeschlossen' : active ? '● geöffnet' : state.accessible ? '○ verfügbar' : 'gesperrt';
-    const reason = state.reason === 'admin_unlocked' ? 'Vom Admin freigegeben' : state.reason === 'admin_locked' ? 'Vom Admin gesperrt' : state.reason === 'scheduled_release' ? 'Zeitlich freigeschaltet' : state.accessible ? 'Zugriff freigegeben' : 'Noch nicht freigeschaltet';
+    const reason = state.reason === 'admin_unlocked' ? 'Vom Admin freigegeben' : state.reason === 'admin_locked' ? 'Vom Admin gesperrt' : state.reason === 'scheduled_release' ? `Freigeschaltet seit ${formatProgramDate(state.unlocksAt)}` : state.reason === 'scheduled_wait' ? `Öffnet am ${formatProgramDate(state.unlocksAt)}` : state.accessible ? 'Zugriff freigegeben' : 'Noch nicht freigeschaltet';
     return `<article class="week-card ${state.completed ? 'completed' : active ? 'active' : state.accessible ? 'available' : 'locked'}" ${state.accessible ? `data-open-week="${state.week}" tabindex="0" role="button"` : ''}><span>Woche ${state.week}</span><i>${status}</i><h2>${summary ? summary.title : 'Noch gesperrt'}</h2><p>${summary ? summary.mode : 'Inhalte werden nach der Freischaltung sichtbar.'}</p><b>${reason}</b></article>`;
   }).join('');
   $$('[data-open-week]').forEach((card) => {
@@ -762,6 +815,11 @@ function renderDocuments() {
   [[4, 1, 'Bereit'], [6, 2, 'Bereit'], [8, 3, 'Wird erzeugt']].forEach(([week, index, label]) => { if (program.access.completedWeeks.includes(week)) { articles[index].classList.remove('locked'); articles[index].querySelector('i').textContent = label; } });
 }
 
+$('#openCurrentWeek').addEventListener('click', (event) => openWeek(Number(event.currentTarget.dataset.dashboardWeek || program?.access?.currentWeek || 1)));
+$('#backToDashboard').addEventListener('click', () => {
+  todayMode = 'dashboard';
+  showView('today');
+});
 $('#privacy').addEventListener('change', refreshOnboardingGateState);
 $('#commitment').addEventListener('change', refreshOnboardingGateState);
 $('#printCommitment').addEventListener('click', openCommitmentPrintView);
@@ -781,9 +839,10 @@ $('#startProcess').addEventListener('click', async () => {
   button.textContent = 'Woche 1 wird vorbereitet …';
   try {
     await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'start', privacy: $('#privacy').checked, commitment: $('#commitment').checked, signedDocument: signedUploaded }) });
-    await loadProgram(1);
+    todayMode = 'dashboard';
+    await loadProgram();
     showView('today');
-    toast('Alles erfolgreich erledigt. Ich leite dich jetzt zu Woche 1 weiter.');
+    toast('Alles erfolgreich erledigt. Deine 8-Wochen-Übersicht ist jetzt bereit.');
   } catch (error) {
     button.textContent = 'Ich bin bereit →';
     refreshOnboardingGateState();
@@ -909,7 +968,8 @@ $('#reopenCurrentWeek').addEventListener('click', async () => {
   }
 });
 $('#completeWeek').addEventListener('click', async () => {
-  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'complete_week', week: currentWeek }) }); if (currentWeek === 8 && !local.clarityEnd) { const score = Number(prompt('Wie klar ist dir heute auf einer Skala von 1 bis 10, was dein Ding ist?')); if (score >= 1 && score <= 10) { local.clarityEnd = score; saveLocal(); } } await loadProgram(currentWeek < 8 ? currentWeek + 1 : 8); toast(currentWeek === 8 ? 'Digitaler Prozess abgeschlossen.' : 'Woche abgeschlossen.'); }
+  const completedWeek = currentWeek;
+  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'complete_week', week: completedWeek }) }); if (completedWeek === 8 && !local.clarityEnd) { const score = Number(prompt('Wie klar ist dir heute auf einer Skala von 1 bis 10, was dein Ding ist?')); if (score >= 1 && score <= 10) { local.clarityEnd = score; saveLocal(); } } todayMode = 'dashboard'; await loadProgram(); showView('today'); toast(completedWeek === 8 ? 'Digitaler Prozess abgeschlossen.' : `Woche ${completedWeek} abgeschlossen. Deine Übersicht wurde aktualisiert.`); }
   catch (error) { toast(error.message); }
 });
 $('#saveSupport').addEventListener('click', () => { const text = $('#supportText').value.trim(); if (!text) return; local.support.push({ text, week: currentWeek, at: new Date().toISOString() }); $('#supportText').value = ''; saveLocal(); toast('Deine Frage wurde für das Q&A gespeichert.'); });

@@ -152,7 +152,7 @@ export default async function handler(request, response) {
       const selectedWeek = onboardingComplete ? (requestedWeek || (recordedWeekAccessible ? Number(result.progress.current_week) : access.unlockedWeeks[0] || 1)) : 0;
       const guidedState = selectedWeek >= 2 ? await readGuidedWeekState(result, session.participantId, selectedWeek) : null;
       const questionOverrides = selectedWeek ? await readClarityQuestionOverrides(result.service, selectedWeek) : [];
-      return response.status(200).json({ profile: { id: result.profile.id, name: result.profile.name }, access, onboardingComplete, accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null });
+      return response.status(200).json({ profile: { id: result.profile.id, name: result.profile.name }, access, onboardingComplete, programWeeks: programWeeks.map(({ week, title, mode }) => ({ week, title, mode })), accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null });
     }
     if (request.method !== 'PATCH') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
     const action = request.body?.action;
@@ -165,9 +165,10 @@ export default async function handler(request, response) {
       const now = new Date().toISOString();
       const berlinDateParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
       const datePart = (type) => berlinDateParts.find((part) => part.type === type)?.value;
-      const programStartDate = `${datePart('year')}-${datePart('month')}-${datePart('day')}`;
+      const configuredStartDate = String(result.progress.program_start_date || '');
+      const programStartDate = /^\d{4}-\d{2}-\d{2}$/.test(configuredStartDate) ? configuredStartDate : `${datePart('year')}-${datePart('month')}-${datePart('day')}`;
       await Promise.all([
-        patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: now, start_commitment_at: now, program_start_date: programStartDate, access_mode: 'completion_based', current_week: 1, process_status: 'WEEK_1', last_activity_at: now }),
+        patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: now, start_commitment_at: now, program_start_date: programStartDate, access_mode: 'time_based', current_week: 1, process_status: 'WEEK_1', last_activity_at: now }),
         Promise.allSettled(startGates.map((gate) => setGate(result.service, session.participantId, gate.id, true))),
       ]);
       return response.status(200).json({ ok: true, started: true, week: 1 });

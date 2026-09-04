@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateProgramAccess, isOnboardingComplete, reopenWeekState, resetParticipantProgressState } from '../lib/program-access.js';
+import { calculateProgramAccess, isOnboardingComplete, programWeekSchedule, reopenWeekState, resetParticipantProgressState } from '../lib/program-access.js';
 
 const requiredGates = (week, completed = true) => [1, 2, 3].map((index) => ({ week, gate_key: `w${week}_${index}`, required: true, completed_at: completed ? '2026-08-01T10:00:00Z' : null }));
 
@@ -12,7 +12,7 @@ test('resetParticipantProgressState setzt den Prozess auf Onboarding zurück und
   assert.equal(reset.start_commitment_at, null);
   assert.deepEqual(reset.manually_unlocked_weeks, []);
   assert.deepEqual(reset.manually_locked_weeks, []);
-  assert.equal(reset.access_mode, 'completion_based');
+  assert.equal(reset.access_mode, 'time_based');
 });
 
 test('Onboarding richtet sich nach den beiden getrennt protokollierten Start-Gates', () => {
@@ -30,17 +30,35 @@ test('reopenWeekState setzt den Teilnehmer auf die gewählte Woche zurück und e
   assert.equal(reopened.last_activity_at, null);
 });
 
-test('completion_based ist der sichere Standard und öffnet zunächst nur Woche 1', () => {
-  const access = calculateProgramAccess({ progress: {}, gates: [] });
-  assert.equal(access.accessMode, 'completion_based');
+test('zeitbasiert ist der Standard und öffnet am Projektstart nur Woche 1', () => {
+  const access = calculateProgramAccess({ progress: { program_start_date: '2026-09-04' }, gates: [], now: new Date('2026-09-04T12:00:00Z') });
+  assert.equal(access.accessMode, 'time_based');
   assert.deepEqual(access.unlockedWeeks, [1]);
+});
+
+test('gespeicherte Woche 3 überspringt am neuen Projektstart nicht Woche 1', () => {
+  const access = calculateProgramAccess({ progress: { current_week: 3, access_mode: 'time_based', program_start_date: '2026-09-04' }, now: new Date('2026-09-04T12:00:00Z') });
+  assert.equal(access.recordedCurrentWeek, 3);
+  assert.equal(access.currentWeek, 1);
+  assert.deepEqual(access.unlockedWeeks, [1]);
+});
+
+test('Projektstart erzeugt acht vollständige Wochenfenster und ein festes Programmende', () => {
+  const schedule = programWeekSchedule('2026-09-04');
+  assert.equal(schedule.length, 8);
+  assert.deepEqual(schedule[0], { week: 1, unlocksAt: '2026-09-04', endsAt: '2026-09-11' });
+  assert.deepEqual(schedule[7], { week: 8, unlocksAt: '2026-10-23', endsAt: '2026-10-30' });
+  const access = calculateProgramAccess({ progress: { access_mode: 'time_based', program_start_date: '2026-09-04' }, now: new Date('2026-09-04T12:00:00Z') });
+  assert.equal(access.programEndDate, '2026-10-30');
+  assert.equal(access.weekStates[1].reason, 'scheduled_wait');
 });
 
 test('completion_based öffnet die nächste Woche nur nach allen Pflicht-Gates', () => {
   const partialWeekOne = requiredGates(1); partialWeekOne[2].completed_at = null;
-  assert.deepEqual(calculateProgramAccess({ progress: {}, gates: partialWeekOne }).unlockedWeeks, [1]);
-  assert.deepEqual(calculateProgramAccess({ progress: {}, gates: requiredGates(1) }).unlockedWeeks, [1, 2]);
-  assert.deepEqual(calculateProgramAccess({ progress: {}, gates: [...requiredGates(1), ...requiredGates(2)] }).unlockedWeeks, [1, 2, 3]);
+  const progress = { access_mode: 'completion_based' };
+  assert.deepEqual(calculateProgramAccess({ progress, gates: partialWeekOne }).unlockedWeeks, [1]);
+  assert.deepEqual(calculateProgramAccess({ progress, gates: requiredGates(1) }).unlockedWeeks, [1, 2]);
+  assert.deepEqual(calculateProgramAccess({ progress, gates: [...requiredGates(1), ...requiredGates(2)] }).unlockedWeeks, [1, 2, 3]);
 });
 
 test('time_based öffnet unabhängig vom Abschluss alle sieben Tage eine Woche', () => {

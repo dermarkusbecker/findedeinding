@@ -17,7 +17,7 @@ async function ensureProgram(service, profileId, startDateInput) {
   if (progress[0]) return false;
   const programStartDate = /^\d{4}-\d{2}-\d{2}$/.test(startDateInput || '') ? startDateInput : new Date().toISOString().slice(0, 10);
   await Promise.all([
-    data(await fetch(`${service.url}/rest/v1/participant_progress`, { method: 'POST', headers: authHeaders(service.serviceKey), body: JSON.stringify({ user_profile_id: profileId, process_status: 'ONBOARDING', current_week: 1, program_start_date: programStartDate, access_mode: 'completion_based', program_status: 'active' }) })),
+    data(await fetch(`${service.url}/rest/v1/participant_progress`, { method: 'POST', headers: authHeaders(service.serviceKey), body: JSON.stringify({ user_profile_id: profileId, process_status: 'ONBOARDING', current_week: 1, program_start_date: programStartDate, access_mode: 'time_based', program_status: 'active' }) })),
     data(await fetch(`${service.url}/rest/v1/week_gates`, { method: 'POST', headers: authHeaders(service.serviceKey), body: JSON.stringify(participantGateRows(profileId)) })),
   ]);
   return true;

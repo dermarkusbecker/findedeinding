@@ -27,7 +27,7 @@ export default async function handler(request, response) {
     const profiles = await created.json();
     if (!created.ok) return response.status(created.status).json({ error: profiles.message });
     await Promise.all([
-      fetch(`${service.url}/rest/v1/participant_progress`, { method: 'POST', headers: headers(service.key), body: JSON.stringify({ user_profile_id: profiles[0].id, process_status: 'ONBOARDING', current_week: 1, program_start_date: programStartDate, access_mode: 'completion_based', program_status: 'active' }) }),
+      fetch(`${service.url}/rest/v1/participant_progress`, { method: 'POST', headers: headers(service.key), body: JSON.stringify({ user_profile_id: profiles[0].id, process_status: 'ONBOARDING', current_week: 1, program_start_date: programStartDate, access_mode: 'time_based', program_status: 'active' }) }),
       fetch(`${service.url}/rest/v1/week_gates`, { method: 'POST', headers: headers(service.key), body: JSON.stringify(participantGateRows(profiles[0].id)) }),
     ]);
     return response.status(201).json({ participant: profiles[0] });

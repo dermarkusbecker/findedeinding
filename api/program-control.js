@@ -106,7 +106,7 @@ export default async function handler(request, response) {
         current_week: 0,
         process_status: 'ONBOARDING',
         program_status: 'active',
-        access_mode: 'completion_based',
+        access_mode: 'time_based',
         manually_unlocked_weeks: [],
         manually_locked_weeks: [],
         privacy_consent_at: null,
