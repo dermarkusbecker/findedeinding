@@ -69,11 +69,17 @@
     </aside>
     <main>
       <header>
-        <div class="crumb">
-          <span>FDD</span><b>/</b><strong id="viewTitle">Command Center</strong>
+        <div class="global-crm-search" id="globalCrmSearch">
+          <label class="global-crm-search-box" for="globalCrmSearchInput">
+            <span aria-hidden="true">⌕</span>
+            <input id="globalCrmSearchInput" type="search" placeholder="Name, E-Mail, Telefon, Kundennr. …" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="globalCrmSearchResults" aria-expanded="false" />
+            <kbd>⌘ K</kbd>
+          </label>
+          <div class="global-crm-search-results" id="globalCrmSearchResults" role="listbox" aria-label="Gefundene CRM-Kontakte" hidden></div>
         </div>
+        <strong id="viewTitle" class="sr-only">Command Center</strong>
         <div class="header-actions">
-          <button class="square">⌕</button><button class="square">♢</button
+          <button class="square">♢</button
           ><button class="primary" data-jump="leads">
             Interessenten öffnen
           </button>

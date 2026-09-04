@@ -32,3 +32,18 @@ test('Dashboard rendert Live-Metriken, Klarheitskurve, Wochenverteilung und echt
   assert.match(styles, /#dashboardClarityPoints/);
   assert.match(styles, /article\[data-dashboard-action\]/);
 });
+
+test('globale CRM-Suche schlägt ab drei Zeichen Interessenten und Kunden vor und öffnet deren Akte', async () => {
+  const [html, script, styles] = await Promise.all([file('admin.html'), file('admin.js'), file('admin-crm-refresh.css')]);
+  assert.match(html, /id="globalCrmSearchInput"[^>]*role="combobox"/);
+  assert.match(html, /id="globalCrmSearchResults"[^>]*role="listbox"/);
+  assert.doesNotMatch(html, /class="crumb"/);
+  assert.match(script, /function globalContactMatches/);
+  assert.match(script, /normalized\.length<3/);
+  assert.match(script, /collectContactSearchValues/);
+  assert.match(script, /lead\.converted_user_profile_id/);
+  assert.match(script, /showView\('participants'\);await openProgramControl/);
+  assert.match(script, /showView\('leads'\);await openLeadDashboard/);
+  assert.match(styles, /\.global-crm-search-results\s*\{/);
+  assert.match(styles, /\.global-contact-result:hover/);
+});
