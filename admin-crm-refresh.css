@@ -497,6 +497,10 @@ main>header {
 .settings-hero .settings-icon { font-size: 23px; height: 58px; min-width: 58px; }
 .settings-hero h2 { font-size: 23px; }
 .settings-hero p:last-child { font-size: 12px; }
+.settings-users-panel .settings-hero>div { flex: 1; }
+.settings-users-panel .settings-hero>.primary { flex: 0 0 auto; }
+.settings-users-panel .role-system-card { margin-bottom: 0; }
+.settings-users-panel .user-table { margin-top: 0; }
 .settings-card-head h3, .integration-card h3, .settings-link-grid h3 { font-size: 16px; }
 .settings-card-head p, .integration-copy p, .settings-link-grid p, .settings-coming p { font-size: 12px; }
 .settings-state { font-size: 10px; padding: 7px 10px; }

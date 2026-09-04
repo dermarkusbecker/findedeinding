@@ -25,9 +25,16 @@ test('CRM besitzt eine kontextabhängige zweite Navigation', async () => {
   ]);
   assert.match(html, /class="context-nav" aria-label="Unterkategorien"/);
   assert.match(script, /const contextNavigation = \{/);
-  for (const view of ['command', 'participants', 'clarity', 'gates', 'leads', 'communications', 'users', 'settings']) {
+  for (const view of ['command', 'participants', 'clarity', 'gates', 'leads', 'communications', 'settings']) {
     assert.match(script, new RegExp(`${view}:\\{`));
   }
+  assert.doesNotMatch(html, /<button data-view="users"/);
+  assert.doesNotMatch(script, /users:\{icon:/);
+  assert.match(html, /data-settings-tab="users"/);
+  assert.match(html, /data-settings-panel="users"/);
+  assert.match(script, /\['Benutzer','Konten, Rollen & Zugänge','\.settings-content','users'\]/);
+  assert.match(script, /name==='users'.*loadUsers\(\)/);
+  assert.match(script, /legacyUsersView/);
   assert.doesNotMatch(html, /data-view="escalations"|data-panel="escalations"/i);
   assert.doesNotMatch(script, /coach.?eskalation|decision_escalation/i);
   assert.doesNotMatch(html, /data-view="benni"/i);
@@ -65,7 +72,7 @@ test('CRM verwendet Kunden und Interessenten und bietet editierbare Klarheitsfra
   assert.match(html, /data-settings-panel="questions"/);
   assert.match(html, /id="clarityQuestionList"/);
   assert.match(script, /fetch\('\/api\/clarity\?action=settings'/);
-  assert.match(script, /Kundenprogramme verwalten/);
+  assert.match(script, /Kundenverwaltung.*Portal-Login/s);
 });
 
 test('Wochen-Gates besitzen anklickbare Felder und einen zentralen Admin-Dialog', async () => {

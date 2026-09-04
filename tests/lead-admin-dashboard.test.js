@@ -17,7 +17,7 @@ test('Interessenten öffnen eine vollständige CRM-Detailakte statt nur eines Be
   assert.doesNotMatch(styles, /\.lead-(?:task|bank)-card\s*\{\s*grid-column:\s*span 7;/);
   assert.match(styles, /\.lead-profile-hero/);
   assert.match(styles, /\.lead-sales-call-card/);
-  assert.doesNotMatch(html.slice(html.indexOf('id="leadDashboard"'), html.indexOf('data-panel="users"')), /Wirtschaftliche Verhältnisse/i);
+  assert.doesNotMatch(html.slice(html.indexOf('id="leadDashboard"'), html.indexOf('data-panel="settings"')), /Wirtschaftliche Verhältnisse/i);
 });
 
 test('Interessenten-Navigation bildet Eingang, aktive Fälle, kein und späteres Interesse mit Echtdaten ab', async () => {
