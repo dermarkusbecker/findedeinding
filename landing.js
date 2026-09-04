@@ -4,6 +4,20 @@ const status = document.querySelector('#formStatus');
 const menu = document.querySelector('.menu');
 const navigation = document.querySelector('.site-header nav');
 const navWrap = document.querySelector('.nav-wrap');
+const leadDialog = document.querySelector('#leadDialog');
+let leadDialogTrigger = null;
+
+const openLeadDialog = (trigger = null) => {
+  if (!leadDialog || leadDialog.open) return;
+  leadDialogTrigger = trigger;
+  document.body.classList.add('lead-dialog-open');
+  leadDialog.showModal();
+  requestAnimationFrame(() => form.elements.name?.focus());
+};
+
+const closeLeadDialog = () => {
+  if (leadDialog?.open) leadDialog.close();
+};
 
 const replayPanel = (element) => {
   if (!element || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -24,6 +38,20 @@ document.querySelectorAll('.site-header nav a').forEach((link) => link.addEventL
   menu.setAttribute('aria-expanded', 'false');
   menu.setAttribute('aria-label', 'Menü öffnen');
 }));
+
+document.querySelectorAll('[data-open-lead-dialog]').forEach((trigger) => trigger.addEventListener('click', (event) => {
+  event.preventDefault();
+  openLeadDialog(trigger);
+}));
+document.querySelector('[data-close-lead-dialog]')?.addEventListener('click', closeLeadDialog);
+leadDialog?.addEventListener('click', (event) => { if (event.target === leadDialog) closeLeadDialog(); });
+leadDialog?.addEventListener('close', () => {
+  document.body.classList.remove('lead-dialog-open');
+  if (location.hash === '#start') history.replaceState(null, '', `${location.pathname}${location.search}`);
+  leadDialogTrigger?.focus();
+  leadDialogTrigger = null;
+});
+if (location.hash === '#start') openLeadDialog();
 
 const choiceContent = {
   direction: ['Deine Richtung', 'Du musst die Antwort noch nicht kennen.', 'Wir beginnen bei dem, was bereits da ist: deiner Geschichte, deinen Wünschen und den Momenten, die dir Energie geben.'],
