@@ -94,7 +94,7 @@ function updateAudienceSummary(){
 async function loadCommunicationCenter(force=false){
   if(communicationCenterLoaded&&!force){renderTemplates();renderCampaigns();renderAutomations();return;}
   try{
-    const response=await fetch('/api/communications?action=center'),data=await response.json();
+    const response=await fetch('/api/leads?action=communication-center'),data=await response.json();
     if(!response.ok)throw new Error(data.error);
     communicationTemplates=data.templates||[];communicationCampaigns=data.campaigns||[];communicationAutomations=data.automations||[];communicationCenterContacts=data.contacts||[];communicationCenterLoaded=true;
     if(data.contacts?.length)communicationContacts=data.contacts;
@@ -153,7 +153,7 @@ function openAutomationDialog(id=''){
 }
 
 async function communicationCenterRequest(action,method,payload){
-  const response=await fetch(`/api/communications?action=${encodeURIComponent(action)}`,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),data=await response.json();if(!response.ok)throw new Error(data.error);return data;
+  const response=await fetch(`/api/leads?action=communication-${encodeURIComponent(action)}`,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),data=await response.json();if(!response.ok)throw new Error(data.error);return data;
 }
 async function setCampaignState(id,status){try{await communicationCenterRequest('campaign-state','PATCH',{id,status});communicationCenterLoaded=false;await loadCommunicationCenter();toast(status==='paused'?'Seriennachricht wurde pausiert.':'Seriennachricht wurde wieder aktiviert.');}catch(error){toast(error.message);}}
 async function setAutomationState(id,enabled){try{await communicationCenterRequest('automation-state','PATCH',{id,enabled});communicationCenterLoaded=false;await loadCommunicationCenter();toast(enabled?'Automation wurde aktiviert.':'Automation wurde deaktiviert.');}catch(error){toast(error.message);}}
