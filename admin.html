@@ -31,7 +31,6 @@
         <button class="active" data-view="command">
           <span>⌂</span>Dashboard</button
         ><button data-view="participants"><span>◎</span>Kunden</button
-        ><button data-view="clarity"><span>✦</span>Klarheitsanalyse</button
         ><button data-view="gates"><span>✓</span>Wochen-Gates</button
         >
         <p>Vertrieb & System</p>
@@ -262,6 +261,22 @@
           <div class="customer-dashboard-page" data-customer-page="program" hidden>
             <section class="card customer-page-card customer-process-page"><div class="lead-card-heading"><div><p class="eyebrow">Aktueller Wochenprozess</p><h2>Prozessfortschritt &amp; Kundeneingaben</h2><p>Arbeitsstand, Freischaltungen, Antworten und Pflichtschritte aus der Kundenreise – direkt mit diesem Kundenprofil verknüpft.</p></div><div class="customer-process-heading-actions"><span class="customer-page-state" id="customerProcessOverallState">Wird geladen …</span><button class="primary" id="editCustomerProgram" type="button">Programm verwalten</button></div></div><div class="customer-process-layout"><nav class="customer-process-week-nav" id="customerProcessWeekNav" aria-label="Prozesswochen"></nav><div class="customer-process-detail" id="customerProcessDetail"></div></div></section>
           </div>
+          <div class="customer-dashboard-page" data-customer-page="clarity" hidden>
+            <section class="customer-clarity-workspace">
+              <header class="customer-clarity-hero">
+                <div><p class="eyebrow light">Interne Gesprächsvorbereitung · beleggebunden</p><h2 id="customerClarityHeadline">Klarheitsanalyse wird vorbereitet …</h2><p id="customerClaritySummary">Die freigegebenen Ergebnisse des Acht-Wochen-Prozesses werden systematisch zusammengeführt.</p></div>
+                <div class="customer-clarity-score" id="customerClarityScore"><small>Klarheitsverlauf</small><strong>—</strong><span>Noch keine Messung</span></div>
+              </header>
+              <div class="customer-clarity-meta"><span id="customerClaritySource">Noch keine Prozessdaten</span><span id="customerClarityGenerated">Analyse wird geladen …</span></div>
+              <section class="card customer-clarity-focus"><p class="eyebrow">Aktueller Gesprächsfokus</p><h3 id="customerClarityFocus">Noch keine belastbare Ableitung</h3><p>Die Analyse ist ein Arbeitsstand für Mitarbeitende – keine Diagnose und keine endgültige Wahrheit.</p></section>
+              <div class="customer-clarity-columns">
+                <section class="card"><div class="customer-clarity-section-head"><div><p class="eyebrow">Systematisierte Ergebnisse</p><h3>Wiederkehrende Themen</h3></div><span>mit Wochenbezug</span></div><div class="customer-clarity-findings" id="customerClarityThemes"></div></section>
+                <section class="card"><div class="customer-clarity-section-head"><div><p class="eyebrow">Bewusst offenhalten</p><h3>Spannungsfelder &amp; Fragen</h3></div><span>vorsichtige Ableitungen</span></div><div class="customer-clarity-findings" id="customerClarityTensions"></div><div class="customer-clarity-questions" id="customerClarityQuestions"></div></section>
+              </div>
+              <section class="card customer-conversation-guidance"><div class="customer-clarity-section-head"><div><p class="eyebrow">Direkt nutzbar</p><h3>Gesprächsansätze für den nächsten Kontakt</h3><p>Formulierungen aus Kundenaussagen – prüfen, persönlich anpassen und erst dann verwenden.</p></div><span>Meet · Telefon · WhatsApp</span></div><div class="customer-guidance-grid" id="customerClarityGuidance"></div></section>
+              <section class="customer-clarity-boundaries" id="customerClarityBoundaries"></section>
+            </section>
+          </div>
           <div class="customer-dashboard-page" data-customer-page="login" hidden>
             <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Sicherer Portalzugang</p><h2>Portal-Login</h2></div><button class="primary" id="manageCustomerLogin" type="button">Zugang verwalten</button></div><div id="customerLoginPage" class="customer-login-page"></div></section>
           </div>
@@ -281,146 +296,6 @@
             <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Google Kalender</p><h2>Terminliste</h2><p>Bevorstehende und vergangene Kundentermine mit Meet-Verknüpfung.</p></div><span class="customer-page-state" id="customerAppointmentState">Wird geladen …</span></div><div class="customer-appointment-list" id="customerAppointmentPage"></div></section>
           </div>
         </section>
-      </section>
-
-      <section class="view" data-panel="clarity">
-        <div class="intro">
-          <div>
-            <p class="eyebrow">Synthese</p>
-            <h1>Klarheitsanalyse</h1>
-            <p>
-              Rohantworten, Evidenz und vorsichtige Ableitungen bleiben
-              nachvollziehbar getrennt.
-            </p>
-          </div>
-          <button class="secondary">Analyse exportieren</button>
-        </div>
-        <div class="analysis-layout">
-          <aside class="analysis-person card">
-            <div class="person">
-              <span>JW</span>
-              <div>
-                <strong>Julia Werner</strong><small>Woche 7 · 79 %</small>
-              </div>
-            </div>
-            <div class="clarity-score">
-              <small>Klarheit</small><strong>3 → 7</strong><i>+4 Punkte</i>
-            </div>
-            <nav>
-              <button class="active">Gesamtbild</button
-              ><button>Motivatoren</button><button>Werte</button
-              ><button>Ding / Leben</button><button>Optionen A / B</button
-              ><button>Umsetzungsplan</button>
-            </nav>
-          </aside>
-          <div class="analysis-content">
-            <section class="analysis-hero">
-              <div>
-                <p class="eyebrow light">
-                  Arbeitsstand · keine endgültige Wahrheit
-                </p>
-                <h2>Was sich über mehrere Übungen hinweg zeigt</h2>
-                <p>
-                  Die Analyse priorisiert wiederkehrende Kundenaussagen und
-                  konkrete Erfahrungen. Human Design und LILA bleiben ergänzende
-                  Reflexionssignale.
-                </p>
-              </div>
-              <span>7<small>/ 10 Klarheit</small></span>
-            </section>
-            <div class="evidence-grid">
-              <article class="card">
-                <p class="eyebrow">Starke Evidenz</p>
-                <h3>Wiederkehrende Muster</h3>
-                <ul>
-                  <li>
-                    <b>Eigenverantwortung</b
-                    ><span>5 unabhängige Datenquellen</span>
-                  </li>
-                  <li>
-                    <b>Menschen entwickeln</b
-                    ><span>4 konkrete Erfahrungsbeispiele</span>
-                  </li>
-                  <li>
-                    <b>Gestaltungsfreiheit</b
-                    ><span>Werte, Motivatoren, perfekter Tag</span>
-                  </li>
-                </ul>
-              </article>
-              <article class="card">
-                <p class="eyebrow">Spannungsfelder</p>
-                <h3>Bewusst offenhalten</h3>
-                <ul>
-                  <li>
-                    <b>Sicherheit ↔ Freiheit</b
-                    ><span>reales Risiko, kein Glaubenssatz</span>
-                  </li>
-                  <li>
-                    <b>Sichtbarkeit ↔ Rückzug</b><span>kontextabhängig</span>
-                  </li>
-                  <li>
-                    <b>Vielfalt ↔ Fokus</b
-                    ><span>im Realitätskontakt prüfen</span>
-                  </li>
-                </ul>
-              </article>
-            </div>
-            <section class="card map">
-              <div class="card-head">
-                <div>
-                  <p class="eyebrow">Dein-Ding-Map</p>
-                  <h2>Vier Bereiche, ein engerer Suchraum</h2>
-                </div>
-                <span class="evidence-badge">12 starke Belege</span>
-              </div>
-              <div class="map-grid">
-                <article class="peach">
-                  <span>Begeistert</span
-                  ><b>Kreative Konzepte<br />echte Gespräche</b>
-                </article>
-                <article class="yellow">
-                  <span>Steckt in mir</span
-                  ><b>Struktur geben<br />Menschen lesen</b>
-                </article>
-                <article class="sage">
-                  <span>Unterschied</span
-                  ><b>Orientierung<br />Mut ermöglichen</b>
-                </article>
-                <article class="white">
-                  <span>Wert schaffen</span><b>Workshops<br />Begleitung</b>
-                </article>
-                <div class="map-core">
-                  Entwicklung<br /><em>mit Klarheit</em>
-                </div>
-              </div>
-            </section>
-            <section class="card options">
-              <div class="card-head">
-                <div>
-                  <p class="eyebrow">Woche 7</p>
-                  <h2>Finale Optionen</h2>
-                </div>
-                <span class="note">Score 0–10, qualitativ begründet</span>
-              </div>
-              <div class="option-grid">
-                <article>
-                  <small>Option A</small>
-                  <h3>People Development</h3>
-                  <strong>8 / 10</strong>
-                  <p><b>Stark:</b> Menschen, Struktur, Wirkung</p>
-                  <p><b>Offen:</b> Organisationskontext</p>
-                </article>
-                <article>
-                  <small>Option B</small>
-                  <h3>Selbstständige Beratung</h3>
-                  <strong>7 / 10</strong>
-                  <p><b>Stark:</b> Freiheit, Gestaltung, Vielfalt</p>
-                  <p><b>Offen:</b> Sicherheit und Vertrieb</p>
-                </article>
-              </div>
-            </section>
-          </div>
-        </div>
       </section>
 
       <section class="view" data-panel="gates" id="gateOverviewTop">

@@ -256,6 +256,19 @@ alter table public.user_profiles
 create unique index if not exists user_profiles_source_lead_unique on public.user_profiles(source_lead_id) where source_lead_id is not null;
 create unique index if not exists leads_converted_profile_unique on public.leads(converted_user_profile_id) where converted_user_profile_id is not null;
 
+create table if not exists public.customer_clarity_analyses (
+  id uuid primary key default gen_random_uuid(),
+  user_profile_id uuid not null unique references public.user_profiles(id) on delete cascade,
+  source_fingerprint text not null,
+  analysis jsonb not null default '{}'::jsonb,
+  generator text not null default 'grounded_fallback',
+  model text,
+  version text not null,
+  generated_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.customer_clarity_analyses enable row level security;
+
 create table if not exists public.participant_progress (
   id uuid primary key default gen_random_uuid(),
   user_profile_id uuid not null unique references public.user_profiles(id) on delete cascade,

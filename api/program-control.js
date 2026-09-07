@@ -7,6 +7,7 @@ import { weekOnePrompt } from '../lib/week-one.js';
 import { ensureWeekReflection } from '../lib/week-reflection-agent.js';
 import { resetParticipantOnboarding } from '../lib/onboarding-reset.js';
 import { syncCustomerProfileToLead } from '../lib/contact-lifecycle.js';
+import { ensureCustomerClarityAnalysis } from '../lib/customer-clarity-agent.js';
 
 const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -169,7 +170,9 @@ async function backfillCompletedWeekReflections(result, participantId) {
 async function publicResult(result, participantId) {
   if (await backfillCompletedWeekReflections(result, participantId)) result = await getParticipantProgramAccess(participantId);
   const states = await readGuidedStates(result, participantId);
-  return { profile: result.profile, progress: result.progress, gates: result.gates, access: result.serializedAccess, technicalConfirmations: technicalResult(states), processWeeks: processWeekResult(result) };
+  const processWeeks = processWeekResult(result);
+  const clarityAnalysis = await ensureCustomerClarityAnalysis({ service: result.service, participantId, participantName: result.profile.name, processWeeks });
+  return { profile: result.profile, progress: result.progress, gates: result.gates, access: result.serializedAccess, technicalConfirmations: technicalResult(states), processWeeks, clarityAnalysis };
 }
 
 async function confirmTechnicalResult(current, participantId, admin, confirmation) {

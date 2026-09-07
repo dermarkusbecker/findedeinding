@@ -25,9 +25,11 @@ test('CRM besitzt eine kontextabhängige zweite Navigation', async () => {
   ]);
   assert.match(html, /class="context-nav" aria-label="Unterkategorien"/);
   assert.match(script, /const contextNavigation = \{/);
-  for (const view of ['command', 'participants', 'clarity', 'gates', 'leads', 'communications', 'settings']) {
+  for (const view of ['command', 'participants', 'gates', 'leads', 'communications', 'settings']) {
     assert.match(script, new RegExp(`${view}:\\{`));
   }
+  assert.doesNotMatch(html, /data-view="clarity"/);
+  assert.match(script, /\['Klarheitsanalyse','KI-Synthese & Gesprächsansätze'/);
   assert.doesNotMatch(html, /<button data-view="users"/);
   assert.doesNotMatch(script, /users:\{icon:/);
   assert.match(html, /data-settings-tab="users"/);

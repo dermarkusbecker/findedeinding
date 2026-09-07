@@ -93,7 +93,8 @@ test('CRM verknüpft alle laufenden Kundenfälle mit dem lesbaren Wochenprozess'
   assert.match(script, /data-dashboard-participant-id/);
   assert.match(script, /openCustomerDashboard\(button\.dataset\.dashboardParticipantId,'program'\)/);
   assert.match(script, /function renderCustomerProcess/);
-  assert.match(programApi, /processWeeks: processWeekResult\(result\)/);
+  assert.match(programApi, /const processWeeks = processWeekResult\(result\)/);
+  assert.match(programApi, /processWeeks, clarityAnalysis/);
   assert.match(programApi, /function weekOneAnswers/);
   assert.match(programApi, /function guidedAnswers/);
   assert.match(styles, /\.customer-process-layout/);

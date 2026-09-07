@@ -33,8 +33,9 @@ test('Systemregister unterscheidet fehlende Konfiguration und geplanten Ausbau',
 test('Systemregister listet die tatsächlich implementierten KI-Aufgaben nachvollziehbar', () => {
   const registry = buildSystemRegistry({ openaiConfigured: true });
   const activeAgents = registry.agents.filter((item) => item.status.key === 'active');
-  assert.deepEqual(activeAgents.map((item) => item.id), ['clara_dialog', 'situation_recognition', 'career_recognition', 'week_reflection']);
+  assert.deepEqual(activeAgents.map((item) => item.id), ['clara_dialog', 'situation_recognition', 'career_recognition', 'week_reflection', 'customer_clarity']);
   assert.match(activeAgents.find((item) => item.id === 'situation_recognition').situation, /Intentionen.*Themen.*Spannungen/);
   assert.match(activeAgents.find((item) => item.id === 'week_reflection').situation, /final gespeicherten Aussagen/);
   assert.match(activeAgents.find((item) => item.id === 'week_reflection').situation, /früherer Abschlüsse automatisch/);
+  assert.match(activeAgents.find((item) => item.id === 'customer_clarity').situation, /Google Meet, Telefon und WhatsApp/);
 });
