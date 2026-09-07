@@ -970,14 +970,20 @@
           <button type="button" data-close-lead>×</button>
         </div>
         <input type="hidden" name="id" />
-        <div class="lead-contact-grid">
-          <label>Vorname<input name="firstName" required /></label
-          ><label>Nachname<input name="lastName" required /></label
-          ><label
-            >E-Mail-Adresse<input name="email" type="email" required /></label
-          ><label>Telefon<input name="phone" type="tel" /></label
-          ><label
-            >Status<select name="status">
+        <section class="lead-basics">
+          <div class="lead-section-head">
+            <div>
+              <p class="eyebrow">Stammdaten</p>
+              <h3>Kontakt &amp; Anliegen</h3>
+            </div>
+            <span>Alle Angaben lassen sich direkt bearbeiten</span>
+          </div>
+          <div class="lead-contact-grid">
+            <label>Vorname<input name="firstName" required /></label>
+            <label>Nachname<input name="lastName" required /></label>
+            <label>E-Mail-Adresse<input name="email" type="email" required /></label>
+            <label>Telefon<input name="phone" type="tel" /></label>
+            <label class="lead-status-field">Status<select name="status">
               <option value="new">Neu</option>
               <option value="contacted">Kontaktiert</option>
               <option value="scheduled">Termin vereinbart</option>
@@ -986,17 +992,13 @@
               <option value="later">Später Interesse</option>
               <option value="customer" disabled>Teilnehmer (automatisch)</option>
               <option value="lost">Kein Interesse</option>
-            </select></label
-          >
-        </div>
-        <label
-          >Anliegen des Interessenten<textarea
-            name="challenge"
-            rows="3"
-          ></textarea></label
-        ><label
-          >Interne Notizen<textarea name="internalNotes" rows="3"></textarea>
-        </label>
+            </select></label>
+          </div>
+          <div class="lead-context-grid">
+            <label>Anliegen des Interessenten<textarea name="challenge" rows="3"></textarea></label>
+            <label>Interne Notizen<textarea name="internalNotes" rows="3"></textarea></label>
+          </div>
+        </section>
         <section class="lead-appointment">
           <div class="lead-section-head">
             <div>

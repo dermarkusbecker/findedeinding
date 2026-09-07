@@ -20,6 +20,16 @@ test('Interessenten öffnen eine vollständige CRM-Detailakte statt nur eines Be
   assert.doesNotMatch(html.slice(html.indexOf('id="leadDashboard"'), html.indexOf('data-panel="settings"')), /Wirtschaftliche Verhältnisse/i);
 });
 
+test('Verkaufsgespräch ordnet Stammdaten und Anliegen in einem lesbaren Dialograster an', async () => {
+  const [html, styles] = await Promise.all([file('admin.html'), file('admin-crm-refresh.css')]);
+  assert.match(html, /<section class="lead-basics">/);
+  assert.match(html, /<div class="lead-context-grid">/);
+  assert.match(html, /class="lead-status-field"/);
+  assert.match(styles, /#leadDialog\.lead-dialog \{[^}]*max-width: 920px;[^}]*overflow: hidden;[^}]*width: calc\(100% - 36px\);/);
+  assert.match(styles, /\.lead-contact-grid label,\.lead-context-grid label \{[^}]*display: flex;[^}]*flex-direction: column;/);
+  assert.match(styles, /\.lead-context-grid \{[^}]*grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/);
+});
+
 test('Interessenten-Navigation bildet Eingang, aktive Fälle, kein und späteres Interesse mit Echtdaten ab', async () => {
   const [html, script, styles, api, schema, migration] = await Promise.all([
     file('admin.html'),
