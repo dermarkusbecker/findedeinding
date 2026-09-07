@@ -121,9 +121,7 @@
                 <p class="eyebrow">Prozesssteuerung</p>
                 <h2>Kunden im Prozess</h2>
               </div>
-              <button class="link" data-jump="participants">
-                Alle ansehen →
-              </button>
+              <div class="dashboard-case-heading"><span id="dashboardRunningCount">0 Fälle</span><button class="link" data-jump="participants">Alle ansehen →</button></div>
             </div>
             <div class="participant-list" id="dashboardParticipants"></div>
           </section>
@@ -262,7 +260,7 @@
             <section class="card customer-page-card customer-conversation-page"><div class="lead-card-heading"><div><p class="eyebrow">Persönliche Betreuung</p><h2>Kundengespräch</h2><p>Gesprächsleitfaden, Antworten und nächster Schritt direkt in der Kundenakte bearbeiten.</p></div><span id="customerConversationState">Noch nicht dokumentiert</span></div><form id="customerConversationForm"><div id="customerConversationQuestions" class="customer-conversation-questions"></div><label>Gesprächsnotiz<textarea name="internalNotes" rows="5" placeholder="Erkenntnisse, Einwände und nächste Schritte …"></textarea></label><div class="customer-conversation-actions"><div id="customerConversationAppointment"></div><button class="primary" type="submit">Kundengespräch speichern</button></div></form></section>
           </div>
           <div class="customer-dashboard-page" data-customer-page="program" hidden>
-            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Programmsteuerung</p><h2>Acht Wochen im Überblick</h2></div><button class="primary" id="editCustomerProgram" type="button">Programm verwalten</button></div><div class="customer-week-track large" id="customerProgramPageWeeks"></div></section>
+            <section class="card customer-page-card customer-process-page"><div class="lead-card-heading"><div><p class="eyebrow">Aktueller Wochenprozess</p><h2>Prozessfortschritt &amp; Kundeneingaben</h2><p>Arbeitsstand, Freischaltungen, Antworten und Pflichtschritte aus der Kundenreise – direkt mit diesem Kundenprofil verknüpft.</p></div><div class="customer-process-heading-actions"><span class="customer-page-state" id="customerProcessOverallState">Wird geladen …</span><button class="primary" id="editCustomerProgram" type="button">Programm verwalten</button></div></div><div class="customer-process-layout"><nav class="customer-process-week-nav" id="customerProcessWeekNav" aria-label="Prozesswochen"></nav><div class="customer-process-detail" id="customerProcessDetail"></div></div></section>
           </div>
           <div class="customer-dashboard-page" data-customer-page="login" hidden>
             <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Sicherer Portalzugang</p><h2>Portal-Login</h2></div><button class="primary" id="manageCustomerLogin" type="button">Zugang verwalten</button></div><div id="customerLoginPage" class="customer-login-page"></div></section>
@@ -425,7 +423,7 @@
         </div>
       </section>
 
-      <section class="view" data-panel="gates">
+      <section class="view" data-panel="gates" id="gateOverviewTop">
         <div class="intro">
           <div>
             <p class="eyebrow">Qualitätssicherung</p>
@@ -593,6 +591,11 @@
               <span>?</span>
               <div>
                 <b>Klarheitsanalyse</b><small>Fragen des Prozesses</small>
+              </div></button
+            ><button data-settings-tab="signatures">
+              <span>✎</span>
+              <div>
+                <b>Signaturen & Marke</b><small>Absender und globales Logo</small>
               </div></button
             ><button data-settings-tab="users">
               <span>♙</span>
@@ -804,6 +807,38 @@
                 <div class="clarity-question-list" id="clarityQuestionList">
                   <div class="empty">Klarheitsfragen werden geladen …</div>
                 </div>
+              </section>
+            </section>
+            <section class="settings-panel" data-settings-panel="signatures">
+              <div class="card settings-hero">
+                <span class="settings-icon peach">✎</span>
+                <div><p class="eyebrow">Kommunikation</p><h2>Signaturen &amp; Marke</h2><p>Pflege Absender und Logo einmal zentral. Jede neue Nachricht kann anschließend die passende Signatur übernehmen.</p></div>
+              </div>
+              <section class="card signature-settings-card">
+                <div class="settings-card-head"><div><h3>Markus Becker · Persönlich</h3><p>Die vorbereitete Standardsignatur im Finde-dein-Ding-Stil.</p></div><span class="settings-state active">Standard</span></div>
+                <form id="communicationSignatureForm" class="communication-form-grid">
+                  <input type="hidden" name="id" />
+                  <label>Bezeichnung<input name="name" value="Markus Becker · Persönlich" required maxlength="140" /></label>
+                  <label>Grußformel<input name="closingText" value="Herzliche Grüße" maxlength="240" /></label>
+                  <label>Name<input name="signerName" value="Markus Becker" required maxlength="140" /></label>
+                  <label>Rolle<input name="roleTitle" value="Gründer &amp; Klarheitsbegleiter" maxlength="180" /></label>
+                  <label>Unternehmen<input name="companyName" value="Finde dein Ding" maxlength="180" /></label>
+                  <label>E-Mail<input name="email" type="email" value="markus@findedeinding.de" /></label>
+                  <label>Telefon<input name="phone" type="tel" /></label>
+                  <label>Website<input name="website" value="findedeinding.de" /></label>
+                  <label class="wide communication-switch"><input name="useSystemLogo" type="checkbox" checked /><span><b>Globales Logo verwenden</b><small>Logoänderungen gelten dadurch automatisch für diese Signatur.</small></span></label>
+                  <label class="communication-switch"><input name="active" type="checkbox" checked /><span><b>Signatur aktiv</b></span></label>
+                  <label class="communication-switch"><input name="isDefault" type="checkbox" checked /><span><b>Als Standard verwenden</b></span></label>
+                  <button class="primary wide" type="submit">Signatur speichern</button>
+                </form>
+              </section>
+              <section class="card signature-settings-card">
+                <div class="settings-card-head"><div><h3>Globale Marke</h3><p>Eine Änderung wird systemweit in allen Signaturen übernommen.</p></div><img id="brandingLogoPreview" src="/assets/fdd-logo.svg" alt="Aktuelles Finde-dein-Ding-Logo" /></div>
+                <form id="communicationBrandingForm" class="communication-form-grid">
+                  <label>Markenname<input name="brandName" value="Finde dein Ding" required /></label>
+                  <label>Logo-Pfad oder URL<input name="logoUrl" value="/assets/fdd-logo.svg" required /></label>
+                  <button class="primary wide" type="submit">Marke global speichern</button>
+                </form>
               </section>
             </section>
             <section class="settings-panel settings-users-panel" data-settings-panel="users">
@@ -1293,6 +1328,7 @@
             <small>Nur jetzt sichtbar · sicher an den Kunden übergeben</small>
             <strong id="oneTimePasswordValue"></strong>
           </div>
+          <button type="button" class="secondary password-eye-toggle" id="toggleOneTimePassword" aria-label="Einmalpasswort anzeigen" aria-pressed="false">◉</button>
           <button type="button" class="secondary" id="copyOneTimePassword">Kopieren</button>
         </div>
         <div class="participant-login-actions">
@@ -1317,6 +1353,7 @@
         </div>
         <label>Empfänger<select name="leadId" id="communicationRecipient" required><option value="">Kontakt auswählen</option></select></label>
         <label>Vorlage verwenden<select name="templateId" id="communicationComposerTemplate"><option value="">Ohne Vorlage</option></select></label>
+        <label>Signatur<select name="signatureId" id="communicationComposerSignature"><option value="">Ohne Signatur</option></select></label>
         <label>Betreff<input name="subject" maxlength="220" required /></label>
         <label>Nachricht<textarea name="body" rows="9" maxlength="10000" required></textarea></label>
         <p class="compose-provider-note">Bis zur Verbindung des Domain-Mail-Anbieters wird diese Nachricht als Entwurf gespeichert und nicht als versendet dargestellt.</p>
@@ -1430,25 +1467,16 @@
               <option value="paused">Pausiert</option>
             </select></label
           ><label
-            >Aktuelle Arbeitswoche<select
+            >Aktueller Arbeitsstand<input
               id="programCurrentWeek"
-              name="currentWeek"
-            >
-              <option value="0">Onboarding</option>
-              <option value="1">Woche 1</option>
-              <option value="2">Woche 2</option>
-              <option value="3">Woche 3</option>
-              <option value="4">Woche 4</option>
-              <option value="5">Woche 5</option>
-              <option value="6">Woche 6</option>
-              <option value="7">Woche 7</option>
-              <option value="8">Woche 8</option>
-            </select></label
+              type="text"
+              readonly
+              aria-describedby="programWeekSource" /></label
           >
         </div>
         <div class="program-fixed-schedule">
           <strong>Automatische Wochenfreischaltung</strong>
-          <small>Woche 1 startet am Projektstart. Danach öffnet sich alle sieben Tage automatisch die nächste Woche.</small>
+          <small id="programWeekSource">Woche 1 startet am Projektstart. Danach öffnet sich alle sieben Tage automatisch die nächste Woche. Der Arbeitsstand folgt ausschließlich den tatsächlich abgeschlossenen Wochen.</small>
         </div>
         <div class="program-reset-banner" role="alert">
           <div>

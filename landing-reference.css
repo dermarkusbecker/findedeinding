@@ -106,3 +106,12 @@ body:before{background-image:linear-gradient(rgba(255,225,199,.025) 1px,transpar
 @media(max-width:820px){.clara-panel{grid-template-columns:1fr}.clara-portrait-stage{min-height:620px;order:2}.landing-clara-portrait{bottom:-40px;right:-74px}.clara-copy{max-width:650px}.clara-details-grid{grid-template-columns:1fr}.clara-details-boundary{grid-template-columns:1fr}}
 @media(max-width:560px){.clara-portrait-stage{min-height:560px}.landing-clara-portrait{bottom:-20px;height:510px;right:-104px}.clara-live-card{bottom:14px;left:14px;padding:14px;width:calc(100% - 28px)}.clara-live-card .bubble{font-size:9px}.clara-live-card .typing{margin-top:8px}.clara-actions{display:grid;grid-template-columns:1fr}.clara-actions .button{width:100%}.clara-details-dialog{max-height:calc(100dvh - 16px);width:calc(100% - 16px)}.clara-details-shell{border-radius:18px;padding:58px 16px 20px}.clara-details-head{padding-right:0}.clara-details-head h2{font-size:34px}.clara-details-head>p:last-child{font-size:11px}.clara-details-grid{margin-top:25px}.clara-details-grid article{padding:16px}.clara-details-actions{display:grid;grid-template-columns:1fr}.clara-details-actions .button{width:100%}.clara-details-close{right:13px;top:13px}}
 @media(prefers-reduced-motion:reduce){.clara-details-dialog[open]{animation:none}}
+
+/* Scharfe Typografie: keine 3D- oder Scale-Rasterung von Text-Mockups. */
+body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-synthesis:none;text-rendering:optimizeLegibility}
+.app-frame{transform:translateX(-50%)}
+.frame-top,.privacy-note,.preview-bar span,.chat-date,.demo-head small,.demo-head>i,.insight small{font-size:10px}
+.clara-card p,.mock-input,.choice>span,.fragment,.preview-body>p:not(.micro),.preview-chat p,.preview-input,.clara-copy li small,.value-grid p,details p,.form-head small,#leadForm label,.lead-trust span{font-size:11px}
+.glass-note small,.result-visual small,.preview-callout small,.value-grid small{font-size:9px}
+.glass-note strong,.signal-strip span,.process-tab small,.preview-callout span,.footer-links a,footer>div:first-child p{font-size:10px}
+@media(max-width:560px){.app-frame{left:0;max-width:100%;top:20px;transform:none;width:100%}.frame-content{padding:30px 22px}.frame-content h2{font-size:29px}.hero-stage{min-height:430px}}

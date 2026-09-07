@@ -1,6 +1,8 @@
 let communicationTemplates=[];
 let communicationCampaigns=[];
 let communicationAutomations=[];
+let communicationSignatures=[];
+let communicationBranding=null;
 let communicationCenterContacts=[];
 let communicationCenterLoaded=false;
 let activeCommunicationTemplateId=null;
@@ -56,6 +58,15 @@ function fillTemplateSelects(){
   if(automation){const current=automation.value;automation.innerHTML='<option value="">Vorlage auswählen</option>'+communicationTemplates.map(item=>`<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('');if(communicationTemplates.some(item=>item.id===current))automation.value=current;}
 }
 
+function fillSignatureControls(){
+  const select=document.querySelector('#communicationComposerSignature');
+  if(select){const current=select.value;select.innerHTML='<option value="">Ohne Signatur</option>'+communicationSignatures.filter(item=>item.active).map(item=>`<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}${item.is_default?' · Standard':''}</option>`).join('');const preferred=communicationSignatures.find(item=>item.is_default&&item.active);select.dataset.defaultSignature=preferred?.id||'';select.value=communicationSignatures.some(item=>item.id===current)?current:preferred?.id||'';}
+  const form=document.querySelector('#communicationSignatureForm'),signature=communicationSignatures.find(item=>item.is_default)||communicationSignatures[0];
+  if(form&&signature){form.elements.id.value=signature.id;form.elements.name.value=signature.name||'';form.elements.closingText.value=signature.closing_text||'';form.elements.signerName.value=signature.signer_name||'';form.elements.roleTitle.value=signature.role_title||'';form.elements.companyName.value=signature.company_name||'';form.elements.email.value=signature.email||'';form.elements.phone.value=signature.phone||'';form.elements.website.value=signature.website||'';form.elements.useSystemLogo.checked=signature.use_system_logo!==false;form.elements.active.checked=signature.active!==false;form.elements.isDefault.checked=signature.is_default===true;}
+  const brandingForm=document.querySelector('#communicationBrandingForm');
+  if(brandingForm&&communicationBranding){brandingForm.elements.brandName.value=communicationBranding.brand_name||'Finde dein Ding';brandingForm.elements.logoUrl.value=communicationBranding.logo_url||'/assets/fdd-logo.svg';const preview=document.querySelector('#brandingLogoPreview');if(preview)preview.src=brandingForm.elements.logoUrl.value;}
+}
+
 function campaignDate(value){
   if(!value)return'Noch offen';
   const date=new Date(value);return Number.isNaN(date.getTime())?'Noch offen':date.toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'});
@@ -79,7 +90,7 @@ function automationDelay(item){
 function renderAutomations(){
   document.querySelector('#automationActiveCount').textContent=`${communicationAutomations.filter(item=>item.enabled).length} aktiv`;
   const list=document.querySelector('#communicationAutomationList');
-  list.innerHTML=communicationAutomations.length?communicationAutomations.map(item=>{const template=communicationTemplates.find(entry=>entry.id===item.template_id);return`<article class="automation-card"><div class="automation-card-head"><span class="automation-card-icon">⚡</span><div class="automation-card-title"><h3>${escapeHtml(item.name)}</h3><small>${item.enabled?'Regel aktiv · Versand wartet auf Mail-Schnittstelle':'Regel deaktiviert'}</small></div><span class="communication-badge ${item.enabled?'active':'paused'}">${item.enabled?'Aktiv':'Inaktiv'}</span></div><div class="automation-card-flow"><div><small>Auslöser</small><b>${escapeHtml(triggerLabels[item.trigger_type]||item.trigger_type)}</b></div><span>→</span><div><small>Wartezeit</small><b>${escapeHtml(automationDelay(item))}</b></div><span>→</span><div><small>Vorlage</small><b>${escapeHtml(template?.name||'Nicht gefunden')}</b></div></div><div class="automation-card-foot"><span class="communication-badge">${escapeHtml(audienceLabels[item.audience_type]||item.audience_type)}</span><div><button type="button" class="secondary" data-edit-automation="${escapeHtml(item.id)}">Bearbeiten ···</button><button type="button" class="secondary" data-toggle-automation="${escapeHtml(item.id)}" data-enabled="${item.enabled?'false':'true'}">${item.enabled?'Deaktivieren':'Aktivieren'}</button></div></div></article>`;}).join(''):'<div class="empty">Noch keine automatisierten Nachrichten angelegt.</div>';
+  list.innerHTML=communicationAutomations.length?communicationAutomations.map(item=>{const template=communicationTemplates.find(entry=>entry.id===item.template_id),transport=item.trigger_type==='participant_activated'?'Sicherer Zugangsversand über Supabase Auth aktiv':'Regel aktiv · Domain-Mail-Versand noch angehalten';return`<article class="automation-card"><div class="automation-card-head"><span class="automation-card-icon">⚡</span><div class="automation-card-title"><h3>${escapeHtml(item.name)}</h3><small>${item.enabled?transport:'Regel deaktiviert'}</small></div><span class="communication-badge ${item.enabled?'active':'paused'}">${item.enabled?'Aktiv':'Inaktiv'}</span></div><div class="automation-card-flow"><div><small>Auslöser</small><b>${escapeHtml(triggerLabels[item.trigger_type]||item.trigger_type)}</b></div><span>→</span><div><small>Wartezeit</small><b>${escapeHtml(automationDelay(item))}</b></div><span>→</span><div><small>Vorlage</small><b>${escapeHtml(template?.name||'Nicht gefunden')}</b></div></div><div class="automation-card-foot"><span class="communication-badge">${escapeHtml(audienceLabels[item.audience_type]||item.audience_type)}</span><div><button type="button" class="secondary" data-edit-automation="${escapeHtml(item.id)}">Bearbeiten ···</button><button type="button" class="secondary" data-toggle-automation="${escapeHtml(item.id)}" data-enabled="${item.enabled?'false':'true'}">${item.enabled?'Deaktivieren':'Aktivieren'}</button></div></div></article>`;}).join(''):'<div class="empty">Noch keine automatisierten Nachrichten angelegt.</div>';
   list.querySelectorAll('[data-edit-automation]').forEach(button=>button.addEventListener('click',()=>openAutomationDialog(button.dataset.editAutomation)));
   list.querySelectorAll('[data-toggle-automation]').forEach(button=>button.addEventListener('click',()=>setAutomationState(button.dataset.toggleAutomation,button.dataset.enabled==='true')));
 }
@@ -92,13 +103,13 @@ function updateAudienceSummary(){
 }
 
 async function loadCommunicationCenter(force=false){
-  if(communicationCenterLoaded&&!force){renderTemplates();renderCampaigns();renderAutomations();return;}
+  if(communicationCenterLoaded&&!force){fillTemplateSelects();fillSignatureControls();renderTemplates();renderCampaigns();renderAutomations();return;}
   try{
     const response=await fetch('/api/leads?action=communication-center'),data=await response.json();
     if(!response.ok)throw new Error(data.error);
-    communicationTemplates=data.templates||[];communicationCampaigns=data.campaigns||[];communicationAutomations=data.automations||[];communicationCenterContacts=data.contacts||[];communicationCenterLoaded=true;
+    communicationTemplates=data.templates||[];communicationCampaigns=data.campaigns||[];communicationAutomations=data.automations||[];communicationSignatures=data.signatures||[];communicationBranding=data.branding||null;communicationCenterContacts=data.contacts||[];communicationCenterLoaded=true;
     if(data.contacts?.length)communicationContacts=data.contacts;
-    fillTemplateSelects();updateAudienceSummary();renderTemplates();renderCampaigns();renderAutomations();renderCommunicationRecipients();
+    fillTemplateSelects();fillSignatureControls();updateAudienceSummary();renderTemplates();renderCampaigns();renderAutomations();renderCommunicationRecipients();
   }catch(error){
     ['communicationTemplateList','communicationCampaignList','communicationAutomationList'].forEach(id=>{const element=document.querySelector(`#${id}`);if(element)element.innerHTML=`<div class="empty system-error">${escapeHtml(error.message||'Kommunikations-Center konnte nicht geladen werden.')}</div>`;});
   }
@@ -179,5 +190,9 @@ document.querySelector('#automationTrigger')?.addEventListener('change',updateAu
 communicationAutomationForm?.addEventListener('submit',async event=>{event.preventDefault();const button=communicationAutomationForm.querySelector('[type="submit"]');button.disabled=true;try{const payload=Object.fromEntries(new FormData(communicationAutomationForm));payload.enabled=communicationAutomationForm.elements.enabled.checked;const data=await communicationCenterRequest('automation','POST',payload);communicationAutomationDialog.close();communicationCenterLoaded=false;await loadCommunicationCenter();toast(data.message);}catch(error){toast(error.message);}finally{button.disabled=false;}});
 
 document.querySelector('#communicationComposerTemplate')?.addEventListener('change',event=>{const item=communicationTemplates.find(template=>template.id===event.target.value);if(item){communicationComposerForm.elements.subject.value=item.subject;communicationComposerForm.elements.body.value=item.body;}});
+
+document.querySelector('#communicationSignatureForm')?.addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget,button=form.querySelector('[type="submit"]');button.disabled=true;try{const payload=Object.fromEntries(new FormData(form));payload.useSystemLogo=form.elements.useSystemLogo.checked;payload.active=form.elements.active.checked;payload.isDefault=form.elements.isDefault.checked;const data=await communicationCenterRequest('signature','POST',payload);communicationCenterLoaded=false;await loadCommunicationCenter(true);toast(data.message);}catch(error){toast(error.message);}finally{button.disabled=false;}});
+document.querySelector('#communicationBrandingForm')?.addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget,button=form.querySelector('[type="submit"]');button.disabled=true;try{const data=await communicationCenterRequest('branding','POST',Object.fromEntries(new FormData(form)));communicationCenterLoaded=false;await loadCommunicationCenter(true);toast(data.message);}catch(error){toast(error.message);}finally{button.disabled=false;}});
+document.querySelector('#communicationBrandingForm [name="logoUrl"]')?.addEventListener('input',event=>{document.querySelector('#brandingLogoPreview').src=event.target.value||'/assets/fdd-logo.svg';});
 
 if(document.querySelector('[data-panel="communications"].active'))loadCommunicationCenter();

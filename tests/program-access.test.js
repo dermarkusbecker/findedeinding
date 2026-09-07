@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { calculateProgramAccess, isOnboardingComplete, isProgramWeekFinalized, programWeekSchedule, reconcileProgramPosition, reopenWeekState, resetParticipantProgressState } from '../lib/program-access.js';
 
 const requiredGates = (week, completed = true) => [1, 2, 3].map((index) => ({ week, gate_key: `w${week}_${index}`, required: true, completed_at: completed ? '2026-08-01T10:00:00Z' : null }));
+const onboardingComplete = { privacy_consent_at: '2026-08-01T00:00:00Z', start_commitment_at: '2026-08-01T00:00:00Z' };
 
 test('abgeschlossene Wochen sind nach dem Weiterschalten unveränderlich', () => {
   assert.equal(isProgramWeekFinalized({ current_week: 3, process_status: 'WEEK_3' }, 1), true);
@@ -39,9 +40,23 @@ test('reopenWeekState setzt den Teilnehmer auf die gewählte Woche zurück und e
 });
 
 test('zeitbasiert ist der Standard und öffnet am Projektstart nur Woche 1', () => {
-  const access = calculateProgramAccess({ progress: { program_start_date: '2026-09-04' }, gates: [], now: new Date('2026-09-04T12:00:00Z') });
+  const access = calculateProgramAccess({ progress: { ...onboardingComplete, program_start_date: '2026-09-04' }, gates: [], now: new Date('2026-09-04T12:00:00Z') });
   assert.equal(access.accessMode, 'time_based');
   assert.deepEqual(access.unlockedWeeks, [1]);
+});
+
+test('vor abgeschlossenem Onboarding bleibt auch eine kalendarisch fällige Woche gesperrt', () => {
+  const access = calculateProgramAccess({ progress: { program_start_date: '2026-09-04' }, now: new Date('2026-09-04T12:00:00Z') });
+  assert.deepEqual(access.unlockedWeeks, []);
+  assert.equal(access.processWeek, 0);
+  assert.ok(access.weekStates.every((week) => week.reason === 'onboarding_required'));
+});
+
+test('ein alter FINAL_REPORT-Wert kann ein unvollständiges Onboarding nicht überstimmen', () => {
+  const access = calculateProgramAccess({ progress: { current_week: 8, process_status: 'FINAL_REPORT', program_start_date: '2026-08-01' }, now: new Date('2026-09-04T12:00:00Z') });
+  assert.equal(access.processWeek, 0);
+  assert.deepEqual(access.completedWeeks, []);
+  assert.deepEqual(access.unlockedWeeks, []);
 });
 
 test('gespeicherte Woche 3 überspringt am neuen Projektstart nicht Woche 1', () => {
@@ -59,20 +74,20 @@ test('Projektstart erzeugt acht vollständige Wochenfenster und ein festes Progr
   assert.equal(schedule.length, 8);
   assert.deepEqual(schedule[0], { week: 1, unlocksAt: '2026-09-04', endsAt: '2026-09-11' });
   assert.deepEqual(schedule[7], { week: 8, unlocksAt: '2026-10-23', endsAt: '2026-10-30' });
-  const access = calculateProgramAccess({ progress: { access_mode: 'time_based', program_start_date: '2026-09-04' }, now: new Date('2026-09-04T12:00:00Z') });
+  const access = calculateProgramAccess({ progress: { ...onboardingComplete, access_mode: 'time_based', program_start_date: '2026-09-04' }, now: new Date('2026-09-04T12:00:00Z') });
   assert.equal(access.programEndDate, '2026-10-30');
   assert.equal(access.weekStates[1].reason, 'scheduled_wait');
 });
 
 test('alte Abschlussmodi verändern die feste zeitbasierte Freischaltung nicht mehr', () => {
-  const progress = { access_mode: 'completion_based', program_start_date: '2026-09-04' };
+  const progress = { ...onboardingComplete, access_mode: 'completion_based', program_start_date: '2026-09-04' };
   const access = calculateProgramAccess({ progress, gates: [...requiredGates(1), ...requiredGates(2)], now: new Date('2026-09-04T12:00:00Z') });
   assert.equal(access.accessMode, 'time_based');
   assert.deepEqual(access.unlockedWeeks, [1]);
 });
 
 test('time_based öffnet unabhängig vom Abschluss alle sieben Tage eine Woche', () => {
-  const progress = { access_mode: 'time_based', program_start_date: '2026-08-31' };
+  const progress = { ...onboardingComplete, access_mode: 'time_based', program_start_date: '2026-08-31' };
   assert.deepEqual(calculateProgramAccess({ progress, now: new Date('2026-08-31T12:00:00Z') }).unlockedWeeks, [1]);
   assert.deepEqual(calculateProgramAccess({ progress, now: new Date('2026-09-07T00:00:00Z') }).unlockedWeeks, [1, 2]);
   assert.deepEqual(calculateProgramAccess({ progress, now: new Date('2026-09-14T23:59:00Z') }).unlockedWeeks, [1, 2, 3]);
@@ -122,18 +137,18 @@ test('erledigte Pflichtschritte markieren die aktuelle Woche noch nicht als abge
 });
 
 test('time_based verweigert vor dem individuellen Startdatum jeden Wochenzugriff', () => {
-  const access = calculateProgramAccess({ progress: { access_mode: 'time_based', program_start_date: '2026-08-31' }, now: new Date('2026-08-30T21:59:00Z') });
+  const access = calculateProgramAccess({ progress: { ...onboardingComplete, access_mode: 'time_based', program_start_date: '2026-08-31' }, now: new Date('2026-08-30T21:59:00Z') });
   assert.deepEqual(access.unlockedWeeks, []);
 });
 
 test('alter Full-Access-Modus wird zugunsten des Zeitplans ignoriert', () => {
-  const access = calculateProgramAccess({ progress: { access_mode: 'full_access', program_start_date: '2026-09-04' }, now: new Date('2026-09-04T12:00:00Z') });
+  const access = calculateProgramAccess({ progress: { ...onboardingComplete, access_mode: 'full_access', program_start_date: '2026-09-04' }, now: new Date('2026-09-04T12:00:00Z') });
   assert.equal(access.accessMode, 'time_based');
   assert.deepEqual(access.unlockedWeeks, [1]);
 });
 
 test('alte manuelle Overrides können den automatischen Zeitplan nicht umgehen', () => {
-  const access = calculateProgramAccess({ progress: { program_start_date: '2026-09-04', manually_unlocked_weeks: [3], manually_locked_weeks: [1] }, now: new Date('2026-09-04T12:00:00Z') });
+  const access = calculateProgramAccess({ progress: { ...onboardingComplete, program_start_date: '2026-09-04', manually_unlocked_weeks: [3], manually_locked_weeks: [1] }, now: new Date('2026-09-04T12:00:00Z') });
   assert.deepEqual(access.unlockedWeeks, [1]);
   assert.deepEqual(access.manuallyUnlockedWeeks, []);
   assert.deepEqual(access.manuallyLockedWeeks, []);
@@ -141,7 +156,7 @@ test('alte manuelle Overrides können den automatischen Zeitplan nicht umgehen',
 });
 
 test('Pausierung stoppt auch den festen Zeitplan', () => {
-  const access = calculateProgramAccess({ profileStatus: 'paused', progress: { program_start_date: '2026-09-04' }, now: new Date('2026-09-25T12:00:00Z') });
+  const access = calculateProgramAccess({ profileStatus: 'paused', progress: { ...onboardingComplete, program_start_date: '2026-09-04' }, now: new Date('2026-09-25T12:00:00Z') });
   assert.deepEqual(access.unlockedWeeks, []);
   assert.ok(access.weekStates.every((week) => week.reason === 'participant_paused'));
 });

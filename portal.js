@@ -18,7 +18,7 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
 const lockedNonOnboardingViews = ['journey', 'insights', 'documents', 'support'];
 const rawLocal = JSON.parse(localStorage.getItem('fdd_customer_notes') || '{}');
-const local = { ...rawLocal, answers: rawLocal.answers || {}, uploads: rawLocal.uploads || {}, support: rawLocal.support || [], signedCommitment: rawLocal.signedCommitment || null };
+const local = { ...rawLocal, answers: rawLocal.answers || {}, uploads: rawLocal.uploads || {}, support: rawLocal.support || [], drafts: rawLocal.drafts || {}, signedCommitment: rawLocal.signedCommitment || null };
 if (local.signedCommitment?.flowVersion !== 2) {
   local.signedCommitment = null;
   localStorage.setItem('fdd_customer_notes', JSON.stringify(local));
@@ -31,6 +31,8 @@ let initialViewResolved = false;
 let todayMode = 'dashboard';
 let journeyMessages = [];
 let journeyLoading = false;
+let draftSaveTimer = null;
+let pendingWeekAction = null;
 const speechState = { recognition: null, activeButton: null };
 
 function saveLocal() { localStorage.setItem('fdd_customer_notes', JSON.stringify(local)); }
@@ -339,19 +341,21 @@ function progressPercent() {
 }
 
 function weekIsFinalized(week = currentWeek) {
-  const recordedWeek = Number(program?.access?.recordedCurrentWeek || 0);
-  return Number(week) < recordedWeek || (Number(week) === 8 && program?.access?.recordedProcessStatus === 'FINAL_REPORT');
+  return (program?.access?.completedWeeks || []).map(Number).includes(Number(week));
 }
 
-function applyWeekReadOnlyState(allStepsCompleted = false) {
+function applyWeekReadOnlyState() {
   const finalized = weekIsFinalized();
-  const locked = finalized || allStepsCompleted;
-  $('#activeWeek').classList.toggle('week-read-only', locked);
-  $('#uploadButton').hidden = locked;
+  $('#activeWeek').classList.toggle('week-read-only', finalized);
+  $('#uploadButton').hidden = finalized;
   const moreActions = $('#reopenCurrentWeek')?.closest('details');
-  if (moreActions) moreActions.hidden = locked;
+  if (moreActions) moreActions.hidden = finalized;
   const composer = $('#claraJourneyForm');
-  if (composer) composer.hidden = locked;
+  if (composer) composer.hidden = finalized;
+  const saveState = $('#weekAutosaveState');
+  if (saveState) saveState.hidden = finalized;
+  const finalNote = $('#activeWeek .week-final-note');
+  if (finalNote) finalNote.hidden = finalized;
   if (finalized) {
     $('#completeWeek').disabled = true;
     $('#completeWeek').textContent = 'Woche abgeschlossen ✓';
@@ -359,11 +363,86 @@ function applyWeekReadOnlyState(allStepsCompleted = false) {
   }
 }
 
+function draftKeyFor(control) {
+  const step = currentWeek === 1 ? program?.weekOne?.current_step : program?.weekState?.current_step;
+  return `${step || 'general'}:${control.id || control.name || 'entry'}`;
+}
+
+function updateAutosaveState(label, state = '') {
+  const target = $('#weekAutosaveState');
+  if (!target) return;
+  target.classList.remove('saving', 'saved', 'error');
+  if (state) target.classList.add(state);
+  target.querySelector('span').textContent = label;
+}
+
+function restoreWeekDraft() {
+  if (weekIsFinalized()) return;
+  const draft = { ...(local.drafts[currentWeek] || {}), ...(program?.weekDraft || {}) };
+  local.drafts[currentWeek] = draft;
+  $('#activeWeek').querySelectorAll('textarea, input[type="text"]').forEach((control) => {
+    const saved = draft[draftKeyFor(control)];
+    if (!control.value && typeof saved === 'string') control.value = saved;
+  });
+  saveLocal();
+}
+
+async function persistWeekDraft() {
+  if (!program?.onboardingComplete || weekIsFinalized() || currentWeek !== activeProcessWeek(program.access)) return;
+  const draft = local.drafts[currentWeek] || {};
+  updateAutosaveState('Dein Arbeitsstand wird gespeichert …', 'saving');
+  try {
+    const result = await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'save_week_draft', week: currentWeek, draft }) });
+    updateAutosaveState(`Arbeitsstand gespeichert · ${new Date(result.savedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`, 'saved');
+  } catch (error) {
+    updateAutosaveState('Lokal gesichert – Server-Speicherung wird beim nächsten Eintrag erneut versucht.', 'error');
+  }
+}
+
+async function clearDraftKeys(predicate) {
+  clearTimeout(draftSaveTimer);
+  local.drafts[currentWeek] ||= {};
+  Object.keys(local.drafts[currentWeek]).filter(predicate).forEach((key) => { delete local.drafts[currentWeek][key]; });
+  program.weekDraft = { ...(local.drafts[currentWeek] || {}) };
+  saveLocal();
+  if (!weekIsFinalized() && currentWeek === activeProcessWeek(program?.access)) {
+    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'save_week_draft', week: currentWeek, draft: program.weekDraft }) });
+  }
+}
+
+function queueDraftSave(control) {
+  if (!control || weekIsFinalized()) return;
+  local.drafts[currentWeek] ||= {};
+  local.drafts[currentWeek][draftKeyFor(control)] = String(control.value || '').slice(0, 10000);
+  program.weekDraft = { ...(local.drafts[currentWeek] || {}) };
+  saveLocal();
+  updateAutosaveState('Änderung erkannt …', 'saving');
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(persistWeekDraft, 700);
+}
+
+function queueDraftValue(key, value) {
+  local.drafts[currentWeek] ||= {};
+  local.drafts[currentWeek][key] = String(value);
+  program.weekDraft = { ...(local.drafts[currentWeek] || {}) };
+  saveLocal();
+  updateAutosaveState('Änderung erkannt …', 'saving');
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(persistWeekDraft, 700);
+}
+
 function activeProcessWeek(access = program?.access) {
   const week = Number(access?.processWeek);
   if (Number.isInteger(week) && week >= 1 && week <= 8) return week;
   const completed = new Set((access?.completedWeeks || []).map(Number));
   return Array.from({ length: 8 }, (_, index) => index + 1).find((item) => !completed.has(item)) || 8;
+}
+
+function safeSelectedWeek(payload = program) {
+  const canonicalWeek = activeProcessWeek(payload?.access);
+  const selectedWeek = Number(payload?.selectedWeek);
+  const selectedState = (payload?.access?.weekStates || []).find((state) => Number(state.week) === selectedWeek);
+  return selectedState?.accessible ? selectedWeek : canonicalWeek;
 }
 
 function currentWeekStepProgress(week) {
@@ -421,7 +500,7 @@ async function loadProgram(week = null) {
     catch { customerWorkspace = null; }
   }
   const initialView = !initialViewResolved ? 'today' : null;
-  currentWeek = program.selectedWeek || week || program.access.unlockedWeeks[0] || 1;
+  currentWeek = safeSelectedWeek(program);
   currentContent = program.week;
   if (program.onboardingComplete && currentWeek >= 1) {
     try { journeyMessages = (await request(`/api/participant-program?feature=clara-message&week=${currentWeek}`)).messages || []; }
@@ -452,7 +531,7 @@ function renderClaraJourney() {
   $('#journeyMessages').innerHTML = `${messageHtml}${journeyLoading ? '<article class="clara-message assistant loading" aria-live="polite"><span>Clara</span><p><i></i><i></i><i></i><em>Clara denkt nach …</em></p></article>' : ''}`;
   const list = $('#journeyMessages');
   list.scrollTop = list.scrollHeight;
-  const readOnly = weekIsFinalized() || (currentWeek === 1 ? program?.weekOneGate?.complete : program?.weekGate?.complete);
+  const readOnly = weekIsFinalized();
   $('#claraJourneyForm').hidden = Boolean(readOnly || clarityCheckinPending);
   list.querySelectorAll('button').forEach((button) => { button.disabled = Boolean(readOnly); });
   list.querySelectorAll('[data-clara-confirm]').forEach((button) => button.addEventListener('click', () => confirmClaraResult(button.dataset.claraConfirm, button)));
@@ -521,6 +600,95 @@ function openWeekPreview(week) {
   openButton.disabled = !accessible;
   openButton.textContent = accessible ? 'Woche öffnen →' : `Freigabe am ${formatProgramDate(state.unlocksAt)}`;
   $('#weekPreviewDialog').showModal();
+}
+
+function ensureWeekDialogs() {
+  if ($('#weekActionDialog')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+    <dialog id="weekActionDialog" class="week-action-dialog" aria-labelledby="weekActionTitle">
+      <div class="week-action-shell"><button type="button" class="dialog-close" data-week-dialog-close aria-label="Fenster schließen">×</button><span class="week-action-icon" id="weekActionIcon">!</span><p class="eyebrow" id="weekActionEyebrow">Woche finalisieren</p><h2 id="weekActionTitle"></h2><p id="weekActionCopy"></p><div class="week-action-warning" id="weekActionWarning"></div><div class="week-action-buttons"><button type="button" class="secondary" data-week-dialog-close>Abbrechen</button><button type="button" class="primary" id="confirmWeekAction"></button></div></div>
+    </dialog>
+    <dialog id="weekReflectionDialog" class="week-reflection-dialog" aria-labelledby="weekReflectionTitle">
+      <div class="week-reflection-shell"><button type="button" class="dialog-close" data-reflection-close aria-label="Reflexion schließen">×</button><p class="eyebrow" id="weekReflectionEyebrow"></p><h2 id="weekReflectionTitle"></h2><p class="reflection-summary" id="weekReflectionSummary"></p><section><span>Was diese Woche sichtbar wurde</span><ul id="weekReflectionHighlights"></ul></section><div class="reflection-grid"><article><span>Deine Entwicklung</span><p id="weekReflectionDevelopment"></p></article><article><span>Dein nächster Impuls</span><p id="weekReflectionImpulse"></p></article></div><blockquote id="weekReflectionClosing"></blockquote><form id="weekReflectionQuestionForm" class="reflection-question-form"><input type="hidden" name="week" /><span>Deine Frage für das persönliche Q&amp;A mit Markus</span><p>Notiere, was du vertiefen, hinterfragen oder gemeinsam sortieren möchtest. Die Frage landet direkt in deiner Kundenakte.</p><textarea name="question" rows="3" minlength="5" maxlength="1200" required placeholder="Was möchtest du mit Markus besprechen?"></textarea><button class="primary" type="submit">Frage fürs Q&amp;A speichern →</button><small id="weekReflectionQuestionState"></small></form></div>
+    </dialog>`);
+  $$('[data-week-dialog-close]').forEach((button) => button.addEventListener('click', () => { if (!$('#confirmWeekAction').disabled) $('#weekActionDialog').close(); }));
+  $$('[data-reflection-close]').forEach((button) => button.addEventListener('click', () => $('#weekReflectionDialog').close()));
+  $('#weekActionDialog').addEventListener('click', (event) => { if (event.target === event.currentTarget && !$('#confirmWeekAction').disabled) event.currentTarget.close(); });
+  $('#weekReflectionDialog').addEventListener('click', (event) => { if (event.target === event.currentTarget) event.currentTarget.close(); });
+  $('#confirmWeekAction').addEventListener('click', executeWeekAction);
+  $('#weekReflectionQuestionForm').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget,button=form.querySelector('button'),state=$('#weekReflectionQuestionState');button.disabled=true;state.textContent='Frage wird sicher gespeichert …';try{await request('/api/participant-program',{method:'POST',body:JSON.stringify({action:'support_question',week:Number(form.elements.week.value),question:form.elements.question.value.trim()})});state.textContent='Gespeichert – Markus sieht die Frage jetzt in deiner Kundenakte.';form.elements.question.value='';}catch(error){state.textContent=error.message||'Die Frage konnte noch nicht gespeichert werden.';}finally{button.disabled=false;}});
+}
+
+function openWeekActionDialog(action) {
+  if (!program?.onboardingComplete || !currentContent || weekIsFinalized()) return;
+  ensureWeekDialogs();
+  pendingWeekAction = action;
+  const reset = action === 'reset';
+  $('#weekActionIcon').textContent = reset ? '↺' : '✓';
+  $('#weekActionEyebrow').textContent = reset ? `Woche ${currentWeek} zurücksetzen` : `Woche ${currentWeek} finalisieren`;
+  $('#weekActionTitle').textContent = reset ? 'Möchtest du wirklich neu beginnen?' : 'Möchtest du diese Woche abschließend beenden?';
+  $('#weekActionCopy').textContent = reset
+    ? 'Dabei werden nur die Eingaben, Uploads und Clara-Nachrichten deiner aktuell laufenden Woche gelöscht.'
+    : 'Dein aktueller Stand wird final gespeichert. Danach erstellt Clara aus deinen Antworten deine persönliche Wochenreflexion.';
+  $('#weekActionWarning').innerHTML = reset
+    ? '<strong>Wichtig:</strong> Bereits abgeschlossene Wochen bleiben vollständig erhalten. Dieser Vorgang kann für die laufende Woche nicht rückgängig gemacht werden.'
+    : '<strong>Wichtig:</strong> Nach diesem Abschluss kannst du die Woche weiterhin ansehen, aber keine Inhalte mehr verändern.';
+  const confirm = $('#confirmWeekAction');
+  confirm.disabled = false;
+  confirm.textContent = reset ? 'Ja, laufende Woche zurücksetzen' : 'Woche finalisieren & Reflexion erstellen';
+  $('#weekActionDialog').showModal();
+}
+
+function openWeekReflection(week) {
+  ensureWeekDialogs();
+  const reflection = (program?.weekReflections || []).find((item) => Number(item.week) === Number(week));
+  if (!reflection) return;
+  $('#weekReflectionEyebrow').textContent = `Wochenreflexion · Woche ${week}`;
+  $('#weekReflectionTitle').textContent = reflection.title || `Deine Reflexion zu Woche ${week}`;
+  $('#weekReflectionSummary').textContent = reflection.summary || '';
+  $('#weekReflectionHighlights').innerHTML = (reflection.highlights || []).map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+  $('#weekReflectionDevelopment').textContent = reflection.development || '';
+  $('#weekReflectionImpulse').textContent = reflection.nextImpulse || '';
+  $('#weekReflectionClosing').textContent = reflection.closing || '';
+  $('#weekReflectionQuestionForm').elements.week.value=String(week);
+  $('#weekReflectionQuestionState').textContent='';
+  $('#weekReflectionDialog').showModal();
+}
+
+async function executeWeekAction() {
+  const action = pendingWeekAction;
+  if (!action) return;
+  const completedWeek = currentWeek;
+  const button = $('#confirmWeekAction');
+  button.disabled = true;
+  button.textContent = action === 'reset' ? 'Woche wird zurückgesetzt …' : 'Clara erstellt deine Reflexion …';
+  try {
+    if (action === 'reset') {
+      await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'reopen_week', week: completedWeek }) });
+      delete local.answers[completedWeek];
+      delete local.uploads[completedWeek];
+      delete local.drafts[completedWeek];
+      if (completedWeek === 1) { delete local.clarityStart; journeyMessages = []; }
+      saveLocal();
+      $('#weekActionDialog').close();
+      await loadProgram(completedWeek);
+      toast(`Woche ${completedWeek} wurde vollständig zurückgesetzt.`);
+    } else {
+      clearTimeout(draftSaveTimer);
+      await persistWeekDraft();
+      await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'complete_week', week: completedWeek }) });
+      delete local.drafts[completedWeek];
+      saveLocal();
+      $('#weekActionDialog').close();
+      todayMode = 'dashboard'; await loadProgram(); showView('today');
+      toast(completedWeek === 8 ? 'Dein digitaler Prozess ist final abgeschlossen.' : `Woche ${completedWeek} ist final abgeschlossen.`);
+      openWeekReflection(completedWeek);
+    }
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = action === 'reset' ? 'Ja, laufende Woche zurücksetzen' : 'Woche finalisieren & Reflexion erstellen';
+    toast(error.message);
+  }
 }
 
 function reviewParagraph(value, empty = 'Für diesen Schritt ist noch kein Inhalt gespeichert.') {
@@ -663,20 +831,22 @@ function renderProgramDashboard() {
   const states = program.access.weekStates || [];
   const activeWeek = activeProcessWeek(program.access);
   const activeSummary = summaries.get(activeWeek) || summaries.get(1);
+  const activeState = states.find((state) => Number(state.week) === activeWeek);
+  const activeAccessible = Boolean(activeState?.accessible) && program.access.status !== 'paused';
   const nextState = states.find((state) => !state.accessible && state.unlocksAt);
   const completed = program.access.completedWeeks.length;
-  $('#dashboardProgressTitle').textContent = completed === 8 ? 'Alle 8 Wochen abgeschlossen' : `Woche ${activeWeek} von 8`;
+  $('#dashboardProgressTitle').textContent = completed === 8 ? 'Alle 8 Wochen abgeschlossen' : activeAccessible ? `Woche ${activeWeek} von 8` : `Woche ${activeWeek} öffnet als Nächstes`;
   $('#dashboardProgressCopy').textContent = `${completed} von 8 Wochen abgeschlossen · Projektstart ${formatProgramDate(program.access.programStartDate)}.`;
-  $('#dashboardStatusBadge').textContent = program.access.status === 'paused' ? 'Programm pausiert' : completed === 8 ? 'Programm abgeschlossen' : 'Programm aktiv';
+  $('#dashboardStatusBadge').textContent = program.access.status === 'paused' ? 'Programm pausiert' : completed === 8 ? 'Programm abgeschlossen' : activeAccessible ? 'Programm aktiv' : 'Nächste Woche noch gesperrt';
   $('#dashboardCurrentNumber').textContent = String(activeWeek).padStart(2, '0');
   $('#dashboardCurrentTitle').textContent = activeSummary?.title || 'Deine aktuelle Woche';
-  $('#dashboardCurrentCopy').textContent = activeSummary ? `${activeSummary.mode} · Diese Woche ist entsprechend deinem persönlichen Zeitplan freigeschaltet.` : 'Dein nächster Bereich wird vorbereitet.';
+  $('#dashboardCurrentCopy').textContent = activeSummary ? activeAccessible ? `${activeSummary.mode} · Diese Woche ist entsprechend deinem persönlichen Zeitplan freigeschaltet.` : `${activeSummary.mode} · Öffnet am ${formatProgramDate(activeState?.unlocksAt)}. Bis dahin bleibt der Bereich gesperrt.` : 'Dein nächster Bereich wird vorbereitet.';
   $('#dashboardStartDate').textContent = formatProgramDate(program.access.programStartDate);
   $('#dashboardEndDate').textContent = formatProgramDate(program.access.programEndDate);
   $('#dashboardNextDate').textContent = nextState ? `Woche ${nextState.week} · ${formatProgramDate(nextState.unlocksAt)}` : 'Alle Wochen freigeschaltet';
   const currentButton = $('#openCurrentWeek');
   currentButton.dataset.dashboardWeek = String(activeWeek);
-  currentButton.disabled = program.access.status === 'paused' || !states.some((state) => state.week === activeWeek && state.accessible);
+  currentButton.disabled = !activeAccessible;
   $('#dashboardWeekGrid').innerHTML = states.map((state) => {
     const summary = summaries.get(Number(state.week));
     const isCurrent = Number(state.week) === Number(activeWeek);
@@ -721,6 +891,7 @@ function renderLockedViewNotice() {
 }
 
 async function updateWeekOne(stepAction) {
+  const draftPrefix = `${program?.weekOne?.current_step || 'general'}:`;
   const flow = $('#weekOneFlow');
   const errorBox = $('#weekOneError');
   if (errorBox) errorBox.textContent = '';
@@ -730,6 +901,7 @@ async function updateWeekOne(stepAction) {
   }
   try {
     await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'week_1_update', stepAction }) });
+    await clearDraftKeys((key) => key.startsWith(draftPrefix)).catch(() => {});
     await loadProgram(1);
     $('#weekOneFlow')?.classList.remove('is-saving');
     const nextControl = $('#weekOneFlow textarea:not([disabled]), #weekOneFlow input:not([disabled]), #weekOneFlow button:not([disabled])');
@@ -855,14 +1027,16 @@ function renderWeekOne() {
   $('#weekOneCvNote')?.remove();
   $('#gateNote').textContent = program.weekOneGate?.complete ? 'Alle Pflichtschritte sind abgeschlossen. Du kannst Woche 1 abschließen.' : `Die nächste Woche öffnet sich nach Abschluss aller Pflichtschritte.${program.weekOneGate?.missingRequirements?.length ? ` Offen: ${program.weekOneGate.missingRequirements.join(', ')}.` : ''}`;
   $('#completeWeek').disabled = !program.weekOneGate?.complete;
-  $('#completeWeek').textContent = 'Woche abschließen →';
+  $('#completeWeek').textContent = 'Woche abschließend beenden →';
   renderClaraJourney();
   applyWeekReadOnlyState(done === statuses.length);
 }
 
 async function updateGuidedWeek(stepAction) {
+  const draftPrefix = `${program?.weekState?.current_step || 'general'}:`;
   try {
     await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'guided_week_update', week: currentWeek, stepAction }) });
+    await clearDraftKeys((key) => key.startsWith(draftPrefix)).catch(() => {});
     await loadProgram(currentWeek);
     toast('✓ Dein Schritt wurde gespeichert.');
   } catch (error) { toast(error.message); }
@@ -892,19 +1066,27 @@ function renderGuidedWeek() {
   if (clarityPending) {
     const previous = (program.clarityHistory || []).filter((item) => Number(item.week) < currentWeek && Number.isInteger(Number(item.score)) && Number(item.score) >= 1 && Number(item.score) <= 10).at(-1);
     flow.innerHTML = `<section class="weekly-clarity-checkin"><div class="weekly-clarity-intro"><span>${String(currentWeek).padStart(2, '0')}</span><div><strong>Kurzer Check-in zum Wochenstart</strong><p>Bevor es inhaltlich weitergeht: Hat sich seit der letzten Woche etwas verändert?</p>${previous ? `<small>Dein letzter Wert: <b>${Number(previous.score)} von 10</b></small>` : ''}</div></div><div class="weekly-change-choice" role="group" aria-label="Hat sich etwas verändert?"><button type="button" data-clarity-change="true">Ja, ich merke eine Veränderung</button><button type="button" data-clarity-change="false">Nein, noch nicht</button></div><div class="weekly-clarity-question"><strong>Wie klar ist dir heute, was dein Ding ist?</strong><small>1 bedeutet „noch völlig unklar“, 10 bedeutet „sehr klar“.</small></div><div class="clarity-scale weekly" role="group" aria-label="Aktueller Klarheitswert">${Array.from({ length: 10 }, (_, index) => `<button type="button" data-weekly-clarity-score="${index + 1}">${index + 1}</button>`).join('')}</div><label class="weekly-clarity-note"><span>Was hat sich verändert? <small>(optional)</small></span><textarea id="weeklyClarityNote" maxlength="3000" placeholder="Ein Gedanke oder eine kurze Beobachtung …"></textarea></label><button type="button" class="primary weekly-clarity-save" id="saveWeeklyClarity" disabled>Check-in speichern →</button><p class="week-one-error" id="weeklyClarityError"></p></section>`;
-    let selectedChange = null;
-    let selectedScore = null;
+    const clarityDraftPrefix = `${state.current_step || 'general'}:`;
+    const savedChange = (program.weekDraft || {})[`${clarityDraftPrefix}clarity-change`];
+    const savedScore = (program.weekDraft || {})[`${clarityDraftPrefix}clarity-score`];
+    let selectedChange = savedChange === 'true' ? true : savedChange === 'false' ? false : null;
+    let selectedScore = /^([1-9]|10)$/.test(savedScore || '') ? Number(savedScore) : null;
     const updateSaveState = () => { $('#saveWeeklyClarity').disabled = selectedChange === null || selectedScore === null; };
     flow.querySelectorAll('[data-clarity-change]').forEach((button) => button.addEventListener('click', () => {
       selectedChange = button.dataset.clarityChange === 'true';
       flow.querySelectorAll('[data-clarity-change]').forEach((item) => item.classList.toggle('selected', item === button));
+      queueDraftValue(`${clarityDraftPrefix}clarity-change`, selectedChange);
       updateSaveState();
     }));
     flow.querySelectorAll('[data-weekly-clarity-score]').forEach((button) => button.addEventListener('click', () => {
       selectedScore = Number(button.dataset.weeklyClarityScore);
       flow.querySelectorAll('[data-weekly-clarity-score]').forEach((item) => item.classList.toggle('selected', item === button));
+      queueDraftValue(`${clarityDraftPrefix}clarity-score`, selectedScore);
       updateSaveState();
     }));
+    flow.querySelectorAll('[data-clarity-change]').forEach((button) => button.classList.toggle('selected', selectedChange !== null && (button.dataset.clarityChange === 'true') === selectedChange));
+    flow.querySelectorAll('[data-weekly-clarity-score]').forEach((button) => button.classList.toggle('selected', Number(button.dataset.weeklyClarityScore) === selectedScore));
+    updateSaveState();
     $('#saveWeeklyClarity').addEventListener('click', () => updateGuidedWeek({ type: 'save_clarity_checkin', stepId: 'weekly_clarity', score: selectedScore, changed: selectedChange, note: $('#weeklyClarityNote').value }));
   } else if (!active) {
     flow.innerHTML = '<div class="week-one-review"><span>✓</span><p>Alle Schritte dieser Woche sind abgeschlossen.</p></div>';
@@ -932,7 +1114,7 @@ function renderGuidedWeek() {
   $('#uploadButton').classList.add('week-one-upload');
   $('#gateNote').textContent = program.weekGate?.complete ? `Alle Pflichtschritte in Woche ${currentWeek} sind abgeschlossen.` : '';
   $('#completeWeek').disabled = !program.weekGate?.complete;
-  $('#completeWeek').textContent = currentWeek === 8 ? 'Digitalen Prozess abschließen →' : 'Woche abschließen →';
+  $('#completeWeek').textContent = currentWeek === 8 ? 'Prozess abschließend beenden →' : 'Woche abschließend beenden →';
   $('#claraJourney').classList.toggle('hidden', clarityPending || ['upload', 'scale', 'external'].includes(active?.kind));
   renderClaraJourney();
   applyWeekReadOnlyState(completedSteps === statuses.length);
@@ -949,18 +1131,17 @@ function render() {
   const showOnboarding = reviewingOnboarding;
   const showPreOnboarding = !started && activeView === 'today';
   const showDashboard = started && !showOnboarding && activeView === 'today' && todayMode === 'dashboard';
-  const dashboardWeek = activeProcessWeek(program.access);
-  const displayedWeek = Number(currentWeek || dashboardWeek);
-  const displayedSummary = (program.programWeeks || []).find((item) => Number(item.week) === displayedWeek);
+  const canonicalWeek = activeProcessWeek(program.access);
+  const canonicalSummary = (program.programWeeks || []).find((item) => Number(item.week) === canonicalWeek);
   const currentClarity = currentClarityMeasurement();
   document.querySelector('aside nav button[data-view="today"] span').textContent = 'Mein Bereich';
   document.querySelector('aside nav button[data-view="onboarding"] span').textContent = started ? 'Onboarding ✓' : 'Onboarding';
   $('#sideProgress').style.width = `${pct}%`;
   $('#sidePercent').textContent = `${pct} % abgeschlossen`;
-  $('#sidePhase').textContent = !showOnboarding && started ? `Woche ${displayedWeek} · ${displayedSummary?.title || 'Dein Prozess'}` : 'Onboarding';
+  $('#sidePhase').textContent = !showOnboarding && started ? `Woche ${canonicalWeek} · ${canonicalSummary?.title || 'Dein Prozess'}` : 'Onboarding';
   $('#sideClarityValue').textContent = `${currentClarity?.score || '—'} / 10`;
   $('#headerClarity').textContent = `Klarheit ${currentClarity?.score || '—'} / 10`;
-  $('#headerPhase').textContent = !showOnboarding && started ? `Woche ${displayedWeek} von 8 · ${displayedSummary?.title || content?.title || 'Dein Prozess'}` : 'Onboarding';
+  $('#headerPhase').textContent = !showOnboarding && started ? `Woche ${canonicalWeek} von 8 · ${canonicalSummary?.title || 'Dein Prozess'}` : 'Onboarding';
   renderProgressCelebration();
   const name = program.profile?.name || 'Teilnehmer';
   const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
@@ -1024,6 +1205,8 @@ function render() {
   } else if (content) {
     $('#activeWeek').classList.remove('week-read-only');
     $('#uploadButton').hidden = false;
+    $('#weekAutosaveState').hidden = false;
+    $('#activeWeek .week-final-note').hidden = false;
     const weekActions = $('#reopenCurrentWeek')?.closest('details');
     if (weekActions) weekActions.hidden = false;
     $('#claraJourneyForm').hidden = false;
@@ -1062,13 +1245,14 @@ function render() {
       $('#taskCount').textContent = `${done} / ${content.tasks.length}`;
       $('#uploadButtonLabel').textContent = `↑ ${content.upload}`;
       $('#completeWeek').disabled = paused || done < content.tasks.length;
-      $('#completeWeek').textContent = currentWeek === 8 ? 'Digitalen Prozess abschließen →' : 'Woche abschließen →';
+      $('#completeWeek').textContent = currentWeek === 8 ? 'Prozess abschließend beenden →' : 'Woche abschließend beenden →';
       $('#gateNote').textContent = 'Weitere Wochen öffnen sich automatisch alle sieben Tage ab deinem Projektstart.';
     }
   }
   renderJourney(); renderInsights(); renderDocuments();
   renderLockedViewNotice();
   wireSpeechControls();
+  restoreWeekDraft();
 }
 
 function renderJourney() {
@@ -1081,9 +1265,21 @@ function renderJourney() {
     return `<article class="week-card ${state.completed ? 'completed' : active ? 'active' : state.accessible ? 'available' : 'locked'}" data-preview-week="${state.week}" tabindex="0" role="button"><span>Woche ${state.week}</span><i>${status}</i><h2>${escapeHtml(summary?.title || `Woche ${state.week}`)}</h2><p>${escapeHtml(summary?.description || summary?.mode || 'Dein nächster Schritt im Acht-Wochen-Prozess.')}</p><b>${reason} · Details ansehen</b></article>`;
   }).join('');
   $$('#journeyGrid [data-preview-week]').forEach((card) => {
-    card.addEventListener('click', () => openWeekPreview(Number(card.dataset.previewWeek)));
-    card.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWeekPreview(Number(card.dataset.previewWeek)); } });
+    const week=Number(card.dataset.previewWeek),hasReflection=(program?.weekReflections||[]).some(item=>Number(item.week)===week);
+    card.addEventListener('click', () => hasReflection?openWeekReflection(week):openWeekPreview(week));
+    card.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault();hasReflection?openWeekReflection(week):openWeekPreview(week); } });
   });
+  renderWeekReflections();
+}
+
+function renderWeekReflections() {
+  const target = $('#weekReflectionList');
+  if (!target) return;
+  const reflections = program?.weekReflections || [];
+  target.innerHTML = reflections.length
+    ? reflections.map((reflection) => `<button type="button" class="week-reflection-card" data-reflection-week="${reflection.week}"><span>Woche ${reflection.week} · freigeschaltet</span><strong>${escapeHtml(reflection.title || `Wochenreflexion ${reflection.week}`)}</strong><p>${escapeHtml(reflection.summary || '')}</p><b>Reflexion vollständig lesen →</b></button>`).join('')
+    : '<div class="week-reflection-empty"><span>◇</span><div><strong>Noch keine Reflexion freigeschaltet</strong><p>Beende deine laufende Woche final. Danach findest du Claras Zusammenfassung genau hier.</p></div></div>';
+  target.querySelectorAll('[data-reflection-week]').forEach((button) => button.addEventListener('click', () => openWeekReflection(Number(button.dataset.reflectionWeek))));
 }
 
 function renderInsights() {
@@ -1118,7 +1314,13 @@ function renderPortalAppointments() {
   target.innerHTML = group('Deine nächsten Termine', upcoming) + group('Vergangene Termine', past);
 }
 
-$('#openCurrentWeek').addEventListener('click', (event) => openWeek(Number(event.currentTarget.dataset.dashboardWeek || program?.access?.currentWeek || 1)));
+$('#openCurrentWeek').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  if (button.disabled) return;
+  button.disabled = true;
+  try { await openWeek(activeProcessWeek(program?.access)); }
+  finally { button.disabled = false; }
+});
 $('#openProgressCelebration').addEventListener('click', openProgressCelebration);
 $('#openProgressCelebration').addEventListener('keydown', (event) => {
   if (event.key === 'Enter' || event.key === ' ') {
@@ -1200,7 +1402,8 @@ $('#revokePrivacy').addEventListener('click', async () => {
 });
 $('#answerForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const answer = $('#answer').value.trim(); if (!answer) return;
-  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'save_answer', week: currentWeek, answer }) }); local.answers[currentWeek] = answer; saveLocal(); await loadProgram(currentWeek); toast('Deine Antwort wurde serverseitig gespeichert.'); }
+  const savedDraftKey = draftKeyFor($('#answer'));
+  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'save_answer', week: currentWeek, answer }) }); await clearDraftKeys((key) => key === savedDraftKey).catch(() => {}); local.answers[currentWeek] = answer; saveLocal(); await loadProgram(currentWeek); toast('Deine Antwort wurde serverseitig gespeichert.'); }
   catch (error) { toast(error.message); }
 });
 $('#claraJourneyForm').addEventListener('submit', async (event) => {
@@ -1209,6 +1412,7 @@ $('#claraJourneyForm').addEventListener('submit', async (event) => {
   const button = $('#sendJourneyMessage');
   const message = input.value.trim();
   if (!message || button.disabled) return;
+  const sentDraftKey = draftKeyFor(input);
   const pending = { role: 'participant', content: message, created_at: new Date().toISOString() };
   journeyMessages.push(pending);
   input.value = '';
@@ -1218,6 +1422,7 @@ $('#claraJourneyForm').addEventListener('submit', async (event) => {
   renderClaraJourney();
   try {
     const result = await request('/api/participant-program?feature=clara-message', { method: 'POST', body: JSON.stringify({ week: currentWeek, message, clientMessageId: crypto.randomUUID() }) });
+    await clearDraftKeys((key) => key === sentDraftKey).catch(() => {});
     journeyMessages.push(result.message);
     if (currentWeek === 1) {
       program.weekOne = result.weekOne;
@@ -1245,6 +1450,11 @@ $('#claraJourneyInput').addEventListener('keydown', (event) => {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
   event.preventDefault();
   if (!$('#sendJourneyMessage').disabled) $('#claraJourneyForm').requestSubmit();
+});
+
+$('#activeWeek').addEventListener('input', (event) => {
+  const control = event.target.closest('textarea, input[type="text"]');
+  if (control) queueDraftSave(control);
 });
 
 function fileAsBase64(file) {
@@ -1299,30 +1509,8 @@ $('#fileInput').addEventListener('change', async (event) => {
   } catch (error) { toast(error.message); }
   event.target.value = '';
 });
-$('#reopenCurrentWeek').addEventListener('click', async () => {
-  if (!program?.onboardingComplete || !currentContent) return;
-  const confirmed = window.confirm(`Bist du sicher, dass du Woche ${currentWeek} erneut starten möchtest?\n\nDadurch werden alle deine Inhalte aus dieser Woche unwiderruflich gelöscht.`);
-  if (!confirmed) return;
-  try {
-    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'reopen_week', week: currentWeek }) });
-    delete local.answers[currentWeek];
-    delete local.uploads[currentWeek];
-    if (currentWeek === 1) {
-      delete local.clarityStart;
-      journeyMessages = [];
-    }
-    saveLocal();
-    await loadProgram(currentWeek);
-    toast(`Woche ${currentWeek} wurde zurückgesetzt und neu gestartet.`);
-  } catch (error) {
-    toast(error.message);
-  }
-});
-$('#completeWeek').addEventListener('click', async () => {
-  const completedWeek = currentWeek;
-  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'complete_week', week: completedWeek }) }); todayMode = 'dashboard'; await loadProgram(); showView('today'); toast(completedWeek === 8 ? 'Digitaler Prozess abgeschlossen.' : `Woche ${completedWeek} abgeschlossen. Deine Übersicht wurde aktualisiert.`); }
-  catch (error) { toast(error.message); }
-});
+$('#reopenCurrentWeek').addEventListener('click', () => openWeekActionDialog('reset'));
+$('#completeWeek').addEventListener('click', () => openWeekActionDialog('complete'));
 $('#saveSupport').addEventListener('click', async () => {
   const text = $('#supportText').value.trim();
   if (!text) return;

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 72" role="img" aria-labelledby="title">
+  <title id="title">Finde dein Ding</title>
+  <defs><linearGradient id="g" x1="0" x2="1"><stop stop-color="#ff9a5c"/><stop offset="1" stop-color="#ff7747"/></linearGradient></defs>
+  <rect x="2" y="2" width="68" height="68" rx="20" fill="url(#g)"/>
+  <text x="36" y="50" text-anchor="middle" font-family="Arial,sans-serif" font-size="42" font-weight="800" fill="#fff">f</text>
+  <text x="88" y="44" font-family="Arial,sans-serif" font-size="27" font-weight="750" fill="#153044">finde dein ding</text>
+</svg>

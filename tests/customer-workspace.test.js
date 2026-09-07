@@ -4,9 +4,9 @@ import { readFile } from 'node:fs/promises';
 
 const file = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Kundennavigation bildet exakt Verwaltung, Finanzen, Kommunikation und Termine ab', async () => {
+test('Kundennavigation trennt Überblick, Betreuung, Zugang, Kommunikation und Finanzen', async () => {
   const [script, html, styles] = await Promise.all([file('admin.js'), file('admin.html'), file('admin-crm-refresh.css')]);
-  for (const group of ['Verwaltung', 'Finanzen', 'Kommunikation', 'Termine']) assert.match(script, new RegExp(`label:'${group}'`));
+  for (const group of ['Überblick', 'Betreuung', 'Zugang & Unterlagen', 'Finanzen', 'Kommunikation']) assert.match(script, new RegExp(`label:'${group}'`));
   for (const page of ['dashboard', 'login', 'documents', 'documentInbox', 'conversation', 'account', 'billing', 'messages', 'whatsapp', 'appointments']) assert.match(html, new RegExp(`data-customer-page="${page}"`));
   assert.match(script, /function customerContextProfileMarkup/);
   assert.match(styles, /\.customer-context-profile/);

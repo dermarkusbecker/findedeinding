@@ -19,7 +19,9 @@ test('geschützte Dashboard-API aggregiert die fachlichen Supabase-Echtdaten', a
   assert.match(api, /async function commandDashboard/);
   for (const table of ['user_profiles', 'participant_progress', 'clarity_measurements', 'week_gates', 'customer_questions', 'lead_tasks', 'leads', 'lead_communications']) assert.match(api, new RegExp(`rest/v1/${table}`));
   assert.doesNotMatch(api, /coach_escalations|coachNeeded|escalationCounts/);
-  assert.match(api, /required=eq\.true&completed_at=is\.null/);
+  assert.match(api, /week_gates\?required=eq\.true&select=/);
+  assert.match(api, /process_entries\?data_block=like\.week_\*_state/);
+  assert.match(api, /reconcileAccessFromEntries/);
   assert.match(api, /direction=eq\.inbound&read_at=is\.null/);
   assert.match(api, /completedGains/);
   assert.match(api, /weekDistribution: distribution\.slice\(1\)/);

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { summarizeCustomerProgress } from '../api/participants.js';
+import { createWeekOneState } from '../lib/week-one.js';
 
 const file = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -9,7 +10,9 @@ test('Kundenübersicht trennt Kundenliste und Teilnehmer-Login in eigene Unterbe
   const [html, script] = await Promise.all([file('admin.html'), file('admin.js')]);
   assert.match(html, /id="participantOverview"/);
   assert.match(html, /id="participantLoginManager" hidden/);
-  assert.match(script, /detailGroups:\[\{label:'Verwaltung'/);
+  assert.match(script, /groups:\[\{label:'Kundenakten'/);
+  assert.match(script, /detailGroups:\[\{label:'Überblick'/);
+  assert.match(script, /label:'Zugang & Unterlagen'/);
   assert.match(script, /\['Portal-Login','Login, Einmalpasswort & Versand'/);
   assert.match(script, /function setParticipantSection/);
   assert.match(script, /participantSection!=='logins'/);
@@ -40,11 +43,20 @@ test('Kundenfortschritt entsteht erst aus bestätigten Wochenabschlüssen', () =
     { week: 1, required: true, completed_at: '2026-09-02T10:01:00Z' },
     { week: 2, required: true, completed_at: null },
   ];
-  const inWeekTwo = { current_week: 2, process_status: 'WEEK_2', privacy_consent_at: '2026-09-01', start_commitment_at: '2026-09-01' };
-  assert.deepEqual(summarizeCustomerProgress(gates, inWeekTwo), { completed_weeks: [1], process_week: 2, completion_percent: 13 });
+  const inWeekTwo = { current_week: 2, process_status: 'WEEK_2', privacy_consent_at: '2026-09-01', start_commitment_at: '2026-09-01', program_start_date: '2026-09-01' };
+  const weekOne = createWeekOneState();
+  weekOne.status = 'completed';
+  weekOne.completed_at = '2026-09-03T10:00:00Z';
+  weekOne.wishes = weekOne.wishes.map((wish) => ({ ...wish, completed: true }));
+  weekOne.fdd_target.completed = true;
+  weekOne.clarity_baseline = { score: 3, completed: true };
+  weekOne.career_history = { ...weekOne.career_history, cv_uploaded: true, completed: true };
+  const entries = [{ week: 1, data_block: 'week_1_state', structured_data: { week_1: weekOne }, created_at: '2026-09-03T10:00:00Z' }];
+  const now = new Date('2026-09-04T12:00:00Z');
+  assert.deepEqual(summarizeCustomerProgress(gates, inWeekTwo, entries, now), { completed_weeks: [1], process_week: 1, released_week: 1, completion_percent: 13 });
   assert.deepEqual(summarizeCustomerProgress(gates.map((gate) => gate.week === 0 ? { ...gate, completed_at: null } : gate), { current_week: 0, process_status: 'ONBOARDING' }).process_week, 0);
   const weekTwoReadyButNotClosed = gates.map((gate) => gate.week === 2 ? { ...gate, completed_at: '2026-09-03T10:00:00Z' } : gate);
-  assert.deepEqual(summarizeCustomerProgress(weekTwoReadyButNotClosed, inWeekTwo), { completed_weeks: [1], process_week: 2, completion_percent: 13 });
+  assert.deepEqual(summarizeCustomerProgress(weekTwoReadyButNotClosed, inWeekTwo, entries, now), { completed_weeks: [1], process_week: 1, released_week: 1, completion_percent: 13 });
 });
 
 test('Kundenakte öffnet zuerst ein Dashboard und führt das Kundengespräch als eigene Seite', async () => {
@@ -62,6 +74,37 @@ test('Kundenakte öffnet zuerst ein Dashboard und führt das Kundengespräch als
   assert.match(script, /group\.items\.filter\(item=>canAccessCustomerPage\(item\[6\]\)\)/);
   assert.match(script, /data-customer-summary-permission/);
   assert.match(script, /Kundengespräch wurde gespeichert/);
+});
+
+test('CRM verknüpft alle laufenden Kundenfälle mit dem lesbaren Wochenprozess', async () => {
+  const [html, script, styles, programApi] = await Promise.all([
+    file('admin.html'),
+    file('admin.js'),
+    file('admin-crm-refresh.css'),
+    file('api/program-control.js'),
+  ]);
+  assert.match(html, /id="dashboardRunningCount"/);
+  assert.match(html, /id="customerProcessWeekNav"/);
+  assert.match(html, /id="customerProcessDetail"/);
+  assert.match(html, /Prozessfortschritt &amp; Kundeneingaben/);
+  assert.match(script, /\['Prozessfortschritt','Wochenstatus, Reflexion & Eingaben'/);
+  assert.match(script, /participants\.filter\(person=>customerStatus\(person\)!=='completed'\)/);
+  assert.doesNotMatch(script, /participants\.slice\(0,4\)\.map\(person=>participantMarkup/);
+  assert.match(script, /data-dashboard-participant-id/);
+  assert.match(script, /openCustomerDashboard\(button\.dataset\.dashboardParticipantId,'program'\)/);
+  assert.match(script, /function renderCustomerProcess/);
+  assert.match(programApi, /processWeeks: processWeekResult\(result\)/);
+  assert.match(programApi, /function weekOneAnswers/);
+  assert.match(programApi, /function guidedAnswers/);
+  assert.match(styles, /\.customer-process-layout/);
+  assert.match(styles, /grid-template-columns: repeat\(4,minmax\(135px,1fr\)\)/);
+});
+
+test('Nächste Schritte bleiben auch in einspaltigen Ansichten kompakt', async () => {
+  const styles = await file('admin-lead-dashboard.css');
+  assert.match(styles, /\.lead-next-card \{ align-self: start; min-height: 0; overflow: hidden; \}/);
+  assert.match(styles, /#leadNextSteps \{ align-content: start; display: flex; flex-direction: column;/);
+  assert.doesNotMatch(styles, /lead-next-card #leadNextSteps \{ flex: 1 1 auto; \}/);
 });
 
 test('interne Rollen besitzen fest definierte und serverseitig geprüfte CRM-Rechte', async () => {

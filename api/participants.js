@@ -1,33 +1,21 @@
 import { authHeaders, profileById, randomTemporaryPassword, requireCurrentAdmin, sendPasswordReset } from '../lib/user-auth.js';
 import { handleCustomerRecords } from '../lib/customer-records-service.js';
-import { calculateProgramAccess, isOnboardingComplete, isProgramWeekFinalized, recordedProgramWeek } from '../lib/program-access.js';
+import { calculateProgramAccess } from '../lib/program-access.js';
+import { reconcileAccessFromEntries } from '../lib/program-position.js';
 
 function config() { const url = process.env.SUPABASE_URL?.replace(/\/$/, ''); const key = process.env.SUPABASE_SERVICE_ROLE_KEY; return url && key ? { url, key } : null; }
 function headers(key, extra = {}) { return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...extra }; }
 
-export function summarizeCustomerProgress(gates = [], progress = {}) {
+export function summarizeCustomerProgress(gates = [], progress = {}, entries = [], now = new Date()) {
   const storedProgress = typeof progress === 'object' && progress !== null ? progress : { current_week: Number(progress) || 0 };
-  const required = gates.filter((gate) => gate.required !== false);
-  const gatesByWeek = new Map();
-  required.forEach((gate) => {
-    const week = Number(gate.week);
-    const rows = gatesByWeek.get(week) || [];
-    rows.push(gate);
-    gatesByWeek.set(week, rows);
-  });
-  const onboarding = gatesByWeek.get(0) || [];
-  const onboardingComplete = isOnboardingComplete(storedProgress) || (onboarding.length > 0 && onboarding.every((gate) => Boolean(gate.completed_at)));
-  let completed = Array.from({ length: 8 }, (_, index) => index + 1).filter((week) => isProgramWeekFinalized(storedProgress, week));
-  const recordedWeek = recordedProgramWeek(storedProgress);
-  let processWeek = onboardingComplete
-    ? (storedProgress.process_status === 'FINAL_REPORT' ? 8 : Math.max(1, recordedWeek || 1))
-    : 0;
-  if (onboardingComplete && storedProgress.program_start_date) {
-    const scheduled = calculateProgramAccess({ progress: storedProgress, gates });
-    processWeek = scheduled.processWeek;
-    completed = scheduled.completedWeeks;
-  }
-  return { completed_weeks: completed, process_week: processWeek, completion_percent: Math.round(completed.length / 8 * 100) };
+  const scheduled = calculateProgramAccess({ progress: storedProgress, gates, now });
+  const canonical = reconcileAccessFromEntries({ access: scheduled, progress: storedProgress, entries: Array.isArray(entries) ? entries : [] });
+  return {
+    completed_weeks: canonical.completedWeeks,
+    process_week: canonical.processWeek,
+    released_week: canonical.currentWeek,
+    completion_percent: Math.round(canonical.completedWeeks.length / 8 * 100),
+  };
 }
 
 export default async function handler(request, response) {
@@ -38,21 +26,29 @@ export default async function handler(request, response) {
   const service = config();
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
   if (request.method === 'GET') {
-    const [result, linksResult, gatesResult] = await Promise.all([
+    const [result, linksResult, gatesResult, entriesResult] = await Promise.all([
       fetch(`${service.url}/rest/v1/user_profiles?role=eq.user&select=*,participant_progress!inner(*)&order=created_at.desc`, { headers: headers(service.key) }),
       fetch(`${service.url}/rest/v1/leads?converted_user_profile_id=not.is.null&status=eq.customer&select=id,converted_user_profile_id,converted_at,created_at`, { headers: headers(service.key) }),
       fetch(`${service.url}/rest/v1/week_gates?required=eq.true&select=user_profile_id,week,required,completed_at&limit=5000`, { headers: headers(service.key) }),
+      fetch(`${service.url}/rest/v1/process_entries?data_block=like.week_*_state&select=user_profile_id,week,data_block,structured_data,created_at&order=created_at.desc&limit=10000`, { headers: headers(service.key) }),
     ]);
-    const participants = await result.json(), links = await linksResult.json(), gates = await gatesResult.json();
+    const participants = await result.json(), links = await linksResult.json(), gates = await gatesResult.json(), entries = await entriesResult.json();
     if (!result.ok) return response.status(result.status).json({ error: participants.message });
     if (!linksResult.ok) return response.status(linksResult.status).json({ error: links.message });
     if (!gatesResult.ok) return response.status(gatesResult.status).json({ error: gates.message });
+    if (!entriesResult.ok) return response.status(entriesResult.status).json({ error: entries.message });
     const leadByCustomer = new Map(links.map((lead) => [lead.converted_user_profile_id, lead]));
     const gatesByCustomer = new Map();
     gates.forEach((gate) => {
       const rows = gatesByCustomer.get(gate.user_profile_id) || [];
       rows.push(gate);
       gatesByCustomer.set(gate.user_profile_id, rows);
+    });
+    const entriesByCustomer = new Map();
+    entries.forEach((entry) => {
+      const rows = entriesByCustomer.get(entry.user_profile_id) || [];
+      rows.push(entry);
+      entriesByCustomer.set(entry.user_profile_id, rows);
     });
     const fullCustomerAccess = admin.staffPermissions.some((permission) => ['customers', 'program'].includes(permission));
     const customers = participants.filter((participant) => leadByCustomer.has(participant.id)).map((participant) => {
@@ -69,7 +65,7 @@ export default async function handler(request, response) {
         ...visibleProfile,
         linked_lead_id: lead.id,
         customer_since: lead.converted_at || lead.created_at || participant.created_at,
-        ...summarizeCustomerProgress(gatesByCustomer.get(participant.id) || [], progress),
+        ...summarizeCustomerProgress(gatesByCustomer.get(participant.id) || [], progress, entriesByCustomer.get(participant.id) || []),
       };
     });
     return response.status(200).json({ participants: customers });

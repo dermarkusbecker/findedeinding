@@ -3,6 +3,8 @@ import { authorizationUrl, assertCalendarAvailable, calendarBusyIntervals, decry
 import { provisionProgramUser, requireCurrentAdmin, supabaseAuthConfig } from '../lib/user-auth.js';
 import { claraConfig } from '../lib/clara/config.js';
 import { buildSystemRegistry } from '../lib/system-registry.js';
+import { calculateProgramAccess } from '../lib/program-access.js';
+import { reconcileAccessFromEntries } from '../lib/program-position.js';
 
 const VALID_STATUSES = ['new', 'contacted', 'scheduled', 'consultation', 'offer', 'later', 'customer', 'lost'];
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -93,18 +95,39 @@ async function patchCommunicationRecord(service, table, id, payload) {
 }
 
 async function communicationCenter(service) {
-  const [templates, campaigns, automations, contacts] = await Promise.all([
+  const [templates, campaigns, automations, contacts, signatures, brandingRows] = await Promise.all([
     readJson(await fetch(`${service.url}/rest/v1/communication_templates?status=neq.archived&select=*&order=updated_at.desc`, { headers: headers(service.key) })),
     readJson(await fetch(`${service.url}/rest/v1/communication_campaigns?select=*&order=created_at.desc&limit=200`, { headers: headers(service.key) })),
     readJson(await fetch(`${service.url}/rest/v1/communication_automations?select=*&order=created_at.desc&limit=200`, { headers: headers(service.key) })),
     communicationCenterContacts(service),
+    readJson(await fetch(`${service.url}/rest/v1/communication_signatures?select=*&order=is_default.desc,name.asc`, { headers: headers(service.key) })),
+    readJson(await fetch(`${service.url}/rest/v1/system_branding?id=eq.default&select=*&limit=1`, { headers: headers(service.key) })),
   ]);
   return {
-    templates, campaigns, automations, contacts,
+    templates, campaigns, automations, contacts, signatures, branding: brandingRows[0] || { id: 'default', brand_name: 'Finde dein Ding', logo_url: '/assets/fdd-logo.svg' },
     audience: { all: contacts.length, leads: contacts.filter((item) => item.type === 'lead').length, customers: contacts.filter((item) => item.type === 'customer').length },
     summary: { templates: templates.length, activeTemplates: templates.filter((item) => item.status === 'active').length, campaigns: campaigns.length, scheduledCampaigns: campaigns.filter((item) => item.status === 'scheduled').length, automations: automations.length, activeAutomations: automations.filter((item) => item.enabled).length },
     mailTransport: { active: false, provider: null, label: 'Domain-Mail-Schnittstelle geplant' },
   };
+}
+
+async function saveCommunicationSignature(service, body) {
+  const signerName = clean(body?.signerName, 140), name = clean(body?.name, 140);
+  if (!name || !signerName) throw Object.assign(new Error('Bezeichnung und Name des Absenders sind erforderlich.'), { status: 400 });
+  const payload = { name, closing_text: clean(body?.closingText, 240) || 'Herzliche Grüße', signer_name: signerName, role_title: clean(body?.roleTitle, 180) || null, company_name: clean(body?.companyName, 180) || null, email: clean(body?.email, 254) || null, phone: clean(body?.phone, 60) || null, website: clean(body?.website, 240) || null, use_system_logo: body?.useSystemLogo === true || body?.useSystemLogo === 'on', active: body?.active === true || body?.active === 'on', is_default: body?.isDefault === true || body?.isDefault === 'on' };
+  if (payload.is_default) await readJson(await fetch(`${service.url}/rest/v1/communication_signatures?is_default=eq.true`, { method: 'PATCH', headers: headers(service.key), body: JSON.stringify({ is_default: false, updated_at: new Date().toISOString() }) }));
+  return uuidValid(body?.id) ? patchCommunicationRecord(service, 'communication_signatures', body.id, payload) : insertLeadRecord(service, 'communication_signatures', payload);
+}
+
+async function saveSystemBranding(service, body) {
+  const payload = { id: 'default', brand_name: clean(body?.brandName, 160) || 'Finde dein Ding', logo_url: clean(body?.logoUrl, 1000) || '/assets/fdd-logo.svg', updated_at: new Date().toISOString() };
+  const rows = await readJson(await fetch(`${service.url}/rest/v1/system_branding?on_conflict=id`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify(payload) }));
+  return rows[0] || payload;
+}
+
+function signatureText(signature) {
+  if (!signature) return '';
+  return [signature.closing_text, '', signature.signer_name, signature.role_title, signature.company_name, signature.email, signature.phone, signature.website].filter((value, index, values) => value || (index === 1 && values[0])).join('\n');
 }
 
 async function saveCommunicationTemplate(service, body) {
@@ -151,39 +174,45 @@ function average(values) {
 async function commandDashboard(service, admin) {
   const requests = [
     fetch(`${service.url}/rest/v1/user_profiles?role=eq.user&select=id,name,email,status,created_at&limit=1000`, { headers: headers(service.key) }),
-    fetch(`${service.url}/rest/v1/participant_progress?select=user_profile_id,current_week,process_status,program_start_date,program_status,last_activity_at,updated_at&limit=1000`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/participant_progress?select=user_profile_id,current_week,process_status,program_start_date,program_status,privacy_consent_at,start_commitment_at,last_activity_at,updated_at&limit=1000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/clarity_measurements?select=user_profile_id,phase,score,measured_at&limit=3000`, { headers: headers(service.key) }),
-    fetch(`${service.url}/rest/v1/week_gates?required=eq.true&completed_at=is.null&select=id,user_profile_id,week,label&limit=5000`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/week_gates?required=eq.true&select=id,user_profile_id,week,label,completed_at&limit=5000`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/process_entries?data_block=like.week_*_state&select=user_profile_id,week,data_block,structured_data,created_at&order=created_at.desc&limit=10000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/customer_questions?status=eq.open&select=id,user_profile_id,week,question,created_at&order=created_at.asc&limit=200`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/lead_tasks?completed=eq.false&select=id,lead_id,title,details,due_at,created_at&order=due_at.asc.nullslast&limit=200`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/leads?select=id,name,email,status,appointment_start,converted_user_profile_id,created_at&limit=1000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/lead_communications?direction=eq.inbound&read_at=is.null&select=id,lead_id,subject,occurred_at&order=occurred_at.asc&limit=200`, { headers: headers(service.key) }),
   ];
   const results = await Promise.all(requests);
-  const [profiles, progressRows, measurements, openGateRows, questions, tasks, leads, unreadMessages] = await Promise.all(results.map((result) => readJson(result, 'Dashboard-Daten konnten nicht geladen werden.')));
+  const [profiles, progressRows, measurements, gateRows, stateEntries, questions, tasks, leads, unreadMessages] = await Promise.all(results.map((result) => readJson(result, 'Dashboard-Daten konnten nicht geladen werden.')));
   const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
   const leadMap = new Map(leads.map((lead) => [lead.id, lead]));
   const activeProgress = progressRows.filter((progress) => progress.program_status === 'active' && profileMap.get(progress.user_profile_id)?.status === 'active');
   const progressMap = new Map(activeProgress.map((progress) => [progress.user_profile_id, progress]));
+  const accessMap = new Map(activeProgress.map((progress) => {
+    const participantId = progress.user_profile_id;
+    const scheduled = calculateProgramAccess({ profileStatus: profileMap.get(participantId)?.status, progress, gates: gateRows.filter((gate) => gate.user_profile_id === participantId) });
+    return [participantId, reconcileAccessFromEntries({ access: scheduled, progress, entries: stateEntries.filter((entry) => entry.user_profile_id === participantId) })];
+  }));
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const newCustomers = activeProgress.filter((progress) => new Date(profileMap.get(progress.user_profile_id)?.created_at || 0) >= monthStart).length;
   const activeLeads = leads.filter((lead) => !lead.converted_user_profile_id && !['customer', 'lost', 'later'].includes(lead.status)).length;
-  const distribution = Array.from({ length: 9 }, (_, week) => activeProgress.filter((progress) => Number(progress.current_week) === week).length);
+  const distribution = Array.from({ length: 9 }, (_, week) => activeProgress.filter((progress) => Number(accessMap.get(progress.user_profile_id)?.processWeek || 0) === week).length);
 
   const measurementsByParticipant = new Map();
   measurements.forEach((measurement) => { const entry = measurementsByParticipant.get(measurement.user_profile_id) || {}; entry[measurement.phase] = Number(measurement.score); measurementsByParticipant.set(measurement.user_profile_id, entry); });
   const completedGains = [...measurementsByParticipant.values()].filter((item) => Number.isFinite(item.start) && Number.isFinite(item.end)).map((item) => item.end - item.start);
   const clarityPhases = ['start', 'midpoint', 'end'].map((phase) => ({ phase, average: average(measurements.filter((item) => item.phase === phase).map((item) => item.score)), count: measurements.filter((item) => item.phase === phase).length }));
 
-  const relevantOpenGates = openGateRows.filter((gate) => { const progress = progressMap.get(gate.user_profile_id); return progress && Number(gate.week) <= Number(progress.current_week); });
+  const relevantOpenGates = gateRows.filter((gate) => !gate.completed_at).filter((gate) => { const access = accessMap.get(gate.user_profile_id); return access && Number(gate.week) === Number(access.processWeek) && access.weekStates.some((state) => Number(state.week) === Number(gate.week) && state.accessible); });
   const staleThreshold = now.getTime() - 48 * 60 * 60 * 1000;
   const overdueGates = relevantOpenGates.filter((gate) => new Date(progressMap.get(gate.user_profile_id)?.last_activity_at || progressMap.get(gate.user_profile_id)?.updated_at || now).getTime() < staleThreshold);
   const attention = [];
-  questions.forEach((item) => { const profile = profileMap.get(item.user_profile_id); attention.push({ id: `question-${item.id}`, priority: 1, tone: 'orange', icon: '?', title: `${profile?.name || 'Teilnehmer'} · Kundenfrage`, subtitle: `Woche ${item.week} · ${item.question}`, actionLabel: 'Antworten', entityType: 'participant', entityId: item.user_profile_id, createdAt: item.created_at }); });
+  questions.filter((item) => accessMap.get(item.user_profile_id)?.canAccessWeek(item.week)).forEach((item) => { const profile = profileMap.get(item.user_profile_id); attention.push({ id: `question-${item.id}`, priority: 1, tone: 'orange', icon: '?', title: `${profile?.name || 'Teilnehmer'} · Kundenfrage`, subtitle: `Woche ${item.week} · ${item.question}`, actionLabel: 'Antworten', entityType: 'participant', entityId: item.user_profile_id, createdAt: item.created_at }); });
   const gatesByParticipant = new Map();
   overdueGates.forEach((gate) => { const list = gatesByParticipant.get(gate.user_profile_id) || []; list.push(gate); gatesByParticipant.set(gate.user_profile_id, list); });
-  gatesByParticipant.forEach((gates, profileId) => { const profile = profileMap.get(profileId), progress = progressMap.get(profileId); attention.push({ id: `gate-${profileId}`, priority: 1, tone: 'orange', icon: '↗', title: `${profile?.name || 'Teilnehmer'} · Gate blockiert`, subtitle: `Woche ${progress?.current_week || 0} · ${gates.length} offene Pflichtschritte`, actionLabel: 'Prüfen', entityType: 'participant', entityId: profileId, createdAt: progress?.last_activity_at || progress?.updated_at }); });
+  gatesByParticipant.forEach((gates, profileId) => { const profile = profileMap.get(profileId), progress = progressMap.get(profileId), access = accessMap.get(profileId); attention.push({ id: `gate-${profileId}`, priority: 1, tone: 'orange', icon: '↗', title: `${profile?.name || 'Teilnehmer'} · Gate blockiert`, subtitle: `Woche ${access?.processWeek || 0} · ${gates.length} offene Pflichtschritte`, actionLabel: 'Prüfen', entityType: 'participant', entityId: profileId, createdAt: progress?.last_activity_at || progress?.updated_at }); });
   const tomorrowEnd = new Date(now.getTime() + 36 * 60 * 60 * 1000);
   tasks.filter((item) => item.due_at && new Date(`${item.due_at}T23:59:59`) <= tomorrowEnd).forEach((item) => { const lead = leadMap.get(item.lead_id); attention.push({ id: `task-${item.id}`, priority: 1, tone: 'orange', icon: '✓', title: `${lead?.name || 'Interessent'} · Aufgabe fällig`, subtitle: item.title, actionLabel: 'Öffnen', entityType: 'lead', entityId: item.lead_id, createdAt: item.due_at }); });
   unreadMessages.forEach((item) => { const lead = leadMap.get(item.lead_id); attention.push({ id: `message-${item.id}`, priority: 2, tone: 'green', icon: '✉', title: `${lead?.name || 'Kontakt'} · Neue Nachricht`, subtitle: item.subject, actionLabel: 'Lesen', entityType: 'lead', entityId: item.lead_id, createdAt: item.occurred_at }); });
@@ -393,6 +422,12 @@ export default async function handler(request, response) {
     if (request.method === 'POST' && action === 'communication-automation') {
       return response.status(200).json({ record: await saveCommunicationAutomation(service, request.body), message: 'Automatisierte Nachricht wurde gespeichert.' });
     }
+    if (request.method === 'POST' && action === 'communication-signature') {
+      return response.status(200).json({ record: await saveCommunicationSignature(service, request.body), message: 'Signatur wurde gespeichert und steht im Nachrichteneditor bereit.' });
+    }
+    if (request.method === 'POST' && action === 'communication-branding') {
+      return response.status(200).json({ record: await saveSystemBranding(service, request.body), message: 'Globale Marke und Logoquelle wurden gespeichert.' });
+    }
     if (request.method === 'PATCH' && action === 'communication-campaign-state') {
       const status = ['draft', 'scheduled', 'paused', 'cancelled'].includes(request.body?.status) ? request.body.status : 'draft';
       return response.status(200).json({ record: await patchCommunicationRecord(service, 'communication_campaigns', request.body?.id, { status }) });
@@ -402,9 +437,15 @@ export default async function handler(request, response) {
     }
     if (request.method === 'POST' && action === 'communication-draft') {
       const lead = await leadById(service, request.body?.leadId);
-      const subject = clean(request.body?.subject, 220), body = clean(request.body?.body, 10000);
-      if (!subject || !body) return response.status(400).json({ error: 'Empfänger, Betreff und Nachricht sind erforderlich.' });
-      const record = await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', channel: 'email', subject, preview: body.slice(0, 500), body, delivery_status: 'draft' });
+      const subject = clean(request.body?.subject, 220), messageBody = clean(request.body?.body, 10000);
+      let signature = null;
+      if (uuidValid(request.body?.signatureId)) {
+        const signatureRows = await readJson(await fetch(`${service.url}/rest/v1/communication_signatures?id=eq.${encodeURIComponent(request.body.signatureId)}&active=eq.true&select=*&limit=1`, { headers: headers(service.key) }));
+        signature = signatureRows[0] || null;
+      }
+      const body = `${messageBody}${signature ? `\n\n${signatureText(signature)}` : ''}`.slice(0, 20000);
+      if (!subject || !messageBody) return response.status(400).json({ error: 'Empfänger, Betreff und Nachricht sind erforderlich.' });
+      const record = await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', channel: 'email', subject, preview: body.slice(0, 500), body, signature_id: signature?.id || null, delivery_status: 'draft' });
       return response.status(201).json({ record, message: 'Nachricht wurde als Entwurf gespeichert. Der Versand wird nach Anschluss der Domain-Mail-Schnittstelle aktiviert.' });
     }
     if (request.method === 'PATCH' && action === 'communication-read') {

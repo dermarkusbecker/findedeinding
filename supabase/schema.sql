@@ -108,6 +108,30 @@ create table if not exists public.lead_payments (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.system_branding (
+  id text primary key default 'default',
+  brand_name text not null default 'Finde dein Ding',
+  logo_url text,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.communication_signatures (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  closing_text text not null default 'Herzliche Grüße',
+  signer_name text not null,
+  role_title text,
+  company_name text,
+  email text,
+  phone text,
+  website text,
+  use_system_logo boolean not null default true,
+  active boolean not null default true,
+  is_default boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.lead_communications (
   id uuid primary key default gen_random_uuid(),
   lead_id uuid not null references public.leads(id) on delete cascade,
@@ -115,6 +139,7 @@ create table if not exists public.lead_communications (
   subject text not null,
   preview text,
   body text,
+  signature_id uuid references public.communication_signatures(id) on delete set null,
   channel text not null default 'email',
   delivery_status text not null default 'logged',
   provider_message_id text,
@@ -228,7 +253,7 @@ end $$;
 
 create table if not exists public.participant_progress (
   id uuid primary key default gen_random_uuid(),
-  user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
+  user_profile_id uuid not null unique references public.user_profiles(id) on delete cascade,
   process_status text not null default 'ONBOARDING',
   current_week integer not null default 0 check (current_week between 0 and 8),
   program_start_date date not null default current_date,
@@ -392,6 +417,8 @@ alter table public.lead_bank_accounts enable row level security;
 alter table public.communication_templates enable row level security;
 alter table public.communication_campaigns enable row level security;
 alter table public.communication_automations enable row level security;
+alter table public.communication_signatures enable row level security;
+alter table public.system_branding enable row level security;
 alter table public.user_profiles enable row level security;
 alter table public.participant_progress enable row level security;
 alter table public.customer_questions enable row level security;
@@ -419,6 +446,8 @@ create index if not exists lead_tasks_lead_due_idx on public.lead_tasks(lead_id,
 create index if not exists communication_templates_status_idx on public.communication_templates(status, category, updated_at desc);
 create index if not exists communication_campaigns_schedule_idx on public.communication_campaigns(status, scheduled_at);
 create index if not exists communication_automations_trigger_idx on public.communication_automations(enabled, trigger_type);
+create index if not exists communication_signatures_active_idx on public.communication_signatures(active, name);
+create unique index if not exists communication_signatures_one_default_idx on public.communication_signatures(is_default) where is_default;
 create index if not exists customer_questions_profile_created_idx on public.customer_questions(user_profile_id, created_at desc);
 create index if not exists process_entries_participant_idx on public.process_entries(user_profile_id, week);
 create index if not exists participant_documents_lookup_idx on public.participant_documents(user_profile_id, week, created_at desc);

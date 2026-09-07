@@ -1,6 +1,8 @@
 import { USER_PERMISSIONS } from '../lib/auth.js';
 import { authHeaders, createManagedAuthUser, profileById, requireCurrentAdmin, sendPasswordReset, supabaseAuthConfig } from '../lib/user-auth.js';
 import { STAFF_ROLES, staffPermissionsFor, validStaffRole } from '../lib/staff-roles.js';
+import { calculateProgramAccess, serializeProgramAccess } from '../lib/program-access.js';
+import { reconcileAccessFromEntries } from '../lib/program-position.js';
 
 const clean = (value, max = 160) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const emailValid = (email) => /^\S+@\S+\.\S+$/.test(email);
@@ -24,8 +26,19 @@ export default async function handler(request, response) {
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
   try {
     if (request.method === 'GET') {
-      const users = await data(await fetch(`${service.url}/rest/v1/user_profiles?select=id,auth_user_id,name,email,role,status,permissions,staff_role,staff_permissions,created_at,participant_progress(current_week,process_status,program_status,access_mode)&order=created_at.desc`, { headers: authHeaders(service.serviceKey) }));
-      return response.status(200).json({ users, permissions: USER_PERMISSIONS, staffRoles: STAFF_ROLES });
+      const [users, gates, entries] = await Promise.all([
+        data(await fetch(`${service.url}/rest/v1/user_profiles?select=id,auth_user_id,name,email,role,status,permissions,staff_role,staff_permissions,created_at,participant_progress(current_week,process_status,program_status,access_mode,program_start_date,privacy_consent_at,start_commitment_at)&order=created_at.desc`, { headers: authHeaders(service.serviceKey) })),
+        data(await fetch(`${service.url}/rest/v1/week_gates?required=eq.true&select=user_profile_id,week,required,completed_at&limit=5000`, { headers: authHeaders(service.serviceKey) })),
+        data(await fetch(`${service.url}/rest/v1/process_entries?data_block=like.week_*_state&select=user_profile_id,week,data_block,structured_data,created_at&order=created_at.desc&limit=10000`, { headers: authHeaders(service.serviceKey) })),
+      ]);
+      const programUsers = users.map((user) => {
+        const progress = user.participant_progress?.[0];
+        if (!progress) return user;
+        const scheduled = calculateProgramAccess({ profileStatus: user.status, progress, gates: gates.filter((gate) => gate.user_profile_id === user.id) });
+        const access = reconcileAccessFromEntries({ access: scheduled, progress, entries: entries.filter((entry) => entry.user_profile_id === user.id) });
+        return { ...user, program_access: serializeProgramAccess(access) };
+      });
+      return response.status(200).json({ users: programUsers, permissions: USER_PERMISSIONS, staffRoles: STAFF_ROLES });
     }
     if (request.method === 'POST') {
       const name = clean(request.body?.name, 120), email = clean(request.body?.email, 254).toLowerCase(), role = clean(request.body?.role, 20) || 'user';

@@ -50,7 +50,7 @@
 .lead-task-card .lead-task-list,
 .lead-notes-card>p,
 .lead-bank-card>dl,
-.lead-next-card #leadNextSteps { flex: 1 1 auto; }
+.lead-next-card #leadNextSteps { flex: 0 0 auto; }
 .lead-task-card .lead-card-action,
 .lead-notes-card .lead-card-action,
 .lead-bank-card .lead-card-action { align-self: flex-start; margin-top: auto; }
@@ -87,8 +87,9 @@
 .lead-task-tabs button { background: transparent; border: 0; border-radius: 7px; color: #657579; cursor: pointer; font-size: 10px; font-weight: 800; padding: 7px 10px; }
 .lead-task-tabs button.active { background: #fff; box-shadow: 0 3px 10px rgba(27,72,70,.08); color: #16846f; }
 .lead-notes-card>p { color: #58696c; font-size: 13px; line-height: 1.75; margin: 20px 0 0; white-space: pre-wrap; }
-.lead-next-card #leadNextSteps { display: grid; gap: 10px; margin-top: 18px; }
-.lead-next-card #leadNextSteps>div { align-items: center; background: #f7f9f8; border-radius: 11px; display: flex; gap: 11px; padding: 12px; }
+.lead-next-card { align-self: start; min-height: 0; overflow: hidden; }
+.lead-next-card #leadNextSteps { align-content: start; display: flex; flex-direction: column; gap: 10px; height: auto; margin-top: 18px; min-height: 0; }
+.lead-next-card #leadNextSteps>div { align-items: center; background: #f7f9f8; border: 1px solid #e5ecea; border-radius: 11px; display: flex; flex: 0 0 auto; gap: 11px; min-height: 52px; padding: 12px; }
 .lead-next-card #leadNextSteps span { align-items: center; background: #e4f4ee; border-radius: 50%; color: #16846f; display: flex; flex: 0 0 27px; font-size: 11px; font-weight: 900; height: 27px; justify-content: center; }
 .lead-next-card #leadNextSteps p { color: #334649; font-size: 11px; line-height: 1.45; margin: 0; }
 .lead-empty { color: #7a898c; font-size: 11px; line-height: 1.55; padding: 25px 8px; text-align: center; }
@@ -116,6 +117,7 @@
   .lead-sales-progress { overflow: hidden; padding: 18px; }
   .lead-sales-progress .lead-card-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
   .lead-sales-call-overview { grid-template-columns: 1fr; }
+  .lead-next-card { width: 100%; }
 }
 @media (max-width: 520px) {
   .lead-profile-main { align-items: flex-start; }

@@ -1,12 +1,14 @@
 import { requireCurrentPermission } from '../lib/user-auth.js';
 import { getParticipantProgramAccess, patchParticipantProgress, serviceHeaders } from '../lib/program-access-service.js';
-import { isOnboardingComplete, isProgramWeekFinalized, reconcileProgramPosition } from '../lib/program-access.js';
+import { isOnboardingComplete } from '../lib/program-access.js';
+import { canonicalProgressPatch } from '../lib/program-position.js';
 import { applyWeekOneAction, createWeekOneState, missingWeekOneRequirements, stepStatuses, weekOneComplete, weekOnePrompt } from '../lib/week-one.js';
 import { applyGuidedWeekAction, createGuidedWeekState, guidedClarityStep, guidedStepStatuses, guidedWeekComplete, guidedWeekDefinition, missingGuidedRequirements, needsGuidedClarityCheckin, normalizeGuidedWeekState } from '../lib/guided-weeks.js';
 import { readClarityQuestionOverrides, resolveClarityPrompt } from '../lib/clarity-questions.js';
 import { handleClaraMessage } from '../lib/clara/api-handler.js';
 import { handleParticipantDocument } from '../lib/documents/api-handler.js';
 import { weekResetScope } from '../lib/week-reset.js';
+import { generateWeekReflection } from '../lib/week-reflection-agent.js';
 
 const programWeeks = [
   { week: 1, title: 'Jetzt geht es los', mode: 'Ist-Aufnahme', description: 'Du klärst deine heutige Ausgangslage, dein persönliches Ziel für die acht Wochen und die Erfahrungen, die dich bisher geprägt haben.', topics: ['Drei Wünsche und ihre Bedeutung', 'Persönliches Zielbild', 'Klarheits-Baseline', 'Beruflicher Werdegang'], question: 'Stell dir vor, vor dir steht eine Fee und du hast genau drei Wünsche frei. Welche drei Dinge würdest du dir für dein Leben aktuell am meisten wünschen?', help: 'Nenne zunächst einfach alle drei. Danach vertiefen wir sie einzeln.', upload: 'Lebenslauf optional' },
@@ -89,6 +91,38 @@ async function saveWeekOneState(result, participantId, state, rawAnswer = '') {
   }
 }
 
+async function readWeekDraft(result, participantId, week) {
+  if (!week) return {};
+  const response = await fetch(`${result.service.url}/rest/v1/process_entries?user_profile_id=eq.${encodeURIComponent(participantId)}&week=eq.${week}&data_block=eq.week_${week}_draft&select=structured_data&order=created_at.desc&limit=1`, { headers: serviceHeaders(result.service.key) });
+  const rows = await response.json().catch(() => ([]));
+  if (!response.ok) throw new Error(rows.message || 'Dein Entwurf konnte nicht geladen werden.');
+  const draft = rows[0]?.structured_data?.draft;
+  return draft && typeof draft === 'object' && !Array.isArray(draft) ? draft : {};
+}
+
+async function saveWeekDraft(result, participantId, week, draft) {
+  const response = await fetch(`${result.service.url}/rest/v1/process_entries`, {
+    method: 'POST',
+    headers: serviceHeaders(result.service.key),
+    body: JSON.stringify({ user_profile_id: participantId, week, data_block: `week_${week}_draft`, structured_data: { draft }, evidence_level: 'participant_draft' }),
+  });
+  if (!response.ok) throw new Error('Dein Entwurf konnte nicht automatisch gespeichert werden.');
+}
+
+function reflectionFromState(week, state) {
+  const reflection = state?.week_reflection;
+  return reflection && typeof reflection === 'object' ? { week, ...reflection } : null;
+}
+
+function ensureRunningWeek(result, week) {
+  const runningWeek = Number(result.access.processWeek);
+  if (week !== runningWeek) {
+    const error = new Error(`Nur deine aktuell laufende Woche ${runningWeek} kann bearbeitet werden.`);
+    error.status = 409;
+    throw error;
+  }
+}
+
 function weekOnePreconditions(progress = {}) {
   return { privacyConsent: Boolean(progress.privacy_consent_at), startCommitment: Boolean(progress.start_commitment_at) };
 }
@@ -162,15 +196,9 @@ export default async function handler(request, response) {
       if (!onboardingComplete && requestedWeek !== null) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       if (requestedWeek !== null && !rawAccess.weekStates.some((state) => state.week === requestedWeek && state.accessible)) return response.status(403).json({ error: 'Diese Woche ist noch nicht freigeschaltet.', access: rawAccess });
       const guidedStates = await readGuidedWeekStates(result, session.participantId);
-      const verifiedCompletedWeeks = rawAccess.completedWeeks.filter((week) => {
-        if (Number(week) === 1) return weekOneGateComplete;
-        const state = guidedStates.get(Number(week));
-        return Boolean(state) && guidedWeekComplete(state);
-      });
-      const access = reconcileProgramPosition(rawAccess, verifiedCompletedWeeks);
-      if (access.processWeek < Number(rawAccess.recordedCurrentWeek || rawAccess.processWeek || 1)) {
-        await patchParticipantProgress(result.service, session.participantId, { current_week: access.processWeek, process_status: `WEEK_${access.processWeek}` });
-      }
+      const access = rawAccess;
+      const progressRepair = canonicalProgressPatch(access, result.progress);
+      if (progressRepair) await patchParticipantProgress(result.service, session.participantId, progressRepair);
       const accessibleWeeks = (onboardingComplete ? access.unlockedWeeks : []).map((week) => {
         const content = programWeeks.find((item) => item.week === week);
         return { week, title: content.title, mode: content.mode };
@@ -178,13 +206,19 @@ export default async function handler(request, response) {
       const processWeekAccessible = access.weekStates.some((state) => state.week === Number(access.processWeek) && state.accessible);
       const selectedWeek = onboardingComplete ? (requestedWeek || (processWeekAccessible ? Number(access.processWeek) : access.unlockedWeeks[0] || 1)) : 0;
       const guidedState = selectedWeek >= 2 ? (guidedStates.get(selectedWeek) || createGuidedWeekState(selectedWeek)) : null;
-      const clarityHistory = buildClarityHistory(weekOneState, guidedStates);
+      const releasedWeeks = new Set(access.automaticUnlockedWeeks.map(Number));
+      const clarityHistory = buildClarityHistory(weekOneState, guidedStates).map((item) => releasedWeeks.has(Number(item.week))
+        ? item
+        : { week: item.week, score: null, changed: null, note: '', recordedAt: null });
       const currentClarity = clarityHistory.filter((item) => Number.isInteger(item.score)).at(-1) || null;
       const questionOverrides = selectedWeek ? await readClarityQuestionOverrides(result.service, selectedWeek) : [];
-      return response.status(200).json({ profile: { id: result.profile.id, name: result.profile.name }, access, onboardingComplete, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => ({ week, title, mode, description, topics })), accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null, clarityHistory, currentClarity });
+      const weekDraft = selectedWeek && selectedWeek === Number(access.processWeek) && !access.completedWeeks.includes(selectedWeek) ? await readWeekDraft(result, session.participantId, selectedWeek) : {};
+      const weekReflections = [reflectionFromState(1, weekOneState), ...Array.from({ length: 7 }, (_, index) => reflectionFromState(index + 2, guidedStates.get(index + 2)))].filter((item) => item && access.completedWeeks.includes(Number(item.week)));
+      return response.status(200).json({ profile: { id: result.profile.id, name: result.profile.name }, access, onboardingComplete, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => ({ week, title, mode, description, topics })), accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null, weekDraft, weekReflections, clarityHistory, currentClarity });
     }
     if (request.method !== 'PATCH') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
     const action = request.body?.action;
+    let actionReflection = null;
     if (action === 'start') {
       if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
       if (result.access.status !== 'active') return response.status(423).json({ error: 'Dein Programm ist aktuell pausiert.' });
@@ -209,13 +243,16 @@ export default async function handler(request, response) {
       const question = String(request.body?.question || '').trim().slice(0, 3000);
       const week = Number(request.body?.week);
       if (!question || !Number.isInteger(week) || week < 1 || week > 8) return response.status(400).json({ error: 'Bitte gib eine gültige Frage ein.' });
+      if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Fragen können nur einer bereits freigeschalteten Woche zugeordnet werden.' });
       const created = await fetch(`${result.service.url}/rest/v1/customer_questions`, { method: 'POST', headers: serviceHeaders(result.service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ user_profile_id: session.participantId, week, question }) });
       const rows = await created.json().catch(() => ([]));
       if (!created.ok || !rows[0]) return response.status(created.status || 500).json({ error: rows.message || 'Deine Frage konnte nicht gespeichert werden.' });
       return response.status(201).json({ ok: true, question: rows[0] });
     } else if (action === 'week_1_update') {
       if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
-      if (isProgramWeekFinalized(result.progress, 1)) return response.status(409).json({ error: 'Woche 1 ist abgeschlossen und kann nur noch angesehen werden.' });
+      if (!result.access.canAccessWeek(1)) return response.status(403).json({ error: 'Woche 1 ist noch nicht freigeschaltet.' });
+      if (result.access.completedWeeks.includes(1)) return response.status(409).json({ error: 'Woche 1 ist abgeschlossen und kann nur noch angesehen werden.' });
+      ensureRunningWeek(result, 1);
       const currentState = await readWeekOneState(result, session.participantId);
       const update = applyWeekOneAction(currentState, request.body?.stepAction || {});
       if (!update.ok) return response.status(400).json({ error: update.error, details: update.details, weekOne: update.state });
@@ -229,7 +266,8 @@ export default async function handler(request, response) {
       if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const week = Number(request.body?.week);
       if (!Number.isInteger(week) || week < 2 || week > 8 || !result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist nicht freigeschaltet.' });
-      if (isProgramWeekFinalized(result.progress, week)) return response.status(409).json({ error: `Woche ${week} ist abgeschlossen und kann nur noch angesehen werden.` });
+      if (result.access.completedWeeks.includes(week)) return response.status(409).json({ error: `Woche ${week} ist abgeschlossen und kann nur noch angesehen werden.` });
+      ensureRunningWeek(result, week);
       const stepAction = request.body?.stepAction || {};
       if (stepAction.type === 'external_completed') return response.status(403).json({ error: 'Technische Ergebnisse können nur durch den zuständigen serverseitigen Dienst bestätigt werden.' });
       if (stepAction.type === 'document_uploaded') {
@@ -256,7 +294,8 @@ export default async function handler(request, response) {
       const week = Number(request.body?.week);
       if (week === 1) return response.status(400).json({ error: 'Der Fortschritt in Woche 1 wird automatisch aus deinen Antworten ermittelt.' });
       if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist nicht freigeschaltet.' });
-      if (isProgramWeekFinalized(result.progress, week)) return response.status(409).json({ error: `Woche ${week} ist abgeschlossen und kann nur noch angesehen werden.` });
+      if (result.access.completedWeeks.includes(week)) return response.status(409).json({ error: `Woche ${week} ist abgeschlossen und kann nur noch angesehen werden.` });
+      ensureRunningWeek(result, week);
       const gate = result.gates.find((item) => item.id === request.body?.gateId && Number(item.week) === week);
       if (!gate) return response.status(404).json({ error: 'Pflichtaufgabe wurde nicht gefunden.' });
       await setGate(result.service, session.participantId, gate.id, Boolean(request.body?.completed));
@@ -268,32 +307,55 @@ export default async function handler(request, response) {
       if (!answer) return response.status(400).json({ error: 'Antwort fehlt.' });
       if (week === 1) return response.status(400).json({ error: 'Bitte beantworte den aktuell angezeigten Schritt in Woche 1.' });
       if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist nicht freigeschaltet.' });
-      if (isProgramWeekFinalized(result.progress, week)) return response.status(409).json({ error: `Woche ${week} ist abgeschlossen und kann nur noch angesehen werden.` });
+      if (result.access.completedWeeks.includes(week)) return response.status(409).json({ error: `Woche ${week} ist abgeschlossen und kann nur noch angesehen werden.` });
+      ensureRunningWeek(result, week);
       const insert = await fetch(`${result.service.url}/rest/v1/process_entries`, { method: 'POST', headers: serviceHeaders(result.service.key), body: JSON.stringify({ user_profile_id: session.participantId, week, data_block: `week_${week}_dialog`, raw_answer: answer, evidence_level: 'participant_statement' }) });
       if (!insert.ok) throw new Error('Antwort konnte nicht gespeichert werden.');
       const firstGate = result.gates.find((gate) => Number(gate.week) === week && gate.required !== false);
       if (firstGate) await setGate(result.service, session.participantId, firstGate.id, true);
       await patchParticipantProgress(result.service, session.participantId, { last_activity_at: new Date().toISOString() });
+    } else if (action === 'save_week_draft') {
+      if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
+      const week = Number(request.body?.week);
+      const draft = request.body?.draft;
+      if (!Number.isInteger(week) || week < 1 || week > 8 || !draft || typeof draft !== 'object' || Array.isArray(draft)) return response.status(400).json({ error: 'Ungültiger Wochenentwurf.' });
+      if (result.access.completedWeeks.includes(week)) return response.status(409).json({ error: `Woche ${week} ist abgeschlossen und schreibgeschützt.` });
+      ensureRunningWeek(result, week);
+      const entries = Object.entries(draft).slice(0, 40);
+      if (entries.some(([key, value]) => !/^[a-zA-Z0-9:_-]{1,120}$/.test(key) || typeof value !== 'string' || value.length > 10000)) return response.status(400).json({ error: 'Der Entwurf enthält ungültige Inhalte.' });
+      await saveWeekDraft(result, session.participantId, week, Object.fromEntries(entries));
+      await patchParticipantProgress(result.service, session.participantId, { last_activity_at: new Date().toISOString() });
+      return response.status(200).json({ ok: true, savedAt: new Date().toISOString() });
     } else if (action === 'reopen_week') {
       if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const week = Number(request.body?.week);
       if (!Number.isInteger(week) || week < 1 || week > 8) return response.status(400).json({ error: 'Ungültige Woche für den Replay.' });
       if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist derzeit nicht zugänglich.' });
-      if (isProgramWeekFinalized(result.progress, week)) return response.status(409).json({ error: `Woche ${week} ist abgeschlossen und kann nicht erneut gestartet werden.` });
+      if (result.access.completedWeeks.includes(week)) return response.status(409).json({ error: `Woche ${week} ist abgeschlossen und kann nicht erneut gestartet werden.` });
+      ensureRunningWeek(result, week);
       const resetState = await deleteWeekData(result.service, session.participantId, week);
       await patchParticipantProgress(result.service, session.participantId, { current_week: resetState.week, process_status: resetState.processStatus, last_activity_at: new Date().toISOString() });
     } else if (action === 'complete_week') {
       if (!isOnboardingComplete(result.progress)) return response.status(403).json({ error: 'Bitte schließe zuerst dein Onboarding ab.' });
       const week = Number(request.body?.week);
-      if (isProgramWeekFinalized(result.progress, week)) return response.status(409).json({ error: `Woche ${week} wurde bereits abgeschlossen.` });
+      if (!Number.isInteger(week) || week < 1 || week > 8) return response.status(400).json({ error: 'Ungültige Woche.' });
+      if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: `Woche ${week} ist noch nicht freigeschaltet.` });
+      if (result.access.completedWeeks.includes(week)) return response.status(409).json({ error: `Woche ${week} wurde bereits abgeschlossen.` });
+      ensureRunningWeek(result, week);
+      const weekDefinition = programWeeks.find((item) => item.week === week);
+      const finalDraft = await readWeekDraft(result, session.participantId, week);
       if (week === 1) {
         const weekOneState = await readWeekOneState(result, session.participantId);
         const preconditions = weekOnePreconditions(result.progress);
         if (!weekOneComplete(weekOneState, preconditions)) return response.status(409).json({ error: `Fast geschafft. Es fehlt noch: ${missingWeekOneRequirements(weekOneState, preconditions).join(', ')}.` });
         const weekOneGates = result.gates.filter((gate) => Number(gate.week) === 1 && gate.required !== false);
         await Promise.all(weekOneGates.map((gate) => setGate(result.service, session.participantId, gate.id, true)));
+        if (Object.keys(finalDraft).length) weekOneState.final_draft_notes = finalDraft;
+        actionReflection = await generateWeekReflection({ participantId: session.participantId, participantName: result.profile.name, week, title: weekDefinition.title, state: weekOneState });
         weekOneState.status = 'completed';
         weekOneState.completed_at = new Date().toISOString();
+        weekOneState.week_reflection = actionReflection;
+        weekOneState.week_summary = actionReflection.summary;
         await saveWeekOneState(result, session.participantId, weekOneState, 'Woche 1 abgeschlossen');
       } else {
         if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: 'Diese Woche ist nicht freigeschaltet.' });
@@ -301,16 +363,24 @@ export default async function handler(request, response) {
         if (!guidedWeekComplete(guidedState)) return response.status(409).json({ error: `Fast geschafft. Es fehlt noch: ${missingGuidedRequirements(guidedState).join(', ')}.` });
         const required = result.gates.filter((gate) => Number(gate.week) === week && gate.required !== false);
         if (!required.length || required.some((gate) => !gate.completed_at)) return response.status(409).json({ error: 'Die Woche ist erst abgeschlossen, wenn alle Pflichtaufgaben bestätigt sind.' });
+        if (Object.keys(finalDraft).length) guidedState.final_draft_notes = finalDraft;
+        actionReflection = await generateWeekReflection({ participantId: session.participantId, participantName: result.profile.name, week, title: weekDefinition.title, state: guidedState });
         guidedState.status = 'completed';
         guidedState.completed_at = new Date().toISOString();
+        guidedState.week_reflection = actionReflection;
         await saveGuidedWeekState(result, session.participantId, week, guidedState, `Woche ${week} abgeschlossen`);
       }
-      const nextWeek = Math.min(8, week + 1);
-      await patchParticipantProgress(result.service, session.participantId, { current_week: nextWeek, process_status: week === 8 ? 'FINAL_REPORT' : `WEEK_${nextWeek}`, last_activity_at: new Date().toISOString() });
+      await patchParticipantProgress(result.service, session.participantId, { last_activity_at: new Date().toISOString() });
+      await fetch(`${result.service.url}/rest/v1/process_entries?user_profile_id=eq.${encodeURIComponent(session.participantId)}&week=eq.${week}&data_block=eq.week_${week}_draft`, { method: 'DELETE', headers: serviceHeaders(result.service.key) }).catch(() => null);
     } else return response.status(400).json({ error: 'Unbekannte Aktion.' });
-    const updated = await getParticipantProgramAccess(session.participantId);
-    return response.status(200).json({ ok: true, access: updated.serializedAccess });
+    let updated = await getParticipantProgramAccess(session.participantId);
+    const progressRepair = canonicalProgressPatch(updated.access, updated.progress);
+    if (progressRepair) {
+      await patchParticipantProgress(updated.service, session.participantId, progressRepair);
+      updated = await getParticipantProgramAccess(session.participantId);
+    }
+    return response.status(200).json({ ok: true, access: updated.serializedAccess, ...(actionReflection ? { reflection: actionReflection } : {}) });
   } catch (error) {
-    return response.status(500).json({ error: error.message || 'Programmzugriff konnte nicht verarbeitet werden.' });
+    return response.status(Number(error.status) || 500).json({ error: error.message || 'Programmzugriff konnte nicht verarbeitet werden.' });
   }
 }

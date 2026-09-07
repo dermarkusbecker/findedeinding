@@ -3,6 +3,7 @@ import { requireCurrentAdmin } from '../lib/user-auth.js';
 import { PROGRAM_STATUSES } from '../lib/program-access.js';
 import { getParticipantProgramAccess, isUuid, patchParticipantProgress, serviceHeaders } from '../lib/program-access-service.js';
 import { applyGuidedWeekAction, currentGuidedStep, guidedGateStatus, guidedWeekDefinition, normalizeGuidedWeekState } from '../lib/guided-weeks.js';
+import { weekOnePrompt } from '../lib/week-one.js';
 
 const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -52,9 +53,84 @@ function technicalResult(states) {
   });
 }
 
+const readableValue = (value) => {
+  if (value === null || value === undefined || value === '') return '';
+  if (typeof value === 'boolean') return value ? 'Ja' : '';
+  if (Array.isArray(value)) return value.map(readableValue).filter(Boolean).join(' · ');
+  if (typeof value === 'object') return Object.values(value).map(readableValue).filter(Boolean).join(' · ');
+  return String(value).trim();
+};
+
+function weekOneAnswers(state = {}) {
+  const answers = [];
+  (state.wishes || []).forEach((wish, index) => {
+    const value = readableValue(wish.final_answer || wish.desired_state || wish.raw_wish || wish.raw_answer);
+    if (value) answers.push({ key: `wish_${index + 1}`, label: `Wunsch ${index + 1}`, value, status: wish.completed ? 'completed' : 'in_progress' });
+  });
+  const target = readableValue(state.fdd_target?.raw_answer || state.fdd_target?.desired_result || state.fdd_target?.desired_change);
+  if (target) answers.push({ key: 'target', label: 'Ziel nach acht Wochen', value: target, status: state.fdd_target?.completed ? 'completed' : 'in_progress' });
+  if (state.fdd_target?.clarification_raw) answers.push({ key: 'target_clarification', label: 'Ziel konkretisiert', value: readableValue(state.fdd_target.clarification_raw), status: 'completed' });
+  if (Number(state.clarity_baseline?.score) >= 1) {
+    const reason = readableValue(state.clarity_baseline?.reason_raw);
+    answers.push({ key: 'clarity', label: 'Klarheits-Baseline', value: `${state.clarity_baseline.score} von 10${reason ? ` · ${reason}` : ''}`, status: state.clarity_baseline?.completed ? 'completed' : 'in_progress' });
+  }
+  const career = state.career_history || {};
+  const careerValue = readableValue(career.stations) || readableValue(career.cv_file_name);
+  if (careerValue) answers.push({ key: 'career', label: career.stations?.length ? 'Berufliche Stationen' : 'Lebenslauf', value: careerValue, status: career.completed ? 'completed' : 'in_progress' });
+  return answers;
+}
+
+function guidedAnswers(week, state = {}) {
+  const definition = guidedWeekDefinition(week);
+  const answers = [];
+  if (state.clarity_checkin?.completed || Number(state.clarity_checkin?.score) >= 1) {
+    const note = readableValue(state.clarity_checkin?.note);
+    answers.push({ key: 'clarity_checkin', label: 'Klarheits-Check-in', value: `${state.clarity_checkin.score} von 10${note ? ` · ${note}` : ''}`, status: state.clarity_checkin?.completed ? 'completed' : 'in_progress' });
+  }
+  for (const step of definition?.steps || []) {
+    const answer = state.answers?.[step.id];
+    const document = state.documents?.[step.id];
+    const external = state.external_results?.[step.id];
+    const value = readableValue(answer?.raw_answer) || readableValue(answer?.items) || readableValue(document?.fileName) || (external ? 'Technisches Ergebnis bestätigt' : '');
+    if (!value) continue;
+    answers.push({ key: step.id, label: step.title, question: step.question, value, status: state.completed_steps?.includes(step.id) ? 'completed' : 'in_progress' });
+  }
+  return answers;
+}
+
+export function processWeekResult(result) {
+  const latest = new Map();
+  [...(result.stateEntries || [])].sort((left, right) => new Date(right.created_at || 0) - new Date(left.created_at || 0)).forEach((entry) => {
+    const week = Number(entry.week);
+    if (!latest.has(week) && entry.data_block === `week_${week}_state`) latest.set(week, entry);
+  });
+  return Array.from({ length: 8 }, (_, index) => index + 1).map((week) => {
+    const entry = latest.get(week);
+    const stored = entry?.structured_data?.[`week_${week}`] || {};
+    const state = week === 1 ? stored : normalizeGuidedWeekState(week, stored);
+    const definition = guidedWeekDefinition(week);
+    const access = result.serializedAccess.weekStates?.find((item) => Number(item.week) === week) || {};
+    const released = Number(result.serializedAccess.processWeek) > 0 && (result.serializedAccess.automaticUnlockedWeeks || []).includes(week);
+    return {
+      week,
+      title: week === 1 ? 'Ausgangslage' : definition?.title || `Woche ${week}`,
+      stateStatus: state.status || 'not_started',
+      currentStep: week === 1 ? weekOnePrompt(state).title : currentGuidedStep(state)?.title || null,
+      updatedAt: released ? state.updated_at || entry?.created_at || null : null,
+      completedAt: released ? state.completed_at || null : null,
+      accessible: Boolean(access.accessible),
+      completed: Boolean(access.completed),
+      reason: access.reason || 'denied',
+      unlocksAt: access.unlocksAt || null,
+      answers: released ? (week === 1 ? weekOneAnswers(state) : guidedAnswers(week, state)) : [],
+      reflection: released && access.completed && state.week_reflection && typeof state.week_reflection === 'object' ? state.week_reflection : null,
+    };
+  });
+}
+
 async function publicResult(result, participantId) {
   const states = await readGuidedStates(result, participantId);
-  return { profile: result.profile, progress: result.progress, gates: result.gates, access: result.serializedAccess, technicalConfirmations: technicalResult(states) };
+  return { profile: result.profile, progress: result.progress, gates: result.gates, access: result.serializedAccess, technicalConfirmations: technicalResult(states), processWeeks: processWeekResult(result) };
 }
 
 async function confirmTechnicalResult(current, participantId, admin, confirmation) {
@@ -63,6 +139,8 @@ async function confirmTechnicalResult(current, participantId, admin, confirmatio
   const note = String(confirmation?.note || '').trim().slice(0, 2000);
   const resultReference = String(confirmation?.resultReference || '').trim().slice(0, 500);
   if (!Number.isInteger(week) || week < 2 || week > 8 || !stepId || note.length < 5) throw Object.assign(new Error('Woche, technischer Schritt und ein nachvollziehbarer Prüfvermerk sind erforderlich.'), { status: 400 });
+  if (!current.access.canAccessWeek(week)) throw Object.assign(new Error(`Woche ${week} ist zeitlich noch nicht freigeschaltet.`), { status: 409 });
+  if (Number(current.access.processWeek) !== week) throw Object.assign(new Error(`Der aktuelle Arbeitsstand liegt in Woche ${current.access.processWeek}. Technische Ergebnisse dürfen nur dort bestätigt werden.`), { status: 409 });
   const states = await readGuidedStates(current, participantId);
   const state = states.find((item) => item.week === week);
   const active = currentGuidedStep(state);
@@ -111,12 +189,7 @@ export default async function handler(request, response) {
       if (!Object.values(PROGRAM_STATUSES).includes(body.programStatus)) return response.status(400).json({ error: 'Ungültiger Programmstatus.' });
       changes.program_status = body.programStatus;
     }
-    if (body.currentWeek !== undefined) {
-      const currentWeek = Number(body.currentWeek);
-      if (!Number.isInteger(currentWeek) || currentWeek < 0 || currentWeek > 8) return response.status(400).json({ error: 'Aktuelle Woche muss zwischen 0 und 8 liegen.' });
-      changes.current_week = currentWeek;
-      changes.process_status = currentWeek ? `WEEK_${currentWeek}` : 'ONBOARDING';
-    }
+    if (body.currentWeek !== undefined) return response.status(409).json({ error: 'Die aktuelle Arbeitswoche wird ausschließlich aus den vollständig abgeschlossenen Wochen ermittelt und kann nicht manuell gesetzt werden.' });
     if (body.resetToOnboarding === true) {
       Object.assign(changes, {
         current_week: 0,
@@ -132,9 +205,13 @@ export default async function handler(request, response) {
       });
     }
     if (Object.keys(changes).length) await patchParticipantProgress(current.service, participantId, changes);
+    const effective = Object.keys(changes).length ? await getParticipantProgramAccess(participantId) : current;
     if (Array.isArray(body.gateUpdates)) {
       for (const update of body.gateUpdates) {
         if (!isUuid(update.gateId)) throw new Error('Ungültige Gate-ID in der Fortschrittskorrektur.');
+        const gate = effective.gates.find((item) => item.id === update.gateId);
+        if (!gate) throw Object.assign(new Error('Das Pflichtfeld gehört nicht zu diesem Teilnehmer.'), { status: 404 });
+        if (update.completed && Number(gate.week) >= 1 && !effective.access.canAccessWeek(gate.week)) throw Object.assign(new Error(`Woche ${gate.week} ist zeitlich noch gesperrt. Ihre Pflichtfelder können noch nicht abgeschlossen werden.`), { status: 409 });
         const gateResponse = await fetch(`${current.service.url}/rest/v1/week_gates?id=eq.${encodeURIComponent(update.gateId)}&user_profile_id=eq.${encodeURIComponent(participantId)}`, {
           method: 'PATCH', headers: serviceHeaders(current.service.key), body: JSON.stringify({ completed_at: update.completed ? new Date().toISOString() : null }),
         });

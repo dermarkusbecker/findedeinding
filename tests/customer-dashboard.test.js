@@ -89,22 +89,26 @@ test('Kundennavigation übernimmt die moderne Landingpage-Typografie und eigene 
 });
 
 test('Aktueller Prozessschritt folgt dem Fortschritt statt der letzten Freischaltung', async () => {
-  const [portal, admin, access] = await Promise.all([
+  const [portal, admin, access, position] = await Promise.all([
     readFile(scriptUrl, 'utf8'),
     readFile(new URL('../admin.js', import.meta.url), 'utf8'),
     readFile(new URL('../lib/program-access.js', import.meta.url), 'utf8'),
+    readFile(new URL('../lib/program-position.js', import.meta.url), 'utf8'),
   ]);
   assert.match(access, /function recordedProgramWeek/);
-  assert.match(access, /const processWeek = progress\.process_status === 'FINAL_REPORT'/);
+  assert.match(access, /const processWeek = !onboardingComplete/);
   assert.match(access, /function reconcileProgramPosition/);
   assert.match(portal, /activeProcessWeek\(program\.access\)/);
-  assert.match(await readFile(new URL('../api/participant-program.js', import.meta.url), 'utf8'), /reconcileProgramPosition\(rawAccess, verifiedCompletedWeeks\)/);
-  assert.match(await readFile(new URL('../api/participant-program.js', import.meta.url), 'utf8'), /rawAccess\.recordedCurrentWeek \|\| rawAccess\.processWeek/);
+  assert.match(position, /reconcileProgramPosition\(access, verifiedCompletedWeeks\)/);
+  assert.match(position, /state\.status === 'completed'/);
+  assert.match(await readFile(new URL('../api/participant-program.js', import.meta.url), 'utf8'), /canonicalProgressPatch\(access, result\.progress\)/);
   assert.match(access, /resolvedWeekStates = weekStates\.map\(\(state\) => \(\{ \.\.\.state, completed: completedWeeks\.includes\(state\.week\) \}\)\)/);
   assert.match(portal, /function activeProcessWeek/);
-  assert.match(portal, /const displayedWeek = Number\(currentWeek \|\| dashboardWeek\)/);
-  assert.match(portal, /sidePhase.*displayedWeek.*displayedSummary/s);
-  assert.match(portal, /headerPhase.*displayedWeek.*displayedSummary/s);
+  assert.match(portal, /const canonicalWeek = activeProcessWeek\(program\.access\)/);
+  assert.match(portal, /sidePhase.*canonicalWeek.*canonicalSummary/s);
+  assert.match(portal, /headerPhase.*canonicalWeek.*canonicalSummary/s);
+  assert.match(portal, /function safeSelectedWeek/);
+  assert.match(portal, /selectedState\?\.accessible \? selectedWeek : canonicalWeek/);
   assert.match(admin, /function customerProcessWeek/);
   assert.match(admin, /Aktueller Prozessschritt/);
 });
@@ -155,9 +159,10 @@ test('alle Wochenschritte sind anklickbar und abgeschlossene Inhalte bleiben sch
   assert.match(script, /function weekIsFinalized/);
   assert.match(styles, /\.week-one-task:hover/);
   assert.match(styles, /\.step-review-dialog::backdrop/);
-  assert.match(api, /isProgramWeekFinalized/);
+  assert.match(api, /result\.access\.completedWeeks\.includes/);
   assert.match(clara, /sichtbar, sind aber schreibgeschützt/);
   assert.match(documents, /Dokumente können hier nicht mehr verändert werden/);
+  assert.match(documents, /program\.access\.canAccessWeek\(normalizedWeek\)/);
 });
 
 test('Freischaltungs-Auswahl ist entfernt und der Server akzeptiert keine Overrides mehr', async () => {
@@ -170,8 +175,10 @@ test('Freischaltungs-Auswahl ist entfernt und der Server akzeptiert keine Overri
     readFile(new URL('../supabase/migrations/20260904210000_enforce_timed_program_access.sql', import.meta.url), 'utf8'),
   ]);
   assert.doesNotMatch(adminHtml, /name="accessMode"|id="unlockAllWeeks"|id="weekOverrides"/);
+  assert.doesNotMatch(adminHtml, /name="currentWeek"/);
   assert.doesNotMatch(adminScript, /data-week-override|manuallyUnlockedWeeks/);
   assert.match(controlApi, /fest zeitbasiert/);
+  assert.match(controlApi, /aktuelle Arbeitswoche wird ausschließlich/);
   assert.match(access, /const accessMode = ACCESS_MODES\.TIME/);
   assert.doesNotMatch(participantApi, /protectedAccess|week_1_incomplete/);
   assert.match(migration, /check \(access_mode = 'time_based'\)/);
