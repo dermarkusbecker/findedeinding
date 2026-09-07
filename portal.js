@@ -977,10 +977,10 @@ function renderProgramDashboard() {
   const completed = program.access.completedWeeks.length;
   $('#dashboardProgressTitle').textContent = completed === 8 ? 'Alle 8 Wochen abgeschlossen' : activeAccessible ? `Woche ${activeWeek} von 8` : `Woche ${activeWeek} öffnet als Nächstes`;
   $('#dashboardProgressCopy').textContent = `${completed} von 8 Wochen abgeschlossen · Projektstart ${formatProgramDate(program.access.programStartDate)}.`;
-  $('#dashboardStatusBadge').textContent = program.access.status === 'paused' ? 'Programm pausiert' : completed === 8 ? 'Programm abgeschlossen' : activeAccessible ? 'Programm aktiv' : 'Nächste Woche noch gesperrt';
+  $('#dashboardStatusBadge').textContent = program.access.status === 'paused' ? 'Programm pausiert' : completed === 8 ? 'Programm abgeschlossen' : program.access.fullProgramAccess ? 'Demo-Modus · alle Wochen offen' : activeAccessible ? 'Programm aktiv' : 'Nächste Woche noch gesperrt';
   $('#dashboardCurrentNumber').textContent = String(activeWeek).padStart(2, '0');
   $('#dashboardCurrentTitle').textContent = activeSummary?.title || 'Deine aktuelle Woche';
-  $('#dashboardCurrentCopy').textContent = activeSummary ? activeAccessible ? `${activeSummary.mode} · Diese Woche ist entsprechend deinem persönlichen Zeitplan freigeschaltet.` : `${activeSummary.mode} · Öffnet am ${formatProgramDate(activeState?.unlocksAt)}. Bis dahin bleibt der Bereich gesperrt.` : 'Dein nächster Bereich wird vorbereitet.';
+  $('#dashboardCurrentCopy').textContent = activeSummary ? activeAccessible ? program.access.fullProgramAccess ? `${activeSummary.mode} · Im Demo-Modus kannst du nach dem Abschluss direkt mit der nächsten Woche weitermachen.` : `${activeSummary.mode} · Diese Woche ist entsprechend deinem persönlichen Zeitplan freigeschaltet.` : `${activeSummary.mode} · Öffnet am ${formatProgramDate(activeState?.unlocksAt)}. Bis dahin bleibt der Bereich gesperrt.` : 'Dein nächster Bereich wird vorbereitet.';
   $('#dashboardStartDate').textContent = formatProgramDate(program.access.programStartDate);
   $('#dashboardEndDate').textContent = formatProgramDate(program.access.programEndDate);
   $('#dashboardNextDate').textContent = nextState ? `Woche ${nextState.week} · ${formatProgramDate(nextState.unlocksAt)}` : 'Alle Wochen freigeschaltet';
@@ -1362,6 +1362,7 @@ function render() {
   const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
   $('#portalProfileAvatar').innerHTML = customerWorkspace?.profile?.photoUrl ? `<img src="${escapeHtml(customerWorkspace.profile.photoUrl)}" alt="Dein Profilbild">` : escapeHtml(initials);
   document.querySelector('.portal-profile strong').textContent = name;
+  document.querySelector('.portal-profile small').textContent = program.access.fullProgramAccess ? 'Demo-Zugang · alle Wochen offen' : 'Teilnehmer · Foto ändern';
   $('#onboarding').classList.toggle('hidden', !showOnboarding);
   $('#preOnboardingDashboard').classList.toggle('hidden', !showPreOnboarding);
   $('#programDashboard').classList.toggle('hidden', !showDashboard);
@@ -1477,7 +1478,7 @@ function renderJourney() {
     const summary = summaries.get(state.week);
     const active = state.week === currentWeek;
     const status = state.completed ? '✓ abgeschlossen' : active ? '● geöffnet' : state.accessible ? '○ verfügbar' : 'gesperrt';
-    const reason = state.reason === 'admin_unlocked' ? 'Vom Admin freigegeben' : state.reason === 'admin_locked' ? 'Vom Admin gesperrt' : state.reason === 'scheduled_release' ? `Freigeschaltet seit ${formatProgramDate(state.unlocksAt)}` : state.reason === 'scheduled_wait' ? `Öffnet am ${formatProgramDate(state.unlocksAt)}` : state.accessible ? 'Zugriff freigegeben' : 'Noch nicht freigeschaltet';
+    const reason = state.reason === 'demo_full_access' ? 'Im Demo-Modus sofort verfügbar' : state.reason === 'admin_unlocked' ? 'Vom Admin freigegeben' : state.reason === 'admin_locked' ? 'Vom Admin gesperrt' : state.reason === 'scheduled_release' ? `Freigeschaltet seit ${formatProgramDate(state.unlocksAt)}` : state.reason === 'scheduled_wait' ? `Öffnet am ${formatProgramDate(state.unlocksAt)}` : state.accessible ? 'Zugriff freigegeben' : 'Noch nicht freigeschaltet';
     return `<article class="week-card ${state.completed ? 'completed' : active ? 'active' : state.accessible ? 'available' : 'locked'}" data-preview-week="${state.week}" tabindex="0" role="button"><span>Woche ${state.week}</span><i>${status}</i><h2>${escapeHtml(summary?.title || `Woche ${state.week}`)}</h2><p>${escapeHtml(summary?.description || summary?.mode || 'Dein nächster Schritt im Acht-Wochen-Prozess.')}</p><b>${reason} · Details ansehen</b></article>`;
   }).join('');
   $$('#journeyGrid [data-preview-week]').forEach((card) => {

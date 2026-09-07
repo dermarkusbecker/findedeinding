@@ -6,7 +6,11 @@ import { reconcileAccessFromEntries } from '../lib/program-position.js';
 
 const clean = (value, max = 160) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const emailValid = (email) => /^\S+@\S+\.\S+$/.test(email);
-const permissionsFrom = (value) => [...new Set((Array.isArray(value) ? value : []).filter((permission) => USER_PERMISSIONS.includes(permission)))];
+const INTERNAL_PROFILE_FLAGS = Object.freeze(['demo_full_access']);
+const permissionsFrom = (value, existing = []) => [...new Set([
+  ...(Array.isArray(value) ? value : []).filter((permission) => USER_PERMISSIONS.includes(permission)),
+  ...(Array.isArray(existing) ? existing : []).filter((permission) => INTERNAL_PROFILE_FLAGS.includes(permission)),
+])];
 
 async function data(response) {
   const body = await response.json().catch(() => ({}));
@@ -34,7 +38,7 @@ export default async function handler(request, response) {
       const programUsers = users.map((user) => {
         const progress = user.participant_progress?.[0];
         if (!progress) return user;
-        const scheduled = calculateProgramAccess({ profileStatus: user.status, progress, gates: gates.filter((gate) => gate.user_profile_id === user.id) });
+        const scheduled = calculateProgramAccess({ profileStatus: user.status, progress, gates: gates.filter((gate) => gate.user_profile_id === user.id), fullProgramAccess: user.permissions?.includes('demo_full_access') });
         const access = reconcileAccessFromEntries({ access: scheduled, progress, entries: entries.filter((entry) => entry.user_profile_id === user.id) });
         return { ...user, program_access: serializeProgramAccess(access) };
       });
@@ -93,7 +97,7 @@ export default async function handler(request, response) {
         if (existing.id === admin.profileId && request.body.status === 'inactive') return response.status(409).json({ error: 'Du kannst dein eigenes Konto nicht deaktivieren.' });
         changes.status = request.body.status;
       }
-      if (request.body?.permissions !== undefined) changes.permissions = permissionsFrom(request.body.permissions);
+      if (request.body?.permissions !== undefined) changes.permissions = permissionsFrom(request.body.permissions, existing.permissions);
       if (!Object.keys(changes).length) return response.status(400).json({ error: 'Keine Änderung übermittelt.' });
       const targetRole = changes.role || existing.role;
       const targetPermissions = changes.permissions || existing.permissions || [];

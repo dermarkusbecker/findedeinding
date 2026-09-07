@@ -176,7 +176,7 @@ function average(values) {
 
 async function commandDashboard(service, admin) {
   const requests = [
-    fetch(`${service.url}/rest/v1/user_profiles?role=eq.user&select=id,name,email,status,created_at&limit=1000`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/user_profiles?role=eq.user&select=id,name,email,status,permissions,created_at&limit=1000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/participant_progress?select=user_profile_id,current_week,process_status,program_start_date,program_status,privacy_consent_at,start_commitment_at,last_activity_at,updated_at&limit=1000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/clarity_measurements?select=user_profile_id,phase,score,measured_at&limit=3000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/week_gates?required=eq.true&select=id,user_profile_id,week,label,completed_at&limit=5000`, { headers: headers(service.key) }),
@@ -194,7 +194,8 @@ async function commandDashboard(service, admin) {
   const progressMap = new Map(activeProgress.map((progress) => [progress.user_profile_id, progress]));
   const accessMap = new Map(activeProgress.map((progress) => {
     const participantId = progress.user_profile_id;
-    const scheduled = calculateProgramAccess({ profileStatus: profileMap.get(participantId)?.status, progress, gates: gateRows.filter((gate) => gate.user_profile_id === participantId) });
+    const profile = profileMap.get(participantId);
+    const scheduled = calculateProgramAccess({ profileStatus: profile?.status, progress, gates: gateRows.filter((gate) => gate.user_profile_id === participantId), fullProgramAccess: profile?.permissions?.includes('demo_full_access') });
     return [participantId, reconcileAccessFromEntries({ access: scheduled, progress, entries: stateEntries.filter((entry) => entry.user_profile_id === participantId) })];
   }));
   const now = new Date();

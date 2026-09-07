@@ -147,6 +147,25 @@ test('alter Full-Access-Modus wird zugunsten des Zeitplans ignoriert', () => {
   assert.deepEqual(access.unlockedWeeks, [1]);
 });
 
+test('expliziter Demo-Kunde darf alle Wochen ausschließlich in fachlicher Reihenfolge durchspielen', () => {
+  const progress = { ...onboardingComplete, current_week: 1, process_status: 'WEEK_1', program_start_date: '2026-09-07' };
+  const access = calculateProgramAccess({ progress, fullProgramAccess: true, now: new Date('2026-09-07T10:00:00Z') });
+  assert.equal(access.fullProgramAccess, true);
+  assert.deepEqual(access.unlockedWeeks, [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.equal(access.processWeek, 1);
+  assert.ok(access.weekStates.every((state) => state.accessible && state.reason === 'demo_full_access'));
+  assert.ok(access.weekStates.every((state) => state.unlocksAt === '2026-09-07'));
+});
+
+test('Demo-Vollzugriff bleibt vor abgeschlossenem Onboarding und bei Pausierung gesperrt', () => {
+  const onboarding = calculateProgramAccess({ progress: { program_start_date: '2026-09-07' }, fullProgramAccess: true, now: new Date('2026-09-07T10:00:00Z') });
+  assert.equal(onboarding.fullProgramAccess, false);
+  assert.deepEqual(onboarding.unlockedWeeks, []);
+  const paused = calculateProgramAccess({ profileStatus: 'paused', progress: { ...onboardingComplete, program_start_date: '2026-09-07' }, fullProgramAccess: true, now: new Date('2026-09-07T10:00:00Z') });
+  assert.equal(paused.fullProgramAccess, false);
+  assert.deepEqual(paused.unlockedWeeks, []);
+});
+
 test('alte manuelle Overrides können den automatischen Zeitplan nicht umgehen', () => {
   const access = calculateProgramAccess({ progress: { ...onboardingComplete, program_start_date: '2026-09-04', manually_unlocked_weeks: [3], manually_locked_weeks: [1] }, now: new Date('2026-09-04T12:00:00Z') });
   assert.deepEqual(access.unlockedWeeks, [1]);

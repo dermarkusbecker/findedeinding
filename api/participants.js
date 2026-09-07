@@ -6,9 +6,9 @@ import { reconcileAccessFromEntries } from '../lib/program-position.js';
 function config() { const url = process.env.SUPABASE_URL?.replace(/\/$/, ''); const key = process.env.SUPABASE_SERVICE_ROLE_KEY; return url && key ? { url, key } : null; }
 function headers(key, extra = {}) { return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...extra }; }
 
-export function summarizeCustomerProgress(gates = [], progress = {}, entries = [], now = new Date()) {
+export function summarizeCustomerProgress(gates = [], progress = {}, entries = [], now = new Date(), fullProgramAccess = false) {
   const storedProgress = typeof progress === 'object' && progress !== null ? progress : { current_week: Number(progress) || 0 };
-  const scheduled = calculateProgramAccess({ progress: storedProgress, gates, now });
+  const scheduled = calculateProgramAccess({ progress: storedProgress, gates, now, fullProgramAccess });
   const canonical = reconcileAccessFromEntries({ access: scheduled, progress: storedProgress, entries: Array.isArray(entries) ? entries : [] });
   return {
     completed_weeks: canonical.completedWeeks,
@@ -65,7 +65,7 @@ export default async function handler(request, response) {
         ...visibleProfile,
         linked_lead_id: participant.source_lead_id || lead.id,
         customer_since: lead.converted_at || lead.created_at || participant.created_at,
-        ...summarizeCustomerProgress(gatesByCustomer.get(participant.id) || [], progress, entriesByCustomer.get(participant.id) || []),
+        ...summarizeCustomerProgress(gatesByCustomer.get(participant.id) || [], progress, entriesByCustomer.get(participant.id) || [], new Date(), participant.permissions?.includes('demo_full_access')),
       };
     });
     return response.status(200).json({ participants: customers });

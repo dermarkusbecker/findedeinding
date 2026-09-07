@@ -57,6 +57,15 @@ test('ein früher Abschluss zeigt bis zur nächsten Freigabe weiterhin die laufe
   assert.equal(canonicalProgressPatch(access, { ...progress, current_week: 1, process_status: 'WEEK_1' }), null);
 });
 
+test('Demo-Kunde kann nach einem validen Abschluss ohne siebentägige Wartezeit in die nächste Woche', () => {
+  const demoProgress = { ...progress, current_week: 2, process_status: 'WEEK_2' };
+  const scheduled = calculateProgramAccess({ progress: demoProgress, fullProgramAccess: true, now: new Date('2026-09-04T12:00:00Z') });
+  const access = reconcileAccessFromEntries({ access: scheduled, progress: demoProgress, entries: [entry(1, completedWeekOne())] });
+  assert.deepEqual(access.completedWeeks, [1]);
+  assert.equal(access.processWeek, 2);
+  assert.equal(access.canAccessWeek(2), true);
+});
+
 test('vollständige Daten einer zukünftigen Woche bleiben bis zu ihrem Startdatum wirkungslos', () => {
   const scheduled = calculateProgramAccess({ progress, now: new Date('2026-09-04T12:00:00Z') });
   const access = reconcileAccessFromEntries({ access: scheduled, progress, entries: [entry(1, completedWeekOne()), entry(2, completedGuidedWeek(2))] });
