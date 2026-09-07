@@ -98,6 +98,8 @@ test('CRM verknüpft alle laufenden Kundenfälle mit dem lesbaren Wochenprozess'
   assert.match(programApi, /function guidedAnswers/);
   assert.match(styles, /\.customer-process-layout/);
   assert.match(styles, /\.customer-week-track \{[^}]*grid-template-columns: repeat\(8,minmax\(0,1fr\)\)/);
+  assert.match(styles, /\.customer-process-detail>header \{[^}]*align-items: center;[^}]*height: auto;[^}]*min-height: 126px;[^}]*position: relative;/);
+  assert.match(styles, /\.customer-process-detail>header>div \{[^}]*justify-content: center;/);
 });
 
 test('Kunden-Dashboard bleibt kompakt und öffnet Stammdaten in einem eigenen Bearbeitungsfenster', async () => {
