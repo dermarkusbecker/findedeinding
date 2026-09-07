@@ -9,6 +9,7 @@ import { handleClaraMessage } from '../lib/clara/api-handler.js';
 import { handleParticipantDocument } from '../lib/documents/api-handler.js';
 import { weekResetScope } from '../lib/week-reset.js';
 import { ensureWeekReflection, generateWeekReflection } from '../lib/week-reflection-agent.js';
+import { missingOnboardingFields, normalizeOnboardingProfile, normalizePrivacyConsent, readPrivacyConsentDocument, storePrivacyConsentDocument } from '../lib/privacy-consent.js';
 
 const programWeeks = [
   { week: 1, title: 'Jetzt geht es los', mode: 'Ist-Aufnahme', description: 'Du klärst deine heutige Ausgangslage, dein persönliches Ziel für die acht Wochen und die Erfahrungen, die dich bisher geprägt haben.', topics: ['Drei Wünsche und ihre Bedeutung', 'Persönliches Zielbild', 'Klarheits-Baseline', 'Beruflicher Werdegang'], question: 'Stell dir vor, vor dir steht eine Fee und du hast genau drei Wünsche frei. Welche drei Dinge würdest du dir für dein Leben aktuell am meisten wünschen?', help: 'Nenne zunächst einfach alle drei. Danach vertiefen wir sie einzeln.', upload: 'Lebenslauf optional' },
@@ -169,6 +170,17 @@ async function optionalRows(response, fallback) {
   return data;
 }
 
+async function patchOnboardingProfile(service, participantId, profile) {
+  const result = await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(participantId)}&role=eq.user`, {
+    method: 'PATCH',
+    headers: serviceHeaders(service.key, { Prefer: 'return=representation' }),
+    body: JSON.stringify(profile),
+  });
+  const rows = await result.json().catch(() => ([]));
+  if (!result.ok || !rows[0]) throw Object.assign(new Error(rows.message || 'Deine persönlichen Angaben konnten nicht gespeichert werden.'), { status: result.status });
+  return rows[0];
+}
+
 async function deleteWeekData(service, participantId, week) {
   const id = encodeURIComponent(participantId);
   const headers = serviceHeaders(service.key);
@@ -207,6 +219,8 @@ export default async function handler(request, response) {
     const result = await getParticipantProgramAccess(session.participantId);
     if (request.method === 'GET') {
       const onboardingComplete = isOnboardingComplete(result.progress);
+      const privacyDocument = await readPrivacyConsentDocument(result.service, session.participantId);
+      const commitmentDocuments = await optionalRows(await fetch(`${result.service.url}/rest/v1/participant_documents?user_profile_id=eq.${encodeURIComponent(session.participantId)}&week=eq.0&document_type=eq.start_commitment&select=id,original_file_name,created_at&order=created_at.desc&limit=1`, { headers: serviceHeaders(result.service.key) }), 'Das Start-Commitment konnte nicht geladen werden.');
       let weekOneState = await readWeekOneState(result, session.participantId);
       const preconditions = weekOnePreconditions(result.progress);
       const weekOneGateComplete = weekOneComplete(weekOneState, preconditions);
@@ -237,17 +251,53 @@ export default async function handler(request, response) {
       const questionOverrides = selectedWeek ? await readClarityQuestionOverrides(result.service, selectedWeek) : [];
       const weekDraft = selectedWeek && selectedWeek === Number(access.processWeek) && !access.completedWeeks.includes(selectedWeek) ? await readWeekDraft(result, session.participantId, selectedWeek) : {};
       const weekReflections = [reflectionFromState(1, weekOneState), ...Array.from({ length: 7 }, (_, index) => reflectionFromState(index + 2, guidedStates.get(index + 2)))].filter((item) => item && access.completedWeeks.includes(Number(item.week)));
-      return response.status(200).json({ profile: { id: result.profile.id, name: result.profile.name }, access, onboardingComplete, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => ({ week, title, mode, description, topics })), accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null, weekDraft, weekReflections, clarityHistory, currentClarity });
+      const profile = {
+        id: result.profile.id,
+        name: result.profile.name,
+        email: result.profile.email,
+        birthDate: result.profile.birth_date,
+        street: result.profile.street,
+        postalCode: result.profile.postal_code,
+        city: result.profile.city,
+        country: result.profile.country,
+        phone: result.profile.phone,
+        mobilePhone: result.profile.mobile_phone,
+        whatsappPhone: result.profile.whatsapp_phone,
+        whatsappSameAsMobile: result.profile.whatsapp_same_as_mobile !== false,
+        preferredChannel: result.profile.preferred_communication_channel || 'email',
+      };
+      const missingProfileFields = missingOnboardingFields(result.profile, result.profile.email);
+      return response.status(200).json({ profile, onboarding: { privacyConfirmed: Boolean(result.progress.privacy_consent_at), privacyConfirmedAt: result.progress.privacy_consent_at || privacyDocument?.participant_confirmed_at || null, privacyDocumentId: privacyDocument?.id || null, privacyDetails: privacyDocument?.extracted_data?.consent || null, commitmentUploaded: Boolean(commitmentDocuments[0]), commitmentDocumentId: commitmentDocuments[0]?.id || null, commitmentFileName: commitmentDocuments[0]?.original_file_name || null, profileComplete: missingProfileFields.length === 0, missingProfileFields }, access, onboardingComplete, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => ({ week, title, mode, description, topics })), accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null, weekDraft, weekReflections, clarityHistory, currentClarity });
     }
     if (request.method !== 'PATCH') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
     const action = request.body?.action;
     let actionReflection = null;
-    if (action === 'start') {
+    if (action === 'save_onboarding_profile') {
+      if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
+      const normalized = normalizeOnboardingProfile(request.body?.profile, result.profile);
+      if (normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze noch: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
+      const profile = await patchOnboardingProfile(result.service, session.participantId, normalized.profile);
+      return response.status(200).json({ ok: true, profile, profileComplete: true });
+    } else if (action === 'confirm_privacy') {
+      if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
+      if (result.progress.privacy_consent_at) return response.status(409).json({ error: 'Die Datenschutzeinwilligung wurde bereits bestätigt und ist schreibgeschützt.' });
+      const normalized = normalizePrivacyConsent(request.body?.consent, result.profile);
+      if (normalized.missing.length) return response.status(400).json({ error: `Bitte bestätige bzw. ergänze noch: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
+      const now = new Date().toISOString();
+      const document = await storePrivacyConsentDocument(result.service, session.participantId, normalized.consent, now);
+      await patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: now, last_activity_at: now });
+      const privacyGates = result.gates.filter((gate) => Number(gate.week) === 0 && gate.gate_key === 'privacy_consent');
+      await Promise.allSettled(privacyGates.map((gate) => setGate(result.service, session.participantId, gate.id, true)));
+      return response.status(200).json({ ok: true, confirmedAt: now, documentId: document.id });
+    } else if (action === 'start') {
       if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
       if (result.access.status !== 'active') return response.status(423).json({ error: 'Dein Programm ist aktuell pausiert.' });
       const commitmentConfirmed = request.body?.commitment === true;
-      const signedDocumentUploaded = request.body?.signedDocument === true;
-      if (!request.body?.privacy || !commitmentConfirmed || !signedDocumentUploaded) return response.status(400).json({ error: 'Bitte bestätige deine Einwilligung und lade dein unterschriebenes Commitment hoch.' });
+      const commitmentDocuments = await optionalRows(await fetch(`${result.service.url}/rest/v1/participant_documents?user_profile_id=eq.${encodeURIComponent(session.participantId)}&week=eq.0&document_type=eq.start_commitment&select=id&limit=1`, { headers: serviceHeaders(result.service.key) }), 'Das Start-Commitment konnte nicht geprüft werden.');
+      if (!result.progress.privacy_consent_at || !commitmentConfirmed || !commitmentDocuments[0]) return response.status(400).json({ error: 'Bitte bestätige die Datenschutzeinwilligung und lade dein unterschriebenes Commitment hoch.' });
+      const normalizedProfile = normalizeOnboardingProfile(request.body?.profile, result.profile);
+      if (normalizedProfile.missing.length) return response.status(400).json({ error: `Bitte vervollständige vor dem Start deine persönlichen Angaben: ${normalizedProfile.missing.join(', ')}.`, missingFields: normalizedProfile.missing });
+      await patchOnboardingProfile(result.service, session.participantId, normalizedProfile.profile);
       const startGates = result.gates.filter((gate) => Number(gate.week) === 0);
       const now = new Date().toISOString();
       const berlinDateParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());

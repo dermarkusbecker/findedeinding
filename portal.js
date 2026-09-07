@@ -19,7 +19,7 @@ const $$ = (selector) => document.querySelectorAll(selector);
 const lockedNonOnboardingViews = ['journey', 'insights', 'documents', 'support'];
 const rawLocal = JSON.parse(localStorage.getItem('fdd_customer_notes') || '{}');
 const local = { ...rawLocal, answers: rawLocal.answers || {}, uploads: rawLocal.uploads || {}, support: rawLocal.support || [], drafts: rawLocal.drafts || {}, signedCommitment: rawLocal.signedCommitment || null };
-if (local.signedCommitment?.flowVersion !== 2) {
+if (local.signedCommitment?.flowVersion !== 3) {
   local.signedCommitment = null;
   localStorage.setItem('fdd_customer_notes', JSON.stringify(local));
 }
@@ -33,6 +33,7 @@ let journeyMessages = [];
 let journeyLoading = false;
 let draftSaveTimer = null;
 let pendingWeekAction = null;
+let onboardingProfileDirty = false;
 const speechState = { recognition: null, activeButton: null };
 
 function saveLocal() { localStorage.setItem('fdd_customer_notes', JSON.stringify(local)); }
@@ -318,21 +319,124 @@ async function openCommitmentPrintView() {
   }
 }
 
+function onboardingProfilePayload() {
+  return {
+    name: $('#onboardingName').value.trim(),
+    birthDate: $('#onboardingBirthDate').value,
+    street: $('#onboardingStreet').value.trim(),
+    postalCode: $('#onboardingPostalCode').value.trim(),
+    city: $('#onboardingCity').value.trim(),
+    country: $('#onboardingCountry').value.trim(),
+    phone: $('#onboardingPhone').value.trim(),
+    mobilePhone: $('#onboardingMobilePhone').value.trim(),
+    preferredChannel: $('#onboardingPreferredChannel').value,
+    whatsappSameAsMobile: true,
+  };
+}
+
+function profileFormComplete() {
+  const profile = onboardingProfilePayload();
+  return Boolean(profile.name && profile.birthDate && profile.street && profile.postalCode && profile.city && profile.country && (profile.phone || profile.mobilePhone));
+}
+
+function setGateStatus(id, complete, openLabel = 'Offen') {
+  const status = $(id);
+  if (!status) return;
+  status.textContent = complete ? 'Erledigt ✓' : openLabel;
+  status.classList.toggle('complete', complete);
+}
+
 function refreshOnboardingGateState() {
-  const privacyChecked = !!$('#privacy')?.checked;
+  const completed = Boolean(program?.onboardingComplete);
+  const privacyChecked = completed || Boolean(program?.onboarding?.privacyConfirmed);
+  const profileReady = completed || (Boolean(program?.onboarding?.profileComplete) && !onboardingProfileDirty);
   const commitmentChecked = !!$('#commitment')?.checked;
-  const signedUploaded = Boolean(local.signedCommitment?.name);
-  $('#commitment').disabled = !signedUploaded;
+  const signedUploaded = completed || Boolean(program?.onboarding?.commitmentUploaded || local.signedCommitment?.documentId);
+  $('#privacy').checked = privacyChecked;
+  $('#commitment').disabled = !signedUploaded || Boolean(program?.onboardingComplete);
   if (!signedUploaded) $('#commitment').checked = false;
-  $('#startProcess').disabled = !privacyChecked || !commitmentChecked || !signedUploaded;
+  setGateStatus('#profileGateStatus', profileReady, onboardingProfileDirty ? 'Speichern' : 'Offen');
+  setGateStatus('#privacyGateStatus', privacyChecked);
+  setGateStatus('#commitmentGateStatus', signedUploaded && commitmentChecked);
+  $('#startProcess').disabled = !profileReady || !privacyChecked || !commitmentChecked || !signedUploaded;
+}
+
+function renderOnboardingState(completed = false) {
+  const profile = program?.profile || {};
+  if (!onboardingProfileDirty) {
+    $('#onboardingName').value = profile.name || '';
+    $('#onboardingEmail').value = profile.email || '';
+    $('#onboardingBirthDate').value = profile.birthDate || '';
+    $('#onboardingStreet').value = profile.street || '';
+    $('#onboardingPostalCode').value = profile.postalCode || '';
+    $('#onboardingCity').value = profile.city || '';
+    $('#onboardingCountry').value = profile.country || 'Deutschland';
+    $('#onboardingPhone').value = profile.phone || '';
+    $('#onboardingMobilePhone').value = profile.mobilePhone || '';
+    $('#onboardingPreferredChannel').value = profile.preferredChannel || 'email';
+  }
+  const missing = program?.onboarding?.missingProfileFields || [];
+  $('#profileGateHint').textContent = completed
+    ? 'Diese Angaben sind Bestandteil deiner abgeschlossenen Kundenakte.'
+    : missing.length ? `Bitte noch ergänzen: ${missing.join(', ')}.` : onboardingProfileDirty ? 'Änderungen noch speichern.' : 'Alle Pflichtangaben sind vollständig gespeichert.';
+  $('#profileGateHint').classList.toggle('complete', !missing.length && !onboardingProfileDirty);
+  $$('#onboardingProfileForm input, #onboardingProfileForm select').forEach((control) => { control.disabled = completed || control.id === 'onboardingEmail'; });
+  $('#saveOnboardingProfile').classList.toggle('hidden', completed);
+
+  const privacyConfirmed = Boolean(program?.onboarding?.privacyConfirmed);
+  const confirmedAt = program?.onboarding?.privacyConfirmedAt;
+  $('.privacy-gate-card').classList.toggle('is-confirmed', privacyConfirmed);
+  $('#privacyConsentStatus').textContent = privacyConfirmed
+    ? `Digital bestätigt${confirmedAt ? ` am ${new Date(confirmedAt).toLocaleDateString('de-DE')}` : ''}.${program?.onboarding?.privacyDocumentId ? ' Das ausgefüllte Dokument liegt unter „Dokumente“ bereit.' : ''}`
+    : 'Noch nicht bestätigt.';
+  $('#openPrivacyConsent').textContent = privacyConfirmed ? 'Bestätigtes Formular ansehen →' : 'Datenschutzformular öffnen →';
+  renderCommitmentUploadState(completed);
+  refreshOnboardingGateState();
 }
 
 function renderCommitmentUploadState(completed = false) {
   const status = $('#signedCommitmentStatus');
   if (!status) return;
-  status.textContent = local.signedCommitment
-    ? `Hochgeladen: ${local.signedCommitment.name} • ${new Date(local.signedCommitment.uploadedAt).toLocaleString('de-DE')}`
+  const uploadedName = program?.onboarding?.commitmentFileName || local.signedCommitment?.name;
+  status.textContent = uploadedName
+    ? `Sicher gespeichert: ${uploadedName}`
     : completed ? 'Unterschriebenes Commitment wurde beim Start bestätigt.' : 'Noch kein unterschriebenes Commitment hochgeladen.';
+}
+
+function privacyDocumentHref() {
+  const documentId = program?.onboarding?.privacyDocumentId;
+  return documentId
+    ? `/api/customer-records?action=document-download&documentId=${encodeURIComponent(documentId)}`
+    : '/assets/forms/FDD-FRM-002_Datenschutzinformation-und-Einwilligung_Finde-Dein-Ding_V1.0.pdf';
+}
+
+function openPrivacyConsentDialog() {
+  const confirmed = Boolean(program?.onboarding?.privacyConfirmed);
+  const details = program?.onboarding?.privacyDetails || {};
+  const href = privacyDocumentHref();
+  $('#privacyPdfPreview').src = `${href}#view=FitH`;
+  $('#privacyPdfExternal').href = href;
+  $('#privacyConsentForm').classList.toggle('hidden', confirmed);
+  $('#privacyReadonlyState').classList.toggle('hidden', !confirmed);
+  if (confirmed) {
+    const date = program?.onboarding?.privacyConfirmedAt ? new Date(program.onboarding.privacyConfirmedAt).toLocaleString('de-DE') : 'gespeichertem Datum';
+    $('#privacyReadonlyCopy').textContent = `Bestätigt von ${details.name || program.profile?.name || 'dir'} am ${date}${details.place ? ` in ${details.place}` : ''}. Das ausgefüllte PDF ist schreibgeschützt hinterlegt.`;
+  } else {
+    $('#privacySpecialCategories').checked = false;
+    $('#privacyNoticeAccepted').checked = false;
+    $('#privacyAiAccepted').checked = false;
+    $('#privacyName').value = $('#onboardingName').value || program?.profile?.name || '';
+    $('#privacyPlace').value = $('#onboardingCity').value || program?.profile?.city || '';
+    const dateParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+    const datePart = (type) => dateParts.find((part) => part.type === type)?.value;
+    $('#privacyDate').value = `${datePart('year')}-${datePart('month')}-${datePart('day')}`;
+  }
+  $('#privacyConsentDialog').showModal();
+}
+
+function openCommitmentPreviewDialog() {
+  $('#commitmentPreviewContent').innerHTML = buildStartCommitmentText(program?.profile?.name || 'Teilnehmer');
+  $('#commitmentPreviewDialog').showModal();
 }
 
 function progressPercent() {
@@ -1162,11 +1266,10 @@ function render() {
 
   if (showOnboarding) {
     $('#mobileWeekGreeting').classList.add('hidden');
-    renderCommitmentUploadState(started);
     $('#onboarding').classList.toggle('is-complete', started);
     $('#onboarding').setAttribute('aria-readonly', String(started));
     $('#onboardingCompleteState').classList.toggle('hidden', !started);
-    $('#onboarding .start-gates>h2').textContent = started ? 'Dein abgeschlossenes Onboarding' : 'Zwei Dinge noch, dann starten wir.';
+    $('#onboarding .start-gates>h2').textContent = started ? 'Dein abgeschlossenes Onboarding' : 'Drei Dinge noch, dann starten wir.';
     $('#todayLabel').textContent = started ? 'Onboarding abgeschlossen' : paused ? 'Programm pausiert' : 'Dein Start';
     $('#welcomeTitle').innerHTML = 'Willkommen bei <em>Finde dein Ding.</em>';
     $('#welcomeCopy').innerHTML = paused
@@ -1177,16 +1280,18 @@ function render() {
     $('#revokePrivacy').classList.add('hidden');
     if (started) {
       $('#privacy').checked = true;
-      $('#privacy').disabled = true;
       $('#commitment').checked = true;
       $('#commitment').disabled = true;
       $('#signedCommitmentUpload').disabled = true;
     } else {
-      $('#privacy').disabled = false;
       $('#signedCommitmentUpload').disabled = false;
-      refreshOnboardingGateState();
-      $('#startProcess').disabled = paused || $('#startProcess').disabled;
     }
+    renderOnboardingState(started);
+    if (started) {
+      $('#commitment').checked = true;
+      setGateStatus('#commitmentGateStatus', true);
+    }
+    $('#startProcess').disabled = paused || $('#startProcess').disabled;
   } else if (showPreOnboarding) {
     $('#mobileWeekGreeting').classList.add('hidden');
     $('#revokePrivacy').classList.add('hidden');
@@ -1299,6 +1404,7 @@ function renderDocuments() {
   if (program.onboardingComplete) { articles[0].classList.remove('locked'); articles[0].querySelector('small').textContent = 'Digital bestätigt'; articles[0].querySelector('i').textContent = 'Erledigt'; }
   [[4, 1, 'Bereit'], [6, 2, 'Bereit'], [8, 3, 'Wird erzeugt']].forEach(([week, index, label]) => { if (program.access.completedWeeks.includes(week)) { articles[index].classList.remove('locked'); articles[index].querySelector('i').textContent = label; } });
   $$('#documentList .customer-record-doc').forEach((item) => item.remove());
+  articles[0].classList.toggle('hidden', Boolean((customerWorkspace?.documents || []).some((document) => document.document_type === 'start_commitment')));
   const official = (customerWorkspace?.contracts || []).flatMap((contract) => [{ title: contract.title || 'Vertragsdokument', ready: Boolean(contract.document_confirmed_at), label: 'Vertrag' }, { title: `Videovertrag · ${contract.title || 'Vertragsabschluss'}`, ready: Boolean(contract.video_contract_confirmed_at), label: 'Videovertrag' }]);
   const uploaded = (customerWorkspace?.documents || []).map((document) => ({ title: document.display_title || document.original_file_name, ready: true, label: document.source === 'customer' ? 'Von dir hochgeladen' : 'Für dich bereitgestellt', document }));
   $('#documentList').insertAdjacentHTML('beforeend', [...official, ...uploaded].map((item) => `<article class="customer-record-doc ${item.ready ? '' : 'locked'}"><span>▤</span><div><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.label)}</small></div>${item.document ? `<a href="/api/customer-records?action=document-download&documentId=${encodeURIComponent(item.document.id)}" target="_blank" rel="noopener">Öffnen ↗</a>` : `<i>${item.ready ? 'Bestätigt' : 'Offen'}</i>`}</article>`).join(''));
@@ -1359,26 +1465,84 @@ $('#backToDashboard').addEventListener('click', () => {
   showView('today');
 });
 $('#openOnboarding').addEventListener('click', () => showView('onboarding'));
-$('#privacy').addEventListener('change', refreshOnboardingGateState);
+$('#onboardingProfileForm').addEventListener('input', (event) => {
+  if (program?.onboardingComplete || event.target.id === 'onboardingEmail') return;
+  onboardingProfileDirty = true;
+  $('#profileGateHint').textContent = profileFormComplete() ? 'Änderungen noch speichern.' : 'Bitte alle Pflichtangaben sowie mindestens eine Telefonnummer ergänzen.';
+  refreshOnboardingGateState();
+});
+$('#onboardingProfileForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = $('#saveOnboardingProfile');
+  button.disabled = true;
+  button.textContent = 'Wird gespeichert …';
+  try {
+    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'save_onboarding_profile', profile: onboardingProfilePayload() }) });
+    onboardingProfileDirty = false;
+    customerWorkspace = null;
+    await loadProgram();
+    showView('onboarding');
+    toast('Deine persönlichen Angaben wurden in deiner Kundenakte gespeichert.');
+  } catch (error) { toast(error.message); }
+  finally { button.disabled = false; button.textContent = 'Angaben speichern'; }
+});
+$('#openPrivacyConsent').addEventListener('click', openPrivacyConsentDialog);
+$('#closePrivacyConsent').addEventListener('click', () => $('#privacyConsentDialog').close());
+$('#cancelPrivacyConsent').addEventListener('click', () => $('#privacyConsentDialog').close());
+$('#privacyConsentDialog').addEventListener('click', (event) => { if (event.target === $('#privacyConsentDialog')) $('#privacyConsentDialog').close(); });
+$('#privacyConsentForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = $('#confirmPrivacyConsent');
+  button.disabled = true;
+  button.textContent = 'PDF wird erstellt …';
+  try {
+    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'confirm_privacy', consent: {
+      specialCategories: $('#privacySpecialCategories').checked,
+      privacyNotice: $('#privacyNoticeAccepted').checked,
+      aiNotice: $('#privacyAiAccepted').checked,
+      name: $('#privacyName').value.trim(),
+      place: $('#privacyPlace').value.trim(),
+      date: $('#privacyDate').value,
+    } }) });
+    $('#privacyConsentDialog').close();
+    customerWorkspace = null;
+    await loadProgram();
+    showView('onboarding');
+    toast('Deine Einwilligung wurde bestätigt und als ausgefülltes PDF gespeichert.');
+  } catch (error) { toast(error.message); }
+  finally { button.disabled = false; button.textContent = 'Verbindlich bestätigen →'; }
+});
 $('#commitment').addEventListener('change', refreshOnboardingGateState);
+$('#previewCommitment').addEventListener('click', openCommitmentPreviewDialog);
+$('#closeCommitmentPreview').addEventListener('click', () => $('#commitmentPreviewDialog').close());
+$('#closeCommitmentPreviewBottom').addEventListener('click', () => $('#commitmentPreviewDialog').close());
+$('#commitmentPreviewDialog').addEventListener('click', (event) => { if (event.target === $('#commitmentPreviewDialog')) $('#commitmentPreviewDialog').close(); });
+$('#printCommitmentFromPreview').addEventListener('click', openCommitmentPrintView);
 $('#printCommitment').addEventListener('click', openCommitmentPrintView);
-$('#signedCommitmentUpload').addEventListener('change', (event) => {
+$('#signedCommitmentUpload').addEventListener('change', async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
-  local.signedCommitment = { name: file.name, type: file.type, size: file.size, uploadedAt: new Date().toISOString(), flowVersion: 2 };
-  saveLocal();
-  renderCommitmentUploadState();
-  refreshOnboardingGateState();
-  toast('Dein unterschriebenes Commitment wurde hochgeladen.');
+  if (file.size > 10 * 1024 * 1024) { toast('Das Commitment darf höchstens 10 MB groß sein.'); event.target.value = ''; return; }
+  try {
+    $('#signedCommitmentStatus').textContent = 'Dein Commitment wird sicher gespeichert …';
+    const result = await request('/api/customer-records?action=document-upload', { method: 'POST', body: JSON.stringify({ week: 0, documentType: 'start_commitment', title: 'Mein Start-Commitment', fileName: file.name, mimeType: file.type, contentBase64: await fileAsBase64(file) }) });
+    local.signedCommitment = { documentId: result.document.id, name: file.name, type: file.type, size: file.size, uploadedAt: new Date().toISOString(), flowVersion: 3 };
+    saveLocal();
+    customerWorkspace = null;
+    await loadProgram();
+    showView('onboarding');
+    toast('Dein unterschriebenes Commitment wurde sicher gespeichert.');
+  } catch (error) { renderCommitmentUploadState(); toast(error.message); }
+  event.target.value = '';
 });
 $('#startProcess').addEventListener('click', async () => {
-  const signedUploaded = Boolean(local.signedCommitment?.name);
   const button = $('#startProcess');
   button.disabled = true;
   button.textContent = 'Woche 1 wird vorbereitet …';
   try {
-    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'start', privacy: $('#privacy').checked, commitment: $('#commitment').checked, signedDocument: signedUploaded }) });
+    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'start', commitment: $('#commitment').checked, profile: onboardingProfilePayload() }) });
     todayMode = 'dashboard';
+    customerWorkspace = null;
     await loadProgram();
     showView('today');
     toast('Alles erfolgreich erledigt. Deine 8-Wochen-Übersicht ist jetzt bereit.');

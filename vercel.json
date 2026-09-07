@@ -1,7 +1,7 @@
 {
   "cleanUrls": false,
   "functions": {
-    "api/*.js": { "maxDuration": 60 }
+    "api/*.js": { "maxDuration": 60, "includeFiles": "assets/forms/**" }
   },
   "rewrites": [
     { "source": "/login", "destination": "/login.html" },
