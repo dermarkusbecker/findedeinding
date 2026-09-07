@@ -1,5 +1,7 @@
 import { clearSessionCookie, createSession, sessionCookie, sessionFromRequest } from '../lib/auth.js';
-import { authHeaders, authenticateUser, emailForLogin, profileByAuthId, profileById, sendPasswordReset, supabaseAuthConfig } from '../lib/user-auth.js';
+import { authHeaders, authenticateUser, emailForLogin, profileByAuthId, profileById, requireCurrentAdmin, sendPasswordReset, supabaseAuthConfig } from '../lib/user-auth.js';
+
+const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || '');
 
 async function login(request, response) {
   if (request.method !== 'POST') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
@@ -69,12 +71,37 @@ function session(request, response) {
   return current ? response.status(200).json({ authenticated: true, user: current }) : response.status(401).json({ authenticated: false });
 }
 
+async function customerPreview(request, response) {
+  if (request.method !== 'GET') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
+  const admin = await requireCurrentAdmin(request, response, ['customers', 'program']);
+  if (!admin) return;
+  const participantId = request.query?.participantId;
+  if (!isUuid(participantId)) return response.status(400).json({ error: 'Gültige Kunden-ID fehlt.' });
+  const config = supabaseAuthConfig();
+  if (!config) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
+  const participant = await profileById(config, participantId).catch(() => null);
+  if (!participant || participant.role !== 'user' || participant.status !== 'active' || !participant.permissions?.includes('customer_portal')) return response.status(404).json({ error: 'Aktiver Kundenportal-Zugang wurde nicht gefunden.' });
+  const token = createSession(participant.email, 'user', {
+    userId: participant.auth_user_id,
+    profileId: participant.id,
+    participantId: participant.id,
+    name: participant.name,
+    email: participant.email,
+    permissions: participant.permissions || [],
+    mustChangePassword: false,
+    adminPreview: true,
+    adminProfileId: admin.profile.id,
+  }, 1000 * 60 * 30);
+  return response.redirect(302, `/portal?adminPreview=${encodeURIComponent(token)}`);
+}
+
 export default async function handler(request, response) {
   const action = request.query?.action;
   if (action === 'login') return login(request, response);
   if (action === 'password-reset') return reset(request, response);
   if (action === 'update-password') return updatePassword(request, response);
   if (action === 'change-initial-password') return changeInitialPassword(request, response);
+  if (action === 'customer-preview') return customerPreview(request, response);
   if (action === 'session') return session(request, response);
   return response.status(404).json({ error: 'Auth-Aktion nicht gefunden.' });
 }

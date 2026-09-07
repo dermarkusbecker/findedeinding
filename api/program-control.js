@@ -5,6 +5,7 @@ import { getParticipantProgramAccess, isUuid, patchParticipantProgress, serviceH
 import { applyGuidedWeekAction, currentGuidedStep, guidedGateStatus, guidedWeekDefinition, normalizeGuidedWeekState } from '../lib/guided-weeks.js';
 import { weekOnePrompt } from '../lib/week-one.js';
 import { ensureWeekReflection } from '../lib/week-reflection-agent.js';
+import { resetParticipantOnboarding } from '../lib/onboarding-reset.js';
 
 const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -226,18 +227,8 @@ export default async function handler(request, response) {
     }
     if (body.currentWeek !== undefined) return response.status(409).json({ error: 'Die aktuelle Arbeitswoche wird ausschließlich aus den vollständig abgeschlossenen Wochen ermittelt und kann nicht manuell gesetzt werden.' });
     if (body.resetToOnboarding === true) {
-      Object.assign(changes, {
-        current_week: 0,
-        process_status: 'ONBOARDING',
-        program_status: 'active',
-        access_mode: 'time_based',
-        manually_unlocked_weeks: [],
-        manually_locked_weeks: [],
-        privacy_consent_at: null,
-        start_commitment_at: null,
-        final_commitment_at: null,
-        last_activity_at: null,
-      });
+      await resetParticipantOnboarding({ service: current.service, participantId, adminProfileId: admin.profile.id, gates: current.gates });
+      return response.status(200).json(await publicResult(await getParticipantProgramAccess(participantId), participantId));
     }
     if (Object.keys(changes).length) await patchParticipantProgress(current.service, participantId, changes);
     const effective = Object.keys(changes).length ? await getParticipantProgramAccess(participantId) : current;

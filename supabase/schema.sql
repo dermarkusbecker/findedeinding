@@ -265,6 +265,8 @@ create table if not exists public.participant_progress (
   privacy_consent_at timestamptz,
   start_commitment_at timestamptz,
   final_commitment_at timestamptz,
+  onboarding_reset_at timestamptz,
+  onboarding_reset_by_profile_id uuid references public.user_profiles(id) on delete set null,
   last_activity_at timestamptz,
   updated_at timestamptz not null default now()
 );

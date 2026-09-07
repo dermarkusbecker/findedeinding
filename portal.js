@@ -2,6 +2,18 @@ import { journeyStepStatuses, weekOnePrompt } from './lib/week-one.js';
 import { currentGuidedStep, guidedClarityStep, guidedStepStatuses, guidedWeekDefinition, needsGuidedClarityCheckin } from './lib/guided-weeks.js';
 import { buildProgressCelebration } from './lib/progress-celebration.js';
 
+const previewUrl = new URL(window.location.href);
+const suppliedAdminPreviewToken = previewUrl.searchParams.get('adminPreview') || '';
+if (suppliedAdminPreviewToken) sessionStorage.setItem('fdd_admin_preview_token', suppliedAdminPreviewToken);
+const adminPreviewToken = suppliedAdminPreviewToken || sessionStorage.getItem('fdd_admin_preview_token') || '';
+const adminPreviewMode = Boolean(adminPreviewToken);
+if (suppliedAdminPreviewToken) {
+  previewUrl.searchParams.delete('adminPreview');
+  history.replaceState(null, '', `${previewUrl.pathname}${previewUrl.search}${previewUrl.hash}`);
+}
+document.body.classList.toggle('admin-preview-active', adminPreviewMode);
+document.querySelector('#adminPreviewBar')?.classList.toggle('hidden', !adminPreviewMode);
+
 const resolveSpeechRecognition = (windowObject = window) => {
   if (!windowObject) return null;
   return windowObject.SpeechRecognition || windowObject.webkitSpeechRecognition || null;
@@ -163,12 +175,22 @@ wireSpeechControls();
 window.wireSpeechControls = wireSpeechControls;
 
 async function request(url, options = {}) {
-  const response = await fetch(url, { ...options, headers: options.body ? { 'Content-Type': 'application/json', ...(options.headers || {}) } : options.headers });
+  const headers = { ...(options.headers || {}) };
+  if (options.body) headers['Content-Type'] = 'application/json';
+  if (adminPreviewToken) headers.Authorization = `Bearer ${adminPreviewToken}`;
+  const response = await fetch(url, { ...options, headers });
   const responseText = await response.text();
   let data = {};
   try { data = responseText ? JSON.parse(responseText) : {}; } catch { data = {}; }
   if (!response.ok) { const error = new Error(data.error || 'Die Anfrage konnte nicht verarbeitet werden.'); error.status = response.status; error.data = data; throw error; }
   return data;
+}
+
+function adminPreviewUrl(url) {
+  if (!adminPreviewToken) return url;
+  const target = new URL(url, window.location.origin);
+  target.searchParams.set('adminPreview', adminPreviewToken);
+  return `${target.pathname}${target.search}${target.hash}`;
 }
 
 function modeLabel() { return 'Automatische Freischaltung alle sieben Tage'; }
@@ -363,6 +385,12 @@ function refreshOnboardingGateState() {
 
 function renderOnboardingState(completed = false) {
   const profile = program?.profile || {};
+  const resetAt = program?.onboarding?.resetAt ? new Date(program.onboarding.resetAt).getTime() : 0;
+  const localCommitmentAt = local.signedCommitment?.uploadedAt ? new Date(local.signedCommitment.uploadedAt).getTime() : 0;
+  if (resetAt && local.signedCommitment && (!localCommitmentAt || localCommitmentAt <= resetAt)) {
+    local.signedCommitment = null;
+    saveLocal();
+  }
   $('.onboarding-welcome .clara-copy').innerHTML = '<p>Ich bin Clara. Ich stelle dir eine Frage nach der anderen und helfe dir, deine Gedanken zu ordnen. Du antwortest ehrlich – den Rest entwickeln wir gemeinsam.</p>';
   $('.onboarding-welcome .promise strong').textContent = 'Du brauchst noch keine fertigen Antworten. Wir starten einfach mit dem nächsten ehrlichen Schritt.';
   if (!onboardingProfileDirty) {
@@ -407,9 +435,9 @@ function renderCommitmentUploadState(completed = false) {
 
 function privacyDocumentHref() {
   const documentId = program?.onboarding?.privacyDocumentId;
-  return documentId
+  return adminPreviewUrl(documentId
     ? `/api/customer-records?action=document-download&documentId=${encodeURIComponent(documentId)}`
-    : '/assets/forms/FDD-FRM-002_Datenschutzinformation-und-Einwilligung_Finde-Dein-Ding_V1.0.pdf';
+    : '/assets/forms/FDD-FRM-002_Datenschutzinformation-und-Einwilligung_Finde-Dein-Ding_V1.0.pdf');
 }
 
 function openPrivacyConsentDialog() {
@@ -1250,6 +1278,11 @@ function render() {
   $('#headerPhase').textContent = !showOnboarding && started ? `Woche ${canonicalWeek} von 8 · ${canonicalSummary?.title || 'Dein Prozess'}` : 'Onboarding';
   renderProgressCelebration();
   const name = program.profile?.name || 'Teilnehmer';
+  if (adminPreviewMode) {
+    $('#adminPreviewCustomer').textContent = name;
+    $('#adminResetOnboarding').disabled = false;
+    $('#adminResetOnboarding').textContent = 'Onboarding zurücksetzen';
+  }
   const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
   $('#portalProfileAvatar').innerHTML = customerWorkspace?.profile?.photoUrl ? `<img src="${escapeHtml(customerWorkspace.profile.photoUrl)}" alt="Dein Profilbild">` : escapeHtml(initials);
   document.querySelector('.portal-profile strong').textContent = name;
@@ -1566,6 +1599,37 @@ $('#revokePrivacy').addEventListener('click', async () => {
     toast('Deine Einwilligung wurde widerrufen.');
   } catch (error) { toast(error.message); }
 });
+
+$('#adminResetOnboarding')?.addEventListener('click', () => {
+  if (!adminPreviewMode || !program) return;
+  $('#adminOnboardingResetDialog').showModal();
+});
+$$('[data-close-admin-reset]').forEach((button) => button.addEventListener('click', () => $('#adminOnboardingResetDialog').close()));
+$('#adminOnboardingResetDialog')?.addEventListener('click', (event) => { if (event.target === $('#adminOnboardingResetDialog')) $('#adminOnboardingResetDialog').close(); });
+$('#confirmAdminOnboardingReset')?.addEventListener('click', async (event) => {
+  if (!adminPreviewMode) return;
+  const button = event.currentTarget;
+  button.disabled = true;
+  button.textContent = 'Onboarding wird zurückgesetzt …';
+  try {
+    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'admin_reset_onboarding' }) });
+    local.signedCommitment = null;
+    saveLocal();
+    customerWorkspace = null;
+    onboardingProfileDirty = false;
+    todayMode = 'dashboard';
+    $('#adminOnboardingResetDialog').close();
+    await loadProgram();
+    showView('onboarding');
+    toast('Onboarding wurde zurückgesetzt. Der Kunde startet wieder vor Woche 1.');
+  } catch (error) { toast(error.message); }
+  finally { button.disabled = false; button.textContent = 'Ja, Onboarding zurücksetzen'; }
+});
+$('#closeAdminPreview')?.addEventListener('click', () => {
+  sessionStorage.removeItem('fdd_admin_preview_token');
+  window.close();
+  setTimeout(() => { location.href = '/admin?view=participants'; }, 120);
+});
 $('#answerForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const answer = $('#answer').value.trim(); if (!answer) return;
   const savedDraftKey = draftKeyFor($('#answer'));
@@ -1691,6 +1755,14 @@ $('#saveSupport').addEventListener('click', async () => {
   } catch (error) { toast(error.message); }
   finally { button.disabled = false; }
 });
-$('#customerLogout').addEventListener('click', async () => { await fetch('/api/auth?action=session', { method: 'DELETE' }); location.replace('/login'); });
+$('#customerLogout').addEventListener('click', async () => {
+  if (adminPreviewMode) {
+    sessionStorage.removeItem('fdd_admin_preview_token');
+    location.replace('/admin?view=participants');
+    return;
+  }
+  await fetch('/api/auth?action=session', { method: 'DELETE' });
+  location.replace('/login');
+});
 
 loadProgram().catch((error) => { if (error.status === 401) location.replace('/kunden-login'); else toast(error.message); });

@@ -10,6 +10,7 @@ import { handleParticipantDocument } from '../lib/documents/api-handler.js';
 import { weekResetScope } from '../lib/week-reset.js';
 import { ensureWeekReflection, generateWeekReflection } from '../lib/week-reflection-agent.js';
 import { missingOnboardingFields, normalizeOnboardingProfile, normalizePrivacyConsent, readPrivacyConsentDocument, storePrivacyConsentDocument } from '../lib/privacy-consent.js';
+import { artifactIsAfterOnboardingReset, assertActivePreviewAdmin, resetParticipantOnboarding } from '../lib/onboarding-reset.js';
 
 const programWeeks = [
   { week: 1, title: 'Jetzt geht es los', mode: 'Ist-Aufnahme', description: 'Du klärst deine heutige Ausgangslage, dein persönliches Ziel für die acht Wochen und die Erfahrungen, die dich bisher geprägt haben.', topics: ['Drei Wünsche und ihre Bedeutung', 'Persönliches Zielbild', 'Klarheits-Baseline', 'Beruflicher Werdegang'], question: 'Stell dir vor, vor dir steht eine Fee und du hast genau drei Wünsche frei. Welche drei Dinge würdest du dir für dein Leben aktuell am meisten wünschen?', help: 'Nenne zunächst einfach alle drei. Danach vertiefen wir sie einzeln.', upload: 'Lebenslauf optional' },
@@ -219,8 +220,10 @@ export default async function handler(request, response) {
     const result = await getParticipantProgramAccess(session.participantId);
     if (request.method === 'GET') {
       const onboardingComplete = isOnboardingComplete(result.progress);
-      const privacyDocument = await readPrivacyConsentDocument(result.service, session.participantId);
-      const commitmentDocuments = await optionalRows(await fetch(`${result.service.url}/rest/v1/participant_documents?user_profile_id=eq.${encodeURIComponent(session.participantId)}&week=eq.0&document_type=eq.start_commitment&select=id,original_file_name,created_at&order=created_at.desc&limit=1`, { headers: serviceHeaders(result.service.key) }), 'Das Start-Commitment konnte nicht geladen werden.');
+      const latestPrivacyDocument = await readPrivacyConsentDocument(result.service, session.participantId);
+      const privacyDocument = artifactIsAfterOnboardingReset(latestPrivacyDocument, result.progress.onboarding_reset_at) ? latestPrivacyDocument : null;
+      const allCommitmentDocuments = await optionalRows(await fetch(`${result.service.url}/rest/v1/participant_documents?user_profile_id=eq.${encodeURIComponent(session.participantId)}&week=eq.0&document_type=eq.start_commitment&select=id,original_file_name,created_at&order=created_at.desc&limit=20`, { headers: serviceHeaders(result.service.key) }), 'Das Start-Commitment konnte nicht geladen werden.');
+      const commitmentDocuments = allCommitmentDocuments.filter((document) => artifactIsAfterOnboardingReset(document, result.progress.onboarding_reset_at));
       let weekOneState = await readWeekOneState(result, session.participantId);
       const preconditions = weekOnePreconditions(result.progress);
       const weekOneGateComplete = weekOneComplete(weekOneState, preconditions);
@@ -267,12 +270,16 @@ export default async function handler(request, response) {
         preferredChannel: result.profile.preferred_communication_channel || 'email',
       };
       const missingProfileFields = missingOnboardingFields(result.profile, result.profile.email);
-      return response.status(200).json({ profile, onboarding: { privacyConfirmed: Boolean(result.progress.privacy_consent_at), privacyConfirmedAt: result.progress.privacy_consent_at || privacyDocument?.participant_confirmed_at || null, privacyDocumentId: privacyDocument?.id || null, privacyDetails: privacyDocument?.extracted_data?.consent || null, commitmentUploaded: Boolean(commitmentDocuments[0]), commitmentDocumentId: commitmentDocuments[0]?.id || null, commitmentFileName: commitmentDocuments[0]?.original_file_name || null, profileComplete: missingProfileFields.length === 0, missingProfileFields }, access, onboardingComplete, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => ({ week, title, mode, description, topics })), accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null, weekDraft, weekReflections, clarityHistory, currentClarity });
+      return response.status(200).json({ profile, onboarding: { privacyConfirmed: Boolean(result.progress.privacy_consent_at), privacyConfirmedAt: result.progress.privacy_consent_at || privacyDocument?.participant_confirmed_at || null, privacyDocumentId: privacyDocument?.id || null, privacyDetails: privacyDocument?.extracted_data?.consent || null, commitmentUploaded: Boolean(commitmentDocuments[0]), commitmentDocumentId: commitmentDocuments[0]?.id || null, commitmentFileName: commitmentDocuments[0]?.original_file_name || null, profileComplete: missingProfileFields.length === 0, missingProfileFields, resetAt: result.progress.onboarding_reset_at || null }, access, onboardingComplete, adminPreview: session.adminPreview === true, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => ({ week, title, mode, description, topics })), accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null, weekDraft, weekReflections, clarityHistory, currentClarity });
     }
     if (request.method !== 'PATCH') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
     const action = request.body?.action;
     let actionReflection = null;
-    if (action === 'save_onboarding_profile') {
+    if (action === 'admin_reset_onboarding') {
+      const previewAdmin = await assertActivePreviewAdmin(result.service, session);
+      const reset = await resetParticipantOnboarding({ service: result.service, participantId: session.participantId, adminProfileId: previewAdmin.id, gates: result.gates });
+      return response.status(200).json({ ok: true, resetAt: reset.resetAt, message: 'Das Onboarding wurde vollständig auf den Start zurückgesetzt.' });
+    } else if (action === 'save_onboarding_profile') {
       if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
       const normalized = normalizeOnboardingProfile(request.body?.profile, result.profile);
       if (normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze noch: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
@@ -293,7 +300,8 @@ export default async function handler(request, response) {
       if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
       if (result.access.status !== 'active') return response.status(423).json({ error: 'Dein Programm ist aktuell pausiert.' });
       const commitmentConfirmed = request.body?.commitment === true;
-      const commitmentDocuments = await optionalRows(await fetch(`${result.service.url}/rest/v1/participant_documents?user_profile_id=eq.${encodeURIComponent(session.participantId)}&week=eq.0&document_type=eq.start_commitment&select=id&limit=1`, { headers: serviceHeaders(result.service.key) }), 'Das Start-Commitment konnte nicht geprüft werden.');
+      const allCommitmentDocuments = await optionalRows(await fetch(`${result.service.url}/rest/v1/participant_documents?user_profile_id=eq.${encodeURIComponent(session.participantId)}&week=eq.0&document_type=eq.start_commitment&select=id,created_at&order=created_at.desc&limit=20`, { headers: serviceHeaders(result.service.key) }), 'Das Start-Commitment konnte nicht geprüft werden.');
+      const commitmentDocuments = allCommitmentDocuments.filter((document) => artifactIsAfterOnboardingReset(document, result.progress.onboarding_reset_at));
       if (!result.progress.privacy_consent_at || !commitmentConfirmed || !commitmentDocuments[0]) return response.status(400).json({ error: 'Bitte bestätige die Datenschutzeinwilligung und lade dein unterschriebenes Commitment hoch.' });
       const normalizedProfile = normalizeOnboardingProfile(request.body?.profile, result.profile);
       if (normalizedProfile.missing.length) return response.status(400).json({ error: `Bitte vervollständige vor dem Start deine persönlichen Angaben: ${normalizedProfile.missing.join(', ')}.`, missingFields: normalizedProfile.missing });
