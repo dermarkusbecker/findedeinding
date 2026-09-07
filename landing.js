@@ -9,6 +9,8 @@ const claraDetailsDialog = document.querySelector('#claraDetailsDialog');
 let leadDialogTrigger = null;
 let claraDetailsTrigger = null;
 let restoreClaraDetailsFocus = true;
+let publicLeadStep = 1;
+let publicSlotRangeStart = '';
 
 const openClaraDetails = (trigger = null) => {
   if (!claraDetailsDialog || claraDetailsDialog.open) return;
@@ -29,6 +31,7 @@ const openLeadDialog = (trigger = null) => {
   if (!leadDialog || leadDialog.open) return;
   closeClaraDetails({ restoreFocus: false });
   leadDialogTrigger = trigger;
+  resetPublicLeadJourney();
   document.body.classList.add('lead-dialog-open');
   leadDialog.showModal();
   requestAnimationFrame(() => form.elements.name?.focus());
@@ -71,7 +74,7 @@ claraDetailsDialog?.addEventListener('close', () => {
   claraDetailsTrigger = null;
   restoreClaraDetailsFocus = true;
 });
-document.querySelector('[data-close-lead-dialog]')?.addEventListener('click', closeLeadDialog);
+document.querySelectorAll('[data-close-lead-dialog]').forEach((button) => button.addEventListener('click', closeLeadDialog));
 leadDialog?.addEventListener('click', (event) => { if (event.target === leadDialog) closeLeadDialog(); });
 leadDialog?.addEventListener('close', () => {
   document.body.classList.remove('lead-dialog-open');
@@ -166,10 +169,92 @@ if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-mot
   revealItems.forEach((item) => item.classList.add('visible'));
 }
 
+const landingDateKey = (date = new Date()) => {
+  const shifted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return shifted.toISOString().slice(0, 10);
+};
+const addLandingDays = (dateKey, days) => {
+  const date = new Date(`${dateKey}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+const escapeLanding = (value = '') => {
+  const span = document.createElement('span');
+  span.textContent = String(value);
+  return span.innerHTML;
+};
+function setPublicLeadStep(step, focus = true) {
+  publicLeadStep = Math.max(1, Math.min(3, Number(step) || 1));
+  form.querySelectorAll('[data-public-lead-step]').forEach((section) => { section.hidden = Number(section.dataset.publicLeadStep) !== publicLeadStep; });
+  form.querySelectorAll('[data-public-progress]').forEach((item) => {
+    const number = Number(item.dataset.publicProgress);
+    item.classList.toggle('active', number === publicLeadStep);
+    item.classList.toggle('complete', number < publicLeadStep);
+  });
+  status.textContent = '';
+  status.className = 'form-status';
+  if (focus) requestAnimationFrame(() => form.querySelector(`[data-public-lead-step="${publicLeadStep}"] input:not([type="hidden"]), [data-public-lead-step="${publicLeadStep}"] textarea, [data-public-lead-step="${publicLeadStep}"] button`)?.focus());
+}
+function resetPublicLeadJourney() {
+  if (!form) return;
+  form.reset();
+  publicSlotRangeStart = landingDateKey();
+  document.querySelector('#publicBookingSuccess').hidden = true;
+  document.querySelector('#publicLeadProgress').hidden = false;
+  document.querySelector('#publicSelectedSlot').textContent = 'Noch keinen Termin ausgewählt';
+  document.querySelector('#publicSelectedSlot').classList.remove('chosen');
+  document.querySelector('#publicAvailableSlots').innerHTML = '<p>Wähle zuerst deine Kontaktdaten und dein Anliegen.</p>';
+  setPublicLeadStep(1, false);
+}
+function validatePublicLeadStep(step) {
+  const section = form.querySelector(`[data-public-lead-step="${step}"]`);
+  for (const field of section.querySelectorAll('input, textarea, select')) {
+    if (!field.checkValidity()) { field.reportValidity(); field.focus(); return false; }
+  }
+  return true;
+}
+async function loadPublicSlots({ advance = false } = {}) {
+  const container = document.querySelector('#publicAvailableSlots'), rangeLabel = document.querySelector('#publicSlotRange'), more = document.querySelector('#publicNextSlotRange');
+  if (advance) publicSlotRangeStart = addLandingDays(publicSlotRangeStart || landingDateKey(), 14);
+  else publicSlotRangeStart = publicSlotRangeStart || landingDateKey();
+  const rangeEnd = addLandingDays(publicSlotRangeStart, 13);
+  rangeLabel.textContent = `${new Date(`${publicSlotRangeStart}T12:00:00`).toLocaleDateString('de-DE',{day:'2-digit',month:'short'})} – ${new Date(`${rangeEnd}T12:00:00`).toLocaleDateString('de-DE',{day:'2-digit',month:'short',year:'numeric'})}`;
+  container.innerHTML = '<p>Google Calendar wird auf freie Zeiten geprüft …</p>';
+  more.disabled = true;
+  try {
+    const response = await fetch(`/api/leads?action=public-available-slots&from=${encodeURIComponent(publicSlotRangeStart)}&to=${encodeURIComponent(rangeEnd)}`), data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+    if (!data.slots.length) container.innerHTML = '<div class="public-slot-empty"><strong>In diesem Zeitraum ist gerade nichts frei.</strong><span>Prüfe einfach die nächsten Tage.</span></div>';
+    else {
+      const groups = data.slots.reduce((result, slot) => { (result[slot.date] ||= []).push(slot); return result; }, {});
+      container.innerHTML = Object.entries(groups).map(([date, slots]) => `<article><header><strong>${new Date(`${date}T12:00:00`).toLocaleDateString('de-DE',{weekday:'long'})}</strong><span>${new Date(`${date}T12:00:00`).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})}</span></header><div>${slots.map((slot) => `<button type="button" data-public-slot="${escapeLanding(slot.start)}">${escapeLanding(slot.time)} Uhr</button>`).join('')}</div></article>`).join('');
+      container.querySelectorAll('[data-public-slot]').forEach((button) => button.addEventListener('click', () => {
+        form.elements.appointmentStart.value = button.dataset.publicSlot;
+        container.querySelectorAll('[data-public-slot]').forEach((item) => item.classList.toggle('selected', item === button));
+        const date = new Date(button.dataset.publicSlot);
+        const selected = document.querySelector('#publicSelectedSlot');
+        selected.textContent = `Ausgewählt: ${date.toLocaleString('de-DE',{weekday:'long',day:'2-digit',month:'long',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'})} Uhr`;
+        selected.classList.add('chosen');
+      }));
+    }
+    more.hidden = addLandingDays(publicSlotRangeStart, 14) > addLandingDays(landingDateKey(), Number(data.bookingHorizonDays || 60));
+  } catch (error) {
+    container.innerHTML = `<div class="public-slot-empty error"><strong>Termine konnten gerade nicht geladen werden.</strong><span>${escapeLanding(error.message || 'Bitte versuche es gleich noch einmal.')}</span></div>`;
+  } finally { more.disabled = false; }
+}
+form.querySelectorAll('[data-public-lead-next]').forEach((button) => button.addEventListener('click', async () => {
+  if (!validatePublicLeadStep(publicLeadStep)) return;
+  setPublicLeadStep(publicLeadStep + 1);
+  if (publicLeadStep === 3) await loadPublicSlots();
+}));
+form.querySelectorAll('[data-public-lead-back]').forEach((button) => button.addEventListener('click', () => setPublicLeadStep(publicLeadStep - 1)));
+document.querySelector('#publicNextSlotRange')?.addEventListener('click', () => loadPublicSlots({ advance: true }));
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const button = form.querySelector('button');
-  button.disabled = true; status.textContent = 'Wird gesendet …'; status.className = 'form-status';
+  if (publicLeadStep !== 3 || !validatePublicLeadStep(3)) return;
+  const button = form.querySelector('[type="submit"]');
+  button.disabled = true; status.textContent = 'Termin wird verbindlich geprüft und eingetragen …'; status.className = 'form-status';
   const payload = Object.fromEntries(new FormData(form));
   payload.consent = Boolean(form.elements.consent.checked);
   payload.source = params.get('utm_source') || document.referrer || 'website';
@@ -178,7 +263,12 @@ form.addEventListener('submit', async (event) => {
     const response = await fetch('/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error);
-    form.reset(); status.textContent = 'Danke! Markus meldet sich persönlich bei dir.'; status.className = 'form-status success';
+    const appointment = new Date(data.appointment.startsAt);
+    form.querySelectorAll('[data-public-lead-step]').forEach((section) => { section.hidden = true; });
+    document.querySelector('#publicLeadProgress').hidden = true;
+    document.querySelector('#publicBookingSuccessText').textContent = `Dein Klarheitsgespräch findet am ${appointment.toLocaleString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'})} Uhr statt. Die Kalendereinladung mit Google-Meet-Link wurde an ${form.elements.email.value} gesendet.`;
+    document.querySelector('#publicBookingSuccess').hidden = false;
+    status.textContent = '';
     if (window.fbq) window.fbq('track', 'Lead');
   } catch (error) { status.textContent = error.message || 'Das hat nicht geklappt. Bitte versuche es erneut.'; status.className = 'form-status error'; }
   finally { button.disabled = false; }

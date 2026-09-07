@@ -343,6 +343,16 @@ async function bookingSettings(service) {
   return normalizeBookingSettings(rows[0] || DEFAULT_BOOKING_SETTINGS);
 }
 
+async function availableBookingSlots(service, query = {}) {
+  const settings = await bookingSettings(service);
+  const duration = Number(query.duration || settings.defaultDurationMinutes);
+  const candidates = generateAvailableSlots({ settings, from: clean(query.from, 10), to: clean(query.to, 10), duration, now: new Date() });
+  if (!candidates.length) return { settings, slots: [] };
+  const accessToken = await googleAccessToken(service);
+  const busyIntervals = await calendarBusyIntervals(accessToken, candidates[0].start, candidates.at(-1).end);
+  return { settings, slots: generateAvailableSlots({ settings, from: clean(query.from, 10), to: clean(query.to, 10), duration, busyIntervals, now: new Date() }) };
+}
+
 function bookingSettingsPayload(settings) {
   return {
     id: 'default',
@@ -367,8 +377,24 @@ async function publicLead(request, response, service) {
   if (!name || !emailValid(email)) return response.status(400).json({ error: 'Bitte Name und gültige E-Mail-Adresse eingeben.' });
   const payload = { name, email, phone: clean(request.body?.phone, 40) || null, challenge: clean(request.body?.challenge, 500) || null, source: clean(request.body?.source, 80) || 'website', utm_source: clean(request.body?.utm_source, 100) || null, utm_medium: clean(request.body?.utm_medium, 100) || null, utm_campaign: clean(request.body?.utm_campaign, 150) || null, consent_at: request.body?.consent ? new Date().toISOString() : null };
   if (!payload.consent_at) return response.status(400).json({ error: 'Bitte bestätige die Datenschutzhinweise.' });
-  await readJson(await fetch(`${service.url}/rest/v1/leads`, { method: 'POST', headers: headers(service.key, { Prefer: 'return=minimal' }), body: JSON.stringify(payload) }), 'Lead konnte nicht gespeichert werden.');
-  return response.status(201).json({ ok: true });
+  const settings = await bookingSettings(service);
+  const startDate = new Date(request.body?.appointmentStart), duration = settings.defaultDurationMinutes;
+  if (Number.isNaN(startDate.getTime())) return response.status(400).json({ error: 'Bitte wähle einen freien Termin für dein Klarheitsgespräch.' });
+  if (!isWithinBookingAvailability(startDate, duration, settings, new Date())) return response.status(409).json({ error: 'Dieser Termin ist nicht mehr verfügbar. Bitte wähle einen anderen freien Termin.' });
+  const endDate = new Date(startDate.getTime() + duration * 60000), accessToken = await googleAccessToken(service);
+  await assertCalendarAvailable(accessToken, startDate.toISOString(), endDate.toISOString());
+  const event = await saveCalendarEvent(accessToken, payload, startDate.toISOString(), endDate.toISOString());
+  const meetUrl = event.hangoutLink || event.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || null;
+  const leadPayload = { ...payload, status: 'scheduled', appointment_start: startDate.toISOString(), appointment_end: endDate.toISOString(), appointment_timezone: settings.timezone, calendar_event_id: event.id, calendar_event_url: event.htmlLink || null, meet_url: meetUrl };
+  try {
+    const rows = await readJson(await fetch(`${service.url}/rest/v1/leads`, { method: 'POST', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify(leadPayload) }), 'Interessent und Termin konnten nicht gespeichert werden.');
+    const lead = rows[0];
+    if (lead?.id) await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Dein Klarheitsgespräch ist vereinbart', preview: `Termin am ${startDate.toLocaleString('de-DE', { timeZone: settings.timezone })} mit Google Meet.` }).catch(() => null);
+    return response.status(201).json({ ok: true, appointment: { startsAt: startDate.toISOString(), endsAt: endDate.toISOString(), timezone: settings.timezone } });
+  } catch (error) {
+    if (event.id) await deleteCalendarEvent(accessToken, event.id).catch(() => null);
+    throw error;
+  }
 }
 
 function permissionForAction(action) {
@@ -386,6 +412,14 @@ export default async function handler(request, response) {
   const service = serviceConfig();
   const action = request.query?.action || request.body?.action || '';
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
+  if (request.method === 'GET' && action === 'public-available-slots') {
+    try {
+      const result = await availableBookingSlots(service, request.query || {});
+      return response.status(200).json({ slots: result.slots, timezone: result.settings.timezone, durationMinutes: result.settings.defaultDurationMinutes, bookingHorizonDays: result.settings.bookingHorizonDays });
+    } catch (error) {
+      return response.status(error.status || 503).json({ error: error.message });
+    }
+  }
   if (request.method === 'POST' && !action) {
     try { return await publicLead(request, response, service); }
     catch (error) { return response.status(error.status || 500).json({ error: error.message }); }
@@ -483,13 +517,8 @@ export default async function handler(request, response) {
       return response.status(200).json({ settings });
     }
     if (request.method === 'GET' && action === 'available-slots') {
-      const settings = await bookingSettings(service);
-      const candidates = generateAvailableSlots({ settings, from: clean(request.query?.from, 10), to: clean(request.query?.to, 10), duration: Number(request.query?.duration), now: new Date() });
-      if (!candidates.length) return response.status(200).json({ settings, slots: [] });
-      const accessToken = await googleAccessToken(service);
-      const busyIntervals = await calendarBusyIntervals(accessToken, candidates[0].start, candidates.at(-1).end);
-      const slots = generateAvailableSlots({ settings, from: clean(request.query?.from, 10), to: clean(request.query?.to, 10), duration: Number(request.query?.duration), busyIntervals, now: new Date() });
-      return response.status(200).json({ settings, slots });
+      const result = await availableBookingSlots(service, { ...request.query, duration: Number(request.query?.duration) });
+      return response.status(200).json(result);
     }
     if (request.method === 'GET' && action === 'dashboard') return response.status(200).json(await leadDashboard(service, request.query?.id));
     if (request.method === 'POST' && action === 'dashboard-record') {

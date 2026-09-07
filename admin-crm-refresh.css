@@ -1047,6 +1047,17 @@ dialog form>p { font-size: 12px; }
 .week-counts i { min-height: 25px; transition: height .3s ease; }
 .weekly-footnote { color: var(--muted); font-size: 10px; margin: 12px 0 0; }
 .metrics .bars i { min-height: 4px; transition: height .3s ease; }
+.booking-landing-settings { margin-top: 18px; }
+.booking-landing-flow { align-items: stretch; display: grid; gap: 12px; grid-template-columns: 1fr auto 1fr auto 1fr; margin-top: 18px; }
+.booking-landing-flow>article { align-items: center; background: #f7faf9; border: 1px solid #dce8e5; border-radius: 13px; display: flex; gap: 11px; min-height: 82px; padding: 14px; }
+.booking-landing-flow>article>span { align-items: center; background: #e0f5ee; border-radius: 50%; color: #12806b; display: flex; flex: 0 0 auto; font-size: 10px; font-weight: 900; height: 32px; justify-content: center; width: 32px; }
+.booking-landing-flow b,.booking-landing-flow small { display: block; }
+.booking-landing-flow b { color: var(--ink); font-size: 11px; }
+.booking-landing-flow small { color: var(--muted); font-size: 8px; line-height: 1.45; margin-top: 4px; }
+.booking-landing-flow>i { align-self: center; color: #8aaaa3; font-size: 14px; font-style: normal; }
+.booking-landing-notes { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 5px; }
+.booking-landing-notes>span { background: #edf7f4; border-radius: 99px; color: #357267; font-size: 8px; font-weight: 750; padding: 7px 9px; }
+.booking-preview-link { align-items: center; display: inline-flex; justify-content: center; text-decoration: none; }
 
 @media (max-width: 720px) {
   .dashboard-live-state { margin-top: 17px; }
@@ -1055,6 +1066,8 @@ dialog form>p { font-size: 12px; }
   .dashboard-appointment-avatar { height: 38px; width: 38px; }
   .dashboard-appointment-list nav { align-items: stretch; grid-column: 1/-1; }
   .dashboard-appointment-list nav a,.dashboard-appointment-list nav button { flex: 1; text-align: center; }
+  .booking-landing-flow { grid-template-columns: 1fr; }
+  .booking-landing-flow>i { display: none; }
 }
 
 /* Customer workspace: grouped navigation and operational record pages */
