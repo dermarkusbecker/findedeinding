@@ -183,7 +183,7 @@ async function commandDashboard(service, admin) {
     fetch(`${service.url}/rest/v1/process_entries?data_block=like.week_*_state&select=user_profile_id,week,data_block,structured_data,created_at&order=created_at.desc&limit=10000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/customer_questions?status=eq.open&select=id,user_profile_id,week,question,created_at&order=created_at.asc&limit=200`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/lead_tasks?completed=eq.false&select=id,lead_id,title,details,due_at,created_at&order=due_at.asc.nullslast&limit=200`, { headers: headers(service.key) }),
-    fetch(`${service.url}/rest/v1/leads?select=id,name,email,status,appointment_start,converted_user_profile_id,created_at&limit=1000`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/leads?select=id,name,email,phone,status,source,utm_source,appointment_start,appointment_end,appointment_timezone,calendar_event_url,meet_url,converted_user_profile_id,created_at&limit=1000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/lead_communications?direction=eq.inbound&read_at=is.null&select=id,lead_id,subject,occurred_at&order=occurred_at.asc&limit=200`, { headers: headers(service.key) }),
   ];
   const results = await Promise.all(requests);
@@ -222,6 +222,22 @@ async function commandDashboard(service, admin) {
   const upcomingEnd = now.getTime() + 48 * 60 * 60 * 1000;
   leads.filter((lead) => { const time = new Date(lead.appointment_start || 0).getTime(); return time >= now.getTime() && time <= upcomingEnd; }).forEach((lead) => attention.push({ id: `appointment-${lead.id}`, priority: 3, tone: 'green', icon: '◷', title: `${lead.name} · Gespräch steht an`, subtitle: new Date(lead.appointment_start).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' }), actionLabel: 'Öffnen', entityType: 'lead', entityId: lead.id, createdAt: lead.appointment_start }));
   attention.sort((a, b) => a.priority - b.priority || new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+  const upcomingAppointments = leads
+    .filter((lead) => !lead.converted_user_profile_id && !['customer', 'lost', 'later'].includes(lead.status) && new Date(lead.appointment_start || 0).getTime() >= now.getTime())
+    .sort((left, right) => new Date(left.appointment_start) - new Date(right.appointment_start))
+    .map((lead) => ({
+      id: lead.id,
+      name: lead.name,
+      email: lead.email,
+      phone: lead.phone,
+      status: lead.status,
+      source: lead.utm_source || lead.source || 'website',
+      startsAt: lead.appointment_start,
+      endsAt: lead.appointment_end,
+      timezone: lead.appointment_timezone || 'Europe/Berlin',
+      meetUrl: lead.meet_url,
+      calendarUrl: lead.calendar_event_url,
+    }));
   return {
     generatedAt: now.toISOString(),
     adminName: admin?.profile?.name || admin?.name || 'Markus',
@@ -229,6 +245,7 @@ async function commandDashboard(service, admin) {
     clarity: { averageGain: average(completedGains), completedComparisons: completedGains.length, phases: clarityPhases },
     weekDistribution: distribution.slice(1),
     attention: { total: attention.length, items: attention.slice(0, 6) },
+    upcomingAppointments,
   };
 }
 

@@ -6,7 +6,7 @@ const file = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('Command Center besitzt keine fest eingebauten Demo-Kennzahlen mehr', async () => {
   const html = await file('admin.html');
-  for (const id of ['dashboardDate', 'dashboardLiveSummary', 'activeCustomerCount', 'dashboardClarityGain', 'dashboardOpenGates', 'dashboardAttentionList', 'dashboardWeekCounts']) assert.match(html, new RegExp(`id="${id}"`));
+  for (const id of ['dashboardDate', 'dashboardLiveSummary', 'activeCustomerCount', 'dashboardClarityGain', 'dashboardOpenGates', 'dashboardAttentionList', 'dashboardWeekCounts', 'dashboardAppointmentCount', 'dashboardAppointmentList']) assert.match(html, new RegExp(`id="${id}"`));
   assert.doesNotMatch(html, /dashboardCoachNeeded|dashboardCoachCopy|Coach benötigt/);
   assert.doesNotMatch(html, /Freitag, 28\. August 2026/);
   assert.doesNotMatch(html, /Julia · Entscheidung offen|David · Gate blockiert|Leonie · Abschlusscall/);
@@ -25,16 +25,23 @@ test('geschützte Dashboard-API aggregiert die fachlichen Supabase-Echtdaten', a
   assert.match(api, /direction=eq\.inbound&read_at=is\.null/);
   assert.match(api, /completedGains/);
   assert.match(api, /weekDistribution: distribution\.slice\(1\)/);
+  assert.match(api, /upcomingAppointments/);
+  assert.match(api, /!lead\.converted_user_profile_id/);
+  assert.match(api, /appointment_start/);
+  assert.match(api, /meetUrl: lead\.meet_url/);
 });
 
 test('Dashboard rendert Live-Metriken, Klarheitskurve, Wochenverteilung und echte Fokusvorgänge', async () => {
   const [script, styles] = await Promise.all([file('admin.js'), file('admin-crm-refresh.css')]);
-  for (const fn of ['loadCommandDashboard', 'renderCommandDashboard', 'renderDashboardClarity', 'renderDashboardDistribution', 'renderDashboardAttention']) assert.match(script, new RegExp(`function ${fn}`));
+  for (const fn of ['loadCommandDashboard', 'renderCommandDashboard', 'renderDashboardClarity', 'renderDashboardDistribution', 'renderDashboardAttention', 'renderDashboardAppointments']) assert.match(script, new RegExp(`function ${fn}`));
   assert.match(script, /fetch\('\/api\/leads\?action=command-dashboard'\)/);
   assert.match(script, /openDashboardAction/);
   assert.match(styles, /\.dashboard-live-state/);
   assert.match(styles, /#dashboardClarityPoints/);
   assert.match(styles, /article\[data-dashboard-action\]/);
+  assert.match(styles, /\.dashboard-appointment-list/);
+  assert.match(script, /Online-Erstkontakt/);
+  assert.match(script, /data-dashboard-meet/);
 });
 
 test('globale CRM-Suche schlägt ab drei Zeichen Interessenten und Kunden vor und öffnet deren Akte', async () => {

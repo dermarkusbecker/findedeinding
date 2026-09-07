@@ -402,6 +402,30 @@ main>header {
 .attention article strong { font-size: 13px; }
 .attention article p { font-size: 11px; line-height: 1.5; margin-top: 4px; }
 .attention article button { border-radius: 8px; font-size: 11px; padding: 8px 10px; }
+.dashboard-appointments { margin-top: 20px; overflow: hidden; }
+.dashboard-appointments>.card-head { align-items: flex-start; gap: 24px; }
+.dashboard-appointments>.card-head p:not(.eyebrow) { color: var(--muted); font-size: 11px; line-height: 1.55; margin: 6px 0 0; }
+.dashboard-appointment-heading { align-items: center; display: flex; gap: 14px; }
+.dashboard-appointment-heading>span { background: #e9f7f3; border-radius: 99px; color: #147963; font-size: 10px; font-weight: 850; padding: 7px 10px; white-space: nowrap; }
+.dashboard-appointment-list { margin-top: 20px; }
+.dashboard-appointment-list>article { align-items: center; border-top: 1px solid #e4ece9; cursor: pointer; display: grid; gap: 14px; grid-template-columns: 110px 42px minmax(180px,1fr) auto; min-height: 82px; padding: 13px 2px; transition: background .18s ease, transform .18s ease; }
+.dashboard-appointment-list>article:hover,.dashboard-appointment-list>article:focus-within { background: #f7faf9; transform: translateX(2px); }
+.dashboard-appointment-list time b,.dashboard-appointment-list time span { display: block; }
+.dashboard-appointment-list time b { color: #173b36; font-size: 13px; }
+.dashboard-appointment-list time span { color: #70847f; font-size: 9px; margin-top: 4px; }
+.dashboard-appointment-avatar { align-items: center; background: linear-gradient(145deg,#e2f7f0,#f3fbf8); border: 1px solid #c7e7de; border-radius: 12px; color: #14806b; display: flex; font-size: 11px; font-weight: 850; height: 42px; justify-content: center; width: 42px; }
+.dashboard-appointment-person strong,.dashboard-appointment-person small,.dashboard-appointment-person i { display: block; }
+.dashboard-appointment-person strong { color: var(--ink); font-size: 12px; }
+.dashboard-appointment-person small { color: #758681; font-size: 9px; margin-top: 4px; overflow-wrap: anywhere; }
+.dashboard-appointment-person i { color: #16806d; font-size: 8px; font-style: normal; font-weight: 750; margin-top: 5px; }
+.dashboard-appointment-list nav { align-items: center; display: flex; gap: 8px; }
+.dashboard-appointment-list nav a,.dashboard-appointment-list nav button { border: 1px solid #cfe0dc; border-radius: 9px; color: #176f61; cursor: pointer; font-size: 9px; font-weight: 800; padding: 9px 10px; text-decoration: none; white-space: nowrap; }
+.dashboard-appointment-list nav a:first-child { background: #12866f; border-color: #12866f; color: #fff; }
+.dashboard-appointment-list nav button { background: #fff; }
+.dashboard-appointment-empty { align-items: center; background: #f6faf9; border: 1px dashed #cddfda; border-radius: 13px; display: flex; gap: 13px; padding: 24px; }
+.dashboard-appointment-empty>span { align-items: center; background: #e0f5ee; border-radius: 50%; color: #13816a; display: flex; font-weight: 900; height: 36px; justify-content: center; width: 36px; }
+.dashboard-appointment-empty strong { color: var(--ink); display: block; font-size: 12px; }
+.dashboard-appointment-empty p { color: var(--muted); font-size: 10px; margin: 4px 0 0; }
 .chart { height: 205px; margin-top: 25px; }
 .chart>span { border-width: 4px; font-size: 10px; height: 34px; padding-top: 5px; width: 34px; }
 .chart>span small { font-size: 10px; left: -12px; top: 38px; width: 52px; }
@@ -1026,6 +1050,11 @@ dialog form>p { font-size: 12px; }
 
 @media (max-width: 720px) {
   .dashboard-live-state { margin-top: 17px; }
+  .dashboard-appointments>.card-head,.dashboard-appointment-heading { align-items: flex-start; flex-direction: column; }
+  .dashboard-appointment-list>article { grid-template-columns: 78px 38px minmax(0,1fr); }
+  .dashboard-appointment-avatar { height: 38px; width: 38px; }
+  .dashboard-appointment-list nav { align-items: stretch; grid-column: 1/-1; }
+  .dashboard-appointment-list nav a,.dashboard-appointment-list nav button { flex: 1; text-align: center; }
 }
 
 /* Customer workspace: grouped navigation and operational record pages */
