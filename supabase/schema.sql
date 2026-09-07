@@ -251,6 +251,11 @@ do $$ begin
 exception when duplicate_object then null;
 end $$;
 
+alter table public.user_profiles
+  add column if not exists source_lead_id uuid references public.leads(id) on delete set null;
+create unique index if not exists user_profiles_source_lead_unique on public.user_profiles(source_lead_id) where source_lead_id is not null;
+create unique index if not exists leads_converted_profile_unique on public.leads(converted_user_profile_id) where converted_user_profile_id is not null;
+
 create table if not exists public.participant_progress (
   id uuid primary key default gen_random_uuid(),
   user_profile_id uuid not null unique references public.user_profiles(id) on delete cascade,

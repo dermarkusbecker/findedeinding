@@ -795,6 +795,13 @@ dialog { border-radius: 18px; max-width: 560px; padding: 31px; }
 .lead-wizard-review article { background: rgba(255,255,255,.66); border: 1px solid rgba(148,125,48,.2); border-radius: 11px; min-width: 0; padding: 14px; }.lead-wizard-review small,.lead-wizard-review strong { display: block; }.lead-wizard-review small { color: #88763d; font: 650 8px DM Mono; text-transform: uppercase; }.lead-wizard-review strong { color: #3d493e; font-size: 11px; line-height: 1.5; margin-top: 6px; overflow-wrap: anywhere; }
 #leadDialog .lead-dialog-actions { backdrop-filter: blur(12px); background: rgba(245,249,248,.94); bottom: 0; margin: 24px -30px 0; padding: 16px 30px; }
 .lead-wizard-actions { align-items: center; display: flex; gap: 9px; }.lead-wizard-actions>span { color: #73847f; font-size: 9px; font-weight: 750; margin-right: 3px; white-space: nowrap; }
+.autosave-state { align-items: center; color: #73847f; display: inline-flex; font-size: 10px; font-weight: 700; gap: 7px; margin-top: 7px; }
+.autosave-state::before { background: #20bd91; border-radius: 50%; box-shadow: 0 0 0 4px rgba(32,189,145,.11); content: ''; height: 7px; width: 7px; }
+.autosave-state.saving::before { animation: autosavePulse 1s ease-in-out infinite; background: #f7a165; box-shadow: 0 0 0 4px rgba(247,161,101,.13); }
+.autosave-state.error { color: #a9472d; }.autosave-state.error::before { background: #dc6548; box-shadow: 0 0 0 4px rgba(220,101,72,.12); }
+#customerProfileForm .dialog-actions .autosave-state { margin: 0 auto 0 0; }
+#customerConversationAutosaveStatus { margin: 14px 0 0; }
+@keyframes autosavePulse { 50% { opacity: .35; transform: scale(.75); } }
 .booking-settings-dialog { max-width: 900px; }
 .gate-settings-dialog { max-height: calc(100vh - 40px); max-width: 780px; overflow: auto; }
 .gate-settings-dialog form { display: flex; flex-direction: column; gap: 18px; }
@@ -1030,6 +1037,8 @@ dialog form>p { font-size: 12px; }
 .customer-context-profile>strong { color: var(--ink); font-size: 16px; margin-top: 12px; }
 .customer-context-profile>small { color: #688084; font: 600 10px DM Mono; margin-top: 4px; }
 .customer-context-profile>em { color: #869599; font-size: 10px; font-style: normal; margin-top: 8px; }
+.lead-context-profile .customer-context-avatar { cursor: default; }
+.lead-context-profile .customer-context-avatar::after { background: #20bd91; border: 3px solid #fff; border-radius: 50%; bottom: 1px; content: ''; height: 10px; position: absolute; right: 1px; width: 10px; }
 .customer-context-group { border-bottom: 1px solid var(--line); padding: 0 0 15px; }
 .customer-context-group + .customer-context-group { padding-top: 17px; }
 .customer-context-group>p { color: #8b9a9e; font: 600 9px DM Mono; letter-spacing: .13em; margin: 0 10px 9px; text-transform: uppercase; }

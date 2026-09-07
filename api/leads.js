@@ -5,6 +5,7 @@ import { claraConfig } from '../lib/clara/config.js';
 import { buildSystemRegistry } from '../lib/system-registry.js';
 import { calculateProgramAccess } from '../lib/program-access.js';
 import { reconcileAccessFromEntries } from '../lib/program-position.js';
+import { syncLeadToCustomerProfile } from '../lib/contact-lifecycle.js';
 
 const VALID_STATUSES = ['new', 'contacted', 'scheduled', 'consultation', 'offer', 'later', 'customer', 'lost'];
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -34,7 +35,9 @@ async function leadById(service, id) {
 async function patchLead(service, id, changes) {
   const rows = await readJson(await fetch(`${service.url}/rest/v1/leads?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ ...changes, updated_at: new Date().toISOString() }) }), 'Lead konnte nicht gespeichert werden.');
   if (!rows[0]) throw Object.assign(new Error('Lead wurde nicht gefunden.'), { status: 404 });
-  return rows[0];
+  const lead = rows[0];
+  if (lead.converted_user_profile_id) await syncLeadToCustomerProfile(service, lead);
+  return lead;
 }
 
 async function insertLeadRecord(service, table, payload) {
@@ -44,7 +47,7 @@ async function insertLeadRecord(service, table, payload) {
 
 async function activateContractedLead(service, lead, programStartDate) {
   if (lead.converted_user_profile_id) return { profileId: lead.converted_user_profile_id, alreadyActive: true };
-  const profile = await provisionProgramUser(service, { name: lead.name, email: lead.email, phone: lead.phone, startDate: programStartDate, permissions: ['customer_portal', 'clara_program', 'documents'] });
+  const profile = await provisionProgramUser(service, { name: lead.name, email: lead.email, phone: lead.phone, startDate: programStartDate, sourceLeadId: lead.id, permissions: ['customer_portal', 'clara_program', 'documents'] });
   await patchLead(service, lead.id, { status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
   await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Teilnehmer-Login automatisch erstellt', preview: `Login ${profile.portal_username || 'wird vergeben'} wurde angelegt. Ein sicherer Einmal-Link zur Passwortvergabe wurde per System-E-Mail versendet.` }).catch(() => null);
   return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, oneTimePassword: profile.oneTimePassword, alreadyActive: false };
@@ -485,8 +488,10 @@ export default async function handler(request, response) {
       const firstName = clean(request.body?.firstName, 80), lastName = clean(request.body?.lastName, 80);
       const name = clean(`${firstName} ${lastName}`, 120) || current.name;
       const email = clean(request.body?.email, 254).toLowerCase();
-      const status = VALID_STATUSES.includes(request.body?.status) ? request.body.status : current.status;
+      const requestedStatus = VALID_STATUSES.includes(request.body?.status) ? request.body.status : current.status;
+      const status = current.converted_user_profile_id ? 'customer' : requestedStatus;
       if (!name || !emailValid(email)) return response.status(400).json({ error: 'Name und gültige E-Mail sind erforderlich.' });
+      if (current.converted_user_profile_id && email !== current.email) return response.status(409).json({ error: 'Die E-Mail eines Kunden wird sicher über Portal-Login geändert.' });
       if (status === 'customer' && !current.converted_user_profile_id) return response.status(409).json({ error: 'Ein Lead wird erst durch einen vollständig bestätigten Vertragsabschluss automatisch zum Teilnehmer.' });
       const lead = await patchLead(service, current.id, { first_name: firstName || null, last_name: lastName || null, name, email, phone: clean(request.body?.phone, 40) || null, challenge: clean(request.body?.challenge, 1000) || null, internal_notes: clean(request.body?.internalNotes, 10000) || null, qualification_answers: qualificationAnswers(request.body?.qualificationAnswers), status });
       return response.status(200).json({ lead });

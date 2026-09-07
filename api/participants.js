@@ -63,7 +63,7 @@ export default async function handler(request, response) {
       };
       return {
         ...visibleProfile,
-        linked_lead_id: lead.id,
+        linked_lead_id: participant.source_lead_id || lead.id,
         customer_since: lead.converted_at || lead.created_at || participant.created_at,
         ...summarizeCustomerProgress(gatesByCustomer.get(participant.id) || [], progress, entriesByCustomer.get(participant.id) || []),
       };

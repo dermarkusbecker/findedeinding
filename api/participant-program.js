@@ -11,6 +11,7 @@ import { weekResetScope } from '../lib/week-reset.js';
 import { ensureWeekReflection, generateWeekReflection } from '../lib/week-reflection-agent.js';
 import { missingOnboardingFields, normalizeOnboardingProfile, normalizePrivacyConsent, readPrivacyConsentDocument, storePrivacyConsentDocument } from '../lib/privacy-consent.js';
 import { artifactIsAfterOnboardingReset, assertActivePreviewAdmin, resetParticipantOnboarding } from '../lib/onboarding-reset.js';
+import { syncCustomerProfileToLead } from '../lib/contact-lifecycle.js';
 
 const programWeeks = [
   { week: 1, title: 'Jetzt geht es los', mode: 'Ist-Aufnahme', description: 'Du klärst deine heutige Ausgangslage, dein persönliches Ziel für die acht Wochen und die Erfahrungen, die dich bisher geprägt haben.', topics: ['Drei Wünsche und ihre Bedeutung', 'Persönliches Zielbild', 'Klarheits-Baseline', 'Beruflicher Werdegang'], question: 'Stell dir vor, vor dir steht eine Fee und du hast genau drei Wünsche frei. Welche drei Dinge würdest du dir für dein Leben aktuell am meisten wünschen?', help: 'Nenne zunächst einfach alle drei. Danach vertiefen wir sie einzeln.', upload: 'Lebenslauf optional' },
@@ -179,6 +180,7 @@ async function patchOnboardingProfile(service, participantId, profile) {
   });
   const rows = await result.json().catch(() => ([]));
   if (!result.ok || !rows[0]) throw Object.assign(new Error(rows.message || 'Deine persönlichen Angaben konnten nicht gespeichert werden.'), { status: result.status });
+  await syncCustomerProfileToLead(service, rows[0]);
   return rows[0];
 }
 
@@ -282,9 +284,8 @@ export default async function handler(request, response) {
     } else if (action === 'save_onboarding_profile') {
       if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
       const normalized = normalizeOnboardingProfile(request.body?.profile, result.profile);
-      if (normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze noch: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
       const profile = await patchOnboardingProfile(result.service, session.participantId, normalized.profile);
-      return response.status(200).json({ ok: true, profile, profileComplete: true });
+      return response.status(200).json({ ok: true, profile, profileComplete: normalized.missing.length === 0, missingFields: normalized.missing });
     } else if (action === 'confirm_privacy') {
       if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
       if (result.progress.privacy_consent_at) return response.status(409).json({ error: 'Die Datenschutzeinwilligung wurde bereits bestätigt und ist schreibgeschützt.' });

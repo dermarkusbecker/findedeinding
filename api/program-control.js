@@ -6,6 +6,7 @@ import { applyGuidedWeekAction, currentGuidedStep, guidedGateStatus, guidedWeekD
 import { weekOnePrompt } from '../lib/week-one.js';
 import { ensureWeekReflection } from '../lib/week-reflection-agent.js';
 import { resetParticipantOnboarding } from '../lib/onboarding-reset.js';
+import { syncCustomerProfileToLead } from '../lib/contact-lifecycle.js';
 
 const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -29,6 +30,8 @@ async function patchCustomerProfile(service, participantId, input) {
   const result = await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(participantId)}&role=eq.user`, { method: 'PATCH', headers: serviceHeaders(service.key, { Prefer: 'return=representation' }), body: JSON.stringify(changes) });
   const rows = await result.json().catch(() => ([]));
   if (!result.ok || !rows[0]) throw new Error(rows.message || 'Kundenstammdaten konnten nicht gespeichert werden.');
+  await syncCustomerProfileToLead(service, rows[0]);
+  return rows[0];
 }
 async function readGuidedStates(result, participantId) {
   const id = encodeURIComponent(participantId);

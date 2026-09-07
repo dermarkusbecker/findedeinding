@@ -257,7 +257,7 @@
             <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Zentrale Dokumentenakte</p><h2>Dokumenten-Inbox</h2><p>Alle vom Kunden hochgeladenen und an den Kunden freigegebenen Unterlagen.</p></div><span class="customer-page-state" id="customerDocumentCount">0 Dokumente</span></div><form id="customerDocumentUploadForm" class="customer-document-upload"><label>Titel<input name="title" maxlength="180" placeholder="z. B. ergänzende Unterlage" required /></label><label>Dokumentart<select name="documentType"><option value="shared">Allgemeines Dokument</option><option value="contract">Vertrag</option><option value="video_contract">Videovertrag</option><option value="other">Sonstiges</option></select></label><label>Datei<input name="file" type="file" accept="application/pdf,.docx,image/png,image/jpeg,image/webp" required /></label><label class="document-visibility"><input name="customerVisible" type="checkbox" checked /> Im Kundenportal sichtbar</label><button class="primary" type="submit">Dokument hochladen</button></form><div class="customer-document-list" id="customerDocumentInbox"></div></section>
           </div>
           <div class="customer-dashboard-page" data-customer-page="conversation" hidden>
-            <section class="card customer-page-card customer-conversation-page"><div class="lead-card-heading"><div><p class="eyebrow">Persönliche Betreuung</p><h2>Kundengespräch</h2><p>Gesprächsleitfaden, Antworten und nächster Schritt direkt in der Kundenakte bearbeiten.</p></div><span id="customerConversationState">Noch nicht dokumentiert</span></div><form id="customerConversationForm"><div id="customerConversationQuestions" class="customer-conversation-questions"></div><label>Gesprächsnotiz<textarea name="internalNotes" rows="5" placeholder="Erkenntnisse, Einwände und nächste Schritte …"></textarea></label><div class="customer-conversation-actions"><div id="customerConversationAppointment"></div><button class="primary" type="submit">Kundengespräch speichern</button></div></form></section>
+            <section class="card customer-page-card customer-conversation-page"><div class="lead-card-heading"><div><p class="eyebrow">Persönliche Betreuung</p><h2>Kundengespräch</h2><p>Gesprächsleitfaden, Antworten und nächster Schritt direkt in der Kundenakte bearbeiten.</p></div><span id="customerConversationState">Noch nicht dokumentiert</span></div><form id="customerConversationForm"><div id="customerConversationQuestions" class="customer-conversation-questions"></div><label>Gesprächsnotiz<textarea name="internalNotes" rows="5" placeholder="Erkenntnisse, Einwände und nächste Schritte …"></textarea></label><span class="autosave-state saved" id="customerConversationAutosaveStatus" role="status">Alle Änderungen gespeichert</span><div class="customer-conversation-actions"><div id="customerConversationAppointment"></div><button class="primary" type="submit">Kundengespräch speichern</button></div></form></section>
           </div>
           <div class="customer-dashboard-page" data-customer-page="program" hidden>
             <section class="card customer-page-card customer-process-page"><div class="lead-card-heading"><div><p class="eyebrow">Aktueller Wochenprozess</p><h2>Prozessfortschritt &amp; Kundeneingaben</h2><p>Arbeitsstand, Freischaltungen, Antworten und Pflichtschritte aus der Kundenreise – direkt mit diesem Kundenprofil verknüpft.</p></div><div class="customer-process-heading-actions"><span class="customer-page-state" id="customerProcessOverallState">Wird geladen …</span><button class="primary" id="editCustomerProgram" type="button">Programm verwalten</button></div></div><div class="customer-process-layout"><nav class="customer-process-week-nav" id="customerProcessWeekNav" aria-label="Prozesswochen"></nav><div class="customer-process-detail" id="customerProcessDetail"></div></div></section>
@@ -966,6 +966,7 @@
             <p class="eyebrow">Interessent · Verkaufsgespräch</p>
             <h2 id="leadDialogTitle">Interessenten bearbeiten</h2>
             <small id="leadDialogSource"></small>
+            <span class="autosave-state saved" id="leadAutosaveStatus" role="status">Alle Änderungen gespeichert</span>
           </div>
           <button type="button" data-close-lead>×</button>
         </div>
@@ -1462,8 +1463,9 @@
           <label class="wide customer-profile-toggle"><input name="postalMailActive" type="checkbox" /> Postanschrift aktiv verwenden</label>
         </div>
         <div class="dialog-actions">
-          <button type="button" class="secondary" data-close-customer-profile>Abbrechen</button>
-          <button type="submit" class="primary" id="saveCustomerProfile">Änderungen speichern</button>
+          <span class="autosave-state saved" id="customerProfileAutosaveStatus" role="status">Alle Änderungen gespeichert</span>
+          <button type="button" class="secondary" data-close-customer-profile>Schließen</button>
+          <button type="submit" class="primary" id="saveCustomerProfile">Fertig</button>
         </div>
       </form>
     </dialog>

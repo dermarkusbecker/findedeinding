@@ -46,6 +46,10 @@ let journeyLoading = false;
 let draftSaveTimer = null;
 let pendingWeekAction = null;
 let onboardingProfileDirty = false;
+let onboardingProfileSaveTimer = null;
+let onboardingProfileRevision = 0;
+let onboardingProfilePersistedRevision = 0;
+let onboardingProfileSaveQueue = Promise.resolve();
 const speechState = { recognition: null, activeButton: null };
 
 function saveLocal() { localStorage.setItem('fdd_customer_notes', JSON.stringify(local)); }
@@ -1500,10 +1504,39 @@ $('#backToDashboard').addEventListener('click', () => {
   showView('today');
 });
 $('#openOnboarding').addEventListener('click', () => showView('onboarding'));
+function persistOnboardingProfile() {
+  clearTimeout(onboardingProfileSaveTimer);
+  const revision = onboardingProfileRevision;
+  const payload = onboardingProfilePayload();
+  onboardingProfileSaveQueue = onboardingProfileSaveQueue.catch(() => {}).then(async () => {
+    $('#profileGateHint').textContent = 'Wird automatisch gespeichert …';
+    const result = await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'save_onboarding_profile', profile: payload }) });
+    onboardingProfilePersistedRevision = Math.max(onboardingProfilePersistedRevision, revision);
+    if (program) {
+      program.profile = { ...program.profile, ...payload };
+      program.onboarding = { ...program.onboarding, profileComplete: result.profileComplete, missingProfileFields: result.missingFields || [] };
+    }
+    if (onboardingProfilePersistedRevision === onboardingProfileRevision) {
+      onboardingProfileDirty = false;
+      $('#profileGateHint').textContent = result.missingFields?.length ? `Automatisch gespeichert. Bitte noch ergänzen: ${result.missingFields.join(', ')}.` : 'Alle Pflichtangaben sind automatisch gespeichert.';
+      $('#profileGateHint').classList.toggle('complete', !result.missingFields?.length);
+      refreshOnboardingGateState();
+    }
+    customerWorkspace = null;
+    return result;
+  }).catch((error) => {
+    $('#profileGateHint').textContent = 'Automatisches Speichern fehlgeschlagen. Bitte erneut versuchen.';
+    throw error;
+  });
+  return onboardingProfileSaveQueue;
+}
 $('#onboardingProfileForm').addEventListener('input', (event) => {
   if (program?.onboardingComplete || event.target.id === 'onboardingEmail') return;
   onboardingProfileDirty = true;
-  $('#profileGateHint').textContent = profileFormComplete() ? 'Änderungen noch speichern.' : 'Bitte alle Pflichtangaben sowie mindestens eine Telefonnummer ergänzen.';
+  onboardingProfileRevision += 1;
+  $('#profileGateHint').textContent = 'Wird automatisch gespeichert …';
+  clearTimeout(onboardingProfileSaveTimer);
+  onboardingProfileSaveTimer = setTimeout(() => persistOnboardingProfile().catch(() => {}), 650);
   refreshOnboardingGateState();
 });
 $('#onboardingProfileForm').addEventListener('submit', async (event) => {
@@ -1512,9 +1545,7 @@ $('#onboardingProfileForm').addEventListener('submit', async (event) => {
   button.disabled = true;
   button.textContent = 'Wird gespeichert …';
   try {
-    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'save_onboarding_profile', profile: onboardingProfilePayload() }) });
-    onboardingProfileDirty = false;
-    customerWorkspace = null;
+    await persistOnboardingProfile();
     await loadProgram();
     showView('onboarding');
     toast('Deine persönlichen Angaben wurden in deiner Kundenakte gespeichert.');
