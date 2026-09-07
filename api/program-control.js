@@ -4,6 +4,7 @@ import { PROGRAM_STATUSES } from '../lib/program-access.js';
 import { getParticipantProgramAccess, isUuid, patchParticipantProgress, serviceHeaders } from '../lib/program-access-service.js';
 import { applyGuidedWeekAction, currentGuidedStep, guidedGateStatus, guidedWeekDefinition, normalizeGuidedWeekState } from '../lib/guided-weeks.js';
 import { weekOnePrompt } from '../lib/week-one.js';
+import { ensureWeekReflection } from '../lib/week-reflection-agent.js';
 
 const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -128,7 +129,41 @@ export function processWeekResult(result) {
   });
 }
 
+async function backfillCompletedWeekReflections(result, participantId) {
+  const latest = new Map();
+  for (const entry of [...(result.stateEntries || [])].sort((left, right) => new Date(right.created_at || 0) - new Date(left.created_at || 0))) {
+    const week = Number(entry.week);
+    if (!latest.has(week) && entry.data_block === `week_${week}_state`) latest.set(week, entry);
+  }
+  let created = false;
+  for (const week of [...(result.serializedAccess.completedWeeks || [])].map(Number).sort((left, right) => left - right)) {
+    const entry = latest.get(week);
+    const stored = entry?.structured_data?.[`week_${week}`];
+    if (!stored) continue;
+    const state = week === 1 ? stored : normalizeGuidedWeekState(week, stored);
+    const title = week === 1 ? 'Jetzt geht es los' : guidedWeekDefinition(week)?.title || `Woche ${week}`;
+    const ensured = await ensureWeekReflection({
+      participantId,
+      participantName: result.profile.name,
+      week,
+      title,
+      state,
+      persist: async (updatedState) => {
+        const save = await fetch(`${result.service.url}/rest/v1/process_entries`, {
+          method: 'POST',
+          headers: serviceHeaders(result.service.key),
+          body: JSON.stringify({ user_profile_id: participantId, week, data_block: `week_${week}_state`, raw_answer: 'Wochenreflexion nachgetragen', structured_data: { [`week_${week}`]: updatedState }, evidence_level: 'derived' }),
+        });
+        if (!save.ok) throw new Error(`Die Wochenreflexion für Woche ${week} konnte nicht gespeichert werden.`);
+      },
+    });
+    created ||= ensured.created;
+  }
+  return created;
+}
+
 async function publicResult(result, participantId) {
+  if (await backfillCompletedWeekReflections(result, participantId)) result = await getParticipantProgramAccess(participantId);
   const states = await readGuidedStates(result, participantId);
   return { profile: result.profile, progress: result.progress, gates: result.gates, access: result.serializedAccess, technicalConfirmations: technicalResult(states), processWeeks: processWeekResult(result) };
 }

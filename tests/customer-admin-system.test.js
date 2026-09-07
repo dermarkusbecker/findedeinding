@@ -97,7 +97,20 @@ test('CRM verknüpft alle laufenden Kundenfälle mit dem lesbaren Wochenprozess'
   assert.match(programApi, /function weekOneAnswers/);
   assert.match(programApi, /function guidedAnswers/);
   assert.match(styles, /\.customer-process-layout/);
-  assert.match(styles, /grid-template-columns: repeat\(4,minmax\(135px,1fr\)\)/);
+  assert.match(styles, /\.customer-week-track \{[^}]*grid-template-columns: repeat\(8,minmax\(0,1fr\)\)/);
+});
+
+test('Kunden-Dashboard bleibt kompakt und öffnet Stammdaten in einem eigenen Bearbeitungsfenster', async () => {
+  const [html, script, styles] = await Promise.all([file('admin.html'), file('admin.js'), file('admin-crm-refresh.css')]);
+  assert.match(html, /id="customerProfileDialog"/);
+  assert.match(html, /id="customerProfileForm"/);
+  assert.match(html, /data-edit-customer-profile/);
+  assert.match(script, /function openCustomerProfileEditor/);
+  assert.match(script, /data-edit-customer-field/);
+  assert.match(script, /JSON\.stringify\(\{participantId,customerProfile\}\)/);
+  assert.doesNotMatch(script, /querySelector\('#editCustomerData'\)\.addEventListener\('click',\(\)=>openProgramControl/);
+  assert.match(styles, /\.customer-dashboard-summary \{[^}]*grid-template-columns: minmax\(330px,2fr\) repeat\(3,minmax\(165px,1fr\)\)/);
+  assert.match(styles, /\.customer-profile-dialog/);
 });
 
 test('Nächste Schritte bleiben auch in einspaltigen Ansichten kompakt', async () => {

@@ -5,6 +5,7 @@ import test from 'node:test';
 const portal = fs.readFileSync(new URL('../portal.js', import.meta.url), 'utf8');
 const html = fs.readFileSync(new URL('../portal.html', import.meta.url), 'utf8');
 const api = fs.readFileSync(new URL('../api/participant-program.js', import.meta.url), 'utf8');
+const adminApi = fs.readFileSync(new URL('../api/program-control.js', import.meta.url), 'utf8');
 
 test('dashboard opens the canonical process week', () => {
   assert.match(portal, /openWeek\(activeProcessWeek\(program\?\.access\)\)/);
@@ -29,6 +30,10 @@ test('reset and final completion use designed confirmation dialogs', () => {
 
 test('final completion creates and publishes a weekly reflection', () => {
   assert.match(api, /generateWeekReflection/);
+  assert.match(api, /backfillCompletedWeekReflections/);
+  assert.match(api, /Wochenreflexion nachgetragen/);
+  assert.match(adminApi, /backfillCompletedWeekReflections/);
+  assert.match(adminApi, /if \(await backfillCompletedWeekReflections\(result, participantId\)\) result = await getParticipantProgramAccess\(participantId\)/);
   assert.match(api, /week_reflection/);
   assert.match(api, /weekReflections/);
   assert.match(html, /Deine Wochenreflexionen/);

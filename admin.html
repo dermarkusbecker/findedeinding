@@ -241,14 +241,14 @@
           <div class="customer-dashboard-page active" data-customer-page="dashboard">
             <section class="card customer-week-progress"><div class="lead-card-heading"><div><p class="eyebrow">8-Wochen-Prozess</p><h2 id="customerProgramHeadline">Aktueller Kundenfortschritt</h2></div><span id="customerProgramProgress">0 %</span></div><div class="customer-week-track" id="customerWeekTrack"></div></section>
             <div class="customer-dashboard-summary">
-              <article class="lead-dashboard-card"><div class="lead-card-heading"><div><span class="lead-card-icon">◎</span><h2>Name &amp; Adresse</h2></div></div><div id="customerSummaryContact"></div></article>
+              <article class="lead-dashboard-card customer-contact-summary-card"><div class="lead-card-heading"><div><span class="lead-card-icon">◎</span><h2>Name &amp; Adresse</h2></div><button class="customer-edit-button" type="button" data-edit-customer-profile aria-label="Kundendaten bearbeiten">Bearbeiten</button></div><div id="customerSummaryContact"></div></article>
               <article class="lead-dashboard-card lead-balance-card" data-customer-summary-permission="finance"><div class="lead-card-heading"><div><span class="lead-card-icon">€</span><h2>Kontostand</h2></div></div><div class="lead-balance-summary"><small>Offener Saldo</small><strong id="customerOpenBalance">0,00 €</strong><span id="customerBalanceState">Keine offenen Forderungen</span></div></article>
               <article class="lead-dashboard-card" data-customer-summary-permission="communications"><div class="lead-card-heading"><div><span class="lead-card-icon">✉</span><h2>Kommunikation</h2></div></div><div id="customerCommunicationSummary" class="customer-summary-copy"></div></article>
               <article class="lead-dashboard-card" data-customer-summary-permission="program"><div class="lead-card-heading"><div><span class="lead-card-icon">✓</span><h2>Aufgaben &amp; Fragen</h2></div></div><div id="customerTaskSummary" class="customer-summary-copy"></div></article>
             </div>
           </div>
           <div class="customer-dashboard-page" data-customer-page="data" hidden>
-            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Kundenstammdaten</p><h2>Name &amp; Adresse</h2></div><button class="lead-card-menu" id="editCustomerData" type="button" aria-label="Kundendaten bearbeiten">•••</button></div><div id="customerDataPage"></div></section>
+            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Kundenstammdaten</p><h2>Name &amp; Adresse</h2><p>Ein Feld anklicken oder alle Angaben gemeinsam bearbeiten.</p></div><button class="customer-edit-button" id="editCustomerData" type="button" data-edit-customer-profile>Kundendaten bearbeiten</button></div><div id="customerDataPage"></div></section>
           </div>
           <div class="customer-dashboard-page" data-customer-page="documents" hidden>
             <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Vertragsunterlagen</p><h2>Vertrag &amp; Videovertrag</h2><p>Verbindliche Abschlussdokumente aus dem Verkaufsprozess.</p></div><span class="customer-page-state" id="customerContractState">Wird geladen …</span></div><div class="customer-document-grid" id="customerOfficialDocuments"></div></section>
@@ -1411,6 +1411,39 @@
           <label class="wide communication-switch"><input name="enabled" type="checkbox" /><span><b>Automation aktivieren</b><small>Die Regel arbeitet nach der Mail-Anbindung automatisch.</small></span></label>
         </div>
         <div class="dialog-actions"><button type="button" class="secondary" data-close-automation-dialog>Abbrechen</button><button type="submit" class="primary">Automation speichern</button></div>
+      </form>
+    </dialog>
+    <dialog id="customerProfileDialog" class="customer-profile-dialog">
+      <form id="customerProfileForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Kundenakte · Stammdaten</p>
+            <h2 id="customerProfileDialogTitle">Kundendaten bearbeiten</h2>
+            <small>Änderungen werden direkt in der verknüpften Kundenakte gespeichert.</small>
+          </div>
+          <button type="button" data-close-customer-profile aria-label="Fenster schließen">×</button>
+        </div>
+        <input type="hidden" name="participantId" />
+        <div class="customer-profile-form-grid">
+          <label class="wide">Vollständiger Name<input name="name" required maxlength="160" autocomplete="name" /></label>
+          <label>Geburtsdatum<input name="birthDate" type="date" /></label>
+          <label>E-Mail-Adresse<input name="email" type="email" readonly aria-describedby="customerProfileEmailHint" /></label>
+          <small class="wide customer-profile-field-hint" id="customerProfileEmailHint">Die E-Mail gehört zum sicheren Portalzugang und wird deshalb in der Zugangsverwaltung geändert.</small>
+          <label class="wide">Straße &amp; Hausnummer<input name="street" maxlength="200" autocomplete="street-address" /></label>
+          <label>Postleitzahl<input name="postalCode" maxlength="20" autocomplete="postal-code" /></label>
+          <label>Ort<input name="city" maxlength="120" autocomplete="address-level2" /></label>
+          <label>Land<input name="country" maxlength="80" autocomplete="country-name" /></label>
+          <label>Telefonnummer<input name="phone" type="tel" maxlength="40" autocomplete="tel" /></label>
+          <label>Mobilnummer<input name="mobilePhone" type="tel" maxlength="40" autocomplete="tel" /></label>
+          <label>WhatsApp-Nummer<input name="whatsappPhone" type="tel" maxlength="40" /></label>
+          <label>Bevorzugter Kontakt<select name="preferredCommunicationChannel"><option value="email">E-Mail</option><option value="phone">Telefon</option><option value="whatsapp">WhatsApp</option></select></label>
+          <label class="wide customer-profile-toggle"><input name="whatsappSameAsMobile" type="checkbox" /> WhatsApp-Nummer ist identisch mit der Mobilnummer</label>
+          <label class="wide customer-profile-toggle"><input name="postalMailActive" type="checkbox" /> Postanschrift aktiv verwenden</label>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" data-close-customer-profile>Abbrechen</button>
+          <button type="submit" class="primary" id="saveCustomerProfile">Änderungen speichern</button>
+        </div>
       </form>
     </dialog>
     <dialog id="programDialog" class="program-dialog">

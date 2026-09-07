@@ -8,7 +8,7 @@ import { readClarityQuestionOverrides, resolveClarityPrompt } from '../lib/clari
 import { handleClaraMessage } from '../lib/clara/api-handler.js';
 import { handleParticipantDocument } from '../lib/documents/api-handler.js';
 import { weekResetScope } from '../lib/week-reset.js';
-import { generateWeekReflection } from '../lib/week-reflection-agent.js';
+import { ensureWeekReflection, generateWeekReflection } from '../lib/week-reflection-agent.js';
 
 const programWeeks = [
   { week: 1, title: 'Jetzt geht es los', mode: 'Ist-Aufnahme', description: 'Du klärst deine heutige Ausgangslage, dein persönliches Ziel für die acht Wochen und die Erfahrungen, die dich bisher geprägt haben.', topics: ['Drei Wünsche und ihre Bedeutung', 'Persönliches Zielbild', 'Klarheits-Baseline', 'Beruflicher Werdegang'], question: 'Stell dir vor, vor dir steht eine Fee und du hast genau drei Wünsche frei. Welche drei Dinge würdest du dir für dein Leben aktuell am meisten wünschen?', help: 'Nenne zunächst einfach alle drei. Danach vertiefen wir sie einzeln.', upload: 'Lebenslauf optional' },
@@ -74,16 +74,16 @@ function buildClarityHistory(weekOneState, guidedStates) {
   });
 }
 
-async function saveGuidedWeekState(result, participantId, week, state, rawAnswer = '') {
-  const response = await fetch(`${result.service.url}/rest/v1/process_entries`, { method: 'POST', headers: serviceHeaders(result.service.key), body: JSON.stringify({ user_profile_id: participantId, week, data_block: `week_${week}_state`, raw_answer: String(rawAnswer || '').slice(0, 10000) || null, structured_data: { [`week_${week}`]: state }, evidence_level: 'participant_statement' }) });
+async function saveGuidedWeekState(result, participantId, week, state, rawAnswer = '', evidenceLevel = 'participant_statement') {
+  const response = await fetch(`${result.service.url}/rest/v1/process_entries`, { method: 'POST', headers: serviceHeaders(result.service.key), body: JSON.stringify({ user_profile_id: participantId, week, data_block: `week_${week}_state`, raw_answer: String(rawAnswer || '').slice(0, 10000) || null, structured_data: { [`week_${week}`]: state }, evidence_level: evidenceLevel }) });
   if (!response.ok) throw new Error(`Dein Fortschritt in Woche ${week} konnte nicht gespeichert werden.`);
 }
 
-async function saveWeekOneState(result, participantId, state, rawAnswer = '') {
+async function saveWeekOneState(result, participantId, state, rawAnswer = '', evidenceLevel = 'participant_statement') {
   const saveResponse = await fetch(`${result.service.url}/rest/v1/process_entries`, {
     method: 'POST',
     headers: serviceHeaders(result.service.key),
-    body: JSON.stringify({ user_profile_id: participantId, week: 1, data_block: 'week_1_state', raw_answer: String(rawAnswer || '').slice(0, 10000) || null, structured_data: { week_1: state }, evidence_level: 'participant_statement' }),
+    body: JSON.stringify({ user_profile_id: participantId, week: 1, data_block: 'week_1_state', raw_answer: String(rawAnswer || '').slice(0, 10000) || null, structured_data: { week_1: state }, evidence_level: evidenceLevel }),
   });
   if (!saveResponse.ok) {
     const error = await saveResponse.json().catch(() => ({}));
@@ -112,6 +112,28 @@ async function saveWeekDraft(result, participantId, week, draft) {
 function reflectionFromState(week, state) {
   const reflection = state?.week_reflection;
   return reflection && typeof reflection === 'object' ? { week, ...reflection } : null;
+}
+
+async function backfillCompletedWeekReflections({ result, participantId, access, weekOneState, guidedStates }) {
+  let resolvedWeekOneState = weekOneState;
+  for (const week of [...(access.completedWeeks || [])].map(Number).sort((left, right) => left - right)) {
+    const definition = programWeeks.find((item) => item.week === week);
+    const state = week === 1 ? resolvedWeekOneState : guidedStates.get(week);
+    if (!definition || !state) continue;
+    const ensured = await ensureWeekReflection({
+      participantId,
+      participantName: result.profile.name,
+      week,
+      title: definition.title,
+      state,
+      persist: (updatedState) => week === 1
+        ? saveWeekOneState(result, participantId, updatedState, 'Wochenreflexion nachgetragen', 'derived')
+        : saveGuidedWeekState(result, participantId, week, updatedState, 'Wochenreflexion nachgetragen', 'derived'),
+    });
+    if (week === 1) resolvedWeekOneState = ensured.state;
+    else guidedStates.set(week, ensured.state);
+  }
+  return resolvedWeekOneState;
 }
 
 function ensureRunningWeek(result, week) {
@@ -185,7 +207,7 @@ export default async function handler(request, response) {
     const result = await getParticipantProgramAccess(session.participantId);
     if (request.method === 'GET') {
       const onboardingComplete = isOnboardingComplete(result.progress);
-      const weekOneState = await readWeekOneState(result, session.participantId);
+      let weekOneState = await readWeekOneState(result, session.participantId);
       const preconditions = weekOnePreconditions(result.progress);
       const weekOneGateComplete = weekOneComplete(weekOneState, preconditions);
       const rawAccess = result.serializedAccess;
@@ -197,6 +219,7 @@ export default async function handler(request, response) {
       if (requestedWeek !== null && !rawAccess.weekStates.some((state) => state.week === requestedWeek && state.accessible)) return response.status(403).json({ error: 'Diese Woche ist noch nicht freigeschaltet.', access: rawAccess });
       const guidedStates = await readGuidedWeekStates(result, session.participantId);
       const access = rawAccess;
+      weekOneState = await backfillCompletedWeekReflections({ result, participantId: session.participantId, access, weekOneState, guidedStates });
       const progressRepair = canonicalProgressPatch(access, result.progress);
       if (progressRepair) await patchParticipantProgress(result.service, session.participantId, progressRepair);
       const accessibleWeeks = (onboardingComplete ? access.unlockedWeeks : []).map((week) => {
