@@ -109,7 +109,12 @@ test('Kunden-Dashboard bleibt kompakt und öffnet Stammdaten in einem eigenen Be
   assert.match(script, /data-edit-customer-field/);
   assert.match(script, /JSON\.stringify\(\{participantId,customerProfile\}\)/);
   assert.doesNotMatch(script, /querySelector\('#editCustomerData'\)\.addEventListener\('click',\(\)=>openProgramControl/);
-  assert.match(styles, /\.customer-dashboard-summary \{[^}]*grid-template-columns: minmax\(330px,2fr\) repeat\(3,minmax\(165px,1fr\)\)/);
+  assert.match(html, /class="lead-dashboard-card customer-balance-summary-card"/);
+  assert.doesNotMatch(html, /class="lead-dashboard-card lead-balance-card" data-customer-summary-permission="finance"/);
+  assert.match(styles, /\.customer-dashboard-summary \{[^}]*grid-template-columns: repeat\(12,minmax\(0,1fr\)\)/);
+  assert.match(styles, /\.customer-dashboard-summary>\.customer-contact-summary-card \{[^}]*grid-column: span 7/);
+  assert.match(styles, /\.customer-dashboard-summary>\.customer-balance-summary-card \{[^}]*grid-column: span 5/);
+  assert.match(styles, /\.customer-dashboard-summary>\.customer-communication-summary-card,\.customer-dashboard-summary>\.customer-task-summary-card \{[^}]*grid-column: span 6/);
   assert.match(styles, /\.customer-profile-dialog/);
 });
 
