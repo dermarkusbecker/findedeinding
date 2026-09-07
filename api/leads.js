@@ -9,6 +9,7 @@ import { reconcileAccessFromEntries } from '../lib/program-position.js';
 import { syncLeadToCustomerProfile } from '../lib/contact-lifecycle.js';
 import { buildVideoContractPdf, normalizeVideoContract, VIDEO_CONFIRMATION_KEYS } from '../lib/video-contract.js';
 import { createSignedCustomerUpload, customerObjectExists, deleteCustomerObject, signedCustomerUrl, uploadCustomerObject } from '../lib/customer-storage.js';
+import { handlePublicContractSign } from '../lib/contract-sign-service.js';
 
 const VALID_STATUSES = ['new', 'contacted', 'scheduled', 'consultation', 'offer', 'later', 'customer', 'lost'];
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -441,6 +442,7 @@ export default async function handler(request, response) {
   const service = serviceConfig();
   const action = request.query?.action || request.body?.action || '';
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
+  if (action === 'public-contract-sign') return handlePublicContractSign(request, response);
   if (request.method === 'GET' && action === 'public-available-slots') {
     try {
       const result = await availableBookingSlots(service, request.query || {});

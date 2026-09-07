@@ -55,10 +55,11 @@ test('Aufzeichnung startet nur über sichtbare Browserfreigabe und wird privat v
 });
 
 test('Zusätzliche Kundensignatur nutzt einen ablaufenden Token und legt die finale PDF bei Dokumente ab', async () => {
-  const [page, client, api, migration] = await Promise.all([read('contract-sign.html'), read('contract-sign.js'), read('api/contract-sign.js'), read('supabase/migrations/20260907180000_video_contract_workflow.sql')]);
+  const [page, client, api, vercel, migration] = await Promise.all([read('contract-sign.html'), read('contract-sign.js'), read('lib/contract-sign-service.js'), read('vercel.json'), read('supabase/migrations/20260907180000_video_contract_workflow.sql')]);
   assert.match(page, /Jetzt ausdrücklich digital bestätigen/);
   assert.match(client, /contractAccepted/);
   assert.match(api, /customer_signed_at/);
   assert.match(api, /document_type: 'video_contract'/);
+  assert.match(vercel, /\/api\/leads\?action=public-contract-sign/);
   assert.match(migration, /signing_expires_at/);
 });
