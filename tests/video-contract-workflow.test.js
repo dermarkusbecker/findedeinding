@@ -44,7 +44,7 @@ test('Originalformular wird als ausgefülltes und abgeflachtes Vertrags-PDF erze
 });
 
 test('Aufzeichnung startet nur über sichtbare Browserfreigabe und wird privat verknüpft', async () => {
-  const [html, js, api, storage, migration] = await Promise.all([read('admin.html'), read('admin.js'), read('api/leads.js'), read('lib/customer-storage.js'), read('supabase/migrations/20260907170000_video_contract_workflow.sql')]);
+  const [html, js, api, storage, migration] = await Promise.all([read('admin.html'), read('admin.js'), read('api/leads.js'), read('lib/customer-storage.js'), read('supabase/migrations/20260907180000_video_contract_workflow.sql')]);
   assert.match(html, /id="startVideoContractRecording"/);
   assert.match(js, /getDisplayMedia/);
   assert.match(js, /new MediaRecorder/);
@@ -55,7 +55,7 @@ test('Aufzeichnung startet nur über sichtbare Browserfreigabe und wird privat v
 });
 
 test('Zusätzliche Kundensignatur nutzt einen ablaufenden Token und legt die finale PDF bei Dokumente ab', async () => {
-  const [page, client, api, migration] = await Promise.all([read('contract-sign.html'), read('contract-sign.js'), read('api/contract-sign.js'), read('supabase/migrations/20260907170000_video_contract_workflow.sql')]);
+  const [page, client, api, migration] = await Promise.all([read('contract-sign.html'), read('contract-sign.js'), read('api/contract-sign.js'), read('supabase/migrations/20260907180000_video_contract_workflow.sql')]);
   assert.match(page, /Jetzt ausdrücklich digital bestätigen/);
   assert.match(client, /contractAccepted/);
   assert.match(api, /customer_signed_at/);
