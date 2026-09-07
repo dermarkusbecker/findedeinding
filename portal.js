@@ -1,5 +1,5 @@
 import { journeyStepStatuses, weekOnePrompt } from './lib/week-one.js';
-import { currentGuidedStep, guidedClarityStep, guidedStepStatuses, guidedWeekDefinition, needsGuidedClarityCheckin } from './lib/guided-weeks.js';
+import { currentGuidedStep, guidedClarityStep, guidedStepStatuses, guidedWeekDefinition, MOTIVATOR_OPTIONS, needsGuidedClarityCheckin } from './lib/guided-weeks.js';
 import { buildProgressCelebration } from './lib/progress-celebration.js';
 
 const previewUrl = new URL(window.location.href);
@@ -656,8 +656,9 @@ function renderClaraJourney() {
   const journey = $('#claraJourney');
   if (!journey) return;
   const clarityCheckinPending = currentWeek >= 2 && needsGuidedClarityCheckin(program?.weekState);
-  journey.classList.toggle('hidden', !program?.onboardingComplete || clarityCheckinPending);
   const guidedStep = currentWeek >= 2 ? currentGuidedStep(program?.weekState) : null;
+  const usesStructuredPanel = ['upload', 'scale', 'external', 'priority_selection'].includes(guidedStep?.kind);
+  journey.classList.toggle('hidden', !program?.onboardingComplete || clarityCheckinPending || usesStructuredPanel);
   const initialPrompt = program?.weekOne?.current_step === 'THREE_WISHES_COLLECTION'
     ? '<article class="clara-message assistant"><span>Clara</span><p>Stell dir vor, du hättest drei Wünsche frei – ganz unabhängig davon, ob sie gerade realistisch sind.<br><br><strong>Welche drei Dinge würdest du dir für dein Leben gerade am meisten wünschen?</strong><br><br>Schreib einfach drauflos. Wir schauen sie uns danach gemeinsam an.</p></article>'
     : guidedStep
@@ -670,7 +671,7 @@ function renderClaraJourney() {
   const list = $('#journeyMessages');
   list.scrollTop = list.scrollHeight;
   const readOnly = weekIsFinalized();
-  $('#claraJourneyForm').hidden = Boolean(readOnly || clarityCheckinPending);
+  $('#claraJourneyForm').hidden = Boolean(readOnly || clarityCheckinPending || usesStructuredPanel);
   list.querySelectorAll('button').forEach((button) => { button.disabled = Boolean(readOnly); });
   list.querySelectorAll('[data-clara-confirm]').forEach((button) => button.addEventListener('click', () => confirmClaraResult(button.dataset.claraConfirm, button)));
   list.querySelectorAll('[data-clara-revise]').forEach((button) => button.addEventListener('click', () => {
@@ -889,6 +890,7 @@ function guidedReviewDetails(stepId) {
   const document = state.documents?.[stepId];
   const external = state.external_results?.[stepId];
   let content = reviewParagraph(answer?.raw_answer);
+  if (step?.kind === 'priority_selection' && answer?.items?.length) content = `<ol class="step-review-priority">${answer.items.map((item, index) => `<li><b>${index + 1}</b><span>${escapeHtml(item)}</span></li>`).join('')}</ol>`;
   if (document) content = `<div class="step-review-file"><span>▤</span><div><strong>${escapeHtml(document.fileName || 'Hochgeladenes Dokument')}</strong><small>Sicher gespeichert</small></div></div>`;
   if (external) content = `<div class="step-review-file verified"><span>✓</span><div><strong>Technisches Ergebnis bestätigt</strong><small>${external.completedAt ? new Date(external.completedAt).toLocaleString('de-DE') : 'Serverseitig geprüft'}</small></div></div>`;
   return { question: step?.question || 'Dein persönlicher Wochenschritt', content };
@@ -1082,6 +1084,7 @@ function startThreeWishesSpeech(button) {
 function renderWeekOne() {
   const state = program.weekOne;
   if (!state) return;
+  $('#activeWeek').classList.remove('motivator-priority-step');
   $('#guidedWeekFlow')?.remove();
   const firstName = (program.profile?.name || '').trim().split(/\s+/)[0];
   const prompt = weekOnePrompt(state, firstName);
@@ -1180,6 +1183,72 @@ async function updateGuidedWeek(stepAction) {
   } catch (error) { toast(error.message); }
 }
 
+function renderMotivatorPrioritySelection(flow, active) {
+  const draftKey = `${active.id}:priority`;
+  const availableDraft = { ...(local.drafts[currentWeek] || {}), ...(program?.weekDraft || {}) };
+  let selected = [];
+  try {
+    const parsed = JSON.parse(availableDraft[draftKey] || '[]');
+    if (Array.isArray(parsed)) selected = parsed.filter((item) => MOTIVATOR_OPTIONS.includes(item)).slice(0, 5);
+  } catch {}
+  selected = [...new Set(selected)];
+  flow.innerHTML = `<section class="motivator-priority"><header><div><p class="eyebrow">Deine persönliche Auswahl</p><h3>Was treibt dich wirklich an?</h3><p>Wähle links genau fünf Motivatoren. Rechts bringst du sie anschließend in deine Reihenfolge – Platz 1 ist dir am wichtigsten.</p></div><strong id="motivatorSelectionCount">${selected.length} / 5 gewählt</strong></header><div class="motivator-priority-board"><div class="motivator-choice-panel"><div class="motivator-panel-title"><b>Alle Motivatoren</b><small>Zum Auswählen direkt anklicken</small></div><div class="motivator-choice-grid" id="motivatorChoiceGrid"></div></div><aside class="motivator-ranking-panel"><div class="motivator-panel-title"><b>Deine Top 5</b><small>Per Pfeil oder Ziehen priorisieren</small></div><ol id="motivatorRanking" aria-label="Deine fünf Motivatoren in Prioritätsreihenfolge"></ol><div class="motivator-ranking-empty" id="motivatorRankingEmpty"><span>＋</span><p>Deine Auswahl sammelt sich hier.</p></div></aside></div><footer><p id="motivatorSelectionHint">Wähle noch fünf Motivatoren aus.</p><button type="button" class="primary" id="saveMotivatorPriority" disabled>Top 5 verbindlich speichern →</button></footer></section>`;
+  const choiceGrid = flow.querySelector('#motivatorChoiceGrid');
+  const ranking = flow.querySelector('#motivatorRanking');
+  const empty = flow.querySelector('#motivatorRankingEmpty');
+  const count = flow.querySelector('#motivatorSelectionCount');
+  const hint = flow.querySelector('#motivatorSelectionHint');
+  const save = flow.querySelector('#saveMotivatorPriority');
+  let draggedIndex = null;
+  const persistSelection = () => queueDraftValue(draftKey, JSON.stringify(selected));
+  const renderSelection = () => {
+    choiceGrid.innerHTML = MOTIVATOR_OPTIONS.map((motivator) => `<button type="button" class="${selected.includes(motivator) ? 'selected' : ''}" data-motivator-choice="${escapeHtml(motivator)}" aria-pressed="${selected.includes(motivator)}"><span>${selected.includes(motivator) ? '✓' : '+'}</span>${escapeHtml(motivator)}</button>`).join('');
+    ranking.innerHTML = selected.map((motivator, index) => `<li draggable="true" data-motivator-rank="${index}"><b>${index + 1}</b><span>${escapeHtml(motivator)}</span><div><button type="button" data-rank-up="${index}" aria-label="${escapeHtml(motivator)} höher priorisieren" ${index === 0 ? 'disabled' : ''}>↑</button><button type="button" data-rank-down="${index}" aria-label="${escapeHtml(motivator)} niedriger priorisieren" ${index === selected.length - 1 ? 'disabled' : ''}>↓</button><button type="button" data-rank-remove="${index}" aria-label="${escapeHtml(motivator)} entfernen">×</button></div></li>`).join('');
+    empty.hidden = selected.length > 0;
+    count.textContent = `${selected.length} / 5 gewählt`;
+    count.classList.toggle('complete', selected.length === 5);
+    hint.textContent = selected.length === 5 ? 'Passt die Reihenfolge? Dann kannst du deine Top 5 speichern.' : `Wähle noch ${5 - selected.length} ${selected.length === 4 ? 'Motivator' : 'Motivatoren'} aus.`;
+    save.disabled = selected.length !== 5;
+    choiceGrid.querySelectorAll('[data-motivator-choice]').forEach((button) => button.addEventListener('click', () => {
+      const motivator = button.dataset.motivatorChoice;
+      if (selected.includes(motivator)) selected = selected.filter((item) => item !== motivator);
+      else if (selected.length < 5) selected.push(motivator);
+      else { toast('Du hast bereits fünf Motivatoren gewählt. Entferne zuerst einen aus deiner Top 5.'); return; }
+      persistSelection();
+      renderSelection();
+    }));
+    ranking.querySelectorAll('[data-rank-up]').forEach((button) => button.addEventListener('click', () => {
+      const index = Number(button.dataset.rankUp);
+      [selected[index - 1], selected[index]] = [selected[index], selected[index - 1]];
+      persistSelection(); renderSelection();
+    }));
+    ranking.querySelectorAll('[data-rank-down]').forEach((button) => button.addEventListener('click', () => {
+      const index = Number(button.dataset.rankDown);
+      [selected[index], selected[index + 1]] = [selected[index + 1], selected[index]];
+      persistSelection(); renderSelection();
+    }));
+    ranking.querySelectorAll('[data-rank-remove]').forEach((button) => button.addEventListener('click', () => {
+      selected.splice(Number(button.dataset.rankRemove), 1);
+      persistSelection(); renderSelection();
+    }));
+    ranking.querySelectorAll('[data-motivator-rank]').forEach((item) => {
+      item.addEventListener('dragstart', () => { draggedIndex = Number(item.dataset.motivatorRank); item.classList.add('dragging'); });
+      item.addEventListener('dragend', () => { draggedIndex = null; item.classList.remove('dragging'); });
+      item.addEventListener('dragover', (event) => event.preventDefault());
+      item.addEventListener('drop', (event) => {
+        event.preventDefault();
+        const targetIndex = Number(item.dataset.motivatorRank);
+        if (draggedIndex === null || draggedIndex === targetIndex) return;
+        const [moved] = selected.splice(draggedIndex, 1);
+        selected.splice(targetIndex, 0, moved);
+        persistSelection(); renderSelection();
+      });
+    });
+  };
+  save.addEventListener('click', () => updateGuidedWeek({ type: 'save_answer', stepId: active.id, answer: selected.map((item, index) => `${index + 1}. ${item}`).join('\n'), items: selected }));
+  renderSelection();
+}
+
 function renderGuidedWeek() {
   const state = program.weekState;
   const definition = guidedWeekDefinition(currentWeek);
@@ -1187,6 +1256,7 @@ function renderGuidedWeek() {
   const active = currentGuidedStep(state);
   const clarityPending = needsGuidedClarityCheckin(state);
   const displayedStep = clarityPending ? guidedClarityStep(state) : active;
+  $('#activeWeek').classList.toggle('motivator-priority-step', active?.kind === 'priority_selection' && !clarityPending);
   $('#activeWeek').classList.remove('entry-step');
   $('#activeWeek').dataset.journeyStep = displayedStep?.kind || 'review';
   $('#answerForm').classList.add('hidden');
@@ -1233,6 +1303,8 @@ function renderGuidedWeek() {
   } else if (active.kind === 'scale') {
     flow.innerHTML = `<div class="clarity-scale" role="group" aria-label="Klarheitswert">${Array.from({ length: active.max - active.min + 1 }, (_, index) => `<button type="button" data-guided-score="${active.min + index}">${active.min + index}</button>`).join('')}</div>`;
     flow.querySelectorAll('[data-guided-score]').forEach((button) => button.addEventListener('click', () => updateGuidedWeek({ type: 'save_answer', stepId: active.id, score: Number(button.dataset.guidedScore), answer: button.dataset.guidedScore })));
+  } else if (active.kind === 'priority_selection') {
+    renderMotivatorPrioritySelection(flow, active);
   } else if (active.kind === 'external') {
     flow.innerHTML = `<div class="cv-required-card"><span class="cv-required-icon">◇</span><div><strong>${escapeHtml(active.title)}</strong><small>Dieser Schritt wird sicher geprüft. Sobald die Bestätigung vorliegt, kannst du hier direkt weitermachen.</small></div></div><button type="button" class="secondary technical-refresh" id="refreshTechnicalStep">Status prüfen</button>`;
     flow.querySelector('#refreshTechnicalStep').addEventListener('click', async (event) => {
@@ -1253,7 +1325,7 @@ function renderGuidedWeek() {
   $('#gateNote').textContent = program.weekGate?.complete ? `Alle Pflichtschritte in Woche ${currentWeek} sind abgeschlossen.` : '';
   $('#completeWeek').disabled = !program.weekGate?.complete;
   $('#completeWeek').textContent = currentWeek === 8 ? 'Prozess abschließend beenden →' : 'Woche abschließend beenden →';
-  $('#claraJourney').classList.toggle('hidden', clarityPending || ['upload', 'scale', 'external'].includes(active?.kind));
+  $('#claraJourney').classList.toggle('hidden', clarityPending || ['upload', 'scale', 'external', 'priority_selection'].includes(active?.kind));
   renderClaraJourney();
   applyWeekReadOnlyState(completedSteps === statuses.length);
 }
@@ -1427,9 +1499,8 @@ function renderWeekReflections() {
 }
 
 function renderInsights() {
-  const answerText = Object.values(local.answers).join(' ').toLowerCase();
-  const motivators = ['Freiheit', 'Neugier', 'Beziehungen', 'Wirkung'].filter((item) => answerText.includes(item.toLowerCase()));
-  $('#motivatorTags').innerHTML = motivators.length ? motivators.map((item) => `<span class="tag">${item}</span>`).join('') : '<i>Entwickelt sich in Woche 3</i>';
+  const motivators = program?.profile?.programInsights?.motivators || [];
+  $('#motivatorTags').innerHTML = motivators.length ? motivators.map((item, index) => `<span class="tag"><b>${index + 1}</b>${escapeHtml(item)}</span>`).join('') : '<i>Entwickelt sich in Woche 3</i>';
   const values = program.access.completedWeeks.includes(5) ? ['Eigenverantwortung', 'Ehrlichkeit', 'Entwicklung'] : [];
   $('#valueTags').innerHTML = values.length ? values.map((item) => `<span class="tag">${item}</span>`).join('') : '<i>Öffnet sich in Woche 5</i>';
   const measurements = (program?.clarityHistory || []).filter((item) => Number.isInteger(Number(item.score)) && Number(item.score) >= 1 && Number(item.score) <= 10);

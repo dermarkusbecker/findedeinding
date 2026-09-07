@@ -517,6 +517,9 @@ header > div:last-child {
 
 .active-week .task-card { order: 1; position: sticky; top: 92px; }
 .active-week .clara-card { order: 2; }
+.active-week.motivator-priority-step { grid-template-columns: 1fr; }
+.active-week.motivator-priority-step .clara-card { order: 1; }
+.active-week.motivator-priority-step .task-card { order: 2; position: static; }
 
 #onboarding {
   grid-template-columns: 1fr;
@@ -1401,6 +1404,274 @@ header > div:last-child {
   color: #ffd9c4;
   background: rgba(255, 143, 91, 0.1);
   border: 1px solid rgba(255, 143, 91, 0.2);
+}
+
+.tag b { margin-right: 6px; }
+
+/* Woche 3 · strukturierte Top-5-Motivatoren */
+.motivator-priority {
+  background: linear-gradient(145deg, #fffdfa, #fff8f3);
+  border: 1px solid rgba(120, 88, 63, 0.12);
+  border-radius: 22px;
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+.motivator-priority > header {
+  align-items: flex-start;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  padding: 28px 30px 22px;
+}
+
+.motivator-priority > header h3 {
+  color: var(--ink);
+  font-size: clamp(24px, 3vw, 36px);
+  letter-spacing: -0.04em;
+  margin: 7px 0 8px;
+}
+
+.motivator-priority > header p:not(.eyebrow) {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+  margin: 0;
+  max-width: 650px;
+}
+
+.motivator-priority > header > strong {
+  background: rgba(255, 143, 91, 0.08);
+  border: 1px solid rgba(255, 143, 91, 0.24);
+  border-radius: 999px;
+  color: #ffc3a5;
+  flex: 0 0 auto;
+  font-size: 10px;
+  padding: 9px 13px;
+}
+
+.motivator-priority > header > strong.complete {
+  background: rgba(84, 211, 163, 0.1);
+  border-color: rgba(84, 211, 163, 0.34);
+  color: #72dfb6;
+}
+
+.motivator-priority-board {
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.75fr);
+  min-height: 430px;
+}
+
+.motivator-choice-panel,
+.motivator-ranking-panel {
+  padding: 25px 28px 28px;
+}
+
+.motivator-ranking-panel {
+  background: linear-gradient(180deg, #f1f8f6, #edf5f3);
+  border-left: 1px solid rgba(60, 128, 112, 0.13);
+}
+
+.motivator-panel-title {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.motivator-panel-title b {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.motivator-panel-title small {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.motivator-choice-grid {
+  display: grid;
+  gap: 9px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.motivator-choice-grid button {
+  align-items: center;
+  background: #fff;
+  border: 1px solid rgba(120, 88, 63, 0.13);
+  border-radius: 11px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px 11px;
+  text-align: left;
+  transition: 0.18s ease;
+}
+
+.motivator-choice-grid button span {
+  align-items: center;
+  border: 1px solid rgba(120, 88, 63, 0.16);
+  border-radius: 50%;
+  color: var(--muted);
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 11px;
+  height: 21px;
+  justify-content: center;
+  width: 21px;
+}
+
+.motivator-choice-grid button:hover {
+  background: #fff8f2;
+  border-color: rgba(236, 125, 61, 0.34);
+  transform: translateY(-1px);
+}
+
+.motivator-choice-grid button.selected {
+  background: linear-gradient(135deg, #fff0e7, #fff8f2);
+  border-color: rgba(236, 125, 61, 0.52);
+  color: #9b461e;
+}
+
+.motivator-choice-grid button.selected span {
+  background: #ff8f5b;
+  border-color: #ff8f5b;
+  color: #13202c;
+}
+
+#motivatorRanking {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#motivatorRanking li {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(47, 126, 105, 0.14);
+  border-radius: 12px;
+  cursor: grab;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 30px 1fr auto;
+  min-height: 57px;
+  padding: 8px 9px;
+}
+
+#motivatorRanking li.dragging { opacity: 0.5; }
+
+#motivatorRanking li > b {
+  align-items: center;
+  background: rgba(255, 143, 91, 0.14);
+  border-radius: 9px;
+  color: #ffb892;
+  display: flex;
+  font-size: 12px;
+  height: 32px;
+  justify-content: center;
+}
+
+#motivatorRanking li > span {
+  color: #254139;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+#motivatorRanking li > div { display: flex; gap: 4px; }
+
+#motivatorRanking button {
+  align-items: center;
+  background: #f6faf8;
+  border: 1px solid rgba(47, 126, 105, 0.15);
+  border-radius: 7px;
+  color: #557e72;
+  cursor: pointer;
+  display: flex;
+  font-size: 11px;
+  height: 28px;
+  justify-content: center;
+  padding: 0;
+  width: 28px;
+}
+
+#motivatorRanking button:disabled { cursor: default; opacity: 0.25; }
+#motivatorRanking button:not(:disabled):hover { border-color: #ff8f5b; color: #ffb892; }
+
+.motivator-ranking-empty {
+  align-items: center;
+  border: 1px dashed rgba(47, 126, 105, 0.22);
+  border-radius: 13px;
+  color: #6f8f86;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 210px;
+  text-align: center;
+}
+
+.motivator-ranking-empty[hidden] { display: none; }
+.motivator-ranking-empty span { font-size: 28px; font-weight: 300; }
+.motivator-ranking-empty p { font-size: 9px; margin: 8px 0 0; }
+
+.motivator-priority > footer {
+  align-items: center;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  padding: 18px 30px;
+}
+
+.motivator-priority > footer p {
+  color: var(--muted);
+  font-size: 9px;
+  margin: 0;
+}
+
+.motivator-priority > footer .primary { width: auto; }
+
+.step-review-priority {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step-review-priority li {
+  align-items: center;
+  background: rgba(255, 143, 91, 0.08);
+  border: 1px solid rgba(255, 143, 91, 0.16);
+  border-radius: 10px;
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.step-review-priority li b { color: #ffad83; min-width: 20px; }
+
+@media (max-width: 920px) {
+  .motivator-priority-board { grid-template-columns: 1fr; }
+  .motivator-ranking-panel { border-left: 0; border-top: 1px solid rgba(60, 128, 112, 0.13); }
+}
+
+@media (max-width: 620px) {
+  .motivator-priority > header,
+  .motivator-priority > footer { align-items: stretch; flex-direction: column; padding: 22px 18px; }
+  .motivator-choice-panel,
+  .motivator-ranking-panel { padding: 21px 17px; }
+  .motivator-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .motivator-panel-title { align-items: flex-start; flex-direction: column; }
+  .motivator-priority > footer .primary { width: 100%; }
 }
 
 .clarity-chart {

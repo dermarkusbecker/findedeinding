@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyGuidedWeekAction, createGuidedWeekState, currentGuidedStep, guidedGateStatus, guidedStepStatuses, guidedWeekComplete, guidedWeekDefinition } from '../lib/guided-weeks.js';
+import { applyGuidedWeekAction, createGuidedWeekState, currentGuidedStep, guidedGateStatus, guidedStepStatuses, guidedWeekComplete, guidedWeekDefinition, MOTIVATOR_OPTIONS } from '../lib/guided-weeks.js';
 import { applyClaraStateSuggestions } from '../lib/clara/state-bridge.js';
 
 const payload = (overrides = {}) => ({ wishes: null, wish_index: null, wish: null, answer: null, score: null, reason: null, source: null, confirmed: null, complete: null, step_id: null, items: null, confirmed_none: null, ...overrides });
@@ -90,7 +90,7 @@ test('Woche 7 benötigt nach der Tendenz eine persönlich bestätigte Entscheidu
 test('Gate-Status entsteht ausschließlich aus den zugehörigen abgeschlossenen Schritten', () => {
   let state = beginWeek(3);
   const first = currentGuidedStep(state);
-  state = applyGuidedWeekAction(state, { type: 'save_answer', stepId: first.id, answer: 'Freiheit, Neugier, Beziehungen, Wirkung, Gerechtigkeit', items: ['Freiheit', 'Neugier', 'Beziehungen', 'Wirkung', 'Gerechtigkeit'] }).state;
+  state = applyGuidedWeekAction(state, { type: 'save_answer', stepId: first.id, answer: 'Freiheit, Neugier, Beziehungen, Erfolg, Gerechtigkeit', items: ['Freiheit', 'Neugier', 'Beziehungen', 'Erfolg', 'Gerechtigkeit'] }).state;
   assert.equal(guidedGateStatus(state).motivators, false);
   state = applyGuidedWeekAction(state, { type: 'save_answer', stepId: 'undersupplied', answer: 'Freiheit' }).state;
   assert.equal(guidedGateStatus(state).motivators, true);
@@ -109,6 +109,7 @@ test('End-to-End: Wochen 2 bis 8 können nur in Reihenfolge und mit verifizierte
       if (active.kind === 'external') action = { type: 'external_completed', stepId: active.id, external: active.external, verified: true, resultId: `verified-${week}-${active.id}` };
       else if (active.kind === 'upload') action = { type: 'document_uploaded', stepId: active.id, documentId: `document-${week}-${active.id}`, fileName: `${active.id}.pdf` };
       else if (active.kind === 'scale') action = { type: 'save_answer', stepId: active.id, answer: '7', score: 7 };
+      else if (active.kind === 'priority_selection') action = { type: 'save_answer', stepId: active.id, answer: active.options.slice(0, 5).join('\n'), items: active.options.slice(0, 5) };
       else {
         const count = active.minItems || 1;
         const items = Array.from({ length: count }, (_, index) => `${active.title} ${index + 1}`);
@@ -123,6 +124,23 @@ test('End-to-End: Wochen 2 bis 8 können nur in Reihenfolge und mit verifizierte
     assert.equal(state.status, 'ready_to_complete');
     assert.ok(Object.values(guidedGateStatus(state)).every(Boolean));
   }
+});
+
+test('Woche 3 akzeptiert genau fünf unterschiedliche Motivatoren aus der festen Auswahl und erhält ihre Priorität', () => {
+  const expected = ['Macht', 'Freiheit', 'Neugier', 'Anerkennung', 'Ordnung', 'Sparen', 'Ehre', 'Gerechtigkeit', 'Beziehungen', 'Status', 'Familie', 'Erfolg', 'Genuss', 'Lebenskraft', 'Schönheit', 'Spaß', 'Ruhe', 'Reichtum', 'Harmonie', 'Herausforderung', 'Ruhm', 'Freude', 'Idealismus', 'Sicherheit', 'Abenteuer', 'Unabhängigkeit', 'Aktivität'];
+  assert.deepEqual(MOTIVATOR_OPTIONS, expected);
+  const state = beginWeek(3);
+  const tooFew = applyGuidedWeekAction(state, { type: 'save_answer', stepId: 'motivators', items: expected.slice(0, 4), answer: expected.slice(0, 4).join('\n') });
+  assert.equal(tooFew.ok, false);
+  const duplicate = applyGuidedWeekAction(state, { type: 'save_answer', stepId: 'motivators', items: ['Freiheit', 'Freiheit', 'Neugier', 'Familie', 'Erfolg'], answer: 'Freiheit\nFreiheit\nNeugier\nFamilie\nErfolg' });
+  assert.equal(duplicate.ok, false);
+  const foreign = applyGuidedWeekAction(state, { type: 'save_answer', stepId: 'motivators', items: ['Freiheit', 'Neugier', 'Familie', 'Erfolg', 'Wirkung'], answer: 'Freiheit\nNeugier\nFamilie\nErfolg\nWirkung' });
+  assert.equal(foreign.ok, false);
+  const ranked = ['Freiheit', 'Familie', 'Neugier', 'Sicherheit', 'Erfolg'];
+  const valid = applyGuidedWeekAction(state, { type: 'save_answer', stepId: 'motivators', items: ranked, answer: ranked.join('\n') });
+  assert.equal(valid.ok, true);
+  assert.deepEqual(valid.state.answers.motivators.items, ranked);
+  assert.equal(valid.state.answers.motivators.raw_answer, '1. Freiheit\n2. Familie\n3. Neugier\n4. Sicherheit\n5. Erfolg');
 });
 
 test('jede Folgewoche beginnt mit einer unveränderlichen Klarheitsmessung', () => {
