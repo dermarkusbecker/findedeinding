@@ -103,7 +103,7 @@ test('Ein Lead wird erst nach unterschriebenem Dokument und Videovertrag automat
   assert.match(migration, /video_contract_confirmed_at/);
   assert.match(migration, /program_start_date/);
   assert.doesNotMatch(html, /id="convertLead"/);
-  assert.match(participantsApi, /ausschließlich nach einem vollständig bestätigten Lead-Vertragsabschluss/);
+  assert.match(participantsApi, /createManualCustomer/);
   assert.doesNotMatch(usersApi, /ensureProgram/);
   assert.match(usersApi, /Teilnehmerzugänge entstehen ausschließlich automatisch/);
   assert.doesNotMatch(auth, /Demo Kunde/);

@@ -30,7 +30,8 @@ test('Kundenlogin öffnet immer Mein Bereich und zeigt abgeschlossenes Onboardin
   assert.match(html, /id="preOnboardingDashboard"/);
   assert.match(html, /id="openOnboarding"/);
   assert.match(html, /id="onboardingCompleteState"/);
-  assert.match(script, /signedCommitmentUpload'\)\.disabled = true/);
+  assert.match(html, /id="commitmentReadonlyState"/);
+  assert.match(script, /commitmentForm'\)\.classList\.toggle\('hidden', confirmed\)/);
   assert.match(script, /Onboarding ✓/);
   assert.match(api, /Onboarding ist bereits abgeschlossen und schreibgeschützt/);
   assert.match(api, /abgeschlossene Onboarding ist schreibgeschützt/);

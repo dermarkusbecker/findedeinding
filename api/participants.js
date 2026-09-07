@@ -1,10 +1,97 @@
-import { authHeaders, profileById, randomTemporaryPassword, requireCurrentAdmin, sendPasswordReset } from '../lib/user-auth.js';
+import { authHeaders, profileById, provisionProgramUser, randomTemporaryPassword, requireCurrentAdmin, sendPasswordReset, supabaseAuthConfig } from '../lib/user-auth.js';
 import { handleCustomerRecords } from '../lib/customer-records-service.js';
 import { calculateProgramAccess } from '../lib/program-access.js';
 import { reconcileAccessFromEntries } from '../lib/program-position.js';
+import { splitContactName } from '../lib/contact-lifecycle.js';
 
-function config() { const url = process.env.SUPABASE_URL?.replace(/\/$/, ''); const key = process.env.SUPABASE_SERVICE_ROLE_KEY; return url && key ? { url, key } : null; }
+function config() { const auth = supabaseAuthConfig(); return auth ? { ...auth, key: auth.serviceKey } : null; }
 function headers(key, extra = {}) { return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...extra }; }
+const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
+const validEmail = (value) => /^\S+@\S+\.\S+$/.test(value);
+const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
+
+async function readJson(result, fallback = 'Supabase-Anfrage fehlgeschlagen.') {
+  const payload = await result.json().catch(() => ({}));
+  if (!result.ok) throw Object.assign(new Error(payload.message || payload.error || fallback), { status: result.status });
+  return payload;
+}
+
+async function createManualCustomer(service, body = {}) {
+  const name = clean(body.name, 160);
+  const email = clean(body.email, 254).toLowerCase();
+  const phone = clean(body.phone, 40);
+  const programStartDate = validDate(body.programStartDate) ? body.programStartDate : new Date().toISOString().slice(0, 10);
+  if (!name || !validEmail(email)) throw Object.assign(new Error('Vollständiger Name und gültige E-Mail-Adresse sind erforderlich.'), { status: 400 });
+
+  const existingProfiles = await readJson(await fetch(`${service.url}/rest/v1/user_profiles?email=eq.${encodeURIComponent(email)}&select=id,role&limit=1`, { headers: headers(service.key) }));
+  if (existingProfiles[0]) throw Object.assign(new Error(existingProfiles[0].role === 'user' ? 'Für diese E-Mail-Adresse besteht bereits ein Kunde.' : 'Diese E-Mail-Adresse gehört bereits zu einem internen Benutzerkonto.'), { status: 409 });
+
+  const matchingLeads = await readJson(await fetch(`${service.url}/rest/v1/leads?email=eq.${encodeURIComponent(email)}&select=id,converted_user_profile_id&order=created_at.desc&limit=20`, { headers: headers(service.key) }));
+  if (matchingLeads.some((lead) => lead.converted_user_profile_id)) throw Object.assign(new Error('Der zugehörige Interessent wurde bereits in einen Kunden umgewandelt.'), { status: 409 });
+  const now = new Date().toISOString();
+  const { firstName, lastName } = splitContactName(name);
+  let lead = matchingLeads[0] || null;
+  if (!lead) {
+    const createdLeads = await readJson(await fetch(`${service.url}/rest/v1/leads`, {
+      method: 'POST',
+      headers: headers(service.key, { Prefer: 'return=representation' }),
+      body: JSON.stringify({
+        name,
+        first_name: firstName || null,
+        last_name: lastName || null,
+        email,
+        phone: phone || null,
+        source: 'manual_crm',
+        challenge: 'Kunde wurde manuell durch das FindeDeinDing-Team angelegt.',
+        status: 'new',
+        consent_at: now,
+        qualification_answers: { manual_customer_creation: true, recorded_at: now },
+      }),
+    }), 'Die verknüpfte Kundenakte konnte nicht angelegt werden.');
+    lead = createdLeads[0];
+  }
+
+  const participant = await provisionProgramUser(service, {
+    name,
+    email,
+    phone,
+    startDate: programStartDate,
+    sourceLeadId: lead.id,
+    permissions: ['customer_portal', 'clara_program', 'documents'],
+    sendInvitation: body.sendInvitation === true,
+  });
+  const profileChanges = {
+    birth_date: validDate(body.birthDate) ? body.birthDate : null,
+    street: clean(body.street, 200) || null,
+    postal_code: clean(body.postalCode, 20) || null,
+    city: clean(body.city, 120) || null,
+    country: clean(body.country, 80) || 'Deutschland',
+    mobile_phone: clean(body.mobilePhone, 40) || null,
+    preferred_communication_channel: ['email', 'phone', 'whatsapp'].includes(body.preferredCommunicationChannel) ? body.preferredCommunicationChannel : 'email',
+    postal_mail_active: true,
+  };
+  const profiles = await readJson(await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(participant.id)}`, {
+    method: 'PATCH',
+    headers: headers(service.key, { Prefer: 'return=representation' }),
+    body: JSON.stringify(profileChanges),
+  }), 'Die Kundenstammdaten konnten nicht gespeichert werden.');
+  await readJson(await fetch(`${service.url}/rest/v1/leads?id=eq.${encodeURIComponent(lead.id)}`, {
+    method: 'PATCH',
+    headers: headers(service.key, { Prefer: 'return=representation' }),
+    body: JSON.stringify({
+      name,
+      first_name: firstName || null,
+      last_name: lastName || null,
+      email,
+      phone: phone || null,
+      status: 'customer',
+      converted_user_profile_id: participant.id,
+      converted_at: now,
+      updated_at: now,
+    }),
+  }), 'Die 1:1-Verknüpfung zur Kundenakte konnte nicht abgeschlossen werden.');
+  return { participant: profiles[0], oneTimePassword: participant.oneTimePassword, invitationSent: body.sendInvitation === true };
+}
 
 export function summarizeCustomerProgress(gates = [], progress = {}, entries = [], now = new Date(), fullProgramAccess = false) {
   const storedProgress = typeof progress === 'object' && progress !== null ? progress : { current_week: Number(progress) || 0 };
@@ -20,7 +107,7 @@ export function summarizeCustomerProgress(gates = [], progress = {}, entries = [
 
 export default async function handler(request, response) {
   if (['overview', 'document-download', 'document-upload', 'avatar-upload', 'whatsapp-send'].includes(request.query?.action || request.body?.action)) return handleCustomerRecords(request, response);
-  const requiredPermission = request.method === 'GET' ? ['customers', 'program', 'sales_calls'] : ['customers', 'program'];
+  const requiredPermission = request.method === 'GET' ? ['customers', 'program', 'sales_calls'] : request.method === 'POST' ? 'customers' : ['customers', 'program'];
   const admin = await requireCurrentAdmin(request, response, requiredPermission);
   if (!admin) return;
   const service = config();
@@ -71,7 +158,11 @@ export default async function handler(request, response) {
     return response.status(200).json({ participants: customers });
   }
   if (request.method === 'POST') {
-    return response.status(409).json({ error: 'Teilnehmer werden ausschließlich nach einem vollständig bestätigten Lead-Vertragsabschluss automatisch angelegt.' });
+    try {
+      return response.status(201).json(await createManualCustomer(service, request.body || {}));
+    } catch (error) {
+      return response.status(error.status || 500).json({ error: error.message || 'Kunde konnte nicht angelegt werden.' });
+    }
   }
   if (request.method === 'PATCH') {
     try {

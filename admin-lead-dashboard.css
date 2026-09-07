@@ -79,6 +79,9 @@
 .lead-contract-checks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .lead-contract-checks i { background: #eef1f0; border-radius: 999px; color: #7b8789; font-size: 9px; font-style: normal; font-weight: 750; padding: 5px 8px; }
 .lead-contract-checks i.ok { background: #ddf3ea; color: #14745f; }
+.lead-contract-list article>nav { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+.lead-contract-list article>nav a { background: #fff; border: 1px solid #c9ddd7; border-radius: 8px; color: #0e7a65; font-size: 9px; font-weight: 800; padding: 6px 8px; text-decoration: none; }
+.lead-contract-list article>nav a:hover { background: #e6f5f0; border-color: #76c0ad; }
 .lead-task-list article.question { background: #f2f8fb; border-color: #cfe2eb; }
 .lead-task-list article.done { opacity: .65; }
 .lead-task-list label { align-items: flex-start; display: flex; gap: 10px; }

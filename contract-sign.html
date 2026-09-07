@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Vertrag digital bestätigen · Finde dein Ding</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/contract-sign.css">
+  </head>
+  <body>
+    <header class="sign-brand"><a href="/" aria-label="Finde dein Ding Startseite"><span>f</span><strong>finde dein ding</strong></a><i>Sichere Vertragsbestätigung</i></header>
+    <main>
+      <section class="sign-intro">
+        <p>FDD-VTR-001 · B2C-Videovertrag</p>
+        <h1>In Ruhe prüfen.<br><span>Klar bestätigen.</span></h1>
+        <p>Der Video-Abschluss wurde bereits dokumentiert. Hier kannst du das Vertragsdokument vollständig lesen und die besprochenen Punkte zusätzlich digital bestätigen.</p>
+        <dl><div><dt>Vertrag</dt><dd id="contractNumber">Wird geladen …</dd></div><div><dt>Vertragspartner</dt><dd id="contractCustomer">–</dd></div><div><dt>Abschluss</dt><dd id="contractDate">–</dd></div></dl>
+      </section>
+      <section class="sign-workspace" id="signWorkspace" aria-live="polite">
+        <div class="pdf-frame"><iframe id="contractPdf" title="Videovertrag"></iframe><a id="contractPdfLink" target="_blank" rel="noopener">Vertrag in neuem Fenster öffnen ↗</a></div>
+        <form id="contractSignForm">
+          <p class="step-label">Deine zusätzliche Klickbestätigung</p>
+          <h2>Alles gelesen und verstanden?</h2>
+          <p class="sign-copy">Bitte lies das Dokument vollständig. Jede Zustimmung wird mit Zeitpunkt und Vertragszuordnung protokolliert.</p>
+          <label class="sign-check"><input name="contractAccepted" type="checkbox" required><span><b>Vertrag bestätigen</b>Ich habe den Vertrag gelesen und möchte ihn mit den aufgeführten Konditionen zusätzlich digital bestätigen.</span></label>
+          <label class="sign-check"><input name="immediateStartAccepted" type="checkbox" required><span><b>Vorzeitigen Leistungsbeginn bestätigen</b>Ich bestätige mein im Vertrag dokumentiertes Verlangen zum Leistungsbeginn vor Ablauf der Widerrufsfrist und die erläuterten Folgen.</span></label>
+          <label class="sign-check"><input name="digitalContentAccepted" type="checkbox" required><span><b>Digitale Inhalte bestätigen</b>Ich bestätige die vereinbarte sofortige Bereitstellung digitaler Inhalte und die hierzu im Vertrag erläuterten Widerrufsfolgen.</span></label>
+          <label class="signature-name">Vollständiger Name<input name="signatureName" required autocomplete="name"></label>
+          <button type="submit">Jetzt ausdrücklich digital bestätigen →</button>
+          <p class="legal-note">Diese Oberfläche dokumentiert die ausdrücklichen Erklärungen. Deine gesetzlichen Rechte und die Angaben im Vertragsdokument bleiben maßgeblich.</p>
+        </form>
+      </section>
+      <section class="sign-success" id="signSuccess" hidden><span>✓</span><p>Digital bestätigt</p><h2>Danke. Deine Bestätigung ist sicher dokumentiert.</h2><p>Die finale Vertragsfassung wurde in deiner Akte gespeichert und steht nach deinem Login auch unter „Dokumente“ bereit.</p><a id="signedPdfLink" target="_blank" rel="noopener">Finalen Vertrag öffnen ↗</a></section>
+      <section class="sign-error" id="signError" hidden><span>!</span><h2>Dieser Link kann gerade nicht verwendet werden.</h2><p id="signErrorText">Bitte wende dich an Finde dein Ding.</p></section>
+    </main>
+    <script type="module" src="/contract-sign.js"></script>
+  </body>
+</html>

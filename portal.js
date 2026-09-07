@@ -30,11 +30,7 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
 const lockedNonOnboardingViews = ['journey', 'insights', 'documents', 'support'];
 const rawLocal = JSON.parse(localStorage.getItem('fdd_customer_notes') || '{}');
-const local = { ...rawLocal, answers: rawLocal.answers || {}, uploads: rawLocal.uploads || {}, support: rawLocal.support || [], drafts: rawLocal.drafts || {}, signedCommitment: rawLocal.signedCommitment || null };
-if (local.signedCommitment?.flowVersion !== 3) {
-  local.signedCommitment = null;
-  localStorage.setItem('fdd_customer_notes', JSON.stringify(local));
-}
+const local = { ...rawLocal, answers: rawLocal.answers || {}, uploads: rawLocal.uploads || {}, support: rawLocal.support || [], drafts: rawLocal.drafts || {} };
 let program = null;
 let customerWorkspace = null;
 let currentWeek = 1;
@@ -204,147 +200,6 @@ function escapeHtml(value = '') {
   return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 }
 
-function buildStartCommitmentText(name = 'Teilnehmer') {
-  return `
-    <div class="commitment-title">Mein Start-Commitment</div>
-    <p><strong>${escapeHtml(name)}</strong></p>
-    <p>Ich entscheide mich bewusst, mich auf Finde dein Ding einzulassen.</p>
-    <p>Ich bin bereit, ehrlich hinzuschauen – auch wenn eine Antwort noch unfertig, unbequem oder widersprüchlich ist – und dranzubleiben.</p>
-    <p>Ich möchte meine Entscheidung nicht nur denken, sondern sie konkret erleben, prüfen und mit Verantwortung weiterentwickeln.</p>
-    <p>Ich bestätige hiermit bewusst mein persönliches Commitment für den Start dieses Prozesses.</p>
-    <div class="commitment-signature"><span>Ort, Datum</span><span>__________________</span></div>
-    <div class="commitment-signature"><span>Name</span><span>${escapeHtml(name)}</span></div>
-    <div class="commitment-signature"><span>Unterschrift</span><span>__________________</span></div>
-  `;
-}
-
-async function openCommitmentPrintView() {
-  const pdfCss = `
-    * { box-sizing: border-box; }
-    @page { size: A4; margin: 0; }
-    body { margin: 0; background: #eceeed; color: #111; font-family: Georgia, "Times New Roman", serif; }
-    .pdf-sheet { position: relative; width: 595px; height: 842px; margin: 0 auto; padding: 44px 68px 48px; overflow: hidden; background: #fff; page-break-after: always; }
-    .pdf-sheet:last-child { page-break-after: auto; }
-    .brand-title { margin: 0 0 8px; color: #f5a36f; font-size: 27px; line-height: 1; font-weight: 800; letter-spacing: -.02em; }
-    .document-title { margin: 0 0 17px; font-size: 15px; line-height: 1.2; font-weight: 800; text-transform: uppercase; }
-    .intro-box, .signature-box { padding: 11px 10px; background: #f0f2f1; }
-    .intro-box { margin: 0 -10px 21px; }
-    .intro-box strong, .signature-box strong { display: block; margin-bottom: 6px; font-size: 10.5px; }
-    .intro-box p, .signature-box p { margin: 0; font-size: 10.5px; line-height: 1.65; }
-    .meta-row { display: flex; gap: 8px; margin: 0 0 19px; font-size: 10px; }
-    .meta-row strong { min-width: 74px; }
-    .meta-row span { display: inline-block; width: 210px; border-bottom: 1px solid #444; }
-    .write-section { margin-top: 31px; }
-    .write-section h2, .page-two h2 { margin: 0 0 8px; color: #111; font-size: 14px; line-height: 1.25; font-weight: 800; text-transform: uppercase; }
-    .write-section.cost h2, .page-two h2 { color: #314d42; }
-    .write-section p { margin: 0 0 14px; font-size: 10.5px; }
-    .writing-lines { display: grid; gap: 19px; }
-    .writing-lines i { display: block; border-bottom: 1px solid #555; }
-    .footer { position: absolute; bottom: 35px; left: 0; width: 100%; color: #9a9a96; font-size: 7px; text-align: center; }
-    .footer b { margin-left: 8px; color: #111; font-size: 9px; }
-    .page-two { padding: 57px 69px 48px; }
-    .page-two .commitment-list { margin: 0 0 30px; padding: 0 0 0 6px; list-style: none; }
-    .page-two .commitment-list li { position: relative; margin: 0 0 4px; padding-left: 8px; font-size: 10px; line-height: 1.35; }
-    .page-two .commitment-list li::before { content: "•"; position: absolute; left: 0; }
-    .signature-box { margin: 22px -9px 25px; padding: 11px 9px; }
-    .signature-line { display: flex; align-items: flex-end; gap: 5px; margin: 0 0 35px; font-size: 10px; font-weight: 700; }
-    .signature-line i { display: inline-block; width: 164px; border-bottom: 1px solid #333; }
-    .closing-brand { position: absolute; left: 0; right: 0; bottom: 113px; text-align: center; }
-    .closing-brand strong { display: block; color: #f5a36f; font-size: 22px; line-height: 1; }
-    .closing-brand span { display: block; margin-top: 19px; font-family: Arial, sans-serif; font-size: 10px; }
-    @media print { body { background: #fff; } .pdf-sheet { margin: 0; } }
-  `;
-
-  const lines = (count) => '<div class="writing-lines">' + '<i></i>'.repeat(count) + '</div>';
-  const pdfMarkup = `
-    <section class="pdf-sheet">
-      <h1 class="brand-title">FINDE DEIN DING</h1>
-      <h2 class="document-title">Mein persönliches Commitment</h2>
-      <div class="intro-box"><strong>Dieser Vertrag ist eine Vereinbarung mit mir selbst.</strong><p>Mit meiner Unterschrift entscheide ich mich bewusst dafür, meinen Weg ernst zu nehmen,<br>ehrlich hinzuschauen und aktiv herauszufinden, was wirklich zu mir passt.</p></div>
-      <div class="meta-row"><strong>Name:</strong><span></span></div>
-      <div class="meta-row"><strong>Startdatum:</strong><span></span></div>
-      <section class="write-section"><h2>Warum ich hier bin</h2><p>Ich starte „Finde dein Ding“, weil …</p>${lines(4)}</section>
-      <section class="write-section"><h2>Was ich für mich verändern möchte</h2><p>Am Ende dieses Prozesses möchte ich …</p>${lines(4)}</section>
-      <section class="write-section cost"><h2>Was es mich kostet, wenn ich weiter keine Klarheit habe</h2><p>Emotional, Beruflich, Lebensqualität, Schlaf etc.</p>${lines(4)}</section>
-      <div class="footer">FINDE DEIN DING&nbsp;&nbsp;•<b>1</b></div>
-    </section>
-    <section class="pdf-sheet page-two">
-      <h2>Mein Commitment an mich selbst</h2>
-      <p style="margin:0 0 8px;font-size:10px">Für die Dauer von „Finde dein Ding“ verpflichte ich mich:</p>
-      <ul class="commitment-list">
-        <li>mir selbst und meinen Antworten gegenüber ehrlich zu sein,</li>
-        <li>mir regelmäßig Zeit für meine persönliche Entwicklung zu nehmen,</li>
-        <li>die vereinbarten Übungen und Aufgaben gewissenhaft umzusetzen,</li>
-        <li>offen und neugierig zu bleiben, auch wenn ich noch nicht sofort eine Antwort finde,</li>
-        <li>meine Gedanken, Wünsche und Zweifel auszusprechen, anstatt sie zurückzuhalten,</li>
-        <li>Verantwortung für meine Entscheidungen und meine nächsten Schritte zu übernehmen,</li>
-        <li>mich nicht mit anderen zu vergleichen, sondern meinen eigenen Weg zu achten,</li>
-        <li>Rückschläge, Widerstände und Unsicherheit als Teil des Prozesses anzunehmen,</li>
-        <li>mir Unterstützung zu holen, wenn ich allein nicht weiterkomme,</li>
-        <li>und die Erkenntnisse aus diesem Prozess durch konkrete Handlungen in mein Leben zu übertragen.</li>
-      </ul>
-      <h2>Meine Vereinbarung mit mir selbst:</h2>
-      <div class="signature-box"><strong>Mit meiner Unterschrift bestätige ich:</strong><p>Ich bin bereit, mein Ding nicht länger nur zu suchen, sondern ihm Schritt für Schritt<br>näherzukommen.</p></div>
-      <div class="signature-line">Ort und Datum:<i></i></div>
-      <div class="signature-line">Unterschrift:<i></i></div>
-      <div class="closing-brand"><strong>FINDE DEIN DING</strong><span>Mein Weg. Meine Entscheidung. Mein Commitment.</span></div>
-      <div class="footer">FINDE DEIN DING&nbsp;&nbsp;•<b>2</b></div>
-    </section>
-  `;
-
-  const openPdfPreview = (pdfBlob) => {
-    const url = URL.createObjectURL(pdfBlob);
-    const previewWindow = window.open(url, '_blank', 'noopener,noreferrer');
-    if (previewWindow) {
-      previewWindow.focus();
-      toast('Dein persönliches Commitment wurde geöffnet.');
-    } else {
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'mein-persoenliches-commitment.pdf';
-      link.click();
-      toast('Die Vorschau wurde blockiert; dein PDF wurde heruntergeladen.');
-    }
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
-  };
-
-  const wrapper = document.createElement('div');
-  wrapper.innerHTML = `<style>${pdfCss}</style>${pdfMarkup}`;
-  Object.assign(wrapper.style, { position: 'fixed', left: '-9999px', top: '0', width: '595px' });
-  document.body.appendChild(wrapper);
-
-  try {
-    if (!window.jspdf?.jsPDF || !window.html2canvas) throw new Error('PDF libraries not available');
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const sheets = [...wrapper.querySelectorAll('.pdf-sheet')];
-    for (let index = 0; index < sheets.length; index += 1) {
-      const canvas = await window.html2canvas(sheets[index], { scale: 2, backgroundColor: '#ffffff', useCORS: true });
-      if (index > 0) pdf.addPage();
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pageWidth, pageHeight, undefined, 'FAST');
-    }
-    openPdfPreview(pdf.output('blob'));
-  } catch (error) {
-    const printCss = pdfCss + 'body{background:#fff}.pdf-sheet{margin:0 auto}';
-    const fallbackHtml = `<!doctype html><html lang="de"><head><meta charset="UTF-8"><title>Mein persönliches Commitment</title><style>${printCss}</style></head><body>${pdfMarkup}</body></html>`;
-    const url = URL.createObjectURL(new Blob([fallbackHtml], { type: 'text/html;charset=utf-8' }));
-    const previewWindow = window.open(url, '_blank', 'noopener,noreferrer');
-    if (previewWindow) previewWindow.focus();
-    else {
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'mein-persoenliches-commitment.html';
-      link.click();
-    }
-    toast('Dein Commitment wurde als druckbare Vorschau geöffnet.');
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
-  } finally {
-    wrapper.remove();
-  }
-}
-
 function onboardingProfilePayload() {
   return {
     name: $('#onboardingName').value.trim(),
@@ -376,25 +231,16 @@ function refreshOnboardingGateState() {
   const completed = Boolean(program?.onboardingComplete);
   const privacyChecked = completed || Boolean(program?.onboarding?.privacyConfirmed);
   const profileReady = completed || (Boolean(program?.onboarding?.profileComplete) && !onboardingProfileDirty);
-  const commitmentChecked = !!$('#commitment')?.checked;
-  const signedUploaded = completed || Boolean(program?.onboarding?.commitmentUploaded || local.signedCommitment?.documentId);
+  const commitmentConfirmed = completed || Boolean(program?.onboarding?.commitmentConfirmed || program?.onboarding?.commitmentDocumentId);
   $('#privacy').checked = privacyChecked;
-  $('#commitment').disabled = !signedUploaded || Boolean(program?.onboardingComplete);
-  if (!signedUploaded) $('#commitment').checked = false;
   setGateStatus('#profileGateStatus', profileReady, onboardingProfileDirty ? 'Speichern' : 'Offen');
   setGateStatus('#privacyGateStatus', privacyChecked);
-  setGateStatus('#commitmentGateStatus', signedUploaded && commitmentChecked);
-  $('#startProcess').disabled = !profileReady || !privacyChecked || !commitmentChecked || !signedUploaded;
+  setGateStatus('#commitmentGateStatus', commitmentConfirmed);
+  $('#startProcess').disabled = !profileReady || !privacyChecked || !commitmentConfirmed;
 }
 
 function renderOnboardingState(completed = false) {
   const profile = program?.profile || {};
-  const resetAt = program?.onboarding?.resetAt ? new Date(program.onboarding.resetAt).getTime() : 0;
-  const localCommitmentAt = local.signedCommitment?.uploadedAt ? new Date(local.signedCommitment.uploadedAt).getTime() : 0;
-  if (resetAt && local.signedCommitment && (!localCommitmentAt || localCommitmentAt <= resetAt)) {
-    local.signedCommitment = null;
-    saveLocal();
-  }
   $('.onboarding-welcome .clara-copy').innerHTML = '<p>Ich bin Clara. Ich stelle dir eine Frage nach der anderen und helfe dir, deine Gedanken zu ordnen. Du antwortest ehrlich – den Rest entwickeln wir gemeinsam.</p>';
   $('.onboarding-welcome .promise strong').textContent = 'Du brauchst noch keine fertigen Antworten. Wir starten einfach mit dem nächsten ehrlichen Schritt.';
   if (!onboardingProfileDirty) {
@@ -424,24 +270,27 @@ function renderOnboardingState(completed = false) {
     ? `Digital bestätigt${confirmedAt ? ` am ${new Date(confirmedAt).toLocaleDateString('de-DE')}` : ''}.${program?.onboarding?.privacyDocumentId ? ' Das ausgefüllte Dokument liegt unter „Dokumente“ bereit.' : ''}`
     : 'Noch nicht bestätigt.';
   $('#openPrivacyConsent').textContent = privacyConfirmed ? 'Bestätigtes Formular ansehen →' : 'Formular ansehen & Einwilligung ausfüllen →';
-  renderCommitmentUploadState(completed);
+  renderCommitmentState(completed);
   refreshOnboardingGateState();
 }
 
-function renderCommitmentUploadState(completed = false) {
+function renderCommitmentState(completed = false) {
   const status = $('#signedCommitmentStatus');
   if (!status) return;
-  const uploadedName = program?.onboarding?.commitmentFileName || local.signedCommitment?.name;
-  status.textContent = uploadedName
-    ? `Sicher gespeichert: ${uploadedName}`
-    : completed ? 'Unterschriebenes Commitment wurde beim Start bestätigt.' : 'Noch kein unterschriebenes Commitment hochgeladen.';
+  const confirmed = completed || Boolean(program?.onboarding?.commitmentConfirmed || program?.onboarding?.commitmentDocumentId);
+  const confirmedAt = program?.onboarding?.commitmentConfirmedAt;
+  $('.commitment-card').classList.toggle('is-confirmed', confirmed);
+  status.textContent = confirmed
+    ? `Digital bestätigt${confirmedAt ? ` am ${new Date(confirmedAt).toLocaleDateString('de-DE')}` : ''}. Das ausgefüllte PDF liegt unter „Dokumente“ bereit.`
+    : 'Noch nicht digital ausgefüllt und bestätigt.';
+  $('#openCommitment').textContent = confirmed ? 'Bestätigtes Commitment ansehen →' : 'Commitment öffnen & ausfüllen →';
 }
 
 function privacyDocumentHref() {
   const documentId = program?.onboarding?.privacyDocumentId;
   return adminPreviewUrl(documentId
     ? `/api/customer-records?action=document-download&documentId=${encodeURIComponent(documentId)}`
-    : '/assets/forms/FDD-FRM-002_Datenschutzinformation-und-Einwilligung_Finde-Dein-Ding_V1.0.pdf');
+    : '/api/participant-program?feature=privacy-template');
 }
 
 function openPrivacyConsentDialog() {
@@ -468,9 +317,87 @@ function openPrivacyConsentDialog() {
   $('#privacyConsentDialog').showModal();
 }
 
-function openCommitmentPreviewDialog() {
-  $('#commitmentPreviewContent').innerHTML = buildStartCommitmentText(program?.profile?.name || 'Teilnehmer');
-  $('#commitmentPreviewDialog').showModal();
+function closePrivacyConsentDialog(result = '') {
+  const dialog = $('#privacyConsentDialog');
+  if (!dialog) return;
+  if (dialog.open) dialog.close(result);
+  dialog.removeAttribute('open');
+}
+
+function commitmentDocumentHref() {
+  const documentId = program?.onboarding?.commitmentDocumentId;
+  return adminPreviewUrl(documentId
+    ? `/api/customer-records?action=document-download&documentId=${encodeURIComponent(documentId)}`
+    : '/assets/forms/FDD-FRM-001_Mein-persoenliches-Commitment_V1.2.pdf');
+}
+
+function todayInBerlin() {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  const part = (type) => parts.find((entry) => entry.type === type)?.value;
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+let commitmentWizardStep = 0;
+
+function commitmentStepControls(step = commitmentWizardStep) {
+  return [...document.querySelectorAll(`[data-commitment-step="${step}"] input, [data-commitment-step="${step}"] textarea`)];
+}
+
+function validateCommitmentStep(step = commitmentWizardStep) {
+  const invalid = commitmentStepControls(step).find((control) => !control.checkValidity());
+  if (invalid) invalid.reportValidity();
+  return !invalid;
+}
+
+function renderCommitmentReview() {
+  $('#commitmentReview').innerHTML = [
+    ['Warum ich hier bin', $('#commitmentWhy').value.trim()],
+    ['Was ich verändern möchte', $('#commitmentChange').value.trim()],
+    ['Was mich weitere Unklarheit kostet', $('#commitmentCost').value.trim()],
+  ].map(([label, value]) => `<article><small>${escapeHtml(label)}</small><p>${escapeHtml(value)}</p></article>`).join('');
+}
+
+function renderCommitmentWizard() {
+  $$('.commitment-step').forEach((step, index) => {
+    const active = index === commitmentWizardStep;
+    step.hidden = !active;
+    step.classList.toggle('active', active);
+    step.querySelectorAll('input, textarea').forEach((control) => { control.disabled = !active; });
+  });
+  $$('#commitmentWizardProgress li').forEach((item, index) => {
+    item.classList.toggle('active', index === commitmentWizardStep);
+    item.classList.toggle('complete', index < commitmentWizardStep);
+  });
+  $('#commitmentBack').hidden = commitmentWizardStep === 0;
+  $('#commitmentNext').hidden = commitmentWizardStep === 4;
+  $('#confirmCommitment').hidden = commitmentWizardStep !== 4;
+  $('#commitmentStepStatus').textContent = `Schritt ${commitmentWizardStep + 1} von 5`;
+  if (commitmentWizardStep === 4) renderCommitmentReview();
+}
+
+function openCommitmentDialog() {
+  const confirmed = Boolean(program?.onboarding?.commitmentConfirmed || program?.onboarding?.commitmentDocumentId);
+  const details = program?.onboarding?.commitmentDetails || {};
+  const href = commitmentDocumentHref();
+  $('#commitmentPdfPreview').src = `${href}#view=FitH`;
+  $('#commitmentPdfExternal').href = href;
+  $('#openCompletedCommitment').href = href;
+  $('#commitmentForm').classList.toggle('hidden', confirmed);
+  $('#commitmentReadonlyState').classList.toggle('hidden', !confirmed);
+  if (confirmed) {
+    const date = program?.onboarding?.commitmentConfirmedAt ? new Date(program.onboarding.commitmentConfirmedAt).toLocaleString('de-DE') : 'gespeichertem Datum';
+    $('#commitmentReadonlyCopy').textContent = `Bestätigt von ${details.name || program?.profile?.name || 'dir'} am ${date}${details.place ? ` in ${details.place}` : ''}. Deine Antworten und die digitale Klickbestätigung sind fest im Original-PDF hinterlegt.`;
+  } else {
+    const date = todayInBerlin();
+    $('#commitmentName').value ||= $('#onboardingName').value || program?.profile?.name || '';
+    $('#commitmentStartDate').value ||= program?.access?.programStartDate || date;
+    $('#commitmentPlace').value ||= $('#onboardingCity').value || program?.profile?.city || '';
+    $('#commitmentSignatureDate').value = date;
+    $('#commitmentAccepted').checked = false;
+    commitmentWizardStep = 0;
+    renderCommitmentWizard();
+  }
+  $('#commitmentDialog').showModal();
 }
 
 function progressPercent() {
@@ -1390,19 +1317,9 @@ function render() {
     $('#clarityValue').textContent = '—';
     $('#startProcess').classList.toggle('hidden', started);
     $('#revokePrivacy').classList.add('hidden');
-    if (started) {
-      $('#privacy').checked = true;
-      $('#commitment').checked = true;
-      $('#commitment').disabled = true;
-      $('#signedCommitmentUpload').disabled = true;
-    } else {
-      $('#signedCommitmentUpload').disabled = false;
-    }
+    if (started) $('#privacy').checked = true;
     renderOnboardingState(started);
-    if (started) {
-      $('#commitment').checked = true;
-      setGateStatus('#commitmentGateStatus', true);
-    }
+    if (started) setGateStatus('#commitmentGateStatus', true);
     $('#startProcess').disabled = paused || $('#startProcess').disabled;
   } else if (showPreOnboarding) {
     $('#mobileWeekGreeting').classList.add('hidden');
@@ -1625,9 +1542,9 @@ $('#onboardingProfileForm').addEventListener('submit', async (event) => {
   finally { button.disabled = false; button.textContent = 'Angaben speichern'; }
 });
 $('#openPrivacyConsent').addEventListener('click', openPrivacyConsentDialog);
-$('#closePrivacyConsent').addEventListener('click', () => $('#privacyConsentDialog').close());
-$('#cancelPrivacyConsent').addEventListener('click', () => $('#privacyConsentDialog').close());
-$('#privacyConsentDialog').addEventListener('click', (event) => { if (event.target === $('#privacyConsentDialog')) $('#privacyConsentDialog').close(); });
+$('#closePrivacyConsent').addEventListener('click', () => closePrivacyConsentDialog());
+$('#cancelPrivacyConsent').addEventListener('click', () => closePrivacyConsentDialog());
+$('#privacyConsentDialog').addEventListener('click', (event) => { if (event.target === $('#privacyConsentDialog')) closePrivacyConsentDialog(); });
 $('#privacyConsentForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const button = $('#confirmPrivacyConsent');
@@ -1642,43 +1559,60 @@ $('#privacyConsentForm').addEventListener('submit', async (event) => {
       place: $('#privacyPlace').value.trim(),
       date: $('#privacyDate').value,
     } }) });
-    $('#privacyConsentDialog').close();
+    closePrivacyConsentDialog('confirmed');
+    $('#privacyConsentForm').reset();
     customerWorkspace = null;
     await loadProgram();
+    closePrivacyConsentDialog('confirmed');
     showView('onboarding');
     toast('Deine Einwilligung wurde bestätigt und als ausgefülltes PDF gespeichert.');
   } catch (error) { toast(error.message); }
   finally { button.disabled = false; button.textContent = 'Verbindlich bestätigen →'; }
 });
-$('#commitment').addEventListener('change', refreshOnboardingGateState);
-$('#previewCommitment').addEventListener('click', openCommitmentPreviewDialog);
-$('#closeCommitmentPreview').addEventListener('click', () => $('#commitmentPreviewDialog').close());
-$('#closeCommitmentPreviewBottom').addEventListener('click', () => $('#commitmentPreviewDialog').close());
-$('#commitmentPreviewDialog').addEventListener('click', (event) => { if (event.target === $('#commitmentPreviewDialog')) $('#commitmentPreviewDialog').close(); });
-$('#printCommitmentFromPreview').addEventListener('click', openCommitmentPrintView);
-$('#printCommitment').addEventListener('click', openCommitmentPrintView);
-$('#signedCommitmentUpload').addEventListener('change', async (event) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  if (file.size > 10 * 1024 * 1024) { toast('Das Commitment darf höchstens 10 MB groß sein.'); event.target.value = ''; return; }
+$('#openCommitment').addEventListener('click', openCommitmentDialog);
+$('#closeCommitmentDialog').addEventListener('click', () => $('#commitmentDialog').close());
+$$('[data-close-commitment]').forEach((button) => button.addEventListener('click', () => $('#commitmentDialog').close()));
+$('#commitmentDialog').addEventListener('click', (event) => { if (event.target === $('#commitmentDialog')) $('#commitmentDialog').close(); });
+$('#commitmentBack').addEventListener('click', () => {
+  commitmentWizardStep = Math.max(0, commitmentWizardStep - 1);
+  renderCommitmentWizard();
+});
+$('#commitmentNext').addEventListener('click', () => {
+  if (!validateCommitmentStep()) return;
+  commitmentWizardStep = Math.min(4, commitmentWizardStep + 1);
+  renderCommitmentWizard();
+});
+$('#commitmentForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!validateCommitmentStep(4)) return;
+  const button = $('#confirmCommitment');
+  button.disabled = true;
+  button.textContent = 'PDF wird erstellt …';
   try {
-    $('#signedCommitmentStatus').textContent = 'Dein Commitment wird sicher gespeichert …';
-    const result = await request('/api/customer-records?action=document-upload', { method: 'POST', body: JSON.stringify({ week: 0, documentType: 'start_commitment', title: 'Mein Start-Commitment', fileName: file.name, mimeType: file.type, contentBase64: await fileAsBase64(file) }) });
-    local.signedCommitment = { documentId: result.document.id, name: file.name, type: file.type, size: file.size, uploadedAt: new Date().toISOString(), flowVersion: 3 };
-    saveLocal();
+    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'confirm_commitment', commitment: {
+      name: $('#commitmentName').value.trim(),
+      startDate: $('#commitmentStartDate').value,
+      why: $('#commitmentWhy').value.trim(),
+      change: $('#commitmentChange').value.trim(),
+      costOfUnclarity: $('#commitmentCost').value.trim(),
+      place: $('#commitmentPlace').value.trim(),
+      signatureDate: $('#commitmentSignatureDate').value,
+      accepted: $('#commitmentAccepted').checked,
+    } }) });
+    $('#commitmentDialog').close();
     customerWorkspace = null;
     await loadProgram();
     showView('onboarding');
-    toast('Dein unterschriebenes Commitment wurde sicher gespeichert.');
-  } catch (error) { renderCommitmentUploadState(); toast(error.message); }
-  event.target.value = '';
+    toast('Dein Commitment wurde ausgefüllt, digital bestätigt und als PDF gespeichert.');
+  } catch (error) { toast(error.message); }
+  finally { button.disabled = false; button.textContent = 'Digital bestätigen →'; }
 });
 $('#startProcess').addEventListener('click', async () => {
   const button = $('#startProcess');
   button.disabled = true;
   button.textContent = 'Woche 1 wird vorbereitet …';
   try {
-    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'start', commitment: $('#commitment').checked, profile: onboardingProfilePayload() }) });
+    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'start', profile: onboardingProfilePayload() }) });
     todayMode = 'dashboard';
     customerWorkspace = null;
     await loadProgram();
@@ -1696,7 +1630,6 @@ $('#revokePrivacy').addEventListener('click', async () => {
   try {
     await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'revoke_privacy' }) });
     $('#privacy').checked = false;
-    $('#commitment').checked = false;
     await loadProgram();
     showView('onboarding');
     toast('Deine Einwilligung wurde widerrufen.');
@@ -1716,8 +1649,6 @@ $('#confirmAdminOnboardingReset')?.addEventListener('click', async (event) => {
   button.textContent = 'Onboarding wird zurückgesetzt …';
   try {
     await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'admin_reset_onboarding' }) });
-    local.signedCommitment = null;
-    saveLocal();
     customerWorkspace = null;
     onboardingProfileDirty = false;
     todayMode = 'dashboard';

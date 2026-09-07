@@ -555,7 +555,6 @@ header > div:last-child {
 .onboarding-complete-state p { color: #4f7465; font-size: 11px; margin: 3px 0 0; }
 .onboarding.is-complete .start-gates>h2 { margin-bottom: 5px; }
 .onboarding.is-complete .gates-intro,
-.onboarding.is-complete .commitment-actions .upload-button { display: none; }
 .onboarding.is-complete .gate-card { box-shadow: none; }
 .onboarding.is-complete input:disabled { cursor: default; }
 
@@ -614,10 +613,10 @@ header > div:last-child {
 .onboarding-profile-footer { align-items: center; border-top: 1px solid rgba(35,80,91,.1); display: flex; gap: 18px; justify-content: space-between; margin-top: 18px; padding-top: 16px; }
 .onboarding-profile-footer p { color: var(--muted); font-size: 10px; margin: 0; }
 .onboarding-profile-footer p.complete { color: #167450; font-weight: 750; }
-.privacy-summary { align-items: center; display: flex; gap: 20px; justify-content: space-between; }
-.privacy-summary strong { color: var(--ink); display: block; font-size: 13px; }
-.privacy-summary p { margin-top: 5px; }
-.privacy-summary > span { background: #eff7f8; border: 1px solid #d5e7e9; border-radius: 10px; color: #28687a; flex: 0 0 auto; font-size: 9px; font-weight: 850; letter-spacing: .05em; padding: 9px 11px; }
+.privacy-summary,.commitment-summary { align-items: center; display: flex; gap: 20px; justify-content: space-between; }
+.privacy-summary strong,.commitment-summary strong { color: var(--ink); display: block; font-size: 13px; }
+.privacy-summary p,.commitment-summary p { margin-top: 5px; }
+.privacy-summary > span,.commitment-summary > span { background: #eff7f8; border: 1px solid #d5e7e9; border-radius: 10px; color: #28687a; flex: 0 0 auto; font-size: 9px; font-weight: 850; letter-spacing: .05em; padding: 9px 11px; }
 .gate-open-button { margin-top: 16px; }
 #openPrivacyConsent {
   background: linear-gradient(135deg,#ff812d,#e95b13);
@@ -631,11 +630,23 @@ header > div:last-child {
   width: min(100%,420px);
 }
 #openPrivacyConsent:hover { background: linear-gradient(135deg,#ff9048,#e9530a); box-shadow: 0 15px 30px rgba(218,84,17,.3); }
+#openCommitment {
+  background: linear-gradient(135deg,#123d52,#0a2c3f);
+  border-color: #123d52;
+  box-shadow: 0 12px 25px rgba(8,45,62,.2);
+  color: #fff;
+  display: flex;
+  font-size: 13px;
+  justify-content: center;
+  min-height: 48px;
+  width: min(100%,420px);
+}
+#openCommitment:hover { background: linear-gradient(135deg,#184c63,#0b3449); box-shadow: 0 15px 30px rgba(8,45,62,.27); }
 #privacyConsentStatus { color: var(--muted); display: inline-block; font-size: 10px; margin-left: 12px; }
 .privacy-gate-card.is-confirmed { background: linear-gradient(145deg,#fff,#f0faf5); border-color: rgba(35,169,115,.3); }
 .privacy-gate-card.is-confirmed #privacyConsentStatus { color: #167450; font-weight: 750; }
-.commitment-card .commitment-actions > .secondary,
-.commitment-card .commitment-actions > .upload-button { flex-basis: 180px; }
+.commitment-card.is-confirmed { background: linear-gradient(145deg,#fff,#f0faf5); border-color: rgba(35,169,115,.3); }
+.commitment-card.is-confirmed #signedCommitmentStatus { color: #167450; font-weight: 750; }
 
 .onboarding-dialog { background: transparent; border: 0; color: var(--ink); margin: auto; max-height: calc(100dvh - 28px); max-width: 980px; overflow: auto; padding: 0; width: calc(100% - 28px); }
 .onboarding-dialog::backdrop { backdrop-filter: blur(9px); background: rgba(6,25,38,.66); }
@@ -659,20 +670,83 @@ header > div:last-child {
 .privacy-readonly-state > span { align-items: center; background: #23a973; border-radius: 50%; color: #fff; display: flex; flex: 0 0 32px; font-weight: 900; height: 32px; justify-content: center; width: 32px; }
 .privacy-readonly-state strong { color: #176d4e; display: block; font-size: 12px; }
 .privacy-readonly-state p { color: #4f7465; font-size: 10px; margin: 3px 0 0; }
-.commitment-preview-dialog { max-width: 760px; }
-.commitment-preview-content { background: #fff; border: 1px solid rgba(31,66,82,.12); border-radius: 18px; box-shadow: 0 16px 38px rgba(22,43,54,.08); color: var(--muted-strong); font-size: 13px; line-height: 1.75; padding: clamp(22px,4vw,42px); }
-.commitment-preview-content .commitment-title { color: var(--ink); font-size: 27px; font-weight: 850; letter-spacing: -.04em; margin-bottom: 15px; }
+.commitment-wizard-dialog { max-width: 1240px; }
+.commitment-wizard-dialog .onboarding-dialog-shell { padding: clamp(20px,2.5vw,32px); }
+.commitment-dialog-grid { align-items: start; display: grid; gap: 22px; grid-template-columns: minmax(360px,.9fr) minmax(440px,1.1fr); }
+.commitment-pdf-pane { background: #e8eeee; border: 1px solid rgba(31,66,82,.14); border-radius: 18px; min-width: 0; overflow: hidden; position: sticky; top: 0; }
+.commitment-pdf-pane iframe { background: #fff; border: 0; display: block; height: min(67vh,690px); width: 100%; }
+.commitment-pdf-pane a { color: #236d83; display: block; font-size: 10px; font-weight: 800; padding: 11px 14px; text-align: right; }
+.commitment-wizard-pane { background: rgba(255,255,255,.84); border: 1px solid rgba(31,66,82,.12); border-radius: 18px; box-shadow: 0 15px 34px rgba(14,48,61,.07); min-height: min(67vh,690px); padding: clamp(18px,2.2vw,28px); }
+.commitment-wizard-progress { display: grid; gap: 7px; grid-template-columns: repeat(5,1fr); list-style: none; margin: 0 0 28px; padding: 0; }
+.commitment-wizard-progress li { align-items: center; color: #8a989c; display: flex; flex-direction: column; font-size: 9px; gap: 6px; min-width: 0; position: relative; text-align: center; }
+.commitment-wizard-progress li:not(:last-child)::after { background: #dbe4e4; content: ''; height: 1px; left: calc(50% + 17px); position: absolute; right: calc(-50% + 17px); top: 14px; }
+.commitment-wizard-progress span { align-items: center; background: #edf2f2; border: 1px solid #d8e2e2; border-radius: 50%; display: flex; font-size: 10px; font-weight: 850; height: 29px; justify-content: center; position: relative; width: 29px; z-index: 1; }
+.commitment-wizard-progress small { font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
+.commitment-wizard-progress li.active { color: #0d7564; font-weight: 800; }
+.commitment-wizard-progress li.active span { background: #e4f7f1; border-color: #68cdb0; box-shadow: 0 0 0 4px rgba(35,169,115,.08); color: #087662; }
+.commitment-wizard-progress li.complete { color: #167450; }
+.commitment-wizard-progress li.complete span { background: #23a973; border-color: #23a973; color: #fff; }
+.commitment-wizard-progress li.complete span::before { content: '✓'; }
+.commitment-wizard-progress li.complete span { font-size: 0; }
+.commitment-wizard-progress li.complete span::before { font-size: 11px; }
+.commitment-step { animation: commitmentStepIn .22s ease; min-height: 385px; }
+.commitment-step h3 { color: var(--ink); font-size: clamp(23px,2.5vw,33px); letter-spacing: -.04em; margin: 5px 0 9px; }
+.commitment-step > p:not(.eyebrow) { color: var(--muted-strong); font-size: 12px; line-height: 1.65; margin: 0 0 24px; }
+.commitment-step > label,.commitment-signature-grid label { color: var(--ink); display: grid; font-size: 10px; font-weight: 800; gap: 7px; }
+.commitment-step input,.commitment-step textarea { background: #fbfdfc; border: 1px solid rgba(35,80,91,.19); border-radius: 12px; color: var(--ink); font: 600 13px/1.55 Manrope,sans-serif; padding: 11px 13px; resize: vertical; width: 100%; }
+.commitment-step input { min-height: 46px; }
+.commitment-step textarea { min-height: 190px; }
+.commitment-step input:focus,.commitment-step textarea:focus { border-color: #23967f; box-shadow: 0 0 0 3px rgba(35,150,127,.11); outline: 0; }
+.commitment-step[data-commitment-step="0"] { display: grid; align-content: start; gap: 14px; grid-template-columns: 1fr 1fr; }
+.commitment-step[data-commitment-step="0"] > p,.commitment-step[data-commitment-step="0"] > h3 { grid-column: 1/-1; }
+.commitment-review { display: grid; gap: 8px; margin: 15px 0; }
+.commitment-review article { background: #f4f8f7; border: 1px solid #dce9e5; border-radius: 11px; padding: 10px 12px; }
+.commitment-review small { color: #197a68; display: block; font-size: 8px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.commitment-review p { color: var(--ink); font-size: 10px; line-height: 1.5; margin: 4px 0 0; max-height: 48px; overflow: auto; }
+.commitment-signature-grid { display: grid; gap: 12px; grid-template-columns: 1.3fr 1fr; }
+.commitment-digital-check { align-items: flex-start; background: #ebf8f1; border: 1px solid #bee5d2; border-radius: 12px; cursor: pointer; display: flex !important; gap: 11px !important; margin-top: 14px; padding: 13px; }
+.commitment-digital-check input { accent-color: #17896f; flex: 0 0 auto; height: 18px; min-height: 0; margin-top: 1px; padding: 0; width: 18px; }
+.commitment-digital-check span { color: #4f7465; font-size: 10px; font-weight: 550; line-height: 1.5; }
+.commitment-digital-check strong { color: #176d4e; display: block; font-size: 11px; margin-bottom: 2px; }
+.commitment-wizard-actions { align-items: center; border-top: 1px solid rgba(31,66,82,.11); display: grid; gap: 10px; grid-template-columns: 1fr auto 1fr; margin-top: 18px; padding-top: 17px; }
+.commitment-wizard-actions > :last-child { justify-self: end; }
+.commitment-wizard-actions > span { color: var(--muted); font-size: 9px; font-weight: 750; }
+.commitment-readonly-state { align-items: center; display: flex; flex-direction: column; justify-content: center; min-height: 560px; text-align: center; }
+.commitment-readonly-state > span { align-items: center; background: #23a973; border-radius: 50%; box-shadow: 0 10px 25px rgba(35,169,115,.2); color: #fff; display: flex; font-size: 25px; font-weight: 900; height: 58px; justify-content: center; width: 58px; }
+.commitment-readonly-state h3 { font-size: 25px; letter-spacing: -.04em; margin: 17px 0 7px; }
+.commitment-readonly-state > p { color: var(--muted-strong); font-size: 11px; line-height: 1.65; margin: 0; max-width: 460px; }
+.commitment-readonly-state .onboarding-dialog-actions { width: 100%; }
+.commitment-readonly-state .primary { align-items: center; display: inline-flex; justify-content: center; text-decoration: none; }
+@keyframes commitmentStepIn { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
 
 @media (max-width: 760px) {
   .onboarding-welcome { display: block; }
   .onboarding-welcome .promise { max-width: none; }
   .onboarding-profile-grid { grid-template-columns: 1fr; }
-  .onboarding-profile-footer,.privacy-summary { align-items: stretch; flex-direction: column; }
-  .privacy-summary > span { align-self: flex-start; }
+  .onboarding-profile-footer,.privacy-summary,.commitment-summary { align-items: stretch; flex-direction: column; }
+  .privacy-summary > span,.commitment-summary > span { align-self: flex-start; }
   .privacy-signature-grid { grid-template-columns: 1fr; }
   .privacy-pdf-frame iframe { height: 52vh; }
   .onboarding-dialog-actions { align-items: stretch; flex-direction: column-reverse; }
   .onboarding-dialog-actions button { width: 100%; }
+}
+
+@media (max-width: 980px) {
+  .commitment-dialog-grid { grid-template-columns: 1fr; }
+  .commitment-pdf-pane { position: static; }
+  .commitment-pdf-pane iframe { height: min(52vh,520px); }
+  .commitment-wizard-pane { min-height: 0; }
+  .commitment-readonly-state { min-height: 330px; }
+}
+
+@media (max-width: 560px) {
+  .commitment-wizard-dialog .onboarding-dialog-shell { border-radius: 18px; padding: 17px; }
+  .commitment-wizard-progress small { display: none; }
+  .commitment-step { min-height: 0; }
+  .commitment-step[data-commitment-step="0"],.commitment-signature-grid { grid-template-columns: 1fr; }
+  .commitment-wizard-actions { grid-template-columns: 1fr 1fr; }
+  .commitment-wizard-actions > span { display: none; }
+  .commitment-wizard-actions button { width: 100%; }
 }
 
 .clara-card,
@@ -911,53 +985,6 @@ header > div:last-child {
   color: var(--ink);
 }
 
-.commitment-signature {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
-
-.commitment-signature span { color: var(--muted); }
-
-.commitment-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-.commitment-card .commitment-actions {
-  margin-top: 22px;
-  max-width: 560px;
-  align-items: stretch;
-}
-
-.commitment-card .commitment-actions > .secondary,
-.commitment-card .commitment-actions > .upload-button {
-  flex: 1 1 220px;
-  min-height: 44px;
-  padding: 11px 18px;
-  border-radius: 11px;
-  font-size: 13px;
-  line-height: 1.2;
-  font-weight: 800;
-}
-
-.commitment-card #printCommitment {
-  background: #edf6fc;
-  border: 1px solid #c9e1f1;
-  color: #24658d;
-}
-
-.commitment-card #printCommitment:hover {
-  background: #e3f1fa;
-  border-color: #aed2e9;
-  box-shadow: 0 8px 20px rgba(36, 101, 141, .12);
-}
-
 .upload-button {
   display: inline-flex;
   align-items: center;
@@ -974,10 +1001,6 @@ header > div:last-child {
 }
 
 .upload-button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(226, 102, 35, .12); }
-#signedCommitmentUpload { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
-#signedCommitmentStatus { display: block; margin-top: 10px; }
-.commitment-check input:disabled + span { color: var(--muted); }
-
 #signedCommitmentStatus {
   display: block;
   margin-top: 12px;
@@ -1953,8 +1976,7 @@ header > div:last-child {
   }
 
   #answerForm > div,
-  .support-actions,
-  .commitment-actions {
+  .support-actions {
     flex-direction: column;
   }
 }

@@ -178,9 +178,14 @@
               Die Wochen öffnen sich automatisch im Sieben-Tage-Rhythmus.
             </p>
           </div>
-          <button class="primary" data-jump="leads">
-            Zu den Interessenten →
-          </button>
+          <div class="customer-overview-actions">
+            <button class="secondary" data-jump="leads">
+              Zu den Interessenten →
+            </button>
+            <button class="primary" id="createCustomerButton" type="button" hidden>
+              + Kunde anlegen
+            </button>
+          </div>
         </div>
         <div class="toolbar">
           <label
@@ -566,6 +571,9 @@
                     ><strong id="bookingHorizonSummary">—</strong>
                   </article>
                 </div>
+                <div class="booking-availability-preview" id="bookingAvailabilityPreview" aria-live="polite">
+                  <div class="booking-availability-empty">Gespeicherte Zeitfenster werden geladen …</div>
+                </div>
                 <div class="settings-action-row">
                   <div>
                     <b>Wöchentliche Verfügbarkeit bearbeiten</b
@@ -881,10 +889,10 @@
         </div>
         <nav class="lead-wizard-progress" aria-label="Fortschritt im Verkaufsgespräch">
           <ol>
-            <li class="active" data-lead-progress-step="1" aria-current="step"><span>1</span><div><b>Kontakt</b><small>Stammdaten &amp; Anliegen</small></div></li>
-            <li data-lead-progress-step="2"><span>2</span><div><b>Termin</b><small>Kalender &amp; Meet</small></div></li>
-            <li data-lead-progress-step="3"><span>3</span><div><b>Gespräch</b><small>Leitfaden &amp; Antworten</small></div></li>
-            <li data-lead-progress-step="4"><span>4</span><div><b>Abschluss</b><small>Prüfen &amp; speichern</small></div></li>
+            <li class="active" data-lead-progress-step="1" aria-current="step"><button type="button" data-open-lead-step="1"><span>1</span><div><b>Kontakt</b><small>Stammdaten &amp; Anliegen</small></div></button></li>
+            <li data-lead-progress-step="2"><button type="button" data-open-lead-step="2"><span>2</span><div><b>Termin</b><small>Kalender &amp; Meet</small></div></button></li>
+            <li data-lead-progress-step="3"><button type="button" data-open-lead-step="3"><span>3</span><div><b>Gespräch</b><small>Leitfaden &amp; Antworten</small></div></button></li>
+            <li data-lead-progress-step="4"><button type="button" data-open-lead-step="4"><span>4</span><div><b>Abschluss</b><small>Vertrag &amp; Video</small></div></button></li>
           </ol>
         </nav>
         <input type="hidden" name="id" />
@@ -946,6 +954,10 @@
           <div class="available-slots" id="availableSlots">
             <p>Freie Zeiten werden beim Öffnen geladen …</p>
           </div>
+          <div class="demo-appointment-box">
+            <div><small>Vorschau ohne Google-Kalender</small><strong>Demo-Termine</strong><p>Zum Durchspielen des Verkaufsgesprächs. Erst „Termin + Meet erstellen“ legt einen echten Termin an.</p></div>
+            <div class="demo-appointment-slots" id="demoAppointmentSlots"></div>
+          </div>
           <div class="lead-appointment-actions">
             <button type="button" class="primary" id="scheduleLead">
               Termin + Meet erstellen</button
@@ -978,10 +990,7 @@
             </div>
             <span>Antworten werden beim Interessenten gespeichert</span>
           </div>
-          <label
-            ><b>1. Sind Name, E-Mail-Adresse und Telefonnummer korrekt?</b
-            ><textarea name="q1" rows="2"></textarea></label
-          ><label
+          <label class="yes-no-question"><b>1. Sind Name, E-Mail-Adresse und Telefonnummer korrekt?</b><input name="q1" type="hidden"><span class="yes-no-buttons"><button type="button" data-yes-no="q1" data-value="Ja">Ja</button><button type="button" data-yes-no="q1" data-value="Nein">Nein</button></span></label><label
             ><b>2. Wie sieht deine berufliche Situation momentan aus?</b
             ><textarea name="q2" rows="2"></textarea></label
           ><label
@@ -995,12 +1004,7 @@
               >5. Was hast du bisher versucht und warum hat es noch nicht
               funktioniert?</b
             ><textarea name="q5" rows="2"></textarea></label
-          ><label
-            ><b
-              >6. Bist du bereit, acht Wochen Zeit und Energie in die Umsetzung
-              zu investieren?</b
-            ><textarea name="q6" rows="2"></textarea>
-          </label>
+          ><label class="yes-no-question"><b>6. Bist du bereit, acht Wochen Zeit und Energie in die Umsetzung zu investieren?</b><input name="q6" type="hidden"><span class="yes-no-buttons"><button type="button" data-yes-no="q6" data-value="Ja">Ja</button><button type="button" data-yes-no="q6" data-value="Nein">Nein</button></span></label>
         </section>
         <section class="lead-conversion lead-wizard-page" data-lead-step="4" hidden>
           <div class="lead-section-head">
@@ -1010,13 +1014,18 @@
             </div>
             <span id="leadConversionState">Noch kein Konto angelegt</span>
           </div>
-          <p>Ein Interessent bleibt Lead, bis ein unterzeichneter Vertrag, das Vertragsdokument und der Videovertrag bestätigt sind. Erst danach wird das Teilnehmerkonto automatisch angelegt und die Passwort-E-Mail versendet.</p>
+          <p>Ein Interessent bleibt Lead, bis Vertragsdokument, ausdrückliche Erklärungen und Video-Abschluss nachvollziehbar dokumentiert sind. Danach wird das Teilnehmerkonto angelegt; die zusätzliche digitale Kundensignatur bleibt separat nachvollziehbar.</p>
           <div class="lead-wizard-review">
             <article><small>Kontakt</small><strong id="leadReviewContact">–</strong></article>
             <article><small>Termin</small><strong id="leadReviewAppointment">–</strong></article>
             <article><small>Gesprächsleitfaden</small><strong id="leadReviewQuestions">–</strong></article>
             <article><small>Vertriebsstatus</small><strong id="leadReviewStatus">–</strong></article>
           </div>
+          <div class="sales-contract-actions">
+            <article><span>▤</span><div><small>Schritt 1</small><h4>Vertragsdokument</h4><p>Personalisierte FDD-VTR-001 als PDF erzeugen und zur Prüfung bereitstellen.</p></div><button class="secondary" id="createContractDocument" type="button">Vertragsdokument erstellen →</button></article>
+            <article><span>●</span><div><small>Schritt 2</small><h4>Videovertrag</h4><p>Einwilligung dokumentieren, freigegebenes Meet-Fenster aufzeichnen und Video-Abschluss speichern.</p></div><button class="primary" id="createVideoContract" type="button">Videovertrag erstellen →</button></article>
+          </div>
+          <div class="sales-contract-state" id="salesContractState">Noch kein Vertragsdokument für diesen Interessenten erstellt.</div>
         </section>
         <div class="dialog-actions lead-dialog-actions">
           <button type="button" class="secondary" data-close-lead>
@@ -1027,6 +1036,19 @@
             <button type="button" class="primary" id="leadStepNext">Weiter →</button>
             <button class="primary" id="leadStepSave" type="submit" hidden>Verkaufsgespräch speichern</button>
           </div>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="videoContractDialog" class="video-contract-dialog">
+      <form id="videoContractForm">
+        <div class="dialog-head video-contract-head"><div><p class="eyebrow">FDD-VTR-001 · B2C-Videovertrag</p><h2>Vertrag klar dokumentieren.</h2><small>Vertragsdaten, ausdrückliche Einwilligung und Video-Abschluss in einem nachvollziehbaren Ablauf.</small></div><button type="button" data-close-video-contract>×</button></div>
+        <div class="video-contract-layout">
+          <aside class="video-contract-preview"><iframe id="videoContractPdf" src="/assets/forms/FDD-VTR-001_B2C-Videovertrag_Finde-Dein-Ding_V1.0.pdf#view=FitH" title="B2C-Videovertrag FDD-VTR-001"></iframe><a id="videoContractPdfLink" href="/assets/forms/FDD-VTR-001_B2C-Videovertrag_Finde-Dein-Ding_V1.0.pdf" target="_blank" rel="noopener">PDF vollständig öffnen ↗</a></aside>
+          <section class="video-contract-workspace">
+            <section class="video-contract-section"><header><span>1</span><div><small>Vertragsdaten</small><h3>Dokument vorbereiten</h3></div></header><input name="contractId" type="hidden"><div class="video-contract-fields"><label>Name<input name="customerName" required></label><label>Geburtsdatum<input name="birthDate" type="date" required></label><label class="wide">Straße und Hausnummer<input name="street" required></label><label>PLZ / Ort<input name="postalCity" required></label><label>E-Mail<input name="customerEmail" type="email" required></label><label>Telefon<input name="customerPhone"></label><label>Leistungsbeginn<input name="serviceStart" type="date" required></label><label>Produkt / Paket<input name="product" value="Finde dein Ding · 8-Wochen-Programm" required></label><label>Laufzeit<input name="duration" value="8 Wochen" required></label><label>Gesamtpreis brutto<input name="totalPrice" placeholder="z. B. 2.490,00 €" required></label><label>Zahlungsmodell<input name="paymentModel" placeholder="z. B. Einmalzahlung" required></label><label>Zahlungsplan<input name="paymentDue" placeholder="z. B. 7 Tage nach Abschluss" required></label><label>Abschlussort<input name="place" required></label><label>Vertragsdatum<input name="contractDate" type="date" required></label><label class="wide">Weitere Leistungen / individuelle Abreden<textarea name="additionalAgreements" rows="3"></textarea></label></div><button class="primary" id="prepareVideoContractPdf" type="button">Vertragsdokument als PDF erstellen →</button><p class="video-contract-document-state" id="videoContractDocumentState">Noch nicht erstellt.</p></section>
+            <section class="video-contract-section video-confirmation-section"><header><span>2</span><div><small>Video-Abschlussprotokoll</small><h3>Jeden Punkt ausdrücklich bestätigen</h3></div></header><div class="recording-consent"><label><input name="recordingConsent" type="checkbox"><span><strong>Ausdrückliche Aufzeichnungseinwilligung liegt vor.</strong>Der Gesprächspartner hat vor Beginn hörbar zugestimmt. Ohne Zustimmung kann keine Aufnahme gestartet werden.</span></label><label><input name="recordingPurposeAccepted" type="checkbox"><span>Aufzeichnung nur zur Abschlussdokumentation und Beweissicherung.</span></label><label><input name="recordingRevocationAccepted" type="checkbox"><span>Widerrufsmöglichkeit für die Zukunft wurde erläutert.</span></label></div><div class="video-confirmation-list" id="videoConfirmationList"></div></section>
+            <section class="video-contract-section recording-control-section"><header><span>3</span><div><small>Sichtbare Browserfreigabe</small><h3>Abschlusssequenz aufzeichnen</h3></div></header><div class="recording-warning">Der Browser fragt sichtbar, welches Fenster oder welchen Tab du teilen möchtest. Wähle das laufende Google-Meet-Fenster und aktiviere – sofern angeboten – die Audiofreigabe.</div><div class="recording-controls"><button class="primary" id="startVideoContractRecording" type="button">Aufzeichnung starten</button><button class="secondary" id="stopVideoContractRecording" type="button" disabled>Aufzeichnung beenden & hochladen</button><a class="secondary hidden" id="openVideoContractMeet" target="_blank" rel="noopener">Google Meet öffnen ↗</a></div><div class="recording-state" id="videoRecordingState"><i></i><span>Noch keine Aufnahme gestartet.</span><time id="videoRecordingTimer">00:00</time></div><button class="primary finalize-video-contract" id="finalizeVideoContract" type="button" disabled>Videovertrag verbindlich speichern →</button><p class="video-contract-legal-note">Der Ablauf dokumentiert Erklärungen und Klickbestätigungen. Ob im Einzelfall weitere rechtliche Anforderungen bestehen, muss vor dem produktiven Einsatz fachlich geprüft werden.</p></section>
+          </section>
         </div>
       </form>
     </dialog>
@@ -1235,6 +1257,40 @@
         </div>
       </form>
     </dialog>
+    <dialog id="manualCustomerDialog" class="customer-profile-dialog manual-customer-dialog">
+      <form id="manualCustomerForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Kundenverwaltung · Neue Kundenakte</p>
+            <h2>Kunde manuell anlegen</h2>
+            <small>Das CRM erstellt genau eine verknüpfte Kundenakte, den Portalzugang und ein frisches Onboarding.</small>
+          </div>
+          <button type="button" data-close-manual-customer aria-label="Fenster schließen">×</button>
+        </div>
+        <div class="customer-profile-form-grid">
+          <label class="wide">Vollständiger Name<input name="name" required maxlength="160" autocomplete="name" placeholder="Vor- und Nachname" /></label>
+          <label>E-Mail-Adresse<input name="email" type="email" required maxlength="254" autocomplete="email" /></label>
+          <label>Programmstart<input name="programStartDate" type="date" required /></label>
+          <label>Telefonnummer<input name="phone" type="tel" maxlength="40" autocomplete="tel" /></label>
+          <label>Mobilnummer<input name="mobilePhone" type="tel" maxlength="40" autocomplete="tel-national" /></label>
+          <label>Geburtsdatum<input name="birthDate" type="date" /></label>
+          <label>Bevorzugter Kontakt<select name="preferredCommunicationChannel"><option value="email">E-Mail</option><option value="phone">Telefon</option><option value="whatsapp">WhatsApp</option></select></label>
+          <label class="wide">Straße &amp; Hausnummer<input name="street" maxlength="200" autocomplete="street-address" /></label>
+          <label>Postleitzahl<input name="postalCode" maxlength="20" autocomplete="postal-code" /></label>
+          <label>Ort<input name="city" maxlength="120" autocomplete="address-level2" /></label>
+          <label class="wide">Land<input name="country" maxlength="80" value="Deutschland" autocomplete="country-name" /></label>
+          <label class="wide customer-profile-toggle"><input name="sendInvitation" type="checkbox" /> Zugang direkt per E-Mail senden</label>
+        </div>
+        <div class="manual-customer-note">
+          <span>↗</span>
+          <p><strong>Sauber verknüpft</strong>Besteht bereits ein Interessent mit derselben E-Mail, übernimmt das CRM dessen Akte. Fehlende Pflichtdaten ergänzt der Kunde anschließend im Onboarding.</p>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="secondary" data-close-manual-customer>Abbrechen</button>
+          <button class="primary" type="submit">Kundenakte anlegen</button>
+        </div>
+      </form>
+    </dialog>
     <dialog id="participantLoginDialog" class="participant-login-dialog">
       <form id="participantLoginForm">
         <div class="dialog-head">
@@ -1358,8 +1414,8 @@
         <div class="customer-profile-form-grid">
           <label class="wide">Vollständiger Name<input name="name" required maxlength="160" autocomplete="name" /></label>
           <label>Geburtsdatum<input name="birthDate" type="date" /></label>
-          <label>E-Mail-Adresse<input name="email" type="email" readonly aria-describedby="customerProfileEmailHint" /></label>
-          <small class="wide customer-profile-field-hint" id="customerProfileEmailHint">Die E-Mail gehört zum sicheren Portalzugang und wird deshalb in der Zugangsverwaltung geändert.</small>
+          <label>E-Mail-Adresse<input name="email" type="email" required maxlength="254" autocomplete="email" aria-describedby="customerProfileEmailHint" /></label>
+          <small class="wide customer-profile-field-hint" id="customerProfileEmailHint">Eine Änderung aktualisiert gleichzeitig den sicheren Portalzugang und die verknüpfte CRM-Akte.</small>
           <label class="wide">Straße &amp; Hausnummer<input name="street" maxlength="200" autocomplete="street-address" /></label>
           <label>Postleitzahl<input name="postalCode" maxlength="20" autocomplete="postal-code" /></label>
           <label>Ort<input name="city" maxlength="120" autocomplete="address-level2" /></label>

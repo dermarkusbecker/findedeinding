@@ -11,10 +11,33 @@ import { ensureCustomerClarityAnalysis } from '../lib/customer-clarity-agent.js'
 
 const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
+const validEmail = (value) => /^\S+@\S+\.\S+$/.test(value);
 
 async function patchCustomerProfile(service, participantId, input) {
+  const currentResult = await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(participantId)}&role=eq.user&select=id,auth_user_id,email&limit=1`, { headers: serviceHeaders(service.key) });
+  const currentRows = await currentResult.json().catch(() => ([]));
+  if (!currentResult.ok || !currentRows[0]) throw Object.assign(new Error(currentRows.message || 'Kunde wurde nicht gefunden.'), { status: currentResult.status || 404 });
+  const currentProfile = currentRows[0];
+  const email = clean(input?.email || currentProfile.email, 254).toLowerCase();
+  if (!validEmail(email)) throw Object.assign(new Error('Eine gültige Kunden-E-Mail-Adresse ist erforderlich.'), { status: 400 });
+  const emailChanged = email !== String(currentProfile.email || '').toLowerCase();
+  if (emailChanged) {
+    if (!currentProfile.auth_user_id) throw Object.assign(new Error('Zu diesem Kunden fehlt der verknüpfte Portalzugang.'), { status: 409 });
+    const duplicateResult = await fetch(`${service.url}/rest/v1/user_profiles?email=eq.${encodeURIComponent(email)}&id=neq.${encodeURIComponent(participantId)}&select=id&limit=1`, { headers: serviceHeaders(service.key) });
+    const duplicates = await duplicateResult.json().catch(() => ([]));
+    if (!duplicateResult.ok) throw new Error(duplicates.message || 'Die E-Mail-Adresse konnte nicht geprüft werden.');
+    if (duplicates[0]) throw Object.assign(new Error('Diese E-Mail-Adresse wird bereits von einem anderen Konto verwendet.'), { status: 409 });
+    const authResult = await fetch(`${service.url}/auth/v1/admin/users/${encodeURIComponent(currentProfile.auth_user_id)}`, {
+      method: 'PUT',
+      headers: serviceHeaders(service.key),
+      body: JSON.stringify({ email, email_confirm: true }),
+    });
+    const authBody = await authResult.json().catch(() => ({}));
+    if (!authResult.ok) throw Object.assign(new Error(authBody.message || 'Die Portal-E-Mail konnte nicht aktualisiert werden.'), { status: authResult.status });
+  }
   const changes = {
     name: clean(input?.name, 160),
+    email,
     birth_date: validDate(input?.birthDate) ? input.birthDate : null,
     street: clean(input?.street, 200) || null,
     postal_code: clean(input?.postalCode, 20) || null,
@@ -30,7 +53,14 @@ async function patchCustomerProfile(service, participantId, input) {
   if (!changes.name) throw Object.assign(new Error('Der vollständige Kundenname ist erforderlich.'), { status: 400 });
   const result = await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(participantId)}&role=eq.user`, { method: 'PATCH', headers: serviceHeaders(service.key, { Prefer: 'return=representation' }), body: JSON.stringify(changes) });
   const rows = await result.json().catch(() => ([]));
-  if (!result.ok || !rows[0]) throw new Error(rows.message || 'Kundenstammdaten konnten nicht gespeichert werden.');
+  if (!result.ok || !rows[0]) {
+    if (emailChanged) await fetch(`${service.url}/auth/v1/admin/users/${encodeURIComponent(currentProfile.auth_user_id)}`, {
+      method: 'PUT',
+      headers: serviceHeaders(service.key),
+      body: JSON.stringify({ email: currentProfile.email, email_confirm: true }),
+    }).catch(() => {});
+    throw Object.assign(new Error(rows.message || 'Kundenstammdaten konnten nicht gespeichert werden.'), { status: result.status });
+  }
   await syncCustomerProfileToLead(service, rows[0]);
   return rows[0];
 }

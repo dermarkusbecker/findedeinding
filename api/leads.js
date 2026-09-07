@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { DEFAULT_BOOKING_SETTINGS, generateAvailableSlots, isWithinBookingAvailability, normalizeBookingSettings } from '../lib/booking-availability.js';
 import { authorizationUrl, assertCalendarAvailable, calendarBusyIntervals, decryptCredential, deleteCalendarEvent, emailFromIdToken, encryptCredential, exchangeAuthorizationCode, googleConfig, refreshAccessToken, saveCalendarEvent, verifyOAuthState } from '../lib/google-calendar.js';
 import { provisionProgramUser, requireCurrentAdmin, supabaseAuthConfig } from '../lib/user-auth.js';
@@ -6,11 +7,20 @@ import { buildSystemRegistry } from '../lib/system-registry.js';
 import { calculateProgramAccess } from '../lib/program-access.js';
 import { reconcileAccessFromEntries } from '../lib/program-position.js';
 import { syncLeadToCustomerProfile } from '../lib/contact-lifecycle.js';
+import { buildVideoContractPdf, normalizeVideoContract, VIDEO_CONFIRMATION_KEYS } from '../lib/video-contract.js';
+import { createSignedCustomerUpload, customerObjectExists, deleteCustomerObject, signedCustomerUrl, uploadCustomerObject } from '../lib/customer-storage.js';
 
 const VALID_STATUSES = ['new', 'contacted', 'scheduled', 'consultation', 'offer', 'later', 'customer', 'lost'];
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const emailValid = (value) => /^\S+@\S+\.\S+$/.test(value || '');
 const uuidValid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || '');
+function currencyNumber(value) {
+  let normalized = String(value || '').replace(/[^0-9,.-]/g, '');
+  if (normalized.includes(',') && normalized.includes('.')) normalized = normalized.lastIndexOf(',') > normalized.lastIndexOf('.') ? normalized.replace(/\./g, '').replace(',', '.') : normalized.replace(/,/g, '');
+  else if (normalized.includes(',')) normalized = normalized.replace(',', '.');
+  const amount = Number(normalized);
+  return Number.isFinite(amount) && amount >= 0 ? amount : 0;
+}
 
 function serviceConfig() {
   const auth = supabaseAuthConfig();
@@ -30,6 +40,23 @@ async function leadById(service, id) {
   const rows = await readJson(await fetch(`${service.url}/rest/v1/leads?id=eq.${encodeURIComponent(id)}&select=*&limit=1`, { headers: headers(service.key) }), 'Lead konnte nicht geladen werden.');
   if (!rows[0]) throw Object.assign(new Error('Lead wurde nicht gefunden.'), { status: 404 });
   return rows[0];
+}
+
+async function leadContractById(service, leadId, contractId) {
+  if (!uuidValid(contractId)) throw Object.assign(new Error('Gültige Vertrags-ID fehlt.'), { status: 400 });
+  const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_contracts?id=eq.${encodeURIComponent(contractId)}&lead_id=eq.${encodeURIComponent(leadId)}&select=*&limit=1`, { headers: headers(service.key) }), 'Vertrag konnte nicht geladen werden.');
+  if (!rows[0]) throw Object.assign(new Error('Der Vertrag wurde nicht gefunden.'), { status: 404 });
+  return rows[0];
+}
+
+async function patchLeadContract(service, leadId, contractId, payload) {
+  const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_contracts?id=eq.${encodeURIComponent(contractId)}&lead_id=eq.${encodeURIComponent(leadId)}`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ ...payload, updated_at: new Date().toISOString() }) }), 'Vertrag konnte nicht aktualisiert werden.');
+  if (!rows[0]) throw Object.assign(new Error('Der Vertrag wurde nicht gefunden.'), { status: 404 });
+  return rows[0];
+}
+
+function pdfUpload(buffer, fileName) {
+  return { buffer, fileName, mimeType: 'application/pdf', sha256: crypto.createHash('sha256').update(buffer).digest('hex') };
 }
 
 async function patchLead(service, id, changes) {
@@ -406,6 +433,7 @@ function permissionForAction(action) {
   if (['dashboard', 'dashboard-record'].includes(action)) return ['leads', 'customers', 'finance'];
   if (action === 'update') return ['leads', 'sales_calls', 'customers'];
   if (['schedule', 'cancel-appointment'].includes(action)) return ['leads', 'sales_calls'];
+  if (['create-video-contract', 'begin-video-recording', 'video-recording-upload', 'finalize-video-contract', 'contract-download', 'video-recording-download'].includes(action)) return ['leads', 'sales_calls'];
   return 'leads';
 }
 
@@ -514,12 +542,102 @@ export default async function handler(request, response) {
     }
     if (request.method === 'PATCH' && action === 'booking-settings') {
       const settings = normalizeBookingSettings(request.body || {});
-      await readJson(await fetch(`${service.url}/rest/v1/booking_settings?on_conflict=id`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify(bookingSettingsPayload(settings)) }), 'Termin-Einstellungen konnten nicht gespeichert werden.');
-      return response.status(200).json({ settings });
+      const savedRows = await readJson(await fetch(`${service.url}/rest/v1/booking_settings?on_conflict=id`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify(bookingSettingsPayload(settings)) }), 'Termin-Einstellungen konnten nicht gespeichert werden.');
+      if (!savedRows[0]) throw Object.assign(new Error('Die gespeicherte Termin-Verfügbarkeit konnte nicht bestätigt werden.'), { status: 500 });
+      return response.status(200).json({ settings: normalizeBookingSettings(savedRows[0]) });
     }
     if (request.method === 'GET' && action === 'available-slots') {
       const result = await availableBookingSlots(service, { ...request.query, duration: Number(request.query?.duration) });
       return response.status(200).json(result);
+    }
+    if (request.method === 'POST' && action === 'create-video-contract') {
+      const lead = await leadById(service, request.body?.id);
+      const normalized = normalizeVideoContract(request.body?.contract, lead);
+      if (normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze zuerst: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
+      const now = new Date().toISOString();
+      const contractNumber = clean(request.body?.contractNumber, 80) || `FDD-${new Date().getFullYear()}-${crypto.randomInt(1000, 9999)}`;
+      const pdf = await buildVideoContractPdf(normalized.contract);
+      const stored = await uploadCustomerObject(service, 'documents', lead.id, pdfUpload(pdf, `${contractNumber}-Videovertrag-Entwurf.pdf`));
+      const amount = currencyNumber(normalized.contract.totalPrice);
+      const existing = uuidValid(request.body?.contractId) ? await leadContractById(service, lead.id, request.body.contractId) : null;
+      if (existing && existing.status !== 'draft') {
+        await deleteCustomerObject(service, stored.bucket, stored.storagePath);
+        return response.status(409).json({ error: 'Ein bereits dokumentierter Video-Abschluss kann nicht überschrieben werden. Lege dafür einen neuen Vertrag an.' });
+      }
+      const payload = {
+        title: normalized.contract.product, contract_number: existing?.contract_number || contractNumber,
+        amount, status: 'draft', program_start_date: normalized.contract.serviceStart,
+        contract_data: normalized.contract, document_bucket: stored.bucket, document_storage_path: stored.storagePath,
+        document_mime_type: 'application/pdf', signature_method: null, updated_at: now,
+      };
+      const record = existing ? await patchLeadContract(service, lead.id, existing.id, payload) : await insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, ...payload });
+      if (existing?.document_bucket && existing.document_storage_path !== stored.storagePath) await deleteCustomerObject(service, existing.document_bucket, existing.document_storage_path);
+      return response.status(201).json({ record, documentUrl: `/api/leads?action=contract-download&id=${encodeURIComponent(lead.id)}&contractId=${encodeURIComponent(record.id)}` });
+    }
+    if (request.method === 'POST' && action === 'video-recording-upload') {
+      const lead = await leadById(service, request.body?.id);
+      const contract = await leadContractById(service, lead.id, request.body?.contractId);
+      if (request.body?.recordingConsent !== true) return response.status(400).json({ error: 'Vor Beginn muss die ausdrückliche Einwilligung des Gesprächspartners bestätigt werden.' });
+      const upload = await createSignedCustomerUpload(service, 'contractRecordings', lead.id, {
+        fileName: clean(request.body?.fileName, 120) || `${contract.contract_number || 'videovertrag'}.webm`,
+        mimeType: clean(request.body?.mimeType, 120), byteSize: Number(request.body?.byteSize),
+      });
+      const startedAt = request.body?.startedAt && !Number.isNaN(new Date(request.body.startedAt).getTime()) ? new Date(request.body.startedAt).toISOString() : new Date().toISOString();
+      await patchLeadContract(service, lead.id, contract.id, {
+        video_recording_bucket: upload.bucket, video_recording_path: upload.storagePath,
+        video_recording_mime_type: upload.mimeType, video_recording_bytes: upload.byteSize,
+        video_recording_started_at: contract.video_recording_started_at || startedAt, video_recording_consent_at: contract.video_recording_consent_at || new Date().toISOString(),
+      });
+      return response.status(200).json({ uploadUrl: upload.uploadUrl, storagePath: upload.storagePath, bucket: upload.bucket });
+    }
+    if (request.method === 'POST' && action === 'begin-video-recording') {
+      const lead = await leadById(service, request.body?.id);
+      const contract = await leadContractById(service, lead.id, request.body?.contractId);
+      if (request.body?.recordingConsent !== true || request.body?.recordingPurposeAccepted !== true || request.body?.recordingRevocationAccepted !== true) return response.status(400).json({ error: 'Alle drei Hinweise zur konkreten Aufzeichnung müssen vor Beginn ausdrücklich bestätigt sein.' });
+      const startedAt = new Date().toISOString();
+      await patchLeadContract(service, lead.id, contract.id, { video_recording_started_at: startedAt, video_recording_consent_at: startedAt });
+      return response.status(200).json({ startedAt });
+    }
+    if (request.method === 'POST' && action === 'finalize-video-contract') {
+      const lead = await leadById(service, request.body?.id);
+      const existing = await leadContractById(service, lead.id, request.body?.contractId);
+      if (!existing.video_recording_path || !await customerObjectExists(service, existing.video_recording_bucket, existing.video_recording_path)) return response.status(409).json({ error: 'Die Videoaufzeichnung wurde noch nicht vollständig hochgeladen.' });
+      const normalized = normalizeVideoContract({ ...(existing.contract_data || {}), ...(request.body?.contract || {}), answers: request.body?.answers || {} }, lead);
+      if (normalized.missing.length) return response.status(400).json({ error: `Im Vertrag fehlen noch: ${normalized.missing.join(', ')}.` });
+      const missingConfirmations = VIDEO_CONFIRMATION_KEYS.filter((key) => normalized.contract.answers[key] !== true);
+      if (missingConfirmations.length || !normalized.contract.recordingConsent || !normalized.contract.recordingPurposeAccepted || !normalized.contract.recordingRevocationAccepted || !normalized.contract.finalContractConfirmed) return response.status(400).json({ error: 'Alle Video-Abschlussfragen und die ausdrückliche Aufzeichnungseinwilligung müssen einzeln mit Ja bestätigt sein.' });
+      const now = new Date().toISOString();
+      const finalPdf = await buildVideoContractPdf(normalized.contract, { videoConfirmed: true, providerConfirmed: true });
+      const fileName = `${existing.contract_number || 'FDD-Videovertrag'}-Videoabschluss.pdf`;
+      const stored = await uploadCustomerObject(service, 'documents', lead.id, pdfUpload(finalPdf, fileName));
+      const signingToken = crypto.randomBytes(32).toString('base64url');
+      const tokenHash = crypto.createHash('sha256').update(signingToken).digest('hex');
+      const record = await patchLeadContract(service, lead.id, existing.id, {
+        status: 'signed', signed_at: now, document_confirmed_at: now, video_contract_confirmed_at: now,
+        contract_data: normalized.contract, video_answers: normalized.contract.answers,
+        video_recording_ended_at: now, document_bucket: stored.bucket, document_storage_path: stored.storagePath,
+        document_mime_type: 'application/pdf', signing_token_hash: tokenHash,
+        signing_expires_at: new Date(Date.now() + 30 * 86400000).toISOString(), signature_method: 'video_confirmation',
+      });
+      if (existing.document_bucket && existing.document_storage_path && existing.document_storage_path !== stored.storagePath) await deleteCustomerObject(service, existing.document_bucket, existing.document_storage_path);
+      const signingPath = `/contract-sign.html?token=${encodeURIComponent(signingToken)}`;
+      const signingUrl = new URL(signingPath, process.env.PUBLIC_SITE_URL || 'https://findedeinding.vercel.app').href;
+      await insertLeadRecord(service, 'lead_communications', {
+        lead_id: lead.id, direction: 'outbound', channel: 'email', subject: 'Dein Finde-dein-Ding-Vertrag zur digitalen Bestätigung',
+        preview: 'Der Video-Abschluss wurde dokumentiert. Der zusätzliche digitale Signaturlink ist versandbereit.',
+        body: `Hallo ${lead.name},\n\nder Video-Abschluss wurde dokumentiert. Bitte prüfe deinen Vertrag und bestätige ihn zusätzlich digital:\n${signingUrl}\n\nHerzliche Grüße\nMarkus Becker`, delivery_status: 'draft',
+      }).catch(() => null);
+      const participant = await activateContractedLead(service, lead, normalized.contract.serviceStart);
+      return response.status(200).json({ record, signingPath, participantActivated: Boolean(participant && !participant.alreadyActive), participant, message: 'Video-Abschluss dokumentiert. Der Signaturlink wurde als E-Mail-Entwurf angelegt.' });
+    }
+    if (request.method === 'GET' && ['contract-download', 'video-recording-download'].includes(action)) {
+      const lead = await leadById(service, request.query?.id);
+      const contract = await leadContractById(service, lead.id, request.query?.contractId);
+      const bucket = action === 'contract-download' ? contract.document_bucket : contract.video_recording_bucket;
+      const storagePath = action === 'contract-download' ? contract.document_storage_path : contract.video_recording_path;
+      const url = await signedCustomerUrl(service, bucket, storagePath);
+      if (!url) return response.status(404).json({ error: 'Die Datei ist noch nicht verfügbar.' });
+      return response.redirect(302, url);
     }
     if (request.method === 'GET' && action === 'dashboard') return response.status(200).json(await leadDashboard(service, request.query?.id));
     if (request.method === 'POST' && action === 'dashboard-record') {

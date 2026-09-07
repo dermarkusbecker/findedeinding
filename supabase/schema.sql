@@ -94,6 +94,23 @@ create table if not exists public.lead_contracts (
   document_confirmed_at timestamptz,
   video_contract_confirmed_at timestamptz,
   program_start_date date,
+  contract_data jsonb not null default '{}'::jsonb,
+  document_bucket text,
+  document_storage_path text,
+  document_mime_type text,
+  video_answers jsonb not null default '{}'::jsonb,
+  video_recording_bucket text,
+  video_recording_path text,
+  video_recording_mime_type text,
+  video_recording_bytes bigint,
+  video_recording_started_at timestamptz,
+  video_recording_ended_at timestamptz,
+  video_recording_consent_at timestamptz,
+  signing_token_hash text,
+  signing_expires_at timestamptz,
+  customer_signed_at timestamptz,
+  customer_signature_name text,
+  signature_method text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -304,7 +321,7 @@ create table if not exists public.participant_documents (
   id uuid primary key default gen_random_uuid(),
   user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
   week integer not null default 0 check (week between 0 and 8),
-  document_type text not null check (document_type in ('start_commitment','cv','workbook','other','contract','video_contract','shared')),
+  document_type text not null check (document_type in ('privacy_consent','start_commitment','cv','workbook','other','contract','video_contract','shared')),
   display_title text,
   original_file_name text not null,
   mime_type text not null,
@@ -471,6 +488,7 @@ create unique index if not exists communication_signatures_one_default_idx on pu
 create index if not exists customer_questions_profile_created_idx on public.customer_questions(user_profile_id, created_at desc);
 create index if not exists process_entries_participant_idx on public.process_entries(user_profile_id, week);
 create index if not exists participant_documents_lookup_idx on public.participant_documents(user_profile_id, week, created_at desc);
+create unique index if not exists lead_contracts_signing_token_hash_unique on public.lead_contracts(signing_token_hash) where signing_token_hash is not null;
 create unique index if not exists customer_appointments_google_event_unique on public.customer_appointments(google_event_id);
 create index if not exists customer_appointments_participant_start_idx on public.customer_appointments(user_profile_id, starts_at desc);
 create index if not exists week_gates_participant_idx on public.week_gates(user_profile_id, week);
