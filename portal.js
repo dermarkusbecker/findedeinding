@@ -363,6 +363,8 @@ function refreshOnboardingGateState() {
 
 function renderOnboardingState(completed = false) {
   const profile = program?.profile || {};
+  $('.onboarding-welcome .clara-copy').innerHTML = '<p>Ich bin Clara. Ich stelle dir eine Frage nach der anderen und helfe dir, deine Gedanken zu ordnen. Du antwortest ehrlich – den Rest entwickeln wir gemeinsam.</p>';
+  $('.onboarding-welcome .promise strong').textContent = 'Du brauchst noch keine fertigen Antworten. Wir starten einfach mit dem nächsten ehrlichen Schritt.';
   if (!onboardingProfileDirty) {
     $('#onboardingName').value = profile.name || '';
     $('#onboardingEmail').value = profile.email || '';
@@ -389,7 +391,7 @@ function renderOnboardingState(completed = false) {
   $('#privacyConsentStatus').textContent = privacyConfirmed
     ? `Digital bestätigt${confirmedAt ? ` am ${new Date(confirmedAt).toLocaleDateString('de-DE')}` : ''}.${program?.onboarding?.privacyDocumentId ? ' Das ausgefüllte Dokument liegt unter „Dokumente“ bereit.' : ''}`
     : 'Noch nicht bestätigt.';
-  $('#openPrivacyConsent').textContent = privacyConfirmed ? 'Bestätigtes Formular ansehen →' : 'Datenschutzformular öffnen →';
+  $('#openPrivacyConsent').textContent = privacyConfirmed ? 'Bestätigtes Formular ansehen →' : 'Formular ansehen & Einwilligung ausfüllen →';
   renderCommitmentUploadState(completed);
   refreshOnboardingGateState();
 }
@@ -1274,7 +1276,7 @@ function render() {
     $('#welcomeTitle').innerHTML = 'Willkommen bei <em>Finde dein Ding.</em>';
     $('#welcomeCopy').innerHTML = paused
       ? 'Dein Zugang ist pausiert. Bitte wende dich an Markus.'
-      : 'In den nächsten Wochen geht es um eine zentrale Frage: <strong>Was ist wirklich dein Ding – und wie machst du daraus deinen Weg?</strong><br>Clara begleitet dich dabei Schritt für Schritt. Du musst heute noch keine Antworten haben. Du musst nur bereit sein, ehrlich hinzuschauen.';
+      : 'Clara begleitet dich Frage für Frage. Du brauchst noch keine fertigen Antworten – nur die Bereitschaft, ehrlich hinzuschauen.';
     $('#clarityValue').textContent = '—';
     $('#startProcess').classList.toggle('hidden', started);
     $('#revokePrivacy').classList.add('hidden');

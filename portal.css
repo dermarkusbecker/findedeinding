@@ -573,6 +573,18 @@ header > div:last-child {
 .privacy-summary p { margin-top: 5px; }
 .privacy-summary > span { background: #eff7f8; border: 1px solid #d5e7e9; border-radius: 10px; color: #28687a; flex: 0 0 auto; font-size: 9px; font-weight: 850; letter-spacing: .05em; padding: 9px 11px; }
 .gate-open-button { margin-top: 16px; }
+#openPrivacyConsent {
+  background: linear-gradient(135deg,#ff812d,#e95b13);
+  border-color: #df5a18;
+  box-shadow: 0 12px 25px rgba(218,84,17,.22);
+  color: #fff;
+  display: flex;
+  font-size: 13px;
+  justify-content: center;
+  min-height: 48px;
+  width: min(100%,420px);
+}
+#openPrivacyConsent:hover { background: linear-gradient(135deg,#ff9048,#e9530a); box-shadow: 0 15px 30px rgba(218,84,17,.3); }
 #privacyConsentStatus { color: var(--muted); display: inline-block; font-size: 10px; margin-left: 12px; }
 .privacy-gate-card.is-confirmed { background: linear-gradient(145deg,#fff,#f0faf5); border-color: rgba(35,169,115,.3); }
 .privacy-gate-card.is-confirmed #privacyConsentStatus { color: #167450; font-weight: 750; }
