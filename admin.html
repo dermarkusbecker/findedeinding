@@ -969,8 +969,16 @@
           </div>
           <button type="button" data-close-lead>×</button>
         </div>
+        <nav class="lead-wizard-progress" aria-label="Fortschritt im Verkaufsgespräch">
+          <ol>
+            <li class="active" data-lead-progress-step="1" aria-current="step"><span>1</span><div><b>Kontakt</b><small>Stammdaten &amp; Anliegen</small></div></li>
+            <li data-lead-progress-step="2"><span>2</span><div><b>Termin</b><small>Kalender &amp; Meet</small></div></li>
+            <li data-lead-progress-step="3"><span>3</span><div><b>Gespräch</b><small>Leitfaden &amp; Antworten</small></div></li>
+            <li data-lead-progress-step="4"><span>4</span><div><b>Abschluss</b><small>Prüfen &amp; speichern</small></div></li>
+          </ol>
+        </nav>
         <input type="hidden" name="id" />
-        <section class="lead-basics">
+        <section class="lead-basics lead-wizard-page" data-lead-step="1">
           <div class="lead-section-head">
             <div>
               <p class="eyebrow">Stammdaten</p>
@@ -999,7 +1007,7 @@
             <label>Interne Notizen<textarea name="internalNotes" rows="3"></textarea></label>
           </div>
         </section>
-        <section class="lead-appointment">
+        <section class="lead-appointment lead-wizard-page" data-lead-step="2" hidden>
           <div class="lead-section-head">
             <div>
               <p class="eyebrow">Google Calendar & Meet</p>
@@ -1052,7 +1060,7 @@
             </button>
           </div>
         </section>
-        <section class="lead-questions">
+        <section class="lead-questions lead-wizard-page" data-lead-step="3" hidden>
           <div class="lead-section-head">
             <div>
               <p class="eyebrow">Gesprächsleitfaden</p>
@@ -1084,7 +1092,7 @@
             ><textarea name="q6" rows="2"></textarea>
           </label>
         </section>
-        <section class="lead-conversion">
+        <section class="lead-conversion lead-wizard-page" data-lead-step="4" hidden>
           <div class="lead-section-head">
             <div>
               <p class="eyebrow">Kaufabschluss</p>
@@ -1093,11 +1101,22 @@
             <span id="leadConversionState">Noch kein Konto angelegt</span>
           </div>
           <p>Ein Interessent bleibt Lead, bis ein unterzeichneter Vertrag, das Vertragsdokument und der Videovertrag bestätigt sind. Erst danach wird das Teilnehmerkonto automatisch angelegt und die Passwort-E-Mail versendet.</p>
+          <div class="lead-wizard-review">
+            <article><small>Kontakt</small><strong id="leadReviewContact">–</strong></article>
+            <article><small>Termin</small><strong id="leadReviewAppointment">–</strong></article>
+            <article><small>Gesprächsleitfaden</small><strong id="leadReviewQuestions">–</strong></article>
+            <article><small>Vertriebsstatus</small><strong id="leadReviewStatus">–</strong></article>
+          </div>
         </section>
         <div class="dialog-actions lead-dialog-actions">
           <button type="button" class="secondary" data-close-lead>
-            Schließen</button
-          ><button class="primary" type="submit">Interessenten speichern</button>
+            Schließen</button>
+          <div class="lead-wizard-actions">
+            <span id="leadWizardStatus">Seite 1 von 4</span>
+            <button type="button" class="secondary" id="leadStepBack" hidden>← Zurück</button>
+            <button type="button" class="primary" id="leadStepNext">Weiter →</button>
+            <button class="primary" id="leadStepSave" type="submit" hidden>Verkaufsgespräch speichern</button>
+          </div>
         </div>
       </form>
     </dialog>

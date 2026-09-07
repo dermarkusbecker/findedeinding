@@ -21,13 +21,21 @@ test('Interessenten öffnen eine vollständige CRM-Detailakte statt nur eines Be
 });
 
 test('Verkaufsgespräch ordnet Stammdaten und Anliegen in einem lesbaren Dialograster an', async () => {
-  const [html, styles] = await Promise.all([file('admin.html'), file('admin-crm-refresh.css')]);
-  assert.match(html, /<section class="lead-basics">/);
+  const [html, script, styles] = await Promise.all([file('admin.html'), file('admin.js'), file('admin-crm-refresh.css')]);
+  assert.match(html, /<section class="lead-basics lead-wizard-page" data-lead-step="1">/);
   assert.match(html, /<div class="lead-context-grid">/);
   assert.match(html, /class="lead-status-field"/);
   assert.match(styles, /#leadDialog\.lead-dialog \{[^}]*max-width: 920px;[^}]*overflow: hidden;[^}]*width: calc\(100% - 36px\);/);
   assert.match(styles, /\.lead-contact-grid label,\.lead-context-grid label \{[^}]*display: flex;[^}]*flex-direction: column;/);
   assert.match(styles, /\.lead-context-grid \{[^}]*grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/);
+  assert.equal((html.match(/data-lead-step="[1-4]"/g)||[]).length,4);
+  assert.match(html, /id="leadStepBack"[^>]*hidden/);
+  assert.match(html, /id="leadStepNext">Weiter →/);
+  assert.match(html, /id="leadStepSave"[^>]*hidden>Verkaufsgespräch speichern/);
+  assert.match(script, /function setLeadWizardStep/);
+  assert.match(script, /function validateLeadWizardStep/);
+  assert.match(script, /setLeadWizardStep\(leadWizardStep\+1\)/);
+  assert.match(styles, /\.lead-wizard-progress ol \{[^}]*grid-template-columns: repeat\(4,minmax\(0,1fr\)\)/);
 });
 
 test('Interessenten-Navigation bildet Eingang, aktive Fälle, kein und späteres Interesse mit Echtdaten ab', async () => {
