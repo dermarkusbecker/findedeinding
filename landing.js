@@ -11,6 +11,8 @@ let claraDetailsTrigger = null;
 let restoreClaraDetailsFocus = true;
 let publicLeadStep = 1;
 let publicSlotRangeStart = '';
+const publicLeadDraftKey = 'fdd-public-lead-draft-v1';
+let publicLeadDraftTimer = null;
 
 const openClaraDetails = (trigger = null) => {
   if (!claraDetailsDialog || claraDetailsDialog.open) return;
@@ -198,13 +200,34 @@ function setPublicLeadStep(step, focus = true) {
 function resetPublicLeadJourney() {
   if (!form) return;
   form.reset();
+  try {
+    const draft = JSON.parse(localStorage.getItem(publicLeadDraftKey) || '{}');
+    for (const name of ['name', 'email', 'phone', 'challenge']) if (typeof draft[name] === 'string' && form.elements[name]) form.elements[name].value = draft[name];
+    if (form.elements.consent) form.elements.consent.checked = draft.consent === true;
+  } catch {}
   publicSlotRangeStart = landingDateKey();
   document.querySelector('#publicBookingSuccess').hidden = true;
   document.querySelector('#publicLeadProgress').hidden = false;
   document.querySelector('#publicSelectedSlot').textContent = 'Noch keinen Termin ausgewählt';
   document.querySelector('#publicSelectedSlot').classList.remove('chosen');
+  document.querySelector('#publicBookingNotice').textContent = '';
+  document.querySelector('#publicBookingNotice').className = 'public-booking-notice';
   document.querySelector('#publicAvailableSlots').innerHTML = '<p>Wähle zuerst deine Kontaktdaten und dein Anliegen.</p>';
   setPublicLeadStep(1, false);
+}
+function savePublicLeadDraft() {
+  clearTimeout(publicLeadDraftTimer);
+  publicLeadDraftTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(publicLeadDraftKey, JSON.stringify({
+        name: form.elements.name.value,
+        email: form.elements.email.value,
+        phone: form.elements.phone.value,
+        challenge: form.elements.challenge.value,
+        consent: form.elements.consent.checked,
+      }));
+    } catch {}
+  }, 300);
 }
 function validatePublicLeadStep(step) {
   const section = form.querySelector(`[data-public-lead-step="${step}"]`);
@@ -224,6 +247,14 @@ async function loadPublicSlots({ advance = false } = {}) {
   try {
     const response = await fetch(`/api/leads?action=public-available-slots&from=${encodeURIComponent(publicSlotRangeStart)}&to=${encodeURIComponent(rangeEnd)}`), data = await response.json();
     if (!response.ok) throw new Error(data.error);
+    const notice = document.querySelector('#publicBookingNotice');
+    const connected = data.calendarConnected === true;
+    notice.textContent = connected
+      ? 'Live mit dem Kalender abgeglichen – belegte Zeiten sind bereits herausgefiltert.'
+      : 'Die gewählte Zeit wird direkt im CRM reserviert. Die persönliche Bestätigung mit Meet-Link folgt durch das Finde-dein-Ding-Team.';
+    notice.className = `public-booking-notice ${connected ? 'connected' : 'reservation'}`;
+    document.querySelector('#publicBookingMail').textContent = connected ? '✓ Kalendertermin wird direkt erstellt' : '✓ Termin wird direkt im CRM reserviert';
+    document.querySelector('#publicBookingMeet').textContent = connected ? '✓ Google-Meet-Link inklusive' : '✓ Meet-Link folgt mit der Bestätigung';
     if (!data.slots.length) container.innerHTML = '<div class="public-slot-empty"><strong>In diesem Zeitraum ist gerade nichts frei.</strong><span>Prüfe einfach die nächsten Tage.</span></div>';
     else {
       const groups = data.slots.reduce((result, slot) => { (result[slot.date] ||= []).push(slot); return result; }, {});
@@ -249,6 +280,8 @@ form.querySelectorAll('[data-public-lead-next]').forEach((button) => button.addE
 }));
 form.querySelectorAll('[data-public-lead-back]').forEach((button) => button.addEventListener('click', () => setPublicLeadStep(publicLeadStep - 1)));
 document.querySelector('#publicNextSlotRange')?.addEventListener('click', () => loadPublicSlots({ advance: true }));
+form.addEventListener('input', savePublicLeadDraft);
+form.addEventListener('change', savePublicLeadDraft);
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -266,8 +299,13 @@ form.addEventListener('submit', async (event) => {
     const appointment = new Date(data.appointment.startsAt);
     form.querySelectorAll('[data-public-lead-step]').forEach((section) => { section.hidden = true; });
     document.querySelector('#publicLeadProgress').hidden = true;
-    document.querySelector('#publicBookingSuccessText').textContent = `Dein Klarheitsgespräch findet am ${appointment.toLocaleString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'})} Uhr statt. Die Kalendereinladung mit Google-Meet-Link wurde an ${form.elements.email.value} gesendet.`;
+    const dateText = appointment.toLocaleString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'});
+    document.querySelector('#publicBookingSuccessText').textContent = data.appointment.calendarConnected
+      ? `Dein Klarheitsgespräch findet am ${dateText} Uhr statt und wurde direkt im Kalender angelegt.`
+      : `Dein Klarheitsgespräch am ${dateText} Uhr ist im CRM reserviert. Die persönliche Bestätigung mit dem Meet-Link folgt an ${form.elements.email.value}.`;
     document.querySelector('#publicBookingSuccess').hidden = false;
+    clearTimeout(publicLeadDraftTimer);
+    try { localStorage.removeItem(publicLeadDraftKey); } catch {}
     status.textContent = '';
     if (window.fbq) window.fbq('track', 'Lead');
   } catch (error) { status.textContent = error.message || 'Das hat nicht geklappt. Bitte versuche es erneut.'; status.className = 'form-status error'; }

@@ -37,9 +37,15 @@ test('Landingpage führt Interessenten über drei Seiten bis zur echten Terminbu
   assert.match(script, /function setPublicLeadStep/);
   assert.match(script, /function loadPublicSlots/);
   assert.match(script, /action=public-available-slots/);
+  assert.match(script, /fdd-public-lead-draft-v1/);
+  assert.match(script, /localStorage\.setItem\(publicLeadDraftKey/);
   assert.match(styles, /\.public-lead-progress/);
   assert.match(styles, /\.public-available-slots/);
+  assert.match(styles, /\.public-booking-notice/);
   assert.match(api, /request\.method === 'GET' && action === 'public-available-slots'/);
+  assert.match(api, /optionalGoogleAccessToken/);
+  assert.match(api, /scheduledLeadIntervals/);
+  assert.match(api, /calendarConnected: Boolean\(accessToken\)/);
   assert.match(api, /assertCalendarAvailable/);
   assert.match(api, /saveCalendarEvent/);
   assert.match(api, /status: 'scheduled'/);

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PDFDocument } from 'pdf-lib';
 import { buildPrivacyConsentText, buildStartCommitmentDocument } from '../lib/onboarding-documents.js';
-import { buildCompletedPrivacyPdf, buildReadonlyPrivacyPreviewPdf, missingOnboardingFields, normalizePrivacyConsent } from '../lib/privacy-consent.js';
+import { buildCompletedPrivacyPdf, buildDraftPrivacyPreviewPdf, buildReadonlyPrivacyPreviewPdf, missingOnboardingFields, normalizePrivacyConsent } from '../lib/privacy-consent.js';
 import { buildCompletedStartCommitmentPdf, normalizeStartCommitment } from '../lib/start-commitment.js';
 
 test('Datenschutz-Text erklärt Zweck, Verarbeitung und Widerruf klar und eindeutig', () => {
@@ -32,6 +32,9 @@ test('Datenschutzeinwilligung verlangt drei bewusste Bestätigungen, Name, Ort u
   ]);
   const complete = normalizePrivacyConsent({ specialCategories: true, privacyNotice: true, aiNotice: true, name: 'Anna Muster', place: 'Berlin', date: '2026-09-07' }, { email: 'anna@example.de' });
   assert.deepEqual(complete.missing, []);
+  const browserCompatible = normalizePrivacyConsent({ special_categories: 'on', privacyAccepted: 'true', aiAccepted: 1, name: 'Anna Muster', place: 'Berlin', date: '07.09.2026' }, { email: 'anna@example.de' });
+  assert.deepEqual(browserCompatible.missing, []);
+  assert.equal(browserCompatible.consent.date, '2026-09-07');
 });
 
 test('Onboarding kann erst mit vollständigen Stammdaten abgeschlossen werden', () => {
@@ -52,11 +55,23 @@ test('Datenschutzvorschau ist schreibgeschützt und enthält keine ausfüllbaren
   assert.equal(pdf.getForm().getFields().length, 0);
 });
 
+test('Datenschutz-Live-Vorschau übernimmt den aktuellen Formularstand ohne ihn final zu bestätigen', async () => {
+  const blank = await buildDraftPrivacyPreviewPdf({ email: 'anna@example.de' });
+  const filled = await buildDraftPrivacyPreviewPdf({ specialCategories: true, privacyNotice: true, aiNotice: false, name: 'Anna Muster', email: 'anna@example.de', place: 'Berlin', date: '2026-09-07' });
+  const preview = await PDFDocument.load(filled);
+  assert.equal(preview.getPageCount(), 2);
+  assert.equal(preview.getForm().getFields().length, 0);
+  assert.notDeepEqual(blank, filled);
+});
+
 test('persönliches Commitment verlangt alle Antworten und eine bewusste Klickbestätigung', () => {
   const incomplete = normalizeStartCommitment({ name: 'Anna Muster', startDate: '2026-09-07', why: 'Ich suche Klarheit.' }, { city: 'Berlin' });
   assert.deepEqual(incomplete.missing, ['was du für dich verändern möchtest', 'was weitere Unklarheit dich kostet', 'gültiges Bestätigungsdatum', 'verbindliche Klickbestätigung']);
   const complete = normalizeStartCommitment({ name: 'Anna Muster', startDate: '2026-09-07', why: 'Ich suche Klarheit.', change: 'Ich möchte eine klare berufliche Richtung finden.', costOfUnclarity: 'Weitere Energie und Zeit.', place: 'Berlin', signatureDate: '2026-09-07', accepted: true });
   assert.deepEqual(complete.missing, []);
+  const browserCompatible = normalizeStartCommitment({ name: 'Anna Muster', start_date: '07.09.2026', reason: 'Ich suche Klarheit.', desiredChange: 'Ich möchte eine klare Richtung finden.', cost_of_unclarity: 'Weitere Energie und Zeit.', place: 'Berlin', date: '07.09.2026', confirmed: 'on' });
+  assert.deepEqual(browserCompatible.missing, []);
+  assert.equal(browserCompatible.commitment.signatureDate, '2026-09-07');
 });
 
 test('aus dem Original-Commitment entsteht ein digital ausgefülltes, abgeflachtes PDF', async () => {
@@ -81,17 +96,26 @@ test('Portal verknüpft Stammdaten, Original-PDF, drei Bestätigungen und digita
   assert.match(html, /id="privacySpecialCategories"/);
   assert.match(html, /id="privacyNoticeAccepted"/);
   assert.match(html, /id="privacyAiAccepted"/);
+  assert.match(html, /id="privacyPreviewStatus"/);
   assert.match(html, /id="commitmentDialog"/);
   assert.match(html, /id="commitmentPdfPreview"/);
   assert.match(html, /data-commitment-step="4"/);
   assert.match(html, /id="commitmentAccepted"/);
   assert.match(script, /action: 'confirm_privacy'/);
+  assert.match(script, /feature=privacy-preview/);
+  assert.match(script, /confirmation\.documentId/);
   assert.match(script, /closePrivacyConsentDialog\('confirmed'\)/);
   assert.match(script, /function closePrivacyConsentDialog/);
   assert.match(script, /action: 'confirm_commitment'/);
+  assert.match(script, /currentCommitmentInput/);
+  assert.match(script, /function closeCommitmentDialog/);
+  assert.match(script, /queueOnboardingFormDraft/);
   assert.match(script, /action: 'save_onboarding_profile'/);
   assert.match(api, /storePrivacyConsentDocument/);
   assert.match(api, /buildReadonlyPrivacyPreviewPdf/);
+  assert.match(api, /buildDraftPrivacyPreviewPdf/);
+  assert.match(api, /document: \{ id: document\.id/);
   assert.match(api, /storeStartCommitmentDocument/);
+  assert.match(api, /currentDocument\.participant_confirmed_at/);
   assert.match(migration, /privacy_consent/);
 });

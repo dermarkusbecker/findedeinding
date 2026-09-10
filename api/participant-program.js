@@ -9,9 +9,10 @@ import { handleClaraMessage } from '../lib/clara/api-handler.js';
 import { handleParticipantDocument } from '../lib/documents/api-handler.js';
 import { weekResetScope } from '../lib/week-reset.js';
 import { ensureWeekReflection, generateWeekReflection } from '../lib/week-reflection-agent.js';
-import { buildReadonlyPrivacyPreviewPdf, missingOnboardingFields, normalizeOnboardingProfile, normalizePrivacyConsent, readPrivacyConsentDocument, storePrivacyConsentDocument } from '../lib/privacy-consent.js';
+import { buildDraftPrivacyPreviewPdf, buildReadonlyPrivacyPreviewPdf, missingOnboardingFields, normalizeOnboardingProfile, normalizePrivacyConsent, readPrivacyConsentDocument, storePrivacyConsentDocument } from '../lib/privacy-consent.js';
 import { normalizeStartCommitment, readStartCommitmentDocument, storeStartCommitmentDocument } from '../lib/start-commitment.js';
 import { artifactIsAfterOnboardingReset, assertActivePreviewAdmin, resetParticipantOnboarding } from '../lib/onboarding-reset.js';
+import { deleteOnboardingFormDraft, readOnboardingFormDrafts, saveOnboardingFormDraft } from '../lib/onboarding-form-drafts.js';
 import { syncCustomerProfileToLead } from '../lib/contact-lifecycle.js';
 
 const programWeeks = [
@@ -228,12 +229,22 @@ export default async function handler(request, response) {
       return response.status(200).send(pdf);
     }
     const result = await getParticipantProgramAccess(session.participantId);
+    if (request.method === 'POST' && request.query?.feature === 'privacy-preview') {
+      if (isOnboardingComplete(result.progress) || result.progress.privacy_consent_at) return response.status(409).json({ error: 'Die Datenschutzeinwilligung ist bereits bestätigt und schreibgeschützt.' });
+      const normalized = normalizePrivacyConsent(request.body?.consent, result.profile);
+      const pdf = await buildDraftPrivacyPreviewPdf(normalized.consent);
+      response.setHeader('Content-Type', 'application/pdf');
+      response.setHeader('Content-Disposition', 'inline; filename="FDD-Datenschutzinformation-Live-Vorschau.pdf"');
+      response.setHeader('Cache-Control', 'private, no-store');
+      return response.status(200).send(pdf);
+    }
     if (request.method === 'GET') {
       const onboardingComplete = isOnboardingComplete(result.progress);
       const latestPrivacyDocument = await readPrivacyConsentDocument(result.service, session.participantId);
       const privacyDocument = artifactIsAfterOnboardingReset(latestPrivacyDocument, result.progress.onboarding_reset_at) ? latestPrivacyDocument : null;
       const latestCommitmentDocument = await readStartCommitmentDocument(result.service, session.participantId);
       const commitmentDocument = artifactIsAfterOnboardingReset(latestCommitmentDocument, result.progress.onboarding_reset_at) ? latestCommitmentDocument : null;
+      const onboardingFormDrafts = onboardingComplete ? {} : await readOnboardingFormDrafts(result.service, session.participantId, result.progress.onboarding_reset_at);
       let weekOneState = await readWeekOneState(result, session.participantId);
       const preconditions = weekOnePreconditions(result.progress);
       const weekOneGateComplete = weekOneComplete(weekOneState, preconditions);
@@ -282,7 +293,7 @@ export default async function handler(request, response) {
       const missingProfileFields = missingOnboardingFields(result.profile, result.profile.email);
       const motivatorState = guidedStates.get(3);
       profile.programInsights = { motivators: releasedWeeks.has(3) && motivatorState?.completed_steps?.includes('motivators') ? (motivatorState.answers?.motivators?.items || []) : [] };
-      return response.status(200).json({ profile, onboarding: { privacyConfirmed: Boolean(result.progress.privacy_consent_at), privacyConfirmedAt: result.progress.privacy_consent_at || privacyDocument?.participant_confirmed_at || null, privacyDocumentId: privacyDocument?.id || null, privacyDetails: privacyDocument?.extracted_data?.consent || null, commitmentConfirmed: Boolean(commitmentDocument), commitmentConfirmedAt: commitmentDocument?.participant_confirmed_at || null, commitmentDetails: commitmentDocument?.extracted_data?.commitment || null, commitmentUploaded: Boolean(commitmentDocument), commitmentDocumentId: commitmentDocument?.id || null, commitmentFileName: commitmentDocument?.original_file_name || null, profileComplete: missingProfileFields.length === 0, missingProfileFields, resetAt: result.progress.onboarding_reset_at || null }, access, onboardingComplete, adminPreview: session.adminPreview === true, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => ({ week, title, mode, description, topics })), accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null, weekDraft, weekReflections, clarityHistory, currentClarity });
+      return response.status(200).json({ profile, onboarding: { privacyConfirmed: Boolean(result.progress.privacy_consent_at), privacyConfirmedAt: result.progress.privacy_consent_at || privacyDocument?.participant_confirmed_at || null, privacyDocumentId: privacyDocument?.id || null, privacyDetails: privacyDocument?.extracted_data?.consent || null, commitmentConfirmed: Boolean(commitmentDocument), commitmentConfirmedAt: commitmentDocument?.participant_confirmed_at || null, commitmentDetails: commitmentDocument?.extracted_data?.commitment || null, commitmentUploaded: Boolean(commitmentDocument), commitmentDocumentId: commitmentDocument?.id || null, commitmentFileName: commitmentDocument?.original_file_name || null, formDrafts: onboardingFormDrafts, profileComplete: missingProfileFields.length === 0, missingProfileFields, resetAt: result.progress.onboarding_reset_at || null }, access, onboardingComplete, adminPreview: session.adminPreview === true, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => ({ week, title, mode, description, topics })), accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null, weekDraft, weekReflections, clarityHistory, currentClarity });
     }
     if (request.method !== 'PATCH') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
     const action = request.body?.action;
@@ -296,6 +307,17 @@ export default async function handler(request, response) {
       const normalized = normalizeOnboardingProfile(request.body?.profile, result.profile);
       const profile = await patchOnboardingProfile(result.service, session.participantId, normalized.profile);
       return response.status(200).json({ ok: true, profile, profileComplete: normalized.missing.length === 0, missingFields: normalized.missing });
+    } else if (action === 'save_onboarding_form_draft') {
+      if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
+      const formKey = request.body?.formKey;
+      if (formKey === 'privacy_consent' && result.progress.privacy_consent_at) return response.status(409).json({ error: 'Die Datenschutzeinwilligung ist bereits bestätigt.' });
+      if (formKey === 'start_commitment') {
+        const existing = await readStartCommitmentDocument(result.service, session.participantId);
+        if (artifactIsAfterOnboardingReset(existing, result.progress.onboarding_reset_at)) return response.status(409).json({ error: 'Das Commitment ist bereits bestätigt.' });
+      }
+      const saved = await saveOnboardingFormDraft(result.service, session.participantId, formKey, request.body?.draft);
+      await patchParticipantProgress(result.service, session.participantId, { last_activity_at: new Date().toISOString() });
+      return response.status(200).json({ ok: true, ...saved });
     } else if (action === 'confirm_privacy') {
       if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
       if (result.progress.privacy_consent_at) return response.status(409).json({ error: 'Die Datenschutzeinwilligung wurde bereits bestätigt und ist schreibgeschützt.' });
@@ -304,27 +326,33 @@ export default async function handler(request, response) {
       if (currentPrivacyDocument) {
         const confirmedAt = currentPrivacyDocument.participant_confirmed_at || currentPrivacyDocument.created_at || new Date().toISOString();
         await patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: confirmedAt, last_activity_at: new Date().toISOString() });
-        return response.status(200).json({ ok: true, confirmedAt, documentId: currentPrivacyDocument.id, recovered: true });
+        await deleteOnboardingFormDraft(result.service, session.participantId, 'privacy_consent');
+        return response.status(200).json({ ok: true, confirmedAt, documentId: currentPrivacyDocument.id, document: { id: currentPrivacyDocument.id, week: 0, document_type: currentPrivacyDocument.document_type, display_title: currentPrivacyDocument.display_title || 'Datenschutzinformation & Einwilligung', original_file_name: currentPrivacyDocument.original_file_name, source: currentPrivacyDocument.source || 'system', visibility: currentPrivacyDocument.visibility || 'customer', processing_status: currentPrivacyDocument.processing_status || 'ready', created_at: currentPrivacyDocument.created_at }, recovered: true });
       }
       const normalized = normalizePrivacyConsent(request.body?.consent, result.profile);
       if (normalized.missing.length) return response.status(400).json({ error: `Bitte bestätige bzw. ergänze noch: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
       const now = new Date().toISOString();
       const document = await storePrivacyConsentDocument(result.service, session.participantId, normalized.consent, now);
       await patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: now, last_activity_at: now });
+      await deleteOnboardingFormDraft(result.service, session.participantId, 'privacy_consent');
       const privacyGates = result.gates.filter((gate) => Number(gate.week) === 0 && gate.gate_key === 'privacy_consent');
       await Promise.allSettled(privacyGates.map((gate) => setGate(result.service, session.participantId, gate.id, true)));
-      return response.status(200).json({ ok: true, confirmedAt: now, documentId: document.id });
+      return response.status(200).json({ ok: true, confirmedAt: now, documentId: document.id, document: { id: document.id, week: 0, document_type: document.document_type, display_title: document.display_title, original_file_name: document.original_file_name, source: document.source, visibility: document.visibility, processing_status: document.processing_status, created_at: document.created_at } });
     } else if (action === 'confirm_commitment') {
       if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
       const latestDocument = await readStartCommitmentDocument(result.service, session.participantId);
       const currentDocument = artifactIsAfterOnboardingReset(latestDocument, result.progress.onboarding_reset_at) ? latestDocument : null;
-      if (currentDocument) return response.status(409).json({ error: 'Dein persönliches Commitment wurde bereits digital bestätigt und ist schreibgeschützt.' });
+      if (currentDocument) {
+        await deleteOnboardingFormDraft(result.service, session.participantId, 'start_commitment');
+        return response.status(200).json({ ok: true, confirmedAt: currentDocument.participant_confirmed_at || currentDocument.created_at, documentId: currentDocument.id, document: { id: currentDocument.id, week: 0, document_type: currentDocument.document_type, display_title: currentDocument.display_title || 'Mein persönliches Commitment', original_file_name: currentDocument.original_file_name, source: currentDocument.source || 'system', visibility: currentDocument.visibility || 'customer', processing_status: currentDocument.processing_status || 'ready', created_at: currentDocument.created_at }, recovered: true });
+      }
       const normalized = normalizeStartCommitment(request.body?.commitment, result.profile, result.progress.program_start_date);
       if (normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze bzw. bestätige noch: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
       const now = new Date().toISOString();
       const document = await storeStartCommitmentDocument(result.service, session.participantId, normalized.commitment, now);
       await patchParticipantProgress(result.service, session.participantId, { last_activity_at: now });
-      return response.status(200).json({ ok: true, confirmedAt: now, documentId: document.id });
+      await deleteOnboardingFormDraft(result.service, session.participantId, 'start_commitment');
+      return response.status(200).json({ ok: true, confirmedAt: now, documentId: document.id, document: { id: document.id, week: 0, document_type: document.document_type, display_title: document.display_title, original_file_name: document.original_file_name, source: document.source, visibility: document.visibility, processing_status: document.processing_status, created_at: document.created_at } });
     } else if (action === 'start') {
       if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
       if (result.access.status !== 'active') return response.status(423).json({ error: 'Dein Programm ist aktuell pausiert.' });
@@ -344,6 +372,7 @@ export default async function handler(request, response) {
         patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: result.progress.privacy_consent_at, start_commitment_at: commitmentDocument.participant_confirmed_at || now, program_start_date: programStartDate, access_mode: 'time_based', current_week: 1, process_status: 'WEEK_1', last_activity_at: now }),
         Promise.allSettled(startGates.map((gate) => setGate(result.service, session.participantId, gate.id, true))),
       ]);
+      await deleteOnboardingFormDraft(result.service, session.participantId);
       return response.status(200).json({ ok: true, started: true, week: 1 });
     } else if (action === 'revoke_privacy') {
       return response.status(409).json({ error: 'Das abgeschlossene Onboarding ist schreibgeschützt. Bitte wende dich bei Änderungen an Markus.' });

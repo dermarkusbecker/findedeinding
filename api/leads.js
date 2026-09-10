@@ -367,19 +367,41 @@ async function googleAccessToken(service) {
   return refreshAccessToken(decryptCredential(connection.encrypted_credentials));
 }
 
+async function optionalGoogleAccessToken(service) {
+  try {
+    return await googleAccessToken(service);
+  } catch (error) {
+    if (error.status === 409) return null;
+    throw error;
+  }
+}
+
 async function bookingSettings(service) {
   const rows = await readJson(await fetch(`${service.url}/rest/v1/booking_settings?id=eq.default&select=*&limit=1`, { headers: headers(service.key) }), 'Termin-Einstellungen konnten nicht geladen werden.');
   return normalizeBookingSettings(rows[0] || DEFAULT_BOOKING_SETTINGS);
+}
+
+async function scheduledLeadIntervals(service, start, end) {
+  const query = new URLSearchParams({
+    appointment_start: `lt.${end}`,
+    appointment_end: `gt.${start}`,
+    status: 'neq.lost',
+    select: 'appointment_start,appointment_end',
+  });
+  const rows = await readJson(await fetch(`${service.url}/rest/v1/leads?${query}`, { headers: headers(service.key) }), 'Bereits vereinbarte Termine konnten nicht geprüft werden.');
+  return rows.map((lead) => ({ start: lead.appointment_start, end: lead.appointment_end })).filter((item) => item.start && item.end);
 }
 
 async function availableBookingSlots(service, query = {}) {
   const settings = await bookingSettings(service);
   const duration = Number(query.duration || settings.defaultDurationMinutes);
   const candidates = generateAvailableSlots({ settings, from: clean(query.from, 10), to: clean(query.to, 10), duration, now: new Date() });
-  if (!candidates.length) return { settings, slots: [] };
-  const accessToken = await googleAccessToken(service);
-  const busyIntervals = await calendarBusyIntervals(accessToken, candidates[0].start, candidates.at(-1).end);
-  return { settings, slots: generateAvailableSlots({ settings, from: clean(query.from, 10), to: clean(query.to, 10), duration, busyIntervals, now: new Date() }) };
+  if (!candidates.length) return { settings, slots: [], calendarConnected: false };
+  const accessToken = await optionalGoogleAccessToken(service);
+  const storedBusy = await scheduledLeadIntervals(service, candidates[0].start, candidates.at(-1).end);
+  const calendarBusy = accessToken ? await calendarBusyIntervals(accessToken, candidates[0].start, candidates.at(-1).end) : [];
+  const slots = generateAvailableSlots({ settings, from: clean(query.from, 10), to: clean(query.to, 10), duration, busyIntervals: [...storedBusy, ...calendarBusy], now: new Date() });
+  return { settings, slots, calendarConnected: Boolean(accessToken) };
 }
 
 function bookingSettingsPayload(settings) {
@@ -410,18 +432,21 @@ async function publicLead(request, response, service) {
   const startDate = new Date(request.body?.appointmentStart), duration = settings.defaultDurationMinutes;
   if (Number.isNaN(startDate.getTime())) return response.status(400).json({ error: 'Bitte wähle einen freien Termin für dein Klarheitsgespräch.' });
   if (!isWithinBookingAvailability(startDate, duration, settings, new Date())) return response.status(409).json({ error: 'Dieser Termin ist nicht mehr verfügbar. Bitte wähle einen anderen freien Termin.' });
-  const endDate = new Date(startDate.getTime() + duration * 60000), accessToken = await googleAccessToken(service);
-  await assertCalendarAvailable(accessToken, startDate.toISOString(), endDate.toISOString());
-  const event = await saveCalendarEvent(accessToken, payload, startDate.toISOString(), endDate.toISOString());
-  const meetUrl = event.hangoutLink || event.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || null;
-  const leadPayload = { ...payload, status: 'scheduled', appointment_start: startDate.toISOString(), appointment_end: endDate.toISOString(), appointment_timezone: settings.timezone, calendar_event_id: event.id, calendar_event_url: event.htmlLink || null, meet_url: meetUrl };
+  const endDate = new Date(startDate.getTime() + duration * 60000);
+  const storedBusy = await scheduledLeadIntervals(service, startDate.toISOString(), endDate.toISOString());
+  if (storedBusy.length) return response.status(409).json({ error: 'Dieser Termin wurde gerade vergeben. Bitte wähle einen anderen freien Termin.' });
+  const accessToken = await optionalGoogleAccessToken(service);
+  if (accessToken) await assertCalendarAvailable(accessToken, startDate.toISOString(), endDate.toISOString());
+  const event = accessToken ? await saveCalendarEvent(accessToken, payload, startDate.toISOString(), endDate.toISOString()) : null;
+  const meetUrl = event?.hangoutLink || event?.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || null;
+  const leadPayload = { ...payload, status: 'scheduled', appointment_start: startDate.toISOString(), appointment_end: endDate.toISOString(), appointment_timezone: settings.timezone, calendar_event_id: event?.id || null, calendar_event_url: event?.htmlLink || null, meet_url: meetUrl };
   try {
     const rows = await readJson(await fetch(`${service.url}/rest/v1/leads`, { method: 'POST', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify(leadPayload) }), 'Interessent und Termin konnten nicht gespeichert werden.');
     const lead = rows[0];
-    if (lead?.id) await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Dein Klarheitsgespräch ist vereinbart', preview: `Termin am ${startDate.toLocaleString('de-DE', { timeZone: settings.timezone })} mit Google Meet.` }).catch(() => null);
-    return response.status(201).json({ ok: true, appointment: { startsAt: startDate.toISOString(), endsAt: endDate.toISOString(), timezone: settings.timezone } });
+    if (lead?.id) await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Dein Klarheitsgespräch ist vereinbart', preview: `Termin am ${startDate.toLocaleString('de-DE', { timeZone: settings.timezone })}${meetUrl ? ' mit Google Meet' : ''}.` }).catch(() => null);
+    return response.status(201).json({ ok: true, appointment: { startsAt: startDate.toISOString(), endsAt: endDate.toISOString(), timezone: settings.timezone, calendarConnected: Boolean(accessToken), meetUrl } });
   } catch (error) {
-    if (event.id) await deleteCalendarEvent(accessToken, event.id).catch(() => null);
+    if (event?.id && accessToken) await deleteCalendarEvent(accessToken, event.id).catch(() => null);
     throw error;
   }
 }
@@ -446,7 +471,7 @@ export default async function handler(request, response) {
   if (request.method === 'GET' && action === 'public-available-slots') {
     try {
       const result = await availableBookingSlots(service, request.query || {});
-      return response.status(200).json({ slots: result.slots, timezone: result.settings.timezone, durationMinutes: result.settings.defaultDurationMinutes, bookingHorizonDays: result.settings.bookingHorizonDays });
+      return response.status(200).json({ slots: result.slots, timezone: result.settings.timezone, durationMinutes: result.settings.defaultDurationMinutes, bookingHorizonDays: result.settings.bookingHorizonDays, calendarConnected: result.calendarConnected });
     } catch (error) {
       return response.status(error.status || 503).json({ error: error.message });
     }

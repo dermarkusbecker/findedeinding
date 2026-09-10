@@ -42,3 +42,14 @@ test('Kundenportal zeigt synchronisierte Termine und erlaubt ein optionales Prof
   assert.match(client, /action=avatar-upload/);
   assert.match(styles, /\.portal-appointment-list/);
 });
+
+test('digital erzeugte Onboarding-Dokumente bleiben direkt in der Kunden-Dokumentenakte sichtbar', async () => {
+  const [client, privacyStorage, commitmentStorage, sharedStorage] = await Promise.all([file('portal.js'), file('lib/privacy-consent.js'), file('lib/start-commitment.js'), file('lib/generated-document-storage.js')]);
+  assert.match(client, /program\?\.onboarding\?\.privacyDocumentId/);
+  assert.match(client, /program\?\.onboarding\?\.commitmentDocumentId/);
+  assert.match(client, /Digital bestätigte Datenschutzeinwilligung/);
+  assert.match(client, /adminPreviewUrl\(`\/api\/customer-records\?action=document-download/);
+  assert.match(privacyStorage, /storeGeneratedParticipantDocument/);
+  assert.match(commitmentStorage, /storeGeneratedParticipantDocument/);
+  assert.match(sharedStorage, /document\.user_profile_id !== participantId/);
+});

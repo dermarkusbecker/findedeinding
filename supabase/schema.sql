@@ -370,6 +370,14 @@ create table if not exists public.process_entries (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.participant_form_drafts (
+  user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
+  form_key text not null check (form_key in ('privacy_consent','start_commitment')),
+  draft_data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now(),
+  primary key (user_profile_id, form_key)
+);
+
 create table if not exists public.week_gates (
   id uuid primary key default gen_random_uuid(),
   user_profile_id uuid not null references public.user_profiles(id) on delete cascade,
@@ -441,6 +449,7 @@ create table if not exists public.clarity_questions (
 );
 
 alter table public.contacts enable row level security;
+alter table public.participant_form_drafts enable row level security;
 alter table public.deals enable row level security;
 alter table public.tasks enable row level security;
 alter table public.leads enable row level security;
