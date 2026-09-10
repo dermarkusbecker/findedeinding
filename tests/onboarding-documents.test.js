@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFName } from 'pdf-lib';
 import { buildPrivacyConsentText, buildStartCommitmentDocument } from '../lib/onboarding-documents.js';
 import { buildCompletedPrivacyPdf, buildDraftPrivacyPreviewPdf, buildReadonlyPrivacyPreviewPdf, missingOnboardingFields, normalizeOnboardingProfile, normalizePrivacyConsent } from '../lib/privacy-consent.js';
 import { buildCompletedStartCommitmentPdf, buildDraftStartCommitmentPreviewPdf, buildReadonlyStartCommitmentPreviewPdf, normalizeStartCommitment } from '../lib/start-commitment.js';
+
+const signatureWidgetCount = (pdf) => pdf.getPages().reduce((count, page) => count + (page.node.Annots()?.asArray() || []).filter((reference) => String(pdf.context.lookup(reference)?.get?.(PDFName.of('FT'))) === '/Sig').length, 0);
 
 test('Datenschutz-Text erklärt Zweck, Verarbeitung und Widerruf klar und eindeutig', () => {
   const consent = buildPrivacyConsentText({ name: 'Anna Muster' });
@@ -56,6 +58,7 @@ test('Datenschutzvorschau ist schreibgeschützt und enthält keine ausfüllbaren
   const pdf = await PDFDocument.load(preview);
   assert.equal(pdf.getPageCount(), 2);
   assert.equal(pdf.getForm().getFields().length, 0);
+  assert.equal(signatureWidgetCount(pdf), 0);
 });
 
 test('Datenschutz-Live-Vorschau übernimmt den aktuellen Formularstand ohne ihn final zu bestätigen', async () => {
@@ -64,6 +67,7 @@ test('Datenschutz-Live-Vorschau übernimmt den aktuellen Formularstand ohne ihn 
   const preview = await PDFDocument.load(filled);
   assert.equal(preview.getPageCount(), 2);
   assert.equal(preview.getForm().getFields().length, 0);
+  assert.equal(signatureWidgetCount(preview), 0);
   assert.notDeepEqual(blank, filled);
 });
 
@@ -84,6 +88,7 @@ test('aus dem Original-Commitment entsteht ein digital ausgefülltes, abgeflacht
   const completed = await PDFDocument.load(pdf);
   assert.equal(completed.getPageCount(), 2);
   assert.equal(completed.getForm().getFields().length, 0);
+  assert.equal(signatureWidgetCount(completed), 0);
 });
 
 test('Commitment-Vorlage und Live-Vorschau sind schreibgeschützt und übernehmen laufende Eingaben', async () => {
@@ -96,6 +101,7 @@ test('Commitment-Vorlage und Live-Vorschau sind schreibgeschützt und übernehme
   for (const buffer of [readonly, filled, completed]) {
     const pdf = await PDFDocument.load(buffer);
     assert.equal(pdf.getForm().getFields().length, 0);
+    assert.equal(signatureWidgetCount(pdf), 0);
   }
   assert.notDeepEqual(blank, filled);
 });
