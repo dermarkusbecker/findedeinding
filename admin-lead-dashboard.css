@@ -1,5 +1,11 @@
 /* Detailakte für Interessenten und spätere Kunden */
 .lead-crm-dashboard { display: grid; gap: 20px; }
+.lead-dashboard-page { display: grid; gap: 18px; }
+.lead-dashboard-page[hidden] { display: none !important; }
+.lead-page-heading { align-items: end; background: linear-gradient(135deg,#103f4e,#174c50 68%,#365449); border: 1px solid rgba(255,255,255,.14); border-radius: 18px; box-shadow: 0 15px 36px rgba(13,55,63,.13); color: #fff; display: flex; gap: 28px; justify-content: space-between; min-height: 116px; padding: 25px 28px; }
+.lead-page-heading .eyebrow { color: #ff9a59; margin: 0 0 7px; }
+.lead-page-heading h2 { color: #fff; font-size: clamp(21px,2vw,29px); letter-spacing: -.035em; margin: 0; }
+.lead-page-heading>p { color: rgba(235,247,246,.72); font-size: 11px; line-height: 1.65; margin: 0; max-width: 520px; text-align: right; }
 .lead-back { background: transparent; border: 0; color: #157d6c; cursor: pointer; font-size: 13px; font-weight: 800; justify-self: start; padding: 0; }
 .lead-profile-hero { align-items: center; background: linear-gradient(135deg,#fff,#f5faf8); border: 1px solid #d7e4e1; border-radius: 20px; box-shadow: 0 18px 50px rgba(27,72,70,.08); display: flex; justify-content: space-between; padding: 25px 28px; }
 .lead-profile-main,.lead-profile-actions,.lead-name-line { align-items: center; display: flex; }
@@ -34,6 +40,8 @@
 .lead-progress-step.current { background: #fff2e9; border-color: #efad7e; box-shadow: 0 10px 24px rgba(220,120,54,.12); transform: translateY(-2px); }
 .lead-progress-step.current>span { background: #dc7836; color: #fff; }
 .lead-dashboard-grid { display: grid; gap: 18px; grid-template-columns: repeat(12,1fr); }
+.lead-detail-page .lead-dashboard-card { grid-column: 1/-1; min-height: 320px; }
+.lead-detail-page .lead-sales-call-card { min-height: 0; }
 .lead-dashboard-card { background: #fff; border: 1px solid #dbe4e2; border-radius: 18px; box-shadow: 0 13px 35px rgba(27,72,70,.065); min-height: 250px; padding: 21px; }
 .lead-dashboard-card:hover { border-color: #bdd6d1; box-shadow: 0 17px 42px rgba(27,72,70,.1); }
 .lead-sales-call-card { grid-column: span 12; min-height: 0; }
@@ -155,6 +163,8 @@
   .lead-contact-card,.lead-balance-card,.lead-communication-card,.lead-contract-card,.lead-task-card,.lead-notes-card,.lead-bank-card,.lead-next-card { grid-column: span 12; }
 }
 @media (max-width: 800px) {
+  .lead-page-heading { align-items: flex-start; flex-direction: column; gap: 10px; padding: 22px; }
+  .lead-page-heading>p { text-align: left; }
   .lead-profile-hero,.lead-profile-actions { align-items: stretch; flex-direction: column; }
   .lead-profile-hero { gap: 20px; }
   .lead-profile-actions button { width: 100%; }

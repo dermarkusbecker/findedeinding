@@ -90,9 +90,35 @@ create table if not exists public.booking_settings (
 
 insert into public.booking_settings (id) values ('default') on conflict (id) do nothing;
 
+create table if not exists public.service_tariffs (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  name text not null,
+  description text,
+  product_label text not null,
+  duration_label text not null,
+  gross_price numeric(12,2) not null check (gross_price >= 0),
+  payment_model text not null,
+  payment_due text not null,
+  additional_agreements text,
+  is_active boolean not null default true,
+  is_default boolean not null default false,
+  sort_order integer not null default 0 check (sort_order between 0 and 9999),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists service_tariffs_single_default_idx on public.service_tariffs ((is_default)) where is_default = true;
+create index if not exists service_tariffs_active_order_idx on public.service_tariffs (is_active desc, sort_order asc, name asc);
+
+insert into public.service_tariffs (code, name, description, product_label, duration_label, gross_price, payment_model, payment_due, is_active, is_default, sort_order)
+values ('fdd-8-wochen', 'FDD 8-Wochen-Programm', 'Persönlicher Finde-dein-Ding-Prozess mit Clara, digitalen Arbeitsbereichen und begleitenden Gesprächen.', 'Finde dein Ding · 8-Wochen-Programm', '8 Wochen', 2490.00, 'Einmalzahlung', '7 Tage nach Abschluss', true, true, 10)
+on conflict (code) do nothing;
+
 create table if not exists public.lead_contracts (
   id uuid primary key default gen_random_uuid(),
   lead_id uuid not null references public.leads(id) on delete cascade,
+  tariff_id uuid references public.service_tariffs(id) on delete set null,
   title text not null,
   contract_number text,
   amount numeric(12,2) not null default 0 check (amount >= 0),
@@ -540,6 +566,7 @@ alter table public.tasks enable row level security;
 alter table public.leads enable row level security;
 alter table public.integration_settings enable row level security;
 alter table public.booking_settings enable row level security;
+alter table public.service_tariffs enable row level security;
 alter table public.lead_contracts enable row level security;
 alter table public.lead_payments enable row level security;
 alter table public.lead_communications enable row level security;
@@ -570,6 +597,7 @@ create index if not exists contacts_created_at_idx on public.contacts(created_at
 create index if not exists leads_created_at_idx on public.leads(created_at desc);
 create index if not exists leads_status_idx on public.leads(status);
 create index if not exists lead_contracts_lead_created_idx on public.lead_contracts(lead_id, created_at desc);
+create index if not exists lead_contracts_tariff_idx on public.lead_contracts(tariff_id);
 create index if not exists lead_payments_lead_booked_idx on public.lead_payments(lead_id, booked_at desc);
 create index if not exists lead_communications_lead_occurred_idx on public.lead_communications(lead_id, occurred_at desc);
 create unique index if not exists lead_communications_provider_message_unique on public.lead_communications(provider_message_id);

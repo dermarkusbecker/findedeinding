@@ -360,20 +360,44 @@
             <div class="lead-profile-main"><span id="leadDashboardInitials">IN</span><div><p class="eyebrow">Interessentenakte</p><div class="lead-name-line"><h1 id="leadDashboardName">Interessent</h1><i id="leadDashboardStatus">Neu</i></div><p id="leadDashboardContact">E-Mail · Telefon</p></div></div>
             <div class="lead-profile-actions"><div class="lead-interest-actions" aria-label="Interessenstatus festlegen"><button id="markLeadLost" type="button">Kein Interesse</button><button id="markLeadLater" type="button">Später Interesse</button></div><button class="secondary" id="editLeadProfile" type="button">Kontaktdaten & Termin</button><button class="primary" id="leadDashboardConvert" type="button">Vertrag & Kundenstart →</button></div>
           </section>
-          <section class="lead-sales-progress card">
-            <div class="lead-card-heading"><div><p class="eyebrow">Vertriebsfortschritt</p><h2 id="leadSalesProgressTitle">Vom Erstkontakt bis zum Kundenstart</h2></div><span id="leadSalesProgressCount">Schritt 1 von 7</span></div>
-            <div class="lead-progress-track" id="leadProgressTrack"></div>
-          </section>
-          <div class="lead-dashboard-grid">
-            <section class="lead-dashboard-card lead-sales-call-card" id="leadSalesCallCard"><div class="lead-card-heading"><div><span class="lead-card-icon">◉</span><h2>Verkaufsgespräch</h2></div><span id="leadSalesCallStatus">Noch nicht geführt</span></div><p>Eigener Arbeitsbereich für Gesprächsleitfaden, Bedarf, Einwände und Abschlussentscheidung. Den genauen Gesprächsablauf bauen wir separat aus.</p><div class="lead-sales-call-overview" id="leadSalesCallOverview"></div><button class="lead-card-action" id="openLeadSalesCall" type="button">Verkaufsgespräch öffnen →</button></section>
-            <section class="lead-dashboard-card lead-contact-card" id="leadContactCard"><div class="lead-card-heading"><div><span class="lead-card-icon">◎</span><h2>Kontakt & Anfrage</h2></div><button class="lead-card-menu" type="button" data-lead-edit="profile" aria-label="Kontakt bearbeiten"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div id="leadContactDetails"></div></section>
-            <section class="lead-dashboard-card lead-balance-card" id="leadFinanceCard"><div class="lead-card-heading"><div><span class="lead-card-icon">€</span><h2>Kontostand</h2></div><button class="lead-card-menu" type="button" data-lead-record="payment" aria-label="Zahlung erfassen"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div class="lead-balance-summary"><small>Offener Saldo</small><strong id="leadOpenBalance">0,00 €</strong><span id="leadBalanceState">Keine offenen Forderungen</span></div><dl id="leadBalanceDetails"></dl><button class="lead-card-action" type="button" data-lead-record="payment">+ Zahlungseingang erfassen</button></section>
-            <section class="lead-dashboard-card lead-communication-card" id="leadCommunicationCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✉</span><h2>E-Mail-Verkehr</h2></div><button class="lead-card-menu" type="button" data-lead-record="communication" aria-label="E-Mail protokollieren"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div class="lead-timeline" id="leadCommunicationList"></div><button class="lead-card-action" type="button" data-lead-record="communication">+ E-Mail protokollieren</button></section>
-            <section class="lead-dashboard-card lead-contract-card" id="leadContractsCard"><div class="lead-card-heading"><div><span class="lead-card-icon">▤</span><h2>Verträge</h2></div><button class="lead-card-menu" type="button" data-lead-record="contract" aria-label="Vertrag anlegen"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div class="lead-contract-list" id="leadContractList"></div><button class="lead-card-action" type="button" data-lead-record="contract">+ Vertrag anlegen</button></section>
-            <section class="lead-dashboard-card lead-task-card" id="leadTasksCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✓</span><h2>Aufgaben & Kundenfragen</h2></div><button class="lead-card-menu" type="button" data-lead-record="task" aria-label="Aufgabe anlegen"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div class="lead-task-tabs"><button class="active" type="button" data-lead-task-filter="all">Alle</button><button type="button" data-lead-task-filter="questions">Fragen aus 8 Wochen</button></div><div class="lead-task-list" id="leadTaskList"></div><button class="lead-card-action" type="button" data-lead-record="task">+ Aufgabe anlegen</button></section>
-            <section class="lead-dashboard-card lead-notes-card" id="leadNotesCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✎</span><h2>Notizen</h2></div><button class="lead-card-menu" type="button" data-lead-record="note" aria-label="Notizen bearbeiten"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><p id="leadNotesText">Noch keine internen Notizen vorhanden.</p><button class="lead-card-action" type="button" data-lead-record="note">Notizen bearbeiten</button></section>
-            <section class="lead-dashboard-card lead-bank-card" id="leadBankCard"><div class="lead-card-heading"><div><span class="lead-card-icon">▦</span><h2>Bankverbindung</h2></div><button class="lead-card-menu" type="button" data-lead-record="bank" aria-label="Bankverbindung bearbeiten"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><dl id="leadBankDetails"></dl><button class="lead-card-action" type="button" data-lead-record="bank">Bankdaten hinterlegen</button></section>
-            <section class="lead-dashboard-card lead-next-card" id="leadNextStepsCard"><div class="lead-card-heading"><div><span class="lead-card-icon">↗</span><h2>Nächste Schritte</h2></div></div><div id="leadNextSteps"></div></section>
+          <div class="lead-dashboard-page active" data-lead-page="overview">
+            <header class="lead-page-heading"><div><p class="eyebrow">Überblick</p><h2>Kontakt & Vertriebsstatus</h2></div><p>Alle zentralen Informationen und nächsten Schritte dieser Interessentenakte.</p></header>
+            <section class="lead-sales-progress card">
+              <div class="lead-card-heading"><div><p class="eyebrow">Vertriebsfortschritt</p><h2 id="leadSalesProgressTitle">Vom Erstkontakt bis zum Kundenstart</h2></div><span id="leadSalesProgressCount">Schritt 1 von 7</span></div>
+              <div class="lead-progress-track" id="leadProgressTrack"></div>
+            </section>
+            <div class="lead-dashboard-grid">
+              <section class="lead-dashboard-card lead-contact-card" id="leadContactCard"><div class="lead-card-heading"><div><span class="lead-card-icon">◎</span><h2>Kontakt & Anfrage</h2></div><button class="lead-card-menu" type="button" data-lead-edit="profile" aria-label="Kontakt bearbeiten"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div id="leadContactDetails"></div></section>
+              <section class="lead-dashboard-card lead-next-card" id="leadNextStepsCard"><div class="lead-card-heading"><div><span class="lead-card-icon">↗</span><h2>Nächste Schritte</h2></div></div><div id="leadNextSteps"></div></section>
+            </div>
+          </div>
+          <div class="lead-dashboard-page lead-detail-page" data-lead-page="conversation" hidden>
+            <header class="lead-page-heading"><div><p class="eyebrow">Vertrieb</p><h2>Verkaufsgespräch</h2></div><p>Termin, Gesprächsleitfaden und Abschlussstatus sind direkt mit dieser Akte verbunden.</p></header>
+            <div class="lead-dashboard-grid"><section class="lead-dashboard-card lead-sales-call-card" id="leadSalesCallCard"><div class="lead-card-heading"><div><span class="lead-card-icon">◉</span><h2>Verkaufsgespräch</h2></div><span id="leadSalesCallStatus">Noch nicht geführt</span></div><p>Öffne den vollständigen Ablauf für Kontakt, Termin, Gespräch und Abschluss. Änderungen werden derselben Interessentenakte zugeordnet und automatisch zwischengespeichert.</p><div class="lead-sales-call-overview" id="leadSalesCallOverview"></div><button class="lead-card-action" id="openLeadSalesCall" type="button">Verkaufsgespräch öffnen →</button></section></div>
+          </div>
+          <div class="lead-dashboard-page lead-detail-page" data-lead-page="messages" hidden>
+            <header class="lead-page-heading"><div><p class="eyebrow">Kommunikation</p><h2>Nachrichten</h2></div><p>Der verknüpfte E-Mail-Verlauf dieses Interessenten – ohne Wechsel in eine andere Akte.</p></header>
+            <div class="lead-dashboard-grid"><section class="lead-dashboard-card lead-communication-card" id="leadCommunicationCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✉</span><h2>E-Mail-Verkehr</h2></div><button class="lead-card-menu" type="button" data-lead-record="communication" aria-label="E-Mail protokollieren"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div class="lead-timeline" id="leadCommunicationList"></div><button class="lead-card-action" type="button" data-lead-record="communication">+ E-Mail protokollieren</button></section></div>
+          </div>
+          <div class="lead-dashboard-page lead-detail-page" data-lead-page="contracts" hidden>
+            <header class="lead-page-heading"><div><p class="eyebrow">Abschluss</p><h2>Verträge</h2></div><p>Vertragsdokumente, Abschlussnachweise und Status dieser Interessentenakte.</p></header>
+            <div class="lead-dashboard-grid"><section class="lead-dashboard-card lead-contract-card" id="leadContractsCard"><div class="lead-card-heading"><div><span class="lead-card-icon">▤</span><h2>Verträge</h2></div><button class="lead-card-menu" type="button" data-lead-record="contract" aria-label="Vertrag anlegen"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div class="lead-contract-list" id="leadContractList"></div><button class="lead-card-action" type="button" data-lead-record="contract">+ Vertrag anlegen</button></section></div>
+          </div>
+          <div class="lead-dashboard-page lead-detail-page" data-lead-page="finance" hidden>
+            <header class="lead-page-heading"><div><p class="eyebrow">Finanzen</p><h2>Kontostand</h2></div><p>Vertragsvolumen, gebuchte Zahlungen und offener Saldo dieses Kontakts.</p></header>
+            <div class="lead-dashboard-grid"><section class="lead-dashboard-card lead-balance-card" id="leadFinanceCard"><div class="lead-card-heading"><div><span class="lead-card-icon">€</span><h2>Kontostand</h2></div><button class="lead-card-menu" type="button" data-lead-record="payment" aria-label="Zahlung erfassen"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div class="lead-balance-summary"><small>Offener Saldo</small><strong id="leadOpenBalance">0,00 €</strong><span id="leadBalanceState">Keine offenen Forderungen</span></div><dl id="leadBalanceDetails"></dl><button class="lead-card-action" type="button" data-lead-record="payment">+ Zahlungseingang erfassen</button></section></div>
+          </div>
+          <div class="lead-dashboard-page lead-detail-page" data-lead-page="bank" hidden>
+            <header class="lead-page-heading"><div><p class="eyebrow">Finanzen</p><h2>Bankverbindung</h2></div><p>Bankdaten und Verwendungszweck für den eindeutigen Zahlungsabgleich.</p></header>
+            <div class="lead-dashboard-grid"><section class="lead-dashboard-card lead-bank-card" id="leadBankCard"><div class="lead-card-heading"><div><span class="lead-card-icon">▦</span><h2>Bankverbindung</h2></div><button class="lead-card-menu" type="button" data-lead-record="bank" aria-label="Bankverbindung bearbeiten"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><dl id="leadBankDetails"></dl><button class="lead-card-action" type="button" data-lead-record="bank">Bankdaten hinterlegen</button></section></div>
+          </div>
+          <div class="lead-dashboard-page lead-detail-page" data-lead-page="tasks" hidden>
+            <header class="lead-page-heading"><div><p class="eyebrow">Organisation</p><h2>Aufgaben & Fragen</h2></div><p>Offene Aufgaben, Wiedervorlagen und später verknüpfte Fragen an einem Ort.</p></header>
+            <div class="lead-dashboard-grid"><section class="lead-dashboard-card lead-task-card" id="leadTasksCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✓</span><h2>Aufgaben & Kundenfragen</h2></div><button class="lead-card-menu" type="button" data-lead-record="task" aria-label="Aufgabe anlegen"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div class="lead-task-tabs"><button class="active" type="button" data-lead-task-filter="all">Alle</button><button type="button" data-lead-task-filter="questions">Fragen aus 8 Wochen</button></div><div class="lead-task-list" id="leadTaskList"></div><button class="lead-card-action" type="button" data-lead-record="task">+ Aufgabe anlegen</button></section></div>
+          </div>
+          <div class="lead-dashboard-page lead-detail-page" data-lead-page="notes" hidden>
+            <header class="lead-page-heading"><div><p class="eyebrow">Organisation</p><h2>Notizen</h2></div><p>Interne Dokumentation, die ausschließlich in dieser Akte geführt wird.</p></header>
+            <div class="lead-dashboard-grid"><section class="lead-dashboard-card lead-notes-card" id="leadNotesCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✎</span><h2>Notizen</h2></div><button class="lead-card-menu" type="button" data-lead-record="note" aria-label="Notizen bearbeiten"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><p id="leadNotesText">Noch keine internen Notizen vorhanden.</p><button class="lead-card-action" type="button" data-lead-record="note">Notizen bearbeiten</button></section></div>
           </div>
         </section>
       </section>
@@ -468,6 +492,11 @@
               <div>
                 <b>Allgemein</b><small>Arbeitsbereich & System</small>
               </div></button
+            ><button data-settings-tab="tariffs">
+              <span>€</span>
+              <div>
+                <b>Tarife</b><small>Leistungen, Preise & Laufzeiten</small>
+              </div></button
             ><button data-settings-tab="appointments">
               <span>◷</span>
               <div>
@@ -527,6 +556,24 @@
                   <div><span>Zeitzone</span><b>Europe/Berlin</b></div>
                   <div><span>Währung</span><b>EUR (€)</b></div>
                 </div>
+              </section>
+            </section>
+            <section class="settings-panel" data-settings-panel="tariffs">
+              <div class="card settings-hero tariff-settings-hero">
+                <span class="settings-icon yellow">€</span>
+                <div>
+                  <p class="eyebrow">Angebot & Abschluss</p>
+                  <h2>Tarife & Leistungspakete</h2>
+                  <p>Pflege Preise, Laufzeiten und Zahlungsbedingungen zentral. Aktive Tarife stehen anschließend direkt im Vertragsabschluss zur Auswahl.</p>
+                </div>
+                <button class="primary" id="openTariff" type="button">+ Tarif anlegen</button>
+              </div>
+              <section class="card settings-card tariff-settings-card">
+                <div class="settings-card-head">
+                  <div><h3>Gespeicherte Tarife</h3><p>Der Standardtarif wird im Verkaufsgespräch automatisch vorausgewählt; individuelle Vertragsfelder bleiben anpassbar.</p></div>
+                  <span class="settings-state active" id="tariffCount">Wird geladen …</span>
+                </div>
+                <div class="tariff-list" id="tariffList"><div class="tariff-empty">Tarife werden geladen …</div></div>
               </section>
             </section>
             <section class="settings-panel" data-settings-panel="appointments">
@@ -1042,7 +1089,7 @@
         <div class="video-contract-layout">
           <aside class="video-contract-preview"><iframe id="videoContractPdf" src="/assets/forms/FDD-VTR-001_B2C-Videovertrag_Finde-Dein-Ding_V1.0.pdf#view=FitH" title="B2C-Videovertrag FDD-VTR-001"></iframe><a id="videoContractPdfLink" href="/assets/forms/FDD-VTR-001_B2C-Videovertrag_Finde-Dein-Ding_V1.0.pdf" target="_blank" rel="noopener">PDF vollständig öffnen ↗</a></aside>
           <section class="video-contract-workspace">
-            <section class="video-contract-section"><header><span>1</span><div><small>Vertragsdaten</small><h3>Dokument vorbereiten</h3></div></header><input name="contractId" type="hidden"><div class="video-contract-fields"><label>Name<input name="customerName" required></label><label>Geburtsdatum<input name="birthDate" type="date" required></label><label class="wide">Straße und Hausnummer<input name="street" required></label><label>PLZ / Ort<input name="postalCity" required></label><label>E-Mail<input name="customerEmail" type="email" required></label><label>Telefon<input name="customerPhone"></label><label>Leistungsbeginn<input name="serviceStart" type="date" required></label><label>Produkt / Paket<input name="product" value="Finde dein Ding · 8-Wochen-Programm" required></label><label>Laufzeit<input name="duration" value="8 Wochen" required></label><label>Gesamtpreis brutto<input name="totalPrice" placeholder="z. B. 2.490,00 €" required></label><label>Zahlungsmodell<input name="paymentModel" placeholder="z. B. Einmalzahlung" required></label><label>Zahlungsplan<input name="paymentDue" placeholder="z. B. 7 Tage nach Abschluss" required></label><label>Abschlussort<input name="place" required></label><label>Vertragsdatum<input name="contractDate" type="date" required></label><label class="wide">Weitere Leistungen / individuelle Abreden<textarea name="additionalAgreements" rows="3"></textarea></label></div><button class="primary" id="prepareVideoContractPdf" type="button">Vertragsdokument als PDF erstellen →</button><p class="video-contract-document-state" id="videoContractDocumentState">Noch nicht erstellt.</p></section>
+            <section class="video-contract-section"><header><span>1</span><div><small>Vertragsdaten</small><h3>Dokument vorbereiten</h3></div></header><input name="contractId" type="hidden"><div class="video-contract-fields"><label class="wide video-contract-tariff-select">Tarif aus Einstellungen<select name="tariffId" id="videoContractTariff" required><option value="">Tarife werden geladen …</option></select><small>Die Tarifauswahl übernimmt Produkt, Laufzeit, Preis und Zahlungsbedingungen automatisch.</small></label><label>Name<input name="customerName" required></label><label>Geburtsdatum<input name="birthDate" type="date" required></label><label class="wide">Straße und Hausnummer<input name="street" required></label><label>PLZ / Ort<input name="postalCity" required></label><label>E-Mail<input name="customerEmail" type="email" required></label><label>Telefon<input name="customerPhone"></label><label>Leistungsbeginn<input name="serviceStart" type="date" required></label><label>Produkt / Paket<input name="product" value="Finde dein Ding · 8-Wochen-Programm" required></label><label>Laufzeit<input name="duration" value="8 Wochen" required></label><label>Gesamtpreis brutto<input name="totalPrice" placeholder="z. B. 2.490,00 €" required></label><label>Zahlungsmodell<input name="paymentModel" placeholder="z. B. Einmalzahlung" required></label><label>Zahlungsplan<input name="paymentDue" placeholder="z. B. 7 Tage nach Abschluss" required></label><label>Abschlussort<input name="place" required></label><label>Vertragsdatum<input name="contractDate" type="date" required></label><label class="wide">Weitere Leistungen / individuelle Abreden<textarea name="additionalAgreements" rows="3"></textarea></label></div><button class="primary" id="prepareVideoContractPdf" type="button">Vertragsdokument als PDF erstellen →</button><p class="video-contract-document-state" id="videoContractDocumentState">Noch nicht erstellt.</p></section>
             <section class="video-contract-section video-confirmation-section"><header><span>2</span><div><small>Video-Abschlussprotokoll</small><h3>Jeden Punkt ausdrücklich bestätigen</h3></div></header><div class="recording-consent"><label><input name="recordingConsent" type="checkbox"><span><strong>Ausdrückliche Aufzeichnungseinwilligung liegt vor.</strong>Der Gesprächspartner hat vor Beginn hörbar zugestimmt. Ohne Zustimmung kann keine Aufnahme gestartet werden.</span></label><label><input name="recordingPurposeAccepted" type="checkbox"><span>Aufzeichnung nur zur Abschlussdokumentation und Beweissicherung.</span></label><label><input name="recordingRevocationAccepted" type="checkbox"><span>Widerrufsmöglichkeit für die Zukunft wurde erläutert.</span></label></div><div class="video-confirmation-list" id="videoConfirmationList"></div></section>
             <section class="video-contract-section recording-control-section"><header><span>3</span><div><small>Native Google-Meet-Aufzeichnung</small><h3>Abschlusssequenz aus Meet übernehmen</h3></div></header><div class="recording-warning"><strong>So funktioniert es:</strong> Protokolliere zuerst die Einwilligung. Starte und beende danach im bereits laufenden Google Meet über „Besprechungstools → Aufzeichnung“ die native Aufnahme. Deine Bildschirmfreigabe kann dabei geöffnet bleiben. Google erzeugt anschließend eine MP4 im Drive des Organisators; das CRM übernimmt sie automatisch in diese Vertragsakte.</div><div class="recording-controls"><button class="primary" id="startVideoContractRecording" type="button">Einwilligung protokollieren & Meet öffnen</button><button class="secondary" id="stopVideoContractRecording" type="button" disabled>Google-Aufzeichnung jetzt übernehmen</button><a class="secondary hidden" id="openVideoContractMeet" target="_blank" rel="noopener">Laufendes Google Meet öffnen ↗</a></div><div class="recording-state" id="videoRecordingState"><i></i><span>Noch keine Meet-Aufzeichnung zugeordnet.</span><time id="videoRecordingTimer">MEET</time></div><button class="primary finalize-video-contract" id="finalizeVideoContract" type="button" disabled>Videovertrag verbindlich speichern →</button><p class="video-contract-legal-note">Die Aufnahme wird von Google Meet erzeugt und anschließend als private MP4 in der Kunden- und Vertragsakte gespeichert. Der Ablauf dokumentiert Erklärungen und Klickbestätigungen. Ob im Einzelfall weitere rechtliche Anforderungen bestehen, muss vor dem produktiven Einsatz fachlich geprüft werden.</p></section>
           </section>
@@ -1070,6 +1117,29 @@
         <label>Datum für die Wiedervorlage<input name="followUpDate" type="date" required /></label>
         <div class="lead-follow-up-preview"><span>✓</span><p><strong>Automatische Aufgabe</strong>Am ausgewählten Tag erscheint der Interessent im Admin-Dashboard als fällige Kontaktaufgabe.</p></div>
         <div class="dialog-actions"><button type="button" class="secondary" data-close-lead-follow-up>Abbrechen</button><button type="submit" class="primary">Wiedervorlage anlegen →</button></div>
+      </form>
+    </dialog>
+    <dialog id="tariffDialog" class="tariff-dialog">
+      <form id="tariffForm">
+        <div class="dialog-head">
+          <div><p class="eyebrow">Einstellungen · Tarife</p><h2 id="tariffDialogTitle">Tarif anlegen</h2><small>Diese Daten werden beim Vertragsabschluss automatisch übernommen.</small></div>
+          <button type="button" data-close-tariff aria-label="Fenster schließen">×</button>
+        </div>
+        <input name="id" type="hidden" />
+        <div class="tariff-form-grid">
+          <label>Tarifname<input name="name" maxlength="180" placeholder="z. B. FDD Intensiv" required /></label>
+          <label>Tarifcode<input name="code" maxlength="80" placeholder="Wird sonst automatisch erzeugt" /></label>
+          <label class="wide">Kurzbeschreibung<textarea name="description" rows="2" maxlength="600" placeholder="Für wen ist dieser Tarif gedacht?"></textarea></label>
+          <label class="wide">Produktbezeichnung im Vertrag<input name="productLabel" maxlength="240" placeholder="Finde dein Ding · 8-Wochen-Programm" required /></label>
+          <label>Laufzeit<input name="durationLabel" maxlength="120" placeholder="8 Wochen" required /></label>
+          <label>Gesamtpreis brutto<input name="grossPrice" type="number" min="0" step="0.01" placeholder="2490.00" required /></label>
+          <label>Zahlungsmodell<input name="paymentModel" maxlength="180" placeholder="Einmalzahlung" required /></label>
+          <label>Zahlungsziel<input name="paymentDue" maxlength="180" placeholder="7 Tage nach Abschluss" required /></label>
+          <label class="wide">Weitere Leistungen / Standardabreden<textarea name="additionalAgreements" rows="3" maxlength="1000"></textarea></label>
+          <label>Sortierung<input name="sortOrder" type="number" min="0" max="9999" step="1" value="0" /></label>
+          <div class="tariff-switches"><label><input name="isActive" type="checkbox" checked /><span><b>Tarif aktiv</b><small>Im Verkaufsgespräch auswählbar</small></span></label><label><input name="isDefault" type="checkbox" /><span><b>Standardtarif</b><small>Automatisch vorausgewählt</small></span></label></div>
+        </div>
+        <div class="dialog-actions"><button type="button" class="secondary" data-close-tariff>Abbrechen</button><button type="submit" class="primary">Tarif speichern</button></div>
       </form>
     </dialog>
     <dialog id="bookingSettingsDialog" class="booking-settings-dialog">

@@ -317,16 +317,19 @@ async function recordDashboardMutation(service, request) {
   const lead = await leadById(service, request.body?.id);
   const recordType = clean(request.body?.recordType, 40);
   if (recordType === 'contract') {
-    const amount = Number(request.body?.amount);
+    const tariffId = uuidValid(request.body?.tariffId) ? request.body.tariffId : null;
+    const tariff = tariffId ? (await serviceTariffs(service)).find((item) => item.id === tariffId && item.is_active) : null;
+    if (!tariff) throw Object.assign(new Error('Bitte wähle einen aktiven Tarif aus den Einstellungen.'), { status: 400 });
+    const amount = Number(tariff.gross_price);
     const status = ['draft', 'sent', 'signed', 'cancelled'].includes(request.body?.status) ? request.body.status : 'draft';
-    const title = clean(request.body?.title, 180);
+    const title = clean(tariff.product_label, 180);
     if (!title || !Number.isFinite(amount) || amount < 0) throw Object.assign(new Error('Vertragsbezeichnung und gültiger Betrag sind erforderlich.'), { status: 400 });
     const now = new Date().toISOString();
     const documentConfirmed = request.body?.documentConfirmed === 'true' || request.body?.documentConfirmed === true;
     const videoContractConfirmed = request.body?.videoContractConfirmed === 'true' || request.body?.videoContractConfirmed === true;
     const programStartDate = /^\d{4}-\d{2}-\d{2}$/.test(request.body?.programStartDate || '') ? request.body.programStartDate : now.slice(0, 10);
     const contractNumber = await reserveContractNumber(service, now.slice(0, 10));
-    const record = await insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, title, contract_number: contractNumber, amount, status, signed_at: status === 'signed' ? now : null, document_confirmed_at: documentConfirmed ? now : null, video_contract_confirmed_at: videoContractConfirmed ? now : null, program_start_date: programStartDate });
+    const record = await insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, tariff_id: tariff.id, title, contract_number: contractNumber, amount, status, signed_at: status === 'signed' ? now : null, document_confirmed_at: documentConfirmed ? now : null, video_contract_confirmed_at: videoContractConfirmed ? now : null, program_start_date: programStartDate });
     const readyForParticipant = status === 'signed' && documentConfirmed && videoContractConfirmed;
     const participant = readyForParticipant ? await activateContractedLead(service, lead, programStartDate) : null;
     return { record, participantActivated: Boolean(participant && !participant.alreadyActive), participant };
@@ -423,6 +426,36 @@ async function bookingSettings(service) {
   return normalizeBookingSettings(rows[0] || DEFAULT_BOOKING_SETTINGS);
 }
 
+async function serviceTariffs(service) {
+  return readJson(await fetch(`${service.url}/rest/v1/service_tariffs?select=*&order=is_default.desc,sort_order.asc,name.asc`, { headers: headers(service.key) }), 'Tarife konnten nicht geladen werden.');
+}
+
+function tariffCode(value, name) {
+  const source = clean(value, 80) || clean(name, 180);
+  return source.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+}
+
+async function saveServiceTariff(service, body = {}) {
+  const tariffs = await serviceTariffs(service), id = uuidValid(body.id) ? body.id : null;
+  const name = clean(body.name, 180), code = tariffCode(body.code, name), productLabel = clean(body.productLabel, 240);
+  const durationLabel = clean(body.durationLabel, 120), paymentModel = clean(body.paymentModel, 180), paymentDue = clean(body.paymentDue, 180);
+  const grossPrice = Number(body.grossPrice), isActive = body.isActive === true || body.isActive === 'true' || body.isActive === 'on';
+  if (!name || !code || !productLabel || !durationLabel || !paymentModel || !paymentDue || !Number.isFinite(grossPrice) || grossPrice < 0) throw Object.assign(new Error('Tarifname, Produkt, Laufzeit, Preis und Zahlungsbedingungen sind erforderlich.'), { status: 400 });
+  const otherDefault = tariffs.find((item) => item.id !== id && item.is_active && item.is_default);
+  const isDefault = isActive && (body.isDefault === true || body.isDefault === 'true' || body.isDefault === 'on' || !otherDefault);
+  if (isDefault) await readJson(await fetch(`${service.url}/rest/v1/service_tariffs?is_default=eq.true${id ? `&id=neq.${encodeURIComponent(id)}` : ''}`, { method: 'PATCH', headers: headers(service.key), body: JSON.stringify({ is_default: false, updated_at: new Date().toISOString() }) }), 'Bisheriger Standardtarif konnte nicht aktualisiert werden.');
+  const payload = { code, name, description: clean(body.description, 600) || null, product_label: productLabel, duration_label: durationLabel, gross_price: grossPrice, payment_model: paymentModel, payment_due: paymentDue, additional_agreements: clean(body.additionalAgreements, 1000) || null, is_active: isActive, is_default: isDefault, sort_order: Math.max(0, Math.min(9999, Number.parseInt(body.sortOrder, 10) || 0)), updated_at: new Date().toISOString() };
+  const result = id
+    ? await readJson(await fetch(`${service.url}/rest/v1/service_tariffs?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify(payload) }), 'Tarif konnte nicht gespeichert werden.')
+    : await readJson(await fetch(`${service.url}/rest/v1/service_tariffs`, { method: 'POST', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify(payload) }), 'Tarif konnte nicht angelegt werden.');
+  if (!result[0]) throw Object.assign(new Error('Der gespeicherte Tarif konnte nicht bestätigt werden.'), { status: 500 });
+  if (!isActive && tariffs.find((item) => item.id === id)?.is_default) {
+    const replacement = tariffs.find((item) => item.id !== id && item.is_active);
+    if (replacement) await readJson(await fetch(`${service.url}/rest/v1/service_tariffs?id=eq.${encodeURIComponent(replacement.id)}`, { method: 'PATCH', headers: headers(service.key), body: JSON.stringify({ is_default: true, updated_at: new Date().toISOString() }) }), 'Neuer Standardtarif konnte nicht festgelegt werden.');
+  }
+  return result[0];
+}
+
 async function scheduledLeadIntervals(service, start, end) {
   const query = new URLSearchParams({
     appointment_start: `lt.${end}`,
@@ -498,8 +531,8 @@ async function publicLead(request, response, service) {
 function permissionForAction(action) {
   if (action === 'command-dashboard') return 'dashboard';
   if (action.startsWith('communication')) return 'communications';
-  if (action === 'available-slots') return ['settings', 'sales_calls', 'leads'];
-  if (['google-connect', 'google-callback', 'booking-settings', 'system-status'].includes(action)) return 'settings';
+  if (['available-slots', 'tariffs'].includes(action)) return ['settings', 'sales_calls', 'leads'];
+  if (['google-connect', 'google-callback', 'booking-settings', 'system-status', 'tariff'].includes(action)) return 'settings';
   if (['dashboard', 'dashboard-record'].includes(action)) return ['leads', 'customers', 'finance'];
   if (['update', 'complete-sales-conversation', 'set-interest-status'].includes(action)) return ['leads', 'sales_calls', 'customers'];
   if (['schedule', 'cancel-appointment'].includes(action)) return ['leads', 'sales_calls'];
@@ -612,6 +645,12 @@ export default async function handler(request, response) {
     if (request.method === 'GET' && action === 'booking-settings') {
       return response.status(200).json({ settings: await bookingSettings(service) });
     }
+    if (request.method === 'GET' && action === 'tariffs') {
+      return response.status(200).json({ tariffs: await serviceTariffs(service) });
+    }
+    if (request.method === 'POST' && action === 'tariff') {
+      return response.status(200).json({ record: await saveServiceTariff(service, request.body), message: 'Tarif wurde gespeichert und steht im Vertragsabschluss bereit.' });
+    }
     if (request.method === 'PATCH' && action === 'booking-settings') {
       const settings = normalizeBookingSettings(request.body || {});
       const savedRows = await readJson(await fetch(`${service.url}/rest/v1/booking_settings?on_conflict=id`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify(bookingSettingsPayload(settings)) }), 'Termin-Einstellungen konnten nicht gespeichert werden.');
@@ -637,6 +676,7 @@ export default async function handler(request, response) {
       const amount = currencyNumber(normalized.contract.totalPrice);
       const payload = {
         title: normalized.contract.product, contract_number: existing?.contract_number || contractNumber,
+        tariff_id: uuidValid(normalized.contract.tariffId) ? normalized.contract.tariffId : null,
         amount, status: 'draft', program_start_date: normalized.contract.serviceStart,
         contract_data: normalized.contract, document_bucket: stored.bucket, document_storage_path: stored.storagePath,
         document_mime_type: 'application/pdf', signature_method: null, updated_at: now,

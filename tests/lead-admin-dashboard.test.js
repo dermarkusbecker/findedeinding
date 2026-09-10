@@ -20,6 +20,22 @@ test('Interessenten öffnen eine vollständige CRM-Detailakte statt nur eines Be
   assert.doesNotMatch(html.slice(html.indexOf('id="leadDashboard"'), html.indexOf('data-panel="settings"')), /Wirtschaftliche Verhältnisse/i);
 });
 
+test('Die Zweitnavigation öffnet eigenständige Interessenten-Seiten und startet das Verkaufsgespräch direkt', async () => {
+  const [html, script, styles] = await Promise.all([file('admin.html'), file('admin.js'), file('admin-lead-dashboard.css')]);
+  for (const page of ['overview', 'conversation', 'messages', 'contracts', 'finance', 'bank', 'tasks', 'notes']) {
+    assert.match(html, new RegExp(`data-lead-page="${page}"`));
+    assert.match(script, new RegExp(`'${page}'`));
+  }
+  assert.equal((html.match(/data-lead-page="/g) || []).length, 8);
+  assert.match(script, /let leadDashboardPage = 'overview'/);
+  assert.match(script, /function setLeadDashboardPage/);
+  assert.match(script, /data-context-leads=/);
+  assert.match(script, /if\(page==='conversation'\)openLeadEditor\(activeLeadDashboard\.lead\.id\)/);
+  assert.match(script, /function setLeadDashboardPage[\s\S]*?behavior:'auto'/);
+  assert.match(styles, /\.lead-dashboard-page\[hidden\]\s*\{[^}]*display:\s*none\s*!important/);
+  assert.match(styles, /\.lead-detail-page \.lead-dashboard-card\s*\{[^}]*grid-column:\s*1\/-1/);
+});
+
 test('Verkaufsgespräch erfasst nur die klaren Kontaktdaten mit bedingter WhatsApp-Pflicht', async () => {
   const [html, script, styles] = await Promise.all([file('admin.html'), file('admin.js'), file('admin-crm-refresh.css')]);
   assert.match(html, /<section class="lead-basics lead-wizard-page" data-lead-step="1">/);
