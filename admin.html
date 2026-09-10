@@ -358,7 +358,7 @@
           <button class="lead-back" id="closeLeadDashboard" type="button">← Zurück zu allen Interessenten</button>
           <section class="lead-profile-hero" id="leadDashboardOverview">
             <div class="lead-profile-main"><span id="leadDashboardInitials">IN</span><div><p class="eyebrow">Interessentenakte</p><div class="lead-name-line"><h1 id="leadDashboardName">Interessent</h1><i id="leadDashboardStatus">Neu</i></div><p id="leadDashboardContact">E-Mail · Telefon</p></div></div>
-            <div class="lead-profile-actions"><button class="secondary" id="editLeadProfile" type="button">Kontaktdaten & Termin</button><button class="primary" id="leadDashboardConvert" type="button">Vertrag & Kundenstart →</button></div>
+            <div class="lead-profile-actions"><div class="lead-interest-actions" aria-label="Interessenstatus festlegen"><button id="markLeadLost" type="button">Kein Interesse</button><button id="markLeadLater" type="button">Später Interesse</button></div><button class="secondary" id="editLeadProfile" type="button">Kontaktdaten & Termin</button><button class="primary" id="leadDashboardConvert" type="button">Vertrag & Kundenstart →</button></div>
           </section>
           <section class="lead-sales-progress card">
             <div class="lead-card-heading"><div><p class="eyebrow">Vertriebsfortschritt</p><h2 id="leadSalesProgressTitle">Vom Erstkontakt bis zum Kundenstart</h2></div><span id="leadSalesProgressCount">Schritt 1 von 7</span></div>
@@ -366,13 +366,13 @@
           </section>
           <div class="lead-dashboard-grid">
             <section class="lead-dashboard-card lead-sales-call-card" id="leadSalesCallCard"><div class="lead-card-heading"><div><span class="lead-card-icon">◉</span><h2>Verkaufsgespräch</h2></div><span id="leadSalesCallStatus">Noch nicht geführt</span></div><p>Eigener Arbeitsbereich für Gesprächsleitfaden, Bedarf, Einwände und Abschlussentscheidung. Den genauen Gesprächsablauf bauen wir separat aus.</p><div class="lead-sales-call-overview" id="leadSalesCallOverview"></div><button class="lead-card-action" id="openLeadSalesCall" type="button">Verkaufsgespräch öffnen →</button></section>
-            <section class="lead-dashboard-card lead-contact-card" id="leadContactCard"><div class="lead-card-heading"><div><span class="lead-card-icon">◎</span><h2>Kontakt & Anfrage</h2></div><button class="lead-card-menu" type="button" data-lead-edit="profile" aria-label="Kontakt bearbeiten">•••</button></div><div id="leadContactDetails"></div></section>
-            <section class="lead-dashboard-card lead-balance-card" id="leadFinanceCard"><div class="lead-card-heading"><div><span class="lead-card-icon">€</span><h2>Kontostand</h2></div><button class="lead-card-menu" type="button" data-lead-record="payment" aria-label="Zahlung erfassen">•••</button></div><div class="lead-balance-summary"><small>Offener Saldo</small><strong id="leadOpenBalance">0,00 €</strong><span id="leadBalanceState">Keine offenen Forderungen</span></div><dl id="leadBalanceDetails"></dl><button class="lead-card-action" type="button" data-lead-record="payment">+ Zahlungseingang erfassen</button></section>
-            <section class="lead-dashboard-card lead-communication-card" id="leadCommunicationCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✉</span><h2>E-Mail-Verkehr</h2></div><button class="lead-card-menu" type="button" data-lead-record="communication" aria-label="E-Mail protokollieren">•••</button></div><div class="lead-timeline" id="leadCommunicationList"></div><button class="lead-card-action" type="button" data-lead-record="communication">+ E-Mail protokollieren</button></section>
-            <section class="lead-dashboard-card lead-contract-card" id="leadContractsCard"><div class="lead-card-heading"><div><span class="lead-card-icon">▤</span><h2>Verträge</h2></div><button class="lead-card-menu" type="button" data-lead-record="contract" aria-label="Vertrag anlegen">•••</button></div><div class="lead-contract-list" id="leadContractList"></div><button class="lead-card-action" type="button" data-lead-record="contract">+ Vertrag anlegen</button></section>
-            <section class="lead-dashboard-card lead-task-card" id="leadTasksCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✓</span><h2>Aufgaben & Kundenfragen</h2></div><button class="lead-card-menu" type="button" data-lead-record="task" aria-label="Aufgabe anlegen">•••</button></div><div class="lead-task-tabs"><button class="active" type="button" data-lead-task-filter="all">Alle</button><button type="button" data-lead-task-filter="questions">Fragen aus 8 Wochen</button></div><div class="lead-task-list" id="leadTaskList"></div><button class="lead-card-action" type="button" data-lead-record="task">+ Aufgabe anlegen</button></section>
-            <section class="lead-dashboard-card lead-notes-card" id="leadNotesCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✎</span><h2>Notizen</h2></div><button class="lead-card-menu" type="button" data-lead-record="note" aria-label="Notizen bearbeiten">•••</button></div><p id="leadNotesText">Noch keine internen Notizen vorhanden.</p><button class="lead-card-action" type="button" data-lead-record="note">Notizen bearbeiten</button></section>
-            <section class="lead-dashboard-card lead-bank-card" id="leadBankCard"><div class="lead-card-heading"><div><span class="lead-card-icon">▦</span><h2>Bankverbindung</h2></div><button class="lead-card-menu" type="button" data-lead-record="bank" aria-label="Bankverbindung bearbeiten">•••</button></div><dl id="leadBankDetails"></dl><button class="lead-card-action" type="button" data-lead-record="bank">Bankdaten hinterlegen</button></section>
+            <section class="lead-dashboard-card lead-contact-card" id="leadContactCard"><div class="lead-card-heading"><div><span class="lead-card-icon">◎</span><h2>Kontakt & Anfrage</h2></div><button class="lead-card-menu" type="button" data-lead-edit="profile" aria-label="Kontakt bearbeiten"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div id="leadContactDetails"></div></section>
+            <section class="lead-dashboard-card lead-balance-card" id="leadFinanceCard"><div class="lead-card-heading"><div><span class="lead-card-icon">€</span><h2>Kontostand</h2></div><button class="lead-card-menu" type="button" data-lead-record="payment" aria-label="Zahlung erfassen"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div class="lead-balance-summary"><small>Offener Saldo</small><strong id="leadOpenBalance">0,00 €</strong><span id="leadBalanceState">Keine offenen Forderungen</span></div><dl id="leadBalanceDetails"></dl><button class="lead-card-action" type="button" data-lead-record="payment">+ Zahlungseingang erfassen</button></section>
+            <section class="lead-dashboard-card lead-communication-card" id="leadCommunicationCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✉</span><h2>E-Mail-Verkehr</h2></div><button class="lead-card-menu" type="button" data-lead-record="communication" aria-label="E-Mail protokollieren"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div class="lead-timeline" id="leadCommunicationList"></div><button class="lead-card-action" type="button" data-lead-record="communication">+ E-Mail protokollieren</button></section>
+            <section class="lead-dashboard-card lead-contract-card" id="leadContractsCard"><div class="lead-card-heading"><div><span class="lead-card-icon">▤</span><h2>Verträge</h2></div><button class="lead-card-menu" type="button" data-lead-record="contract" aria-label="Vertrag anlegen"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div class="lead-contract-list" id="leadContractList"></div><button class="lead-card-action" type="button" data-lead-record="contract">+ Vertrag anlegen</button></section>
+            <section class="lead-dashboard-card lead-task-card" id="leadTasksCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✓</span><h2>Aufgaben & Kundenfragen</h2></div><button class="lead-card-menu" type="button" data-lead-record="task" aria-label="Aufgabe anlegen"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div class="lead-task-tabs"><button class="active" type="button" data-lead-task-filter="all">Alle</button><button type="button" data-lead-task-filter="questions">Fragen aus 8 Wochen</button></div><div class="lead-task-list" id="leadTaskList"></div><button class="lead-card-action" type="button" data-lead-record="task">+ Aufgabe anlegen</button></section>
+            <section class="lead-dashboard-card lead-notes-card" id="leadNotesCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✎</span><h2>Notizen</h2></div><button class="lead-card-menu" type="button" data-lead-record="note" aria-label="Notizen bearbeiten"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><p id="leadNotesText">Noch keine internen Notizen vorhanden.</p><button class="lead-card-action" type="button" data-lead-record="note">Notizen bearbeiten</button></section>
+            <section class="lead-dashboard-card lead-bank-card" id="leadBankCard"><div class="lead-card-heading"><div><span class="lead-card-icon">▦</span><h2>Bankverbindung</h2></div><button class="lead-card-menu" type="button" data-lead-record="bank" aria-label="Bankverbindung bearbeiten"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><dl id="leadBankDetails"></dl><button class="lead-card-action" type="button" data-lead-record="bank">Bankdaten hinterlegen</button></section>
             <section class="lead-dashboard-card lead-next-card" id="leadNextStepsCard"><div class="lead-card-heading"><div><span class="lead-card-icon">↗</span><h2>Nächste Schritte</h2></div></div><div id="leadNextSteps"></div></section>
           </div>
         </section>
@@ -559,7 +559,7 @@
                     ><strong id="bookingDaysSummary">—</strong>
                   </article>
                   <article>
-                    <small>Standarddauer</small
+                    <small>Angebotene Dauern</small
                     ><strong id="bookingDurationSummary">—</strong>
                   </article>
                   <article>
@@ -878,18 +878,19 @@
 
     <dialog id="leadDialog" class="lead-dialog">
       <form id="leadForm">
-        <div class="dialog-head">
+        <div class="dialog-head lead-dialog-head">
           <div>
             <p class="eyebrow">Interessent · Verkaufsgespräch</p>
             <h2 id="leadDialogTitle">Interessenten bearbeiten</h2>
             <small id="leadDialogSource"></small>
             <span class="autosave-state saved" id="leadAutosaveStatus" role="status">Alle Änderungen gespeichert</span>
           </div>
-          <button type="button" data-close-lead>×</button>
+          <button type="button" data-close-lead aria-label="Verkaufsgespräch schließen"><span>Schließen</span><b aria-hidden="true">×</b></button>
         </div>
+        <div class="lead-dialog-body">
         <nav class="lead-wizard-progress" aria-label="Fortschritt im Verkaufsgespräch">
           <ol>
-            <li class="active" data-lead-progress-step="1" aria-current="step"><button type="button" data-open-lead-step="1"><span>1</span><div><b>Kontakt</b><small>Stammdaten &amp; Anliegen</small></div></button></li>
+            <li class="active" data-lead-progress-step="1" aria-current="step"><button type="button" data-open-lead-step="1"><span>1</span><div><b>Kontakt</b><small>Kontaktdaten</small></div></button></li>
             <li data-lead-progress-step="2"><button type="button" data-open-lead-step="2"><span>2</span><div><b>Termin</b><small>Kalender &amp; Meet</small></div></button></li>
             <li data-lead-progress-step="3"><button type="button" data-open-lead-step="3"><span>3</span><div><b>Gespräch</b><small>Leitfaden &amp; Antworten</small></div></button></li>
             <li data-lead-progress-step="4"><button type="button" data-open-lead-step="4"><span>4</span><div><b>Abschluss</b><small>Vertrag &amp; Video</small></div></button></li>
@@ -900,29 +901,18 @@
           <div class="lead-section-head">
             <div>
               <p class="eyebrow">Stammdaten</p>
-              <h3>Kontakt &amp; Anliegen</h3>
+              <h3>Kontaktdaten</h3>
             </div>
             <span>Alle Angaben lassen sich direkt bearbeiten</span>
           </div>
           <div class="lead-contact-grid">
-            <label>Vorname<input name="firstName" required /></label>
-            <label>Nachname<input name="lastName" required /></label>
-            <label>E-Mail-Adresse<input name="email" type="email" required /></label>
-            <label>Telefon<input name="phone" type="tel" /></label>
-            <label class="lead-status-field">Status<select name="status">
-              <option value="new">Neu</option>
-              <option value="contacted">Kontaktiert</option>
-              <option value="scheduled">Termin vereinbart</option>
-              <option value="consultation">Gespräch geführt</option>
-              <option value="offer">Angebot offen</option>
-              <option value="later">Später Interesse</option>
-              <option value="customer" disabled>Teilnehmer (automatisch)</option>
-              <option value="lost">Kein Interesse</option>
-            </select></label>
-          </div>
-          <div class="lead-context-grid">
-            <label>Anliegen des Interessenten<textarea name="challenge" rows="3"></textarea></label>
-            <label>Interne Notizen<textarea name="internalNotes" rows="3"></textarea></label>
+            <label>Vorname <em>Pflichtfeld</em><input name="firstName" autocomplete="given-name" required /></label>
+            <label>Nachname <em>Pflichtfeld</em><input name="lastName" autocomplete="family-name" required /></label>
+            <label>E-Mail-Adresse <em>Pflichtfeld</em><input name="email" type="email" autocomplete="email" required /></label>
+            <label>Mobilnummer <em>Pflichtfeld</em><input name="mobilePhone" type="tel" autocomplete="tel" required /></label>
+            <label>Telefonnummer <small>optional</small><input name="phone" type="tel" autocomplete="tel-national" /></label>
+            <label class="lead-whatsapp-toggle"><span>WhatsApp</span><span class="lead-switch-copy"><input name="hasAlternateWhatsapp" type="checkbox" /> Abweichende WhatsApp-Nummer verwenden</span></label>
+            <label class="lead-whatsapp-field" id="leadWhatsappField" hidden>Abweichende WhatsApp-Nummer <em>Pflichtfeld</em><input name="whatsappPhone" type="tel" autocomplete="tel" /></label>
           </div>
         </section>
         <section class="lead-appointment lead-wizard-page" data-lead-step="2" hidden>
@@ -938,12 +928,7 @@
             <label
               >Freie Termine ab<input id="slotRangeStart" type="date" /></label
             ><label
-              >Dauer<select name="appointmentDuration">
-                <option value="30">30 Minuten</option>
-                <option value="45" selected>45 Minuten</option>
-                <option value="60">60 Minuten</option>
-                <option value="90">90 Minuten</option>
-              </select></label
+              >Angebotene Dauer<select name="appointmentDuration"></select></label
             ><button type="button" class="secondary" id="refreshSlots">
               Freie Zeiten laden
             </button>
@@ -951,16 +936,16 @@
           <div class="selected-slot" id="selectedSlot">
             Noch keinen freien Termin ausgewählt
           </div>
-          <div class="available-slots" id="availableSlots">
-            <p>Freie Zeiten werden beim Öffnen geladen …</p>
+          <div class="appointment-slot-picker" id="appointmentSlotPicker">
+            <section><header><span>1</span><div><b>Tag auswählen</b><small>Nur Tage mit freien Terminen</small></div></header><div class="available-days" id="availableDays"></div></section>
+            <section><header><span>2</span><div><b>Uhrzeit auswählen</b><small id="availableTimesHint">Bitte zuerst einen Tag wählen</small></div></header><div class="available-times" id="availableTimes"></div></section>
           </div>
-          <div class="demo-appointment-box">
-            <div><small>Vorschau ohne Google-Kalender</small><strong>Demo-Termine</strong><p>Zum Durchspielen des Verkaufsgesprächs. Erst „Termin + Meet erstellen“ legt einen echten Termin an.</p></div>
-            <div class="demo-appointment-slots" id="demoAppointmentSlots"></div>
+          <div class="available-slots" id="availableSlots" hidden>
+            <p>Freie Zeiten werden beim Öffnen geladen …</p>
           </div>
           <div class="lead-appointment-actions">
             <button type="button" class="primary" id="scheduleLead">
-              Termin + Meet erstellen</button
+              Termin übernehmen</button
             ><a
               class="secondary hidden"
               id="openMeet"
@@ -1015,6 +1000,16 @@
             <span id="leadConversionState">Noch kein Konto angelegt</span>
           </div>
           <p>Ein Interessent bleibt Lead, bis Vertragsdokument, ausdrückliche Erklärungen und Video-Abschluss nachvollziehbar dokumentiert sind. Danach wird das Teilnehmerkonto angelegt; die zusätzliche digitale Kundensignatur bleibt separat nachvollziehbar.</p>
+          <label class="lead-conclusion-control">Abschlussentscheidung<select name="status">
+            <option value="new">Neu</option>
+            <option value="contacted">Kontaktiert</option>
+            <option value="scheduled">Termin vereinbart</option>
+            <option value="consultation">Gespräch geführt</option>
+            <option value="offer">Angebot offen</option>
+            <option value="later">Später Interesse</option>
+            <option value="lost">Kein Interesse</option>
+            <option value="customer" disabled>Teilnehmer (automatisch)</option>
+          </select></label>
           <div class="lead-wizard-review">
             <article><small>Kontakt</small><strong id="leadReviewContact">–</strong></article>
             <article><small>Termin</small><strong id="leadReviewAppointment">–</strong></article>
@@ -1026,6 +1021,7 @@
             <article><span>●</span><div><small>Schritt 2</small><h4>Videovertrag</h4><p>Einwilligung dokumentieren, freigegebenes Meet-Fenster aufzeichnen und Video-Abschluss speichern.</p></div><button class="primary" id="createVideoContract" type="button">Videovertrag erstellen →</button></article>
           </div>
           <div class="sales-contract-state" id="salesContractState">Noch kein Vertragsdokument für diesen Interessenten erstellt.</div>
+          <div class="lead-completion-note"><span>✉</span><p><b>Terminbestätigung nach dem Abschluss</b>Erst wenn du das Verkaufsgespräch vollständig abschließt, wird die Einladung mit Termin und vorhandenem Google-Meet-Link ausgelöst.</p></div>
         </section>
         <div class="dialog-actions lead-dialog-actions">
           <button type="button" class="secondary" data-close-lead>
@@ -1034,20 +1030,21 @@
             <span id="leadWizardStatus">Seite 1 von 4</span>
             <button type="button" class="secondary" id="leadStepBack" hidden>← Zurück</button>
             <button type="button" class="primary" id="leadStepNext">Weiter →</button>
-            <button class="primary" id="leadStepSave" type="submit" hidden>Verkaufsgespräch speichern</button>
+            <button class="primary" id="leadStepSave" type="submit" hidden>Verkaufsgespräch abschließen</button>
           </div>
+        </div>
         </div>
       </form>
     </dialog>
     <dialog id="videoContractDialog" class="video-contract-dialog">
       <form id="videoContractForm">
-        <div class="dialog-head video-contract-head"><div><p class="eyebrow">FDD-VTR-001 · B2C-Videovertrag</p><h2>Vertrag klar dokumentieren.</h2><small>Vertragsdaten, ausdrückliche Einwilligung und Video-Abschluss in einem nachvollziehbaren Ablauf.</small></div><button type="button" data-close-video-contract>×</button></div>
+        <div class="dialog-head video-contract-head"><div><p class="eyebrow">FDD-VTR-001 · B2C-Videovertrag</p><h2>Vertrag klar dokumentieren.</h2><small>Vertragsdaten, ausdrückliche Einwilligung und Video-Abschluss in einem nachvollziehbaren Ablauf.</small></div><button type="button" data-close-video-contract aria-label="Videovertrag schließen und zum Abschluss zurückkehren"><span>Schließen</span><b aria-hidden="true">×</b></button></div>
         <div class="video-contract-layout">
           <aside class="video-contract-preview"><iframe id="videoContractPdf" src="/assets/forms/FDD-VTR-001_B2C-Videovertrag_Finde-Dein-Ding_V1.0.pdf#view=FitH" title="B2C-Videovertrag FDD-VTR-001"></iframe><a id="videoContractPdfLink" href="/assets/forms/FDD-VTR-001_B2C-Videovertrag_Finde-Dein-Ding_V1.0.pdf" target="_blank" rel="noopener">PDF vollständig öffnen ↗</a></aside>
           <section class="video-contract-workspace">
             <section class="video-contract-section"><header><span>1</span><div><small>Vertragsdaten</small><h3>Dokument vorbereiten</h3></div></header><input name="contractId" type="hidden"><div class="video-contract-fields"><label>Name<input name="customerName" required></label><label>Geburtsdatum<input name="birthDate" type="date" required></label><label class="wide">Straße und Hausnummer<input name="street" required></label><label>PLZ / Ort<input name="postalCity" required></label><label>E-Mail<input name="customerEmail" type="email" required></label><label>Telefon<input name="customerPhone"></label><label>Leistungsbeginn<input name="serviceStart" type="date" required></label><label>Produkt / Paket<input name="product" value="Finde dein Ding · 8-Wochen-Programm" required></label><label>Laufzeit<input name="duration" value="8 Wochen" required></label><label>Gesamtpreis brutto<input name="totalPrice" placeholder="z. B. 2.490,00 €" required></label><label>Zahlungsmodell<input name="paymentModel" placeholder="z. B. Einmalzahlung" required></label><label>Zahlungsplan<input name="paymentDue" placeholder="z. B. 7 Tage nach Abschluss" required></label><label>Abschlussort<input name="place" required></label><label>Vertragsdatum<input name="contractDate" type="date" required></label><label class="wide">Weitere Leistungen / individuelle Abreden<textarea name="additionalAgreements" rows="3"></textarea></label></div><button class="primary" id="prepareVideoContractPdf" type="button">Vertragsdokument als PDF erstellen →</button><p class="video-contract-document-state" id="videoContractDocumentState">Noch nicht erstellt.</p></section>
             <section class="video-contract-section video-confirmation-section"><header><span>2</span><div><small>Video-Abschlussprotokoll</small><h3>Jeden Punkt ausdrücklich bestätigen</h3></div></header><div class="recording-consent"><label><input name="recordingConsent" type="checkbox"><span><strong>Ausdrückliche Aufzeichnungseinwilligung liegt vor.</strong>Der Gesprächspartner hat vor Beginn hörbar zugestimmt. Ohne Zustimmung kann keine Aufnahme gestartet werden.</span></label><label><input name="recordingPurposeAccepted" type="checkbox"><span>Aufzeichnung nur zur Abschlussdokumentation und Beweissicherung.</span></label><label><input name="recordingRevocationAccepted" type="checkbox"><span>Widerrufsmöglichkeit für die Zukunft wurde erläutert.</span></label></div><div class="video-confirmation-list" id="videoConfirmationList"></div></section>
-            <section class="video-contract-section recording-control-section"><header><span>3</span><div><small>Sichtbare Browserfreigabe</small><h3>Abschlusssequenz aufzeichnen</h3></div></header><div class="recording-warning">Der Browser fragt sichtbar, welches Fenster oder welchen Tab du teilen möchtest. Wähle das laufende Google-Meet-Fenster und aktiviere – sofern angeboten – die Audiofreigabe.</div><div class="recording-controls"><button class="primary" id="startVideoContractRecording" type="button">Aufzeichnung starten</button><button class="secondary" id="stopVideoContractRecording" type="button" disabled>Aufzeichnung beenden & hochladen</button><a class="secondary hidden" id="openVideoContractMeet" target="_blank" rel="noopener">Google Meet öffnen ↗</a></div><div class="recording-state" id="videoRecordingState"><i></i><span>Noch keine Aufnahme gestartet.</span><time id="videoRecordingTimer">00:00</time></div><button class="primary finalize-video-contract" id="finalizeVideoContract" type="button" disabled>Videovertrag verbindlich speichern →</button><p class="video-contract-legal-note">Der Ablauf dokumentiert Erklärungen und Klickbestätigungen. Ob im Einzelfall weitere rechtliche Anforderungen bestehen, muss vor dem produktiven Einsatz fachlich geprüft werden.</p></section>
+            <section class="video-contract-section recording-control-section"><header><span>3</span><div><small>Native Google-Meet-Aufzeichnung</small><h3>Abschlusssequenz aus Meet übernehmen</h3></div></header><div class="recording-warning"><strong>So funktioniert es:</strong> Protokolliere zuerst die Einwilligung. Starte und beende danach im bereits laufenden Google Meet über „Besprechungstools → Aufzeichnung“ die native Aufnahme. Deine Bildschirmfreigabe kann dabei geöffnet bleiben. Google erzeugt anschließend eine MP4 im Drive des Organisators; das CRM übernimmt sie automatisch in diese Vertragsakte.</div><div class="recording-controls"><button class="primary" id="startVideoContractRecording" type="button">Einwilligung protokollieren & Meet öffnen</button><button class="secondary" id="stopVideoContractRecording" type="button" disabled>Google-Aufzeichnung jetzt übernehmen</button><a class="secondary hidden" id="openVideoContractMeet" target="_blank" rel="noopener">Laufendes Google Meet öffnen ↗</a></div><div class="recording-state" id="videoRecordingState"><i></i><span>Noch keine Meet-Aufzeichnung zugeordnet.</span><time id="videoRecordingTimer">MEET</time></div><button class="primary finalize-video-contract" id="finalizeVideoContract" type="button" disabled>Videovertrag verbindlich speichern →</button><p class="video-contract-legal-note">Die Aufnahme wird von Google Meet erzeugt und anschließend als private MP4 in der Kunden- und Vertragsakte gespeichert. Der Ablauf dokumentiert Erklärungen und Klickbestätigungen. Ob im Einzelfall weitere rechtliche Anforderungen bestehen, muss vor dem produktiven Einsatz fachlich geprüft werden.</p></section>
           </section>
         </div>
       </form>
@@ -1061,6 +1058,18 @@
         <input type="hidden" name="recordType" />
         <div id="leadRecordFields"></div>
         <div class="dialog-actions"><button type="button" class="secondary" data-close-lead-record>Abbrechen</button><button type="submit" class="primary">Speichern</button></div>
+      </form>
+    </dialog>
+    <dialog id="leadFollowUpDialog" class="lead-follow-up-dialog" aria-labelledby="leadFollowUpTitle">
+      <form id="leadFollowUpForm">
+        <div class="lead-follow-up-head">
+          <span aria-hidden="true">◷</span>
+          <div><p class="eyebrow">Später Interesse · Wiedervorlage</p><h2 id="leadFollowUpTitle">Wann sollen wir Dich nochmal kontaktieren?</h2><p>Wähle den passenden Tag. Das CRM legt automatisch eine Wiedervorlage für das gesamte Admin- und Mitarbeiterteam an.</p></div>
+          <button type="button" data-close-lead-follow-up aria-label="Fenster schließen">×</button>
+        </div>
+        <label>Datum für die Wiedervorlage<input name="followUpDate" type="date" required /></label>
+        <div class="lead-follow-up-preview"><span>✓</span><p><strong>Automatische Aufgabe</strong>Am ausgewählten Tag erscheint der Interessent im Admin-Dashboard als fällige Kontaktaufgabe.</p></div>
+        <div class="dialog-actions"><button type="button" class="secondary" data-close-lead-follow-up>Abbrechen</button><button type="submit" class="primary">Wiedervorlage anlegen →</button></div>
       </form>
     </dialog>
     <dialog id="bookingSettingsDialog" class="booking-settings-dialog">
@@ -1082,6 +1091,11 @@
         </div>
         <div class="weekly-availability" id="weeklyAvailabilityRows"></div>
         <div class="booking-rule-grid">
+          <fieldset class="booking-duration-options">
+            <legend>Angebotene Termindauern</legend>
+            <p>Nur aktivierte Dauern stehen im Verkaufsgespräch und auf der Buchungsstrecke zur Auswahl.</p>
+            <div><label><input type="checkbox" name="offeredDuration" value="30" /> 30 Minuten</label><label><input type="checkbox" name="offeredDuration" value="45" /> 45 Minuten</label><label><input type="checkbox" name="offeredDuration" value="60" /> 60 Minuten</label><label><input type="checkbox" name="offeredDuration" value="90" /> 90 Minuten</label></div>
+          </fieldset>
           <label
             >Standarddauer<select name="defaultDurationMinutes">
               <option value="30">30 Minuten</option>
@@ -1387,7 +1401,7 @@
         <div class="dialog-head"><div><p class="eyebrow">Automatisierte Nachricht</p><h2 id="communicationAutomationDialogTitle">Automation erstellen</h2><small>Die Nachricht wird aus einem CRM-Ereignis heraus vorbereitet.</small></div><button type="button" data-close-automation-dialog>×</button></div>
         <div class="communication-form-grid">
           <label class="wide">Name der Automation<input name="name" maxlength="140" required placeholder="z. B. Erinnerung 24 Stunden vor Termin" /></label>
-          <label>Auslöser<select name="triggerType" id="automationTrigger" required><option value="lead_created">Interessent neu angelegt</option><option value="appointment_scheduled">Termin vereinbart</option><option value="contract_signed">Vertrag abgeschlossen</option><option value="participant_activated">Teilnehmer aktiviert</option><option value="week_unlocked">Programmwoche freigeschaltet</option><option value="inactivity">Keine Aktivität</option></select></label>
+          <label>Auslöser<select name="triggerType" id="automationTrigger" required><option value="lead_created">Interessent neu angelegt</option><option value="appointment_scheduled">Termin vereinbart</option><option value="sales_conversation_completed">Verkaufsgespräch abgeschlossen</option><option value="contract_signed">Vertrag abgeschlossen</option><option value="participant_activated">Teilnehmer aktiviert</option><option value="week_unlocked">Programmwoche freigeschaltet</option><option value="inactivity">Keine Aktivität</option></select></label>
           <label>Nachrichtenvorlage<select name="templateId" id="automationTemplate" required></select></label>
           <label>Wartezeit<input name="delayValue" type="number" min="0" max="365" value="0" required /></label>
           <label>Einheit<select name="delayUnit"><option value="minutes">Minuten</option><option value="hours">Stunden</option><option value="days">Tage</option></select></label>
@@ -1539,6 +1553,21 @@
           </button>
         </div>
       </form>
+    </dialog>
+    <dialog id="customerDocumentPreviewDialog" class="customer-document-preview-dialog" aria-labelledby="customerDocumentPreviewTitle">
+      <div class="customer-document-preview-shell">
+        <header>
+          <div><p class="eyebrow">Kundenakte · Dokumente</p><h2 id="customerDocumentPreviewTitle">Dokument ansehen</h2><p id="customerDocumentPreviewMeta">Sicher und schreibgeschützt geöffnet.</p></div>
+          <button type="button" data-close-customer-document-preview aria-label="Dokumentenvorschau schließen">×</button>
+        </header>
+        <div class="customer-document-preview-stage">
+          <iframe id="customerDocumentPreviewFrame" title="Dokumentenvorschau" hidden></iframe>
+          <img id="customerDocumentPreviewImage" alt="" hidden />
+          <video id="customerDocumentPreviewVideo" controls playsinline hidden></video>
+          <div id="customerDocumentPreviewFallback" hidden><span>▤</span><strong>Für dieses Dateiformat ist keine direkte Vorschau verfügbar.</strong><p>Die Originaldatei kann weiterhin sicher geöffnet oder heruntergeladen werden.</p></div>
+        </div>
+        <footer><button class="secondary" type="button" data-close-customer-document-preview>Schließen</button><a class="primary" id="customerDocumentPreviewDownload" href="#" target="_blank" rel="noopener">Originaldatei öffnen ↗</a></footer>
+      </div>
     </dialog>
     <div id="toast"></div>
     <script src="admin.js"></script>

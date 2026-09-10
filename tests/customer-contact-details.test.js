@@ -28,8 +28,9 @@ test('Kundenakte zeigt echte Stamm- und Adressdaten statt Lead-Herkunft', async 
   assert.match(styles, /\.customer-address-card/);
 });
 
-test('Telefon wird beim Vertragsabschluss in die Kundenstammdaten übernommen', async () => {
+test('Mobilnummer wird beim Vertragsabschluss in die Kundenstammdaten übernommen', async () => {
   const [leads, auth] = await Promise.all([file('api/leads.js'), file('lib/user-auth.js')]);
-  assert.match(leads, /phone: lead\.phone/);
-  assert.match(auth, /phone: String\(phone \|\| ''\)/);
+  assert.match(leads, /phone: lead\.mobile_phone \|\| lead\.phone/);
+  assert.match(auth, /mobile_phone: normalizedPhone/);
+  assert.match(auth, /whatsapp_same_as_mobile: true/);
 });

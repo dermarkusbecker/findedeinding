@@ -44,7 +44,7 @@ test('Kundenportal zeigt synchronisierte Termine und erlaubt ein optionales Prof
 });
 
 test('digital erzeugte Onboarding-Dokumente bleiben direkt in der Kunden-Dokumentenakte sichtbar', async () => {
-  const [client, privacyStorage, commitmentStorage, sharedStorage] = await Promise.all([file('portal.js'), file('lib/privacy-consent.js'), file('lib/start-commitment.js'), file('lib/generated-document-storage.js')]);
+  const [client, privacyStorage, commitmentStorage, sharedStorage, customerRecords] = await Promise.all([file('portal.js'), file('lib/privacy-consent.js'), file('lib/start-commitment.js'), file('lib/generated-document-storage.js'), file('lib/customer-records-service.js')]);
   assert.match(client, /program\?\.onboarding\?\.privacyDocumentId/);
   assert.match(client, /program\?\.onboarding\?\.commitmentDocumentId/);
   assert.match(client, /Digital bestätigte Datenschutzeinwilligung/);
@@ -52,4 +52,19 @@ test('digital erzeugte Onboarding-Dokumente bleiben direkt in der Kunden-Dokumen
   assert.match(privacyStorage, /storeGeneratedParticipantDocument/);
   assert.match(commitmentStorage, /storeGeneratedParticipantDocument/);
   assert.match(sharedStorage, /document\.user_profile_id !== participantId/);
+  assert.match(customerRecords, /Content-Disposition/);
+  assert.match(customerRecords, /request\.query\?\.download === '1'/);
+});
+
+test('Kundendokumente öffnen im Portal und CRM in einer mittigen Vorschau', async () => {
+  const [portal, portalStyles, admin, adminHtml, adminStyles] = await Promise.all([file('portal.js'), file('portal.css'), file('admin.js'), file('admin.html'), file('admin-crm-refresh.css')]);
+  assert.match(portal, /id="documentPreviewDialog"/);
+  assert.match(portal, /data-document-preview/);
+  assert.match(portal, /function openDocumentPreview/);
+  assert.match(portal, /dialog\.showModal\(\)/);
+  assert.match(portalStyles, /\.document-preview-dialog::backdrop/);
+  assert.match(adminHtml, /id="customerDocumentPreviewDialog"/);
+  assert.match(admin, /data-customer-document-preview/);
+  assert.match(admin, /function openCustomerDocumentPreview/);
+  assert.match(adminStyles, /\.customer-document-preview-dialog::backdrop/);
 });

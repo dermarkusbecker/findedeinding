@@ -40,6 +40,11 @@ create table if not exists public.leads (
   name text not null,
   email text not null,
   phone text,
+  mobile_phone text,
+  whatsapp_phone text,
+  whatsapp_same_as_mobile boolean not null default true,
+  sales_conversation_completed_at timestamptz,
+  appointment_confirmation_prepared_at timestamptz,
   challenge text,
   source text not null default 'website',
   utm_source text,
@@ -67,6 +72,7 @@ create table if not exists public.integration_settings (
   provider text primary key,
   encrypted_credentials text not null,
   connected_email text,
+  granted_scopes text[] not null default '{}'::text[],
   updated_at timestamptz not null default now()
 );
 
@@ -76,6 +82,7 @@ create table if not exists public.booking_settings (
   weekly_availability jsonb not null default '{"0":[],"1":[],"2":[],"3":[],"4":[],"5":[],"6":[]}'::jsonb,
   slot_interval_minutes integer not null default 15 check (slot_interval_minutes in (15, 30)),
   default_duration_minutes integer not null default 45 check (default_duration_minutes in (30, 45, 60, 90)),
+  offered_durations integer[] not null default '{45}'::integer[],
   min_notice_hours integer not null default 24 check (min_notice_hours between 0 and 168),
   booking_horizon_days integer not null default 60 check (booking_horizon_days between 7 and 180),
   updated_at timestamptz not null default now()
@@ -106,6 +113,13 @@ create table if not exists public.lead_contracts (
   video_recording_started_at timestamptz,
   video_recording_ended_at timestamptz,
   video_recording_consent_at timestamptz,
+  video_recording_provider text,
+  google_meet_conference_record text,
+  google_meet_recording_name text,
+  google_drive_file_id text,
+  google_drive_export_uri text,
+  google_meet_recording_state text,
+  video_recording_imported_at timestamptz,
   signing_token_hash text,
   signing_expires_at timestamptz,
   customer_signed_at timestamptz,
@@ -114,6 +128,76 @@ create table if not exists public.lead_contracts (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create table if not exists public.contract_number_counters (
+  contract_year integer primary key check (contract_year between 2000 and 9999),
+  last_value bigint not null default 0 check (last_value >= 0),
+  updated_at timestamptz not null default now()
+);
+
+insert into public.contract_number_counters (contract_year, last_value)
+select
+  substring(contract_number from '^FDD-([0-9]{4})-')::integer,
+  max(substring(contract_number from '^FDD-[0-9]{4}-([0-9]+)$')::bigint)
+from public.lead_contracts
+where contract_number ~ '^FDD-[0-9]{4}-[0-9]+$'
+group by substring(contract_number from '^FDD-([0-9]{4})-')::integer
+on conflict (contract_year) do update
+set last_value = greatest(public.contract_number_counters.last_value, excluded.last_value),
+    updated_at = now();
+
+create or replace function public.next_contract_number(p_contract_date date default current_date)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_year integer := extract(year from coalesce(p_contract_date, current_date))::integer;
+  v_number bigint;
+begin
+  insert into public.contract_number_counters (contract_year, last_value)
+  values (v_year, 1)
+  on conflict (contract_year) do update
+  set last_value = public.contract_number_counters.last_value + 1,
+      updated_at = now()
+  returning last_value into v_number;
+  return format('FDD-%s-%s', v_year, lpad(v_number::text, 4, '0'));
+end;
+$$;
+
+create or replace function public.assign_contract_number()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.contract_number is null or btrim(new.contract_number) = '' then
+    new.contract_number := public.next_contract_number(coalesce(new.created_at::date, current_date));
+  end if;
+  return new;
+end;
+$$;
+
+update public.lead_contracts
+set contract_number = public.next_contract_number(coalesce(created_at::date, current_date))
+where contract_number is null or btrim(contract_number) = '';
+
+drop trigger if exists lead_contracts_assign_contract_number on public.lead_contracts;
+create trigger lead_contracts_assign_contract_number
+before insert on public.lead_contracts
+for each row execute function public.assign_contract_number();
+
+create unique index if not exists lead_contracts_contract_number_unique
+  on public.lead_contracts(contract_number)
+  where contract_number is not null;
+
+alter table public.contract_number_counters enable row level security;
+revoke all on table public.contract_number_counters from anon, authenticated;
+revoke all on function public.next_contract_number(date) from public, anon, authenticated;
+revoke all on function public.assign_contract_number() from public, anon, authenticated;
+grant execute on function public.next_contract_number(date) to service_role;
 
 create table if not exists public.lead_payments (
   id uuid primary key default gen_random_uuid(),
@@ -172,6 +256,7 @@ create table if not exists public.lead_tasks (
   title text not null,
   details text,
   due_at date,
+  task_type text not null default 'manual',
   completed boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -209,7 +294,7 @@ create table if not exists public.communication_campaigns (
 create table if not exists public.communication_automations (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  trigger_type text not null check (trigger_type in ('lead_created', 'appointment_scheduled', 'contract_signed', 'participant_activated', 'week_unlocked', 'inactivity')),
+  trigger_type text not null check (trigger_type in ('lead_created', 'appointment_scheduled', 'sales_conversation_completed', 'contract_signed', 'participant_activated', 'week_unlocked', 'inactivity')),
   trigger_config jsonb not null default '{}'::jsonb,
   delay_value integer not null default 0 check (delay_value between 0 and 365),
   delay_unit text not null default 'hours' check (delay_unit in ('minutes', 'hours', 'days')),
@@ -488,7 +573,9 @@ create index if not exists lead_contracts_lead_created_idx on public.lead_contra
 create index if not exists lead_payments_lead_booked_idx on public.lead_payments(lead_id, booked_at desc);
 create index if not exists lead_communications_lead_occurred_idx on public.lead_communications(lead_id, occurred_at desc);
 create unique index if not exists lead_communications_provider_message_unique on public.lead_communications(provider_message_id);
+alter table public.lead_tasks add column if not exists task_type text not null default 'manual';
 create index if not exists lead_tasks_lead_due_idx on public.lead_tasks(lead_id, completed, due_at);
+create index if not exists lead_tasks_follow_up_idx on public.lead_tasks(lead_id, task_type, completed, due_at);
 create index if not exists communication_templates_status_idx on public.communication_templates(status, category, updated_at desc);
 create index if not exists communication_campaigns_schedule_idx on public.communication_campaigns(status, scheduled_at);
 create index if not exists communication_automations_trigger_idx on public.communication_automations(enabled, trigger_type);
@@ -503,6 +590,55 @@ create index if not exists customer_appointments_participant_start_idx on public
 create index if not exists week_gates_participant_idx on public.week_gates(user_profile_id, week);
 create index if not exists gate_template_settings_week_order_idx on public.gate_template_settings(week, sort_order);
 create index if not exists clarity_questions_week_order_idx on public.clarity_questions(week, sort_order);
+
+create or replace function public.set_lead_interest_status(
+  p_lead_id uuid,
+  p_status text,
+  p_follow_up_date date default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_lead public.leads%rowtype;
+  v_task public.lead_tasks%rowtype;
+begin
+  if p_status not in ('lost', 'later') then
+    raise exception 'Ungültiger Interessenstatus.' using errcode = '22023';
+  end if;
+  if p_status = 'later' and (p_follow_up_date is null or p_follow_up_date < current_date) then
+    raise exception 'Für späteres Interesse ist ein heutiges oder zukünftiges Wiedervorlagedatum erforderlich.' using errcode = '22023';
+  end if;
+  update public.leads set status = p_status, updated_at = now()
+  where id = p_lead_id and converted_user_profile_id is null and status <> 'customer'
+  returning * into v_lead;
+  if not found then
+    raise exception 'Interessent wurde nicht gefunden oder ist bereits Kunde.' using errcode = 'P0002';
+  end if;
+  if p_status = 'later' then
+    select * into v_task from public.lead_tasks
+    where lead_id = p_lead_id and task_type = 'lead_follow_up' and completed = false
+    order by created_at desc limit 1 for update;
+    if v_task.id is null then
+      insert into public.lead_tasks (lead_id, title, details, due_at, task_type)
+      values (p_lead_id, 'Wiedervorlage: Interessenten erneut kontaktieren', 'Automatisch aus dem Status „Später Interesse“ angelegt.', p_follow_up_date, 'lead_follow_up')
+      returning * into v_task;
+    else
+      update public.lead_tasks set due_at = p_follow_up_date, details = 'Automatisch aus dem Status „Später Interesse“ angelegt.', updated_at = now()
+      where id = v_task.id returning * into v_task;
+    end if;
+  else
+    update public.lead_tasks set completed = true, updated_at = now()
+    where lead_id = p_lead_id and task_type = 'lead_follow_up' and completed = false;
+  end if;
+  return jsonb_build_object('lead', to_jsonb(v_lead), 'task', case when v_task.id is null then null else to_jsonb(v_task) end);
+end;
+$$;
+
+revoke all on function public.set_lead_interest_status(uuid, text, date) from public, anon, authenticated;
+grant execute on function public.set_lead_interest_status(uuid, text, date) to service_role;
 
 -- Idempotente Migration für Projekte, in denen die Basistabellen bereits existieren.
 alter table public.user_profiles add column if not exists portal_username text;

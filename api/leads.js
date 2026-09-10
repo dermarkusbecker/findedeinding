@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { DEFAULT_BOOKING_SETTINGS, generateAvailableSlots, isWithinBookingAvailability, normalizeBookingSettings } from '../lib/booking-availability.js';
 import { authorizationUrl, assertCalendarAvailable, calendarBusyIntervals, decryptCredential, deleteCalendarEvent, emailFromIdToken, encryptCredential, exchangeAuthorizationCode, googleConfig, refreshAccessToken, saveCalendarEvent, verifyOAuthState } from '../lib/google-calendar.js';
+import { assertGoogleMeetSpace, downloadGoogleDriveFile, findGoogleMeetRecording, googleDriveFileMetadata } from '../lib/google-meet.js';
 import { provisionProgramUser, requireCurrentAdmin, supabaseAuthConfig } from '../lib/user-auth.js';
 import { claraConfig } from '../lib/clara/config.js';
 import { buildSystemRegistry } from '../lib/system-registry.js';
@@ -8,7 +9,7 @@ import { calculateProgramAccess } from '../lib/program-access.js';
 import { reconcileAccessFromEntries } from '../lib/program-position.js';
 import { syncLeadToCustomerProfile } from '../lib/contact-lifecycle.js';
 import { buildVideoContractPdf, normalizeVideoContract, VIDEO_CONFIRMATION_KEYS } from '../lib/video-contract.js';
-import { createSignedCustomerUpload, customerObjectExists, deleteCustomerObject, signedCustomerUrl, uploadCustomerObject } from '../lib/customer-storage.js';
+import { createSignedCustomerUpload, customerObjectExists, deleteCustomerObject, importCustomerObject, signedCustomerUrl, uploadCustomerObject } from '../lib/customer-storage.js';
 import { handlePublicContractSign } from '../lib/contract-sign-service.js';
 
 const VALID_STATUSES = ['new', 'contacted', 'scheduled', 'consultation', 'offer', 'later', 'customer', 'lost'];
@@ -73,9 +74,21 @@ async function insertLeadRecord(service, table, payload) {
   return rows[0] || null;
 }
 
+async function reserveContractNumber(service, contractDate = new Date().toISOString().slice(0, 10)) {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(contractDate || '') ? contractDate : new Date().toISOString().slice(0, 10);
+  const result = await readJson(await fetch(`${service.url}/rest/v1/rpc/next_contract_number`, {
+    method: 'POST',
+    headers: headers(service.key),
+    body: JSON.stringify({ p_contract_date: date }),
+  }), 'Die Vertragsnummer konnte nicht automatisch vergeben werden.');
+  const contractNumber = clean(typeof result === 'string' ? result : result?.next_contract_number, 80);
+  if (!/^FDD-\d{4}-\d{4,}$/.test(contractNumber)) throw Object.assign(new Error('Die automatisch erzeugte Vertragsnummer ist ungültig.'), { status: 500 });
+  return contractNumber;
+}
+
 async function activateContractedLead(service, lead, programStartDate) {
   if (lead.converted_user_profile_id) return { profileId: lead.converted_user_profile_id, alreadyActive: true };
-  const profile = await provisionProgramUser(service, { name: lead.name, email: lead.email, phone: lead.phone, startDate: programStartDate, sourceLeadId: lead.id, permissions: ['customer_portal', 'clara_program', 'documents'] });
+  const profile = await provisionProgramUser(service, { name: lead.name, email: lead.email, phone: lead.mobile_phone || lead.phone, startDate: programStartDate, sourceLeadId: lead.id, permissions: ['customer_portal', 'clara_program', 'documents'] });
   await patchLead(service, lead.id, { status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
   await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Teilnehmer-Login automatisch erstellt', preview: `Login ${profile.portal_username || 'wird vergeben'} wurde angelegt. Ein sicherer Einmal-Link zur Passwortvergabe wurde per System-E-Mail versendet.` }).catch(() => null);
   return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, oneTimePassword: profile.oneTimePassword, alreadyActive: false };
@@ -111,7 +124,7 @@ async function communicationInbox(service) {
 
 const COMMUNICATION_TEMPLATE_CATEGORIES = ['general', 'lead', 'appointment', 'contract', 'participant', 'program'];
 const COMMUNICATION_CAMPAIGN_AUDIENCES = ['all', 'leads', 'customers', 'selected'];
-const COMMUNICATION_AUTOMATION_TRIGGERS = ['lead_created', 'appointment_scheduled', 'contract_signed', 'participant_activated', 'week_unlocked', 'inactivity'];
+const COMMUNICATION_AUTOMATION_TRIGGERS = ['lead_created', 'appointment_scheduled', 'sales_conversation_completed', 'contract_signed', 'participant_activated', 'week_unlocked', 'inactivity'];
 
 async function communicationCenterContacts(service) {
   const rows = await readJson(await fetch(`${service.url}/rest/v1/leads?select=id,name,email,status,converted_user_profile_id&order=name.asc&limit=1000`, { headers: headers(service.key) }), 'Kommunikationskontakte konnten nicht geladen werden.');
@@ -211,7 +224,7 @@ async function commandDashboard(service, admin) {
     fetch(`${service.url}/rest/v1/process_entries?data_block=like.week_*_state&select=user_profile_id,week,data_block,structured_data,created_at&order=created_at.desc&limit=10000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/customer_questions?status=eq.open&select=id,user_profile_id,week,question,created_at&order=created_at.asc&limit=200`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/lead_tasks?completed=eq.false&select=id,lead_id,title,details,due_at,created_at&order=due_at.asc.nullslast&limit=200`, { headers: headers(service.key) }),
-    fetch(`${service.url}/rest/v1/leads?select=id,name,email,phone,status,source,utm_source,appointment_start,appointment_end,appointment_timezone,calendar_event_url,meet_url,converted_user_profile_id,created_at&limit=1000`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/leads?select=id,name,email,phone,mobile_phone,status,source,utm_source,appointment_start,appointment_end,appointment_timezone,calendar_event_url,meet_url,converted_user_profile_id,created_at&limit=1000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/lead_communications?direction=eq.inbound&read_at=is.null&select=id,lead_id,subject,occurred_at&order=occurred_at.asc&limit=200`, { headers: headers(service.key) }),
   ];
   const results = await Promise.all(requests);
@@ -258,7 +271,7 @@ async function commandDashboard(service, admin) {
       id: lead.id,
       name: lead.name,
       email: lead.email,
-      phone: lead.phone,
+      phone: lead.mobile_phone || lead.phone,
       status: lead.status,
       source: lead.utm_source || lead.source || 'website',
       startsAt: lead.appointment_start,
@@ -312,7 +325,8 @@ async function recordDashboardMutation(service, request) {
     const documentConfirmed = request.body?.documentConfirmed === 'true' || request.body?.documentConfirmed === true;
     const videoContractConfirmed = request.body?.videoContractConfirmed === 'true' || request.body?.videoContractConfirmed === true;
     const programStartDate = /^\d{4}-\d{2}-\d{2}$/.test(request.body?.programStartDate || '') ? request.body.programStartDate : now.slice(0, 10);
-    const record = await insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, title, contract_number: clean(request.body?.contractNumber, 80) || null, amount, status, signed_at: status === 'signed' ? now : null, document_confirmed_at: documentConfirmed ? now : null, video_contract_confirmed_at: videoContractConfirmed ? now : null, program_start_date: programStartDate });
+    const contractNumber = await reserveContractNumber(service, now.slice(0, 10));
+    const record = await insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, title, contract_number: contractNumber, amount, status, signed_at: status === 'signed' ? now : null, document_confirmed_at: documentConfirmed ? now : null, video_contract_confirmed_at: videoContractConfirmed ? now : null, program_start_date: programStartDate });
     const readyForParticipant = status === 'signed' && documentConfirmed && videoContractConfirmed;
     const participant = readyForParticipant ? await activateContractedLead(service, lead, programStartDate) : null;
     return { record, participantActivated: Boolean(participant && !participant.alreadyActive), participant };
@@ -356,10 +370,38 @@ async function recordDashboardMutation(service, request) {
   throw Object.assign(new Error('Unbekannter Dashboard-Eintrag.'), { status: 400 });
 }
 
+async function setLeadInterestStatus(service, request) {
+  const lead = await leadById(service, request.body?.id);
+  if (lead.converted_user_profile_id || lead.status === 'customer') throw Object.assign(new Error('Der Interessenstatus kann nur bei Interessenten geändert werden.'), { status: 409 });
+  const status = clean(request.body?.status, 20);
+  if (!['lost', 'later'].includes(status)) throw Object.assign(new Error('Bitte einen gültigen Interessenstatus auswählen.'), { status: 400 });
+  const followUpDate = clean(request.body?.followUpDate, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  if (status === 'later' && (!/^\d{4}-\d{2}-\d{2}$/.test(followUpDate) || followUpDate < today)) throw Object.assign(new Error('Bitte ein heutiges oder zukünftiges Datum für die Wiedervorlage auswählen.'), { status: 400 });
+  const result = await readJson(await fetch(`${service.url}/rest/v1/rpc/set_lead_interest_status`, {
+    method: 'POST',
+    headers: headers(service.key),
+    body: JSON.stringify({ p_lead_id: lead.id, p_status: status, p_follow_up_date: status === 'later' ? followUpDate : null }),
+  }), 'Interessenstatus und Wiedervorlage konnten nicht gespeichert werden.');
+  if (!result?.lead) throw Object.assign(new Error('Der gespeicherte Interessenstatus konnte nicht bestätigt werden.'), { status: 500 });
+  return {
+    ...result,
+    message: status === 'later'
+      ? `Späteres Interesse gespeichert. Wiedervorlage am ${followUpDate.split('-').reverse().join('.')}.`
+      : 'Der Interessent wurde der Liste „Kein Interesse“ zugeordnet.',
+  };
+}
+
 async function googleConnection(service) {
-  const rows = await readJson(await fetch(`${service.url}/rest/v1/integration_settings?provider=eq.google_calendar&select=encrypted_credentials,connected_email,updated_at&limit=1`, { headers: headers(service.key) }), 'Google-Verbindung konnte nicht geladen werden.');
+  const rows = await readJson(await fetch(`${service.url}/rest/v1/integration_settings?provider=eq.google_calendar&select=encrypted_credentials,connected_email,granted_scopes,updated_at&limit=1`, { headers: headers(service.key) }), 'Google-Verbindung konnte nicht geladen werden.');
   if (!rows[0]?.encrypted_credentials) throw Object.assign(new Error('Google Calendar ist noch nicht mit dem CRM verbunden.'), { status: 409 });
   return rows[0];
+}
+
+const GOOGLE_MEET_RECORDING_SCOPES = ['https://www.googleapis.com/auth/meetings.space.readonly', 'https://www.googleapis.com/auth/drive.meet.readonly'];
+function googleMeetRecordingReady(connection) {
+  const granted = new Set(Array.isArray(connection?.granted_scopes) ? connection.granted_scopes : String(connection?.granted_scopes || '').split(/\s+/).filter(Boolean));
+  return GOOGLE_MEET_RECORDING_SCOPES.every((scope) => granted.has(scope));
 }
 
 async function googleAccessToken(service) {
@@ -411,6 +453,7 @@ function bookingSettingsPayload(settings) {
     weekly_availability: settings.weeklyAvailability,
     slot_interval_minutes: settings.slotIntervalMinutes,
     default_duration_minutes: settings.defaultDurationMinutes,
+    offered_durations: settings.offeredDurations,
     min_notice_hours: settings.minNoticeHours,
     booking_horizon_days: settings.bookingHorizonDays,
     updated_at: new Date().toISOString(),
@@ -426,7 +469,8 @@ async function publicLead(request, response, service) {
   if (request.body?.website) return response.status(200).json({ ok: true });
   const name = clean(request.body?.name, 120), email = clean(request.body?.email, 254).toLowerCase();
   if (!name || !emailValid(email)) return response.status(400).json({ error: 'Bitte Name und gültige E-Mail-Adresse eingeben.' });
-  const payload = { name, email, phone: clean(request.body?.phone, 40) || null, challenge: clean(request.body?.challenge, 500) || null, source: clean(request.body?.source, 80) || 'website', utm_source: clean(request.body?.utm_source, 100) || null, utm_medium: clean(request.body?.utm_medium, 100) || null, utm_campaign: clean(request.body?.utm_campaign, 150) || null, consent_at: request.body?.consent ? new Date().toISOString() : null };
+  const publicPhone = clean(request.body?.phone, 40) || null;
+  const payload = { name, email, phone: publicPhone, mobile_phone: publicPhone, whatsapp_phone: publicPhone, whatsapp_same_as_mobile: true, challenge: clean(request.body?.challenge, 500) || null, source: clean(request.body?.source, 80) || 'website', utm_source: clean(request.body?.utm_source, 100) || null, utm_medium: clean(request.body?.utm_medium, 100) || null, utm_campaign: clean(request.body?.utm_campaign, 150) || null, consent_at: request.body?.consent ? new Date().toISOString() : null };
   if (!payload.consent_at) return response.status(400).json({ error: 'Bitte bestätige die Datenschutzhinweise.' });
   const settings = await bookingSettings(service);
   const startDate = new Date(request.body?.appointmentStart), duration = settings.defaultDurationMinutes;
@@ -457,9 +501,9 @@ function permissionForAction(action) {
   if (action === 'available-slots') return ['settings', 'sales_calls', 'leads'];
   if (['google-connect', 'google-callback', 'booking-settings', 'system-status'].includes(action)) return 'settings';
   if (['dashboard', 'dashboard-record'].includes(action)) return ['leads', 'customers', 'finance'];
-  if (action === 'update') return ['leads', 'sales_calls', 'customers'];
+  if (['update', 'complete-sales-conversation', 'set-interest-status'].includes(action)) return ['leads', 'sales_calls', 'customers'];
   if (['schedule', 'cancel-appointment'].includes(action)) return ['leads', 'sales_calls'];
-  if (['create-video-contract', 'begin-video-recording', 'video-recording-upload', 'finalize-video-contract', 'contract-download', 'video-recording-download'].includes(action)) return ['leads', 'sales_calls'];
+  if (['create-video-contract', 'begin-video-recording', 'sync-google-meet-recording', 'video-recording-upload', 'finalize-video-contract', 'contract-download', 'video-recording-download'].includes(action)) return ['leads', 'sales_calls'];
   return 'leads';
 }
 
@@ -492,7 +536,7 @@ export default async function handler(request, response) {
       if (!verifyOAuthState(request.query?.state, admin.profileId)) return response.status(400).send('Ungültiger oder abgelaufener Google-Verbindungsversuch.');
       const tokens = await exchangeAuthorizationCode(request.query?.code);
       if (!tokens.refresh_token) return response.status(409).send('Google hat keinen dauerhaften Zugriff erteilt. Bitte die Verbindung erneut starten.');
-      const payload = { provider: 'google_calendar', encrypted_credentials: encryptCredential(tokens.refresh_token), connected_email: emailFromIdToken(tokens.id_token) || admin.email, updated_at: new Date().toISOString() };
+      const payload = { provider: 'google_calendar', encrypted_credentials: encryptCredential(tokens.refresh_token), connected_email: emailFromIdToken(tokens.id_token) || admin.email, granted_scopes: String(tokens.scope || '').split(/\s+/).filter(Boolean), updated_at: new Date().toISOString() };
       await readJson(await fetch(`${service.url}/rest/v1/integration_settings?on_conflict=provider`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify(payload) }), 'Google-Verbindung konnte nicht gespeichert werden.');
       return response.redirect(302, '/admin?view=settings&section=integrations&google=connected');
     }
@@ -500,7 +544,7 @@ export default async function handler(request, response) {
       const configured = Boolean(googleConfig());
       let connection = null;
       if (configured) connection = await googleConnection(service).catch(() => null);
-      return response.status(200).json({ configured, connected: Boolean(connection), email: connection?.connected_email || null, updatedAt: connection?.updated_at || null });
+      return response.status(200).json({ configured, connected: Boolean(connection), meetRecordingReady: googleMeetRecordingReady(connection), email: connection?.connected_email || null, updatedAt: connection?.updated_at || null });
     }
     if (request.method === 'GET' && action === 'system-status') {
       const googleConfigured = Boolean(googleConfig());
@@ -509,6 +553,7 @@ export default async function handler(request, response) {
       return response.status(200).json(buildSystemRegistry({
         googleConfigured,
         googleConnection: googleConnectionRecord,
+        googleMeetRecordingReady: googleMeetRecordingReady(googleConnectionRecord),
         openaiConfigured: Boolean(openai.apiKey),
         openaiModel: openai.model,
         whatsappConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
@@ -582,15 +627,14 @@ export default async function handler(request, response) {
       const normalized = normalizeVideoContract(request.body?.contract, lead);
       if (normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze zuerst: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
       const now = new Date().toISOString();
-      const contractNumber = clean(request.body?.contractNumber, 80) || `FDD-${new Date().getFullYear()}-${crypto.randomInt(1000, 9999)}`;
+      const existing = uuidValid(request.body?.contractId) ? await leadContractById(service, lead.id, request.body.contractId) : null;
+      if (existing && existing.status !== 'draft') {
+        return response.status(409).json({ error: 'Ein bereits dokumentierter Video-Abschluss kann nicht überschrieben werden. Lege dafür einen neuen Vertrag an.' });
+      }
+      const contractNumber = existing?.contract_number || await reserveContractNumber(service, normalized.contract.contractDate);
       const pdf = await buildVideoContractPdf(normalized.contract);
       const stored = await uploadCustomerObject(service, 'documents', lead.id, pdfUpload(pdf, `${contractNumber}-Videovertrag-Entwurf.pdf`));
       const amount = currencyNumber(normalized.contract.totalPrice);
-      const existing = uuidValid(request.body?.contractId) ? await leadContractById(service, lead.id, request.body.contractId) : null;
-      if (existing && existing.status !== 'draft') {
-        await deleteCustomerObject(service, stored.bucket, stored.storagePath);
-        return response.status(409).json({ error: 'Ein bereits dokumentierter Video-Abschluss kann nicht überschrieben werden. Lege dafür einen neuen Vertrag an.' });
-      }
       const payload = {
         title: normalized.contract.product, contract_number: existing?.contract_number || contractNumber,
         amount, status: 'draft', program_start_date: normalized.contract.serviceStart,
@@ -621,9 +665,48 @@ export default async function handler(request, response) {
       const lead = await leadById(service, request.body?.id);
       const contract = await leadContractById(service, lead.id, request.body?.contractId);
       if (request.body?.recordingConsent !== true || request.body?.recordingPurposeAccepted !== true || request.body?.recordingRevocationAccepted !== true) return response.status(400).json({ error: 'Alle drei Hinweise zur konkreten Aufzeichnung müssen vor Beginn ausdrücklich bestätigt sein.' });
+      const connection = await googleConnection(service);
+      if (!googleMeetRecordingReady(connection)) return response.status(409).json({ error: 'Google muss unter Einstellungen → Schnittstellen einmal neu verbunden werden, damit Meet-Aufzeichnungen übernommen werden dürfen.' });
+      const accessToken = await googleAccessToken(service);
+      await assertGoogleMeetSpace(accessToken, lead.meet_url);
       const startedAt = new Date().toISOString();
-      await patchLeadContract(service, lead.id, contract.id, { video_recording_started_at: startedAt, video_recording_consent_at: startedAt });
-      return response.status(200).json({ startedAt });
+      await patchLeadContract(service, lead.id, contract.id, { video_recording_provider: 'google_meet', google_meet_recording_state: 'awaiting_recording', video_recording_started_at: startedAt, video_recording_consent_at: startedAt });
+      return response.status(200).json({ startedAt, meetUrl: lead.meet_url, message: 'Einwilligung protokolliert. Starte die native Aufzeichnung jetzt direkt in Google Meet.' });
+    }
+    if (request.method === 'POST' && action === 'sync-google-meet-recording') {
+      const lead = await leadById(service, request.body?.id);
+      const contract = await leadContractById(service, lead.id, request.body?.contractId);
+      if (!contract.video_recording_consent_at) return response.status(409).json({ error: 'Bitte protokolliere zuerst die Aufzeichnungseinwilligung.' });
+      if (contract.video_recording_path && await customerObjectExists(service, contract.video_recording_bucket, contract.video_recording_path)) return response.status(200).json({ state: 'imported', record: contract, message: 'Die Google-Meet-Aufzeichnung ist bereits sicher in der Vertragsakte gespeichert.' });
+      const connection = await googleConnection(service);
+      if (!googleMeetRecordingReady(connection)) return response.status(409).json({ error: 'Google muss unter Einstellungen → Schnittstellen einmal neu verbunden werden, damit Meet-Aufzeichnungen übernommen werden dürfen.' });
+      const accessToken = await googleAccessToken(service);
+      const match = await findGoogleMeetRecording(accessToken, lead.meet_url, { notBefore: contract.video_recording_consent_at });
+      if (!match.recording) {
+        await patchLeadContract(service, lead.id, contract.id, { video_recording_provider: 'google_meet', google_meet_conference_record: match.conference?.name || null, google_meet_recording_state: 'awaiting_recording' });
+        return response.status(202).json({ state: 'awaiting_recording', message: 'Noch keine Meet-Aufzeichnung gefunden. Starte und beende sie im laufenden Google Meet; das CRM prüft anschließend erneut.' });
+      }
+      const recording = match.recording;
+      if (recording.state !== 'FILE_GENERATED' || !recording.driveDestination?.file) {
+        await patchLeadContract(service, lead.id, contract.id, { video_recording_provider: 'google_meet', google_meet_conference_record: match.conference?.name || null, google_meet_recording_name: recording.name, google_meet_recording_state: recording.state === 'STARTED' ? 'recording' : 'processing' });
+        return response.status(202).json({ state: recording.state === 'STARTED' ? 'recording' : 'processing', message: recording.state === 'STARTED' ? 'Die native Google-Meet-Aufzeichnung läuft noch. Beende sie zuerst in Meet.' : 'Google verarbeitet die beendete Aufzeichnung. Das CRM übernimmt sie automatisch, sobald die MP4 bereitsteht.' });
+      }
+      const driveFileId = String(recording.driveDestination.file).split('/').pop();
+      const metadata = await googleDriveFileMetadata(accessToken, driveFileId);
+      const source = await downloadGoogleDriveFile(accessToken, driveFileId);
+      const imported = await importCustomerObject(service, 'contractRecordings', lead.id, {
+        fileName: `${contract.contract_number || 'FDD-Videovertrag'}-Google-Meet.mp4`,
+        mimeType: metadata.mimeType || 'video/mp4', byteSize: Number(metadata.size), sourceResponse: source,
+      });
+      const record = await patchLeadContract(service, lead.id, contract.id, {
+        video_recording_provider: 'google_meet', video_recording_bucket: imported.bucket, video_recording_path: imported.storagePath,
+        video_recording_mime_type: imported.mimeType, video_recording_bytes: imported.byteSize,
+        video_recording_started_at: recording.startTime || contract.video_recording_started_at, video_recording_ended_at: recording.endTime || new Date().toISOString(),
+        google_meet_conference_record: match.conference?.name || null, google_meet_recording_name: recording.name,
+        google_drive_file_id: driveFileId, google_drive_export_uri: recording.driveDestination.exportUri || metadata.webViewLink || null,
+        google_meet_recording_state: 'imported', video_recording_imported_at: new Date().toISOString(),
+      });
+      return response.status(200).json({ state: 'imported', record, message: 'Die native Google-Meet-Aufzeichnung wurde als MP4 sicher in der Vertragsakte gespeichert.' });
     }
     if (request.method === 'POST' && action === 'finalize-video-contract') {
       const lead = await leadById(service, request.body?.id);
@@ -642,7 +725,7 @@ export default async function handler(request, response) {
       const record = await patchLeadContract(service, lead.id, existing.id, {
         status: 'signed', signed_at: now, document_confirmed_at: now, video_contract_confirmed_at: now,
         contract_data: normalized.contract, video_answers: normalized.contract.answers,
-        video_recording_ended_at: now, document_bucket: stored.bucket, document_storage_path: stored.storagePath,
+        video_recording_ended_at: existing.video_recording_ended_at || now, document_bucket: stored.bucket, document_storage_path: stored.storagePath,
         document_mime_type: 'application/pdf', signing_token_hash: tokenHash,
         signing_expires_at: new Date(Date.now() + 30 * 86400000).toISOString(), signature_method: 'video_confirmation',
       });
@@ -667,6 +750,7 @@ export default async function handler(request, response) {
       return response.redirect(302, url);
     }
     if (request.method === 'GET' && action === 'dashboard') return response.status(200).json(await leadDashboard(service, request.query?.id));
+    if (request.method === 'POST' && action === 'set-interest-status') return response.status(200).json(await setLeadInterestStatus(service, request));
     if (request.method === 'POST' && action === 'dashboard-record') {
       const result = await recordDashboardMutation(service, request);
       return response.status(200).json({ ok: true, ...result });
@@ -685,7 +769,12 @@ export default async function handler(request, response) {
       if (!name || !emailValid(email)) return response.status(400).json({ error: 'Name und gültige E-Mail sind erforderlich.' });
       if (current.converted_user_profile_id && email !== current.email) return response.status(409).json({ error: 'Die E-Mail eines Kunden wird sicher über Portal-Login geändert.' });
       if (status === 'customer' && !current.converted_user_profile_id) return response.status(409).json({ error: 'Ein Lead wird erst durch einen vollständig bestätigten Vertragsabschluss automatisch zum Teilnehmer.' });
-      const lead = await patchLead(service, current.id, { first_name: firstName || null, last_name: lastName || null, name, email, phone: clean(request.body?.phone, 40) || null, challenge: clean(request.body?.challenge, 1000) || null, internal_notes: clean(request.body?.internalNotes, 10000) || null, qualification_answers: qualificationAnswers(request.body?.qualificationAnswers), status });
+      const mobilePhone = clean(request.body?.mobilePhone, 40);
+      const whatsappSameAsMobile = request.body?.whatsappSameAsMobile !== false;
+      const whatsappPhone = whatsappSameAsMobile ? mobilePhone : clean(request.body?.whatsappPhone, 40);
+      if (!firstName || !lastName || !mobilePhone) return response.status(400).json({ error: 'Vorname, Nachname, E-Mail-Adresse und Mobilnummer sind Pflichtfelder.' });
+      if (!whatsappSameAsMobile && !whatsappPhone) return response.status(400).json({ error: 'Bitte die abweichende WhatsApp-Nummer ergänzen.' });
+      const lead = await patchLead(service, current.id, { first_name: firstName, last_name: lastName, name, email, mobile_phone: mobilePhone, phone: clean(request.body?.phone, 40) || null, whatsapp_phone: whatsappPhone || null, whatsapp_same_as_mobile: whatsappSameAsMobile, challenge: request.body?.challenge === undefined ? current.challenge || null : clean(request.body.challenge, 1000) || null, internal_notes: request.body?.internalNotes === undefined ? current.internal_notes || null : clean(request.body.internalNotes, 10000) || null, qualification_answers: qualificationAnswers(request.body?.qualificationAnswers), status });
       return response.status(200).json({ lead });
     }
     if (request.method === 'POST' && action === 'schedule') {
@@ -695,15 +784,40 @@ export default async function handler(request, response) {
       if (startDate.getTime() < Date.now() - 60000) return response.status(400).json({ error: 'Der Termin muss in der Zukunft liegen.' });
       const settings = await bookingSettings(service);
       if (!isWithinBookingAvailability(startDate, duration, settings)) return response.status(409).json({ error: 'Dieser Termin liegt außerhalb deiner freigegebenen Buchungszeiten.' });
-      const endDate = new Date(startDate.getTime() + duration * 60000), accessToken = await googleAccessToken(service);
+      const endDate = new Date(startDate.getTime() + duration * 60000), accessToken = await optionalGoogleAccessToken(service);
       const unchangedAppointment = lead.calendar_event_id && lead.appointment_start === startDate.toISOString() && lead.appointment_end === endDate.toISOString();
-      if (!unchangedAppointment) await assertCalendarAvailable(accessToken, startDate.toISOString(), endDate.toISOString());
-      const event = await saveCalendarEvent(accessToken, lead, startDate.toISOString(), endDate.toISOString());
-      const meetUrl = event.hangoutLink || event.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || lead.meet_url || null;
-      const updated = await patchLead(service, lead.id, { appointment_start: startDate.toISOString(), appointment_end: endDate.toISOString(), appointment_timezone: 'Europe/Berlin', calendar_event_id: event.id, calendar_event_url: event.htmlLink || lead.calendar_event_url, meet_url: meetUrl, status: lead.converted_user_profile_id ? 'customer' : 'scheduled' });
-      if (lead.converted_user_profile_id) await readJson(await fetch(`${service.url}/rest/v1/customer_appointments?on_conflict=google_event_id`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify({ user_profile_id: lead.converted_user_profile_id, lead_id: lead.id, title: 'Kundengespräch', starts_at: startDate.toISOString(), ends_at: endDate.toISOString(), timezone: 'Europe/Berlin', google_event_id: event.id, google_event_url: event.htmlLink || null, meet_url: meetUrl, status: 'scheduled', source: 'google_calendar', updated_at: new Date().toISOString() }) }), 'Der Kundentermin konnte nicht synchronisiert werden.');
-      await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Kalendereinladung zum Erstgespräch', preview: `Termin am ${startDate.toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} mit Google Meet.` }).catch(() => null);
-      return response.status(200).json({ lead: updated, event: { id: event.id, htmlLink: event.htmlLink, meetUrl } });
+      if (accessToken && !unchangedAppointment) await assertCalendarAvailable(accessToken, startDate.toISOString(), endDate.toISOString());
+      const event = accessToken ? await saveCalendarEvent(accessToken, lead, startDate.toISOString(), endDate.toISOString(), { notifyAttendees: false }) : null;
+      const meetUrl = event?.hangoutLink || event?.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || lead.meet_url || null;
+      const updated = await patchLead(service, lead.id, { appointment_start: startDate.toISOString(), appointment_end: endDate.toISOString(), appointment_timezone: 'Europe/Berlin', calendar_event_id: event?.id || null, calendar_event_url: event?.htmlLink || null, meet_url: meetUrl, appointment_confirmation_prepared_at: null, status: lead.converted_user_profile_id ? 'customer' : 'scheduled' });
+      if (lead.converted_user_profile_id && event?.id) await readJson(await fetch(`${service.url}/rest/v1/customer_appointments?on_conflict=google_event_id`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify({ user_profile_id: lead.converted_user_profile_id, lead_id: lead.id, title: 'Kundengespräch', starts_at: startDate.toISOString(), ends_at: endDate.toISOString(), timezone: 'Europe/Berlin', google_event_id: event.id, google_event_url: event.htmlLink || null, meet_url: meetUrl, status: 'scheduled', source: 'google_calendar', updated_at: new Date().toISOString() }) }), 'Der Kundentermin konnte nicht synchronisiert werden.');
+      return response.status(200).json({ lead: updated, event: event ? { id: event.id, htmlLink: event.htmlLink, meetUrl } : null, calendarConnected: Boolean(accessToken) });
+    }
+    if (request.method === 'POST' && action === 'complete-sales-conversation') {
+      let lead = await leadById(service, request.body?.id);
+      if (!lead.appointment_start || !lead.appointment_end) return response.status(409).json({ error: 'Bitte plane zuerst einen freien Termin.' });
+      const now = new Date().toISOString();
+      let calendarNotified = false;
+      const accessToken = await optionalGoogleAccessToken(service);
+      if (accessToken && !lead.appointment_confirmation_prepared_at) {
+        const event = await saveCalendarEvent(accessToken, lead, lead.appointment_start, lead.appointment_end, { notifyAttendees: true });
+        const meetUrl = event?.hangoutLink || event?.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || lead.meet_url || null;
+        lead = await patchLead(service, lead.id, { calendar_event_id: event?.id || lead.calendar_event_id, calendar_event_url: event?.htmlLink || lead.calendar_event_url, meet_url: meetUrl });
+        calendarNotified = true;
+      }
+      if (!lead.appointment_confirmation_prepared_at) {
+        const appointmentLabel = new Date(lead.appointment_start).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short', timeZone: lead.appointment_timezone || 'Europe/Berlin' });
+        const meetLine = lead.meet_url ? `\nGoogle Meet: ${lead.meet_url}` : '\nDer Google-Meet-Link wird ergänzt, sobald die Google-Schnittstelle verbunden ist.';
+        await insertLeadRecord(service, 'lead_communications', {
+          lead_id: lead.id, direction: 'outbound', channel: 'email', subject: 'Dein Klarheitsgespräch ist bestätigt',
+          preview: `Dein Klarheitsgespräch am ${appointmentLabel} ist bestätigt.`,
+          body: `Hallo ${lead.first_name || lead.name},\n\ndein Klarheitsgespräch findet am ${appointmentLabel} statt.${meetLine}\n\nHerzliche Grüße\nMarkus Becker`,
+          delivery_status: calendarNotified ? 'sent' : 'draft',
+        });
+      }
+      const completedStatus = lead.converted_user_profile_id ? 'customer' : ['offer', 'later', 'lost'].includes(lead.status) ? lead.status : 'consultation';
+      const completed = await patchLead(service, lead.id, { sales_conversation_completed_at: now, appointment_confirmation_prepared_at: lead.appointment_confirmation_prepared_at || now, status: completedStatus });
+      return response.status(200).json({ lead: completed, calendarNotified, mailStatus: calendarNotified ? 'sent' : 'draft', message: calendarNotified ? 'Verkaufsgespräch abgeschlossen. Google-Einladung und Terminbestätigung wurden versendet.' : 'Verkaufsgespräch abgeschlossen. Die Terminbestätigung ist als E-Mail-Entwurf vorbereitet; Google Calendar ist noch nicht verbunden.' });
     }
     if (request.method === 'POST' && action === 'cancel-appointment') {
       const lead = await leadById(service, request.body?.id);

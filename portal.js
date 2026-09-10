@@ -49,6 +49,9 @@ let onboardingProfileSaveQueue = Promise.resolve();
 let privacyPreviewTimer = null;
 let privacyPreviewController = null;
 let privacyPreviewObjectUrl = '';
+let commitmentPreviewTimer = null;
+let commitmentPreviewController = null;
+let commitmentPreviewObjectUrl = '';
 const onboardingFormDraftTimers = new Map();
 const onboardingFormDraftQueues = new Map();
 const onboardingFormsFinalizing = new Set();
@@ -199,6 +202,72 @@ function adminPreviewUrl(url) {
   return `${target.pathname}${target.search}${target.hash}`;
 }
 
+function downloadCustomerDocument(documentId, fileName = 'Finde-Dein-Ding-Dokument.pdf') {
+  if (!documentId) return;
+  const anchor = document.createElement('a');
+  anchor.href = adminPreviewUrl(`/api/customer-records?action=document-download&download=1&documentId=${encodeURIComponent(documentId)}`);
+  anchor.download = fileName;
+  anchor.hidden = true;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+}
+
+function ensureDocumentPreviewDialog() {
+  let dialog = $('#documentPreviewDialog');
+  if (dialog) return dialog;
+  document.body.insertAdjacentHTML('beforeend', `
+    <dialog id="documentPreviewDialog" class="document-preview-dialog" aria-labelledby="documentPreviewTitle">
+      <div class="document-preview-shell">
+        <header><div><p class="eyebrow">Deine Dokumentenakte</p><h2 id="documentPreviewTitle">Dokument ansehen</h2><p id="documentPreviewMeta">Sicher und schreibgeschützt geöffnet.</p></div><button type="button" data-close-document-preview aria-label="Dokumentenvorschau schließen">×</button></header>
+        <div class="document-preview-stage"><iframe id="documentPreviewFrame" title="Dokumentenvorschau" hidden></iframe><img id="documentPreviewImage" alt="" hidden><video id="documentPreviewVideo" controls playsinline hidden></video><div id="documentPreviewFallback" class="document-preview-fallback" hidden><span>▤</span><strong>Für dieses Dateiformat ist keine direkte Vorschau verfügbar.</strong><p>Du kannst die Originaldatei sicher herunterladen und auf deinem Gerät öffnen.</p></div></div>
+        <footer><button class="secondary" type="button" data-close-document-preview>Schließen</button><a class="primary" id="downloadPreviewDocument" href="#" download>Dokument herunterladen ↓</a></footer>
+      </div>
+    </dialog>`);
+  dialog = $('#documentPreviewDialog');
+  dialog.querySelectorAll('[data-close-document-preview]').forEach((button) => button.addEventListener('click', closeDocumentPreview));
+  dialog.addEventListener('click', (event) => { if (event.target === dialog) closeDocumentPreview(); });
+  dialog.addEventListener('close', clearDocumentPreview);
+  return dialog;
+}
+
+function clearDocumentPreview() {
+  const frame = $('#documentPreviewFrame');
+  const image = $('#documentPreviewImage');
+  const video = $('#documentPreviewVideo');
+  if (frame) frame.src = 'about:blank';
+  if (image) image.removeAttribute('src');
+  if (video) { video.pause(); video.removeAttribute('src'); video.load(); }
+}
+
+function closeDocumentPreview() {
+  const dialog = $('#documentPreviewDialog');
+  if (dialog?.open) dialog.close();
+}
+
+function openDocumentPreview({ id, title, fileName, mimeType }) {
+  if (!id) return;
+  const dialog = ensureDocumentPreviewDialog();
+  const viewUrl = adminPreviewUrl(`/api/customer-records?action=document-download&documentId=${encodeURIComponent(id)}`);
+  const downloadUrl = adminPreviewUrl(`/api/customer-records?action=document-download&download=1&documentId=${encodeURIComponent(id)}`);
+  const normalizedMime = String(mimeType || '').toLowerCase();
+  const normalizedFile = String(fileName || '').toLowerCase();
+  const isPdf = normalizedMime === 'application/pdf' || normalizedFile.endsWith('.pdf');
+  const isImage = normalizedMime.startsWith('image/') || /\.(png|jpe?g|webp|gif)$/.test(normalizedFile);
+  const isVideo = normalizedMime.startsWith('video/') || /\.(webm|mp4|mov)$/.test(normalizedFile);
+  const frame = $('#documentPreviewFrame'), image = $('#documentPreviewImage'), video = $('#documentPreviewVideo'), fallback = $('#documentPreviewFallback');
+  [frame, image, video, fallback].forEach((element) => { element.hidden = true; });
+  $('#documentPreviewTitle').textContent = title || fileName || 'Dokument ansehen';
+  $('#documentPreviewMeta').textContent = [fileName, isPdf ? 'PDF-Dokument' : isImage ? 'Bilddatei' : isVideo ? 'Videodatei' : 'Originaldatei'].filter(Boolean).join(' · ');
+  $('#downloadPreviewDocument').href = downloadUrl;
+  $('#downloadPreviewDocument').download = fileName || 'Finde-Dein-Ding-Dokument';
+  if (isPdf) { frame.hidden = false; frame.src = `${viewUrl}#view=FitH`; }
+  else if (isImage) { image.hidden = false; image.src = viewUrl; image.alt = title || fileName || 'Dokumentenvorschau'; }
+  else if (isVideo) { video.hidden = false; video.src = viewUrl; }
+  else fallback.hidden = false;
+  dialog.showModal();
+}
+
 function modeLabel() { return 'Automatische Freischaltung alle sieben Tage'; }
 
 
@@ -206,9 +275,59 @@ function escapeHtml(value = '') {
   return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 }
 
+const onboardingCountryCodes = 'DE AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW XK'.split(' ');
+
+function populateOnboardingCountries(selected = 'Deutschland') {
+  const select = $('#onboardingCountry');
+  if (!select) return;
+  let displayNames = null;
+  try { displayNames = new Intl.DisplayNames(['de'], { type: 'region' }); } catch {}
+  const names = onboardingCountryCodes.map((code) => {
+    if (code === 'DE') return 'Deutschland';
+    try {
+      return displayNames?.of(code) || (code === 'XK' ? 'Kosovo' : code);
+    } catch {
+      return code === 'XK' ? 'Kosovo' : code;
+    }
+  });
+  const uniqueNames = [...new Set(names.filter(Boolean))].filter((name) => name !== 'Deutschland').sort((a, b) => a.localeCompare(b, 'de'));
+  if (selected && selected !== 'Deutschland' && !uniqueNames.includes(selected)) uniqueNames.unshift(selected);
+  select.replaceChildren(...['Deutschland', ...uniqueNames].map((name) => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    return option;
+  }));
+  select.value = selected || 'Deutschland';
+}
+
+function validOnboardingBirthDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function setOnboardingBirthDate(value = '') {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '');
+  $('#onboardingBirthDay').value = match?.[3] || '';
+  $('#onboardingBirthMonth').value = match?.[2] || '';
+  $('#onboardingBirthYear').value = match?.[1] || '';
+  $('#onboardingBirthDate').value = match ? value : '';
+}
+
+function syncOnboardingBirthDate() {
+  const day = $('#onboardingBirthDay').value.padStart(2, '0');
+  const month = $('#onboardingBirthMonth').value.padStart(2, '0');
+  const year = $('#onboardingBirthYear').value;
+  const value = `${year}-${month}-${day}`;
+  $('#onboardingBirthDate').value = validOnboardingBirthDate(value) ? value : '';
+  return $('#onboardingBirthDate').value;
+}
+
 function onboardingProfilePayload() {
   return {
     name: $('#onboardingName').value.trim(),
+    email: $('#onboardingEmail').value.trim().toLowerCase(),
     birthDate: $('#onboardingBirthDate').value,
     street: $('#onboardingStreet').value.trim(),
     postalCode: $('#onboardingPostalCode').value.trim(),
@@ -221,9 +340,31 @@ function onboardingProfilePayload() {
   };
 }
 
-function profileFormComplete() {
+function onboardingProfileMissingFields() {
   const profile = onboardingProfilePayload();
-  return Boolean(profile.name && profile.birthDate && profile.street && profile.postalCode && profile.city && profile.country && (profile.phone || profile.mobilePhone));
+  const requirements = [
+    ['name', 'Vor- und Nachname', Boolean(profile.name)],
+    ['email', 'gültige E-Mail-Adresse', /^\S+@\S+\.\S+$/.test(profile.email)],
+    ['birthDate', 'Geburtsdatum', validOnboardingBirthDate(profile.birthDate)],
+    ['street', 'Straße und Hausnummer', Boolean(profile.street)],
+    ['postalCode', 'Postleitzahl', Boolean(profile.postalCode)],
+    ['city', 'Ort', Boolean(profile.city)],
+    ['country', 'Land', Boolean(profile.country)],
+    ['mobilePhone', 'Mobilnummer', Boolean(profile.mobilePhone)],
+  ];
+  return requirements.filter(([, , complete]) => !complete).map(([key, label]) => ({ key, label }));
+}
+
+function markOnboardingProfileFields(missing = onboardingProfileMissingFields()) {
+  const missingKeys = new Set(missing.map((item) => item.key));
+  $$('[data-profile-field]').forEach((field) => field.classList.toggle('field-missing', missingKeys.has(field.dataset.profileField)));
+  for (const { key } of missing) document.querySelector(`[data-profile-field="${key}"] input, [data-profile-field="${key}"] select`)?.setAttribute('aria-invalid', 'true');
+  $$('[data-profile-field]:not(.field-missing) input, [data-profile-field]:not(.field-missing) select').forEach((control) => control.removeAttribute('aria-invalid'));
+  return missing;
+}
+
+function profileFormComplete() {
+  return onboardingProfileMissingFields().length === 0;
 }
 
 function setGateStatus(id, complete, openLabel = 'Offen') {
@@ -252,11 +393,11 @@ function renderOnboardingState(completed = false) {
   if (!onboardingProfileDirty) {
     $('#onboardingName').value = profile.name || '';
     $('#onboardingEmail').value = profile.email || '';
-    $('#onboardingBirthDate').value = profile.birthDate || '';
+    setOnboardingBirthDate(profile.birthDate || '');
     $('#onboardingStreet').value = profile.street || '';
     $('#onboardingPostalCode').value = profile.postalCode || '';
     $('#onboardingCity').value = profile.city || '';
-    $('#onboardingCountry').value = profile.country || 'Deutschland';
+    populateOnboardingCountries(profile.country || 'Deutschland');
     $('#onboardingPhone').value = profile.phone || '';
     $('#onboardingMobilePhone').value = profile.mobilePhone || '';
     $('#onboardingPreferredChannel').value = profile.preferredChannel || 'email';
@@ -266,7 +407,8 @@ function renderOnboardingState(completed = false) {
     ? 'Diese Angaben sind Bestandteil deiner abgeschlossenen Kundenakte.'
     : missing.length ? `Bitte noch ergänzen: ${missing.join(', ')}.` : onboardingProfileDirty ? 'Änderungen noch speichern.' : 'Alle Pflichtangaben sind vollständig gespeichert.';
   $('#profileGateHint').classList.toggle('complete', !missing.length && !onboardingProfileDirty);
-  $$('#onboardingProfileForm input, #onboardingProfileForm select').forEach((control) => { control.disabled = completed || control.id === 'onboardingEmail'; });
+  $$('#onboardingProfileForm input, #onboardingProfileForm select').forEach((control) => { control.disabled = completed; });
+  if (!completed) markOnboardingProfileFields();
   $('#saveOnboardingProfile').classList.toggle('hidden', completed);
 
   const privacyConfirmed = Boolean(program?.onboarding?.privacyConfirmed);
@@ -438,7 +580,7 @@ function commitmentDocumentHref() {
   const documentId = program?.onboarding?.commitmentDocumentId;
   return adminPreviewUrl(documentId
     ? `/api/customer-records?action=document-download&documentId=${encodeURIComponent(documentId)}`
-    : '/assets/forms/FDD-FRM-001_Mein-persoenliches-Commitment_V1.2.pdf');
+    : '/api/participant-program?feature=commitment-template');
 }
 
 function currentCommitmentInput() {
@@ -453,6 +595,55 @@ function currentCommitmentInput() {
     accepted: $('#commitmentAccepted').checked,
     wizardStep: commitmentWizardStep,
   };
+}
+
+function commitmentPreviewStatus() {
+  let status = $('#commitmentPreviewStatus');
+  if (status) return status;
+  status = document.createElement('span');
+  status.id = 'commitmentPreviewStatus';
+  status.className = 'commitment-preview-status';
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  status.textContent = 'Schreibgeschützte Live-Vorschau bereit';
+  $('#commitmentPdfExternal').before(status);
+  return status;
+}
+
+async function updateCommitmentPdfPreview() {
+  window.clearTimeout(commitmentPreviewTimer);
+  commitmentPreviewController?.abort();
+  const controller = new AbortController();
+  commitmentPreviewController = controller;
+  const status = commitmentPreviewStatus();
+  status.textContent = 'Live-Vorschau wird aktualisiert …';
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (adminPreviewToken) headers.Authorization = `Bearer ${adminPreviewToken}`;
+    const response = await fetch(adminPreviewUrl('/api/participant-program?feature=commitment-preview'), {
+      method: 'POST', headers, signal: controller.signal, body: JSON.stringify({ commitment: currentCommitmentInput() }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || 'Die Commitment-Vorschau konnte nicht erstellt werden.');
+    }
+    const nextUrl = URL.createObjectURL(await response.blob());
+    const previousUrl = commitmentPreviewObjectUrl;
+    commitmentPreviewObjectUrl = nextUrl;
+    $('#commitmentPdfPreview').src = `${nextUrl}#view=FitH`;
+    $('#commitmentPdfExternal').href = nextUrl;
+    status.textContent = '✓ Deine Eingaben stehen jetzt im PDF';
+    if (previousUrl) window.setTimeout(() => URL.revokeObjectURL(previousUrl), 1000);
+  } catch (error) {
+    if (error.name !== 'AbortError') status.textContent = error.message;
+  } finally {
+    if (commitmentPreviewController === controller) commitmentPreviewController = null;
+  }
+}
+
+function scheduleCommitmentPdfPreview() {
+  window.clearTimeout(commitmentPreviewTimer);
+  commitmentPreviewTimer = window.setTimeout(updateCommitmentPdfPreview, 280);
 }
 
 function todayInBerlin() {
@@ -506,9 +697,11 @@ function openCommitmentDialog() {
   $('#commitmentPdfPreview').src = `${href}#view=FitH`;
   $('#commitmentPdfExternal').href = href;
   $('#openCompletedCommitment').href = href;
+  const previewStatus = commitmentPreviewStatus();
   $('#commitmentForm').classList.toggle('hidden', confirmed);
   $('#commitmentReadonlyState').classList.toggle('hidden', !confirmed);
   if (confirmed) {
+    previewStatus.textContent = '✓ Final ausgefüllt und schreibgeschützt gespeichert';
     const date = program?.onboarding?.commitmentConfirmedAt ? new Date(program.onboarding.commitmentConfirmedAt).toLocaleString('de-DE') : 'gespeichertem Datum';
     $('#commitmentReadonlyCopy').textContent = `Bestätigt von ${details.name || program?.profile?.name || 'dir'} am ${date}${details.place ? ` in ${details.place}` : ''}. Deine Antworten und die digitale Klickbestätigung sind fest im Original-PDF hinterlegt.`;
   } else {
@@ -526,13 +719,18 @@ function openCommitmentDialog() {
     commitmentWizardStep = Math.min(4, Math.max(0, Number(draft.wizardStep) || 0));
     onboardingDraftStatus('start_commitment');
     renderCommitmentWizard();
+    previewStatus.textContent = 'Schreibgeschützte Live-Vorschau wird vorbereitet …';
   }
   $('#commitmentDialog').showModal();
+  if (!confirmed) updateCommitmentPdfPreview();
 }
 
 function closeCommitmentDialog(result = '') {
   const dialog = $('#commitmentDialog');
   if (!dialog) return;
+  window.clearTimeout(commitmentPreviewTimer);
+  commitmentPreviewController?.abort();
+  commitmentPreviewController = null;
   if (dialog.open) dialog.close(result);
   dialog.removeAttribute('open');
 }
@@ -1085,7 +1283,7 @@ function renderLockedViewNotice() {
   if (!notice && shouldShow) {
     notice = document.createElement('div');
     notice.className = 'view-lock-notice';
-    notice.innerHTML = '<strong>Bitte beim Onboarding starten</strong><span>Dein Weg, deine Erkenntnisse und Dokumente bleiben sichtbar, aber du kannst sie erst nach dem Start des Onboardings bearbeiten.</span>';
+    notice.innerHTML = '<strong>Starte bitte zuerst dein Onboarding</strong><span>Dein Weg, deine Erkenntnisse und Dokumente sind bereits sichtbar. Bearbeiten kannst du sie, sobald du dein Onboarding begonnen hast.</span>';
     scope.insertBefore(notice, scope.firstChild);
   }
 
@@ -1576,9 +1774,24 @@ function renderDocuments() {
   if (commitmentDocumentId && !documents.some((document) => document.id === commitmentDocumentId)) documents.unshift({ id: commitmentDocumentId, week: 0, document_type: 'start_commitment', display_title: 'Mein persönliches Commitment', source: 'system', visibility: 'customer', processing_status: 'ready' });
   articles[0].classList.toggle('hidden', documents.some((document) => document.document_type === 'start_commitment'));
   const official = (customerWorkspace?.contracts || []).flatMap((contract) => [{ title: contract.title || 'Vertragsdokument', ready: Boolean(contract.document_confirmed_at), label: 'Vertrag' }, { title: `Videovertrag · ${contract.title || 'Vertragsabschluss'}`, ready: Boolean(contract.video_contract_confirmed_at), label: 'Videovertrag' }]);
-  const uploaded = documents.map((document) => ({ title: document.display_title || document.original_file_name, ready: true, label: document.document_type === 'privacy_consent' ? 'Digital bestätigte Datenschutzeinwilligung' : document.source === 'customer' ? 'Von dir hochgeladen' : 'Für dich bereitgestellt', document }));
-  $('#documentList').insertAdjacentHTML('beforeend', [...official, ...uploaded].map((item) => `<article class="customer-record-doc ${item.ready ? '' : 'locked'}"><span>▤</span><div><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.label)}</small></div>${item.document ? `<a href="${escapeHtml(adminPreviewUrl(`/api/customer-records?action=document-download&documentId=${encodeURIComponent(item.document.id)}`))}" target="_blank" rel="noopener">Öffnen ↗</a>` : `<i>${item.ready ? 'Bestätigt' : 'Offen'}</i>`}</article>`).join(''));
+  const uploaded = documents.map((document) => ({ title: document.display_title || document.original_file_name, ready: true, label: document.document_type === 'privacy_consent' ? 'Digital bestätigte Datenschutzeinwilligung' : document.document_type === 'start_commitment' ? 'Digital bestätigtes persönliches Commitment' : document.source === 'customer' ? 'Von dir hochgeladen' : 'Für dich bereitgestellt', document }));
+  $('#documentList').insertAdjacentHTML('beforeend', [...official, ...uploaded].map((item) => `<article class="customer-record-doc ${item.ready ? '' : 'locked'} ${item.document ? 'is-previewable' : ''}"${item.document ? ` data-document-preview data-document-id="${escapeHtml(item.document.id)}" data-document-title="${escapeHtml(item.title)}" data-document-file="${escapeHtml(item.document.original_file_name || `${item.title}.pdf`)}" data-document-mime="${escapeHtml(item.document.mime_type || 'application/pdf')}" tabindex="0" role="button" aria-haspopup="dialog"` : ''}><span>▤</span><div><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.label)}</small></div>${item.document ? '<button type="button" class="document-preview-open">Ansehen ↗</button>' : `<i>${item.ready ? 'Bestätigt' : 'Offen'}</i>`}</article>`).join(''));
 }
+
+function openDocumentPreviewFromElement(element) {
+  openDocumentPreview({ id: element.dataset.documentId, title: element.dataset.documentTitle, fileName: element.dataset.documentFile, mimeType: element.dataset.documentMime });
+}
+
+$('#documentList').addEventListener('click', (event) => {
+  const item = event.target.closest('[data-document-preview]');
+  if (item) openDocumentPreviewFromElement(item);
+});
+$('#documentList').addEventListener('keydown', (event) => {
+  const item = event.target.closest('[data-document-preview]');
+  if (!item || !['Enter', ' '].includes(event.key)) return;
+  event.preventDefault();
+  openDocumentPreviewFromElement(item);
+});
 
 function renderPortalAppointments() {
   const target = $('#portalAppointmentList');
@@ -1635,6 +1848,29 @@ $('#backToDashboard').addEventListener('click', () => {
   showView('today');
 });
 $('#openOnboarding').addEventListener('click', () => showView('onboarding'));
+const onboardingBirthParts = [$('#onboardingBirthDay'), $('#onboardingBirthMonth'), $('#onboardingBirthYear')];
+onboardingBirthParts.forEach((input, index) => {
+  input.addEventListener('input', () => {
+    const maxLength = index === 2 ? 4 : 2;
+    input.value = input.value.replace(/\D/g, '').slice(0, maxLength);
+    syncOnboardingBirthDate();
+    if (input.value.length === maxLength && index < onboardingBirthParts.length - 1) onboardingBirthParts[index + 1].focus();
+  });
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Backspace' && !input.value && index > 0) onboardingBirthParts[index - 1].focus();
+  });
+});
+$('#onboardingBirthDay').addEventListener('paste', (event) => {
+  const digits = event.clipboardData?.getData('text')?.replace(/\D/g, '') || '';
+  if (digits.length !== 8) return;
+  event.preventDefault();
+  $('#onboardingBirthDay').value = digits.slice(0, 2);
+  $('#onboardingBirthMonth').value = digits.slice(2, 4);
+  $('#onboardingBirthYear').value = digits.slice(4, 8);
+  syncOnboardingBirthDate();
+  $('#onboardingBirthYear').focus();
+  $('#onboardingBirthYear').dispatchEvent(new Event('input', { bubbles: true }));
+});
 function persistOnboardingProfile() {
   clearTimeout(onboardingProfileSaveTimer);
   const revision = onboardingProfileRevision;
@@ -1662,16 +1898,28 @@ function persistOnboardingProfile() {
   return onboardingProfileSaveQueue;
 }
 $('#onboardingProfileForm').addEventListener('input', (event) => {
-  if (program?.onboardingComplete || event.target.id === 'onboardingEmail') return;
+  if (program?.onboardingComplete) return;
+  if (onboardingBirthParts.includes(event.target)) syncOnboardingBirthDate();
   onboardingProfileDirty = true;
   onboardingProfileRevision += 1;
   $('#profileGateHint').textContent = 'Wird automatisch gespeichert …';
+  markOnboardingProfileFields();
   clearTimeout(onboardingProfileSaveTimer);
   onboardingProfileSaveTimer = setTimeout(() => persistOnboardingProfile().catch(() => {}), 650);
   refreshOnboardingGateState();
 });
 $('#onboardingProfileForm').addEventListener('submit', async (event) => {
   event.preventDefault();
+  syncOnboardingBirthDate();
+  const missing = markOnboardingProfileFields();
+  if (missing.length) {
+    clearTimeout(onboardingProfileSaveTimer);
+    $('#profileGateHint').textContent = `Bitte ergänze noch: ${missing.map((item) => item.label).join(', ')}.`;
+    $('#profileGateHint').classList.remove('complete');
+    document.querySelector(`[data-profile-field="${missing[0].key}"] input, [data-profile-field="${missing[0].key}"] select`)?.focus();
+    toast(`Noch nicht vollständig: ${missing.map((item) => item.label).join(', ')}.`);
+    return;
+  }
   const button = $('#saveOnboardingProfile');
   button.disabled = true;
   button.textContent = 'Wird gespeichert …';
@@ -1698,6 +1946,7 @@ $('#privacyConsentForm').addEventListener('submit', async (event) => {
   button.textContent = 'PDF wird erstellt …';
   try {
     await prepareOnboardingFormFinalization('privacy_consent');
+    await updatePrivacyPdfPreview();
     const confirmation = await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'confirm_privacy', consent: currentPrivacyConsentInput() }) });
     if (!confirmation.documentId) throw new Error('Die PDF wurde noch nicht eindeutig in deiner Dokumentenakte gespeichert. Bitte versuche es erneut.');
     customerWorkspace = customerWorkspace || {};
@@ -1706,10 +1955,10 @@ $('#privacyConsentForm').addEventListener('submit', async (event) => {
       : (customerWorkspace.documents || []);
     closePrivacyConsentDialog('confirmed');
     $('#privacyConsentForm').reset();
+    downloadCustomerDocument(confirmation.documentId, confirmation.document?.original_file_name || 'FDD-Datenschutzeinwilligung.pdf');
     await loadProgram();
-    closePrivacyConsentDialog('confirmed');
     showView('onboarding');
-    toast('Deine Einwilligung wurde bestätigt und als ausgefülltes PDF gespeichert.');
+    toast('Deine Einwilligung wurde bestätigt, bei Dokumente gespeichert und heruntergeladen.');
   } catch (error) { onboardingFormsFinalizing.delete('privacy_consent'); toast(error.message); }
   finally { button.disabled = false; button.textContent = 'Verbindlich bestätigen →'; }
 });
@@ -1728,8 +1977,12 @@ $('#commitmentNext').addEventListener('click', () => {
   renderCommitmentWizard();
   queueOnboardingFormDraft('start_commitment', currentCommitmentInput());
 });
-$('#commitmentForm').addEventListener('input', () => queueOnboardingFormDraft('start_commitment', currentCommitmentInput()));
-$('#commitmentForm').addEventListener('change', () => queueOnboardingFormDraft('start_commitment', currentCommitmentInput()));
+function handleCommitmentDraftChange() {
+  queueOnboardingFormDraft('start_commitment', currentCommitmentInput());
+  scheduleCommitmentPdfPreview();
+}
+$('#commitmentForm').addEventListener('input', handleCommitmentDraftChange);
+$('#commitmentForm').addEventListener('change', handleCommitmentDraftChange);
 $('#commitmentForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!validateCommitmentStep(4)) return;
@@ -1738,17 +1991,26 @@ $('#commitmentForm').addEventListener('submit', async (event) => {
   button.textContent = 'PDF wird erstellt …';
   try {
     await prepareOnboardingFormFinalization('start_commitment');
+    await updateCommitmentPdfPreview();
     const confirmation = await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'confirm_commitment', commitment: currentCommitmentInput() }) });
     if (!confirmation.documentId) throw new Error('Das Commitment wurde noch nicht eindeutig in deiner Dokumentenakte gespeichert. Bitte versuche es erneut.');
     customerWorkspace = customerWorkspace || {};
     customerWorkspace.documents = confirmation.document
       ? [confirmation.document, ...(customerWorkspace.documents || []).filter((document) => document.id !== confirmation.documentId)]
       : (customerWorkspace.documents || []);
+    if (program?.onboarding) {
+      program.onboarding.commitmentConfirmed = true;
+      program.onboarding.commitmentConfirmedAt = confirmation.confirmedAt;
+      program.onboarding.commitmentDocumentId = confirmation.documentId;
+      program.onboarding.commitmentFileName = confirmation.document?.original_file_name || '';
+    }
+    refreshOnboardingGateState();
     closeCommitmentDialog('confirmed');
+    downloadCustomerDocument(confirmation.documentId, confirmation.document?.original_file_name || 'FDD-Mein-persoenliches-Commitment.pdf');
     await loadProgram();
     showView('onboarding');
     window.setTimeout(() => $('.commitment-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
-    toast('Dein Commitment wurde ausgefüllt, digital bestätigt und als PDF gespeichert.');
+    toast('Dein Commitment wurde ausgefüllt, bei Dokumente gespeichert und heruntergeladen.');
   } catch (error) { onboardingFormsFinalizing.delete('start_commitment'); toast(error.message); }
   finally { button.disabled = false; button.textContent = 'Digital bestätigen →'; }
 });

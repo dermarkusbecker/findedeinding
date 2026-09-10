@@ -59,7 +59,7 @@ test('Kundenfortschritt entsteht erst aus bestätigten Wochenabschlüssen', () =
   assert.deepEqual(summarizeCustomerProgress(weekTwoReadyButNotClosed, inWeekTwo, entries, now), { completed_weeks: [1], process_week: 1, released_week: 1, completion_percent: 13 });
 });
 
-test('Kundenakte öffnet zuerst ein Dashboard und führt das Kundengespräch als eigene Seite', async () => {
+test('Kundenakte öffnet zuerst das Dashboard und das Verkaufsgespräch direkt als Dialog', async () => {
   const [html, script] = await Promise.all([file('admin.html'), file('admin.js')]);
   assert.match(html, /id="customerDashboard"/);
   assert.match(html, /data-customer-page="dashboard"/);
@@ -68,7 +68,8 @@ test('Kundenakte öffnet zuerst ein Dashboard und führt das Kundengespräch als
   assert.match(script, /customerDashboardPage='dashboard'/);
   assert.match(script, /function openCustomerDashboard/);
   assert.match(script, /function setCustomerDashboardPage/);
-  assert.match(script, /\['Kundengespräche','Laufende und abgeschlossene Gespräche'/);
+  assert.match(script, /\['Verkaufsgespräch','Dialog direkt öffnen'/);
+  assert.match(script, /contextParticipants==='conversation'.*openLeadEditor/s);
   assert.match(script, /conversation:\['sales_calls'\]/);
   assert.match(script, /function canAccessCustomerPage/);
   assert.match(script, /group\.items\.filter\(item=>canAccessCustomerPage\(item\[6\]\)\)/);

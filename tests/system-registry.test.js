@@ -6,6 +6,7 @@ test('Systemregister zeigt aktive Google-, Supabase- und OpenAI-Dienste getrennt
   const registry = buildSystemRegistry({
     googleConfigured: true,
     googleConnection: { connected_email: 'admin@example.com' },
+    googleMeetRecordingReady: true,
     openaiConfigured: true,
     openaiModel: 'test-model',
     checkedAt: '2026-09-04T10:00:00.000Z',

@@ -10,8 +10,13 @@
 .lead-name-line h1 { font-size: clamp(25px,2.2vw,34px); letter-spacing: -.045em; margin: 0; }
 .lead-name-line i { background: #e7f7f1; border: 1px solid #bee7d8; border-radius: 999px; color: #15745f; font-size: 11px; font-style: normal; font-weight: 800; padding: 6px 10px; }
 .lead-profile-main p:last-child { color: #647579; font-size: 13px; margin: 6px 0 0; }
-.lead-profile-actions { gap: 10px; }
+.lead-profile-actions { flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
 .lead-profile-actions .primary,.lead-profile-actions .secondary { font-size: 13px; min-height: 45px; }
+.lead-interest-actions { align-items: center; background: #f2f6f5; border: 1px solid #dbe5e2; border-radius: 12px; display: flex; gap: 4px; padding: 4px; }
+.lead-interest-actions button { background: transparent; border: 0; border-radius: 8px; color: #657875; cursor: pointer; font: 750 11px Manrope,sans-serif; min-height: 35px; padding: 0 12px; transition: .18s ease; }
+.lead-interest-actions button:hover { background: #fff; box-shadow: 0 4px 12px rgba(24,72,66,.08); color: #116f5d; }
+.lead-interest-actions button.active { background: #fff; box-shadow: 0 4px 12px rgba(24,72,66,.1); color: #0f806a; }
+#markLeadLost.active { color: #a75532; }
 .lead-sales-progress { padding: 24px; }
 .lead-card-heading { align-items: center; display: flex; justify-content: space-between; }
 .lead-card-heading>div { align-items: center; display: flex; gap: 10px; }
@@ -55,8 +60,26 @@
 .lead-notes-card .lead-card-action,
 .lead-bank-card .lead-card-action { align-self: flex-start; margin-top: auto; }
 .lead-card-icon { align-items: center; background: #e7f6f1; border-radius: 9px; color: #16846f; display: flex; font-size: 14px; font-weight: 900; height: 34px; justify-content: center; width: 34px; }
-.lead-card-menu { background: transparent; border: 0; color: #708185; cursor: pointer; font-size: 15px; font-weight: 900; letter-spacing: 2px; padding: 8px; }
-.lead-card-menu:hover { color: #16846f; }
+.lead-card-menu {
+  align-items: center;
+  background: #f4f8f7;
+  border: 1px solid #d8e5e2;
+  border-radius: 10px;
+  color: #5f7571;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 34px;
+  justify-content: center;
+  padding: 0;
+  transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, color .18s ease, transform .18s ease;
+  width: 34px;
+}
+.lead-card-menu > span { align-items: center; display: inline-flex; gap: 3px; justify-content: center; }
+.lead-card-menu i { background: currentColor; border-radius: 999px; display: block; height: 3px; width: 3px; }
+.lead-card-menu:hover { background: #e8f5f1; border-color: #add7cd; box-shadow: 0 6px 16px rgba(15, 128, 106, .12); color: #0f806a; transform: translateY(-1px); }
+.lead-card-menu:active { box-shadow: none; transform: translateY(0); }
+.lead-card-menu:focus-visible { outline: 3px solid rgba(27, 164, 136, .2); outline-offset: 2px; }
 .lead-card-action { background: transparent; border: 0; color: #16846f; cursor: pointer; font-size: 12px; font-weight: 850; margin-top: 15px; padding: 5px 0; }
 .lead-card-action:hover { color: #dc7836; }
 .lead-detail-list,.lead-bank-card dl,.lead-balance-card dl { margin: 18px 0 0; }
@@ -103,10 +126,29 @@
 #leadRecordFields label.wide { grid-column: 1/-1; }
 #leadRecordFields input,#leadRecordFields select,#leadRecordFields textarea { background: #fff; border: 1px solid #d8e2e0; border-radius: 10px; color: #243639; font: 13px Manrope; padding: 12px; width: 100%; }
 #leadRecordFields textarea { min-height: 110px; resize: vertical; }
+.lead-generated-contract-number { align-content: center; background: linear-gradient(135deg,#edf8f5,#f8fbfa); border: 1px solid #cce4de; border-radius: 11px; display: grid; gap: 3px; min-height: 67px; padding: 11px 13px; }
+.lead-generated-contract-number span { color: #607572; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.lead-generated-contract-number strong { color: #116f5d; font-size: 13px; }
+.lead-generated-contract-number small { color: #718481; font-size: 9px; }
 .lead-contract-confirmations { border: 1px solid #d8e2e0; border-radius: 12px; display: grid; gap: 10px; margin: 0; padding: 14px; }
 .lead-contract-confirmations legend { color: #53666a; font-size: 11px; font-weight: 850; padding: 0 5px; }
 .lead-contract-confirmations label { align-items: center; color: #35494c; flex-direction: row !important; font-size: 11px !important; }
 .lead-contract-confirmations input { height: 17px; margin: 0; padding: 0 !important; width: 17px !important; }
+.lead-follow-up-dialog { background: transparent; border: 0; max-width: 620px; padding: 0; width: calc(100% - 32px); }
+.lead-follow-up-dialog::backdrop { background: rgba(8,35,43,.66); backdrop-filter: blur(7px); }
+.lead-follow-up-dialog form { background: linear-gradient(145deg,#fff,#f5faf8); border: 1px solid rgba(255,255,255,.75); border-radius: 22px; box-shadow: 0 28px 80px rgba(5,36,43,.3); padding: 26px; }
+.lead-follow-up-head { align-items: flex-start; display: grid; gap: 15px; grid-template-columns: 46px 1fr 36px; }
+.lead-follow-up-head>span { align-items: center; background: #dff4ed; border-radius: 13px; color: #10806a; display: flex; font-size: 19px; font-weight: 900; height: 46px; justify-content: center; width: 46px; }
+.lead-follow-up-head h2 { color: #20383b; font-size: 23px; letter-spacing: -.035em; margin: 4px 0 7px; }
+.lead-follow-up-head p:not(.eyebrow) { color: #667a7d; font-size: 11px; line-height: 1.65; margin: 0; }
+.lead-follow-up-head>button { align-items: center; background: #edf3f1; border: 0; border-radius: 10px; color: #58706c; cursor: pointer; display: flex; font-size: 20px; height: 36px; justify-content: center; width: 36px; }
+.lead-follow-up-dialog form>label { color: #435d59; display: grid; font-size: 11px; font-weight: 800; gap: 8px; margin-top: 24px; }
+.lead-follow-up-dialog input { background: #fff; border: 1px solid #cbdeda; border-radius: 12px; color: #20383b; font: 700 14px Manrope,sans-serif; min-height: 48px; padding: 0 14px; width: 100%; }
+.lead-follow-up-dialog input:focus { border-color: #27a68c; box-shadow: 0 0 0 4px rgba(39,166,140,.12); outline: 0; }
+.lead-follow-up-preview { align-items: center; background: #edf8f4; border: 1px solid #cbe7de; border-radius: 13px; display: flex; gap: 12px; margin-top: 14px; padding: 13px; }
+.lead-follow-up-preview>span { align-items: center; background: #16a783; border-radius: 50%; color: #fff; display: flex; flex: 0 0 28px; font-size: 11px; font-weight: 900; height: 28px; justify-content: center; }
+.lead-follow-up-preview p { color: #617571; font-size: 10px; line-height: 1.5; margin: 0; }
+.lead-follow-up-preview strong { color: #24413c; display: block; font-size: 11px; }
 
 @media (max-width: 1250px) {
   .lead-progress-track { grid-template-columns: repeat(4,1fr); }
@@ -116,6 +158,8 @@
   .lead-profile-hero,.lead-profile-actions { align-items: stretch; flex-direction: column; }
   .lead-profile-hero { gap: 20px; }
   .lead-profile-actions button { width: 100%; }
+  .lead-interest-actions { width: 100%; }
+  .lead-interest-actions button { flex: 1; width: auto; }
   .lead-progress-track { grid-template-columns: repeat(2,1fr); }
   .lead-sales-progress { overflow: hidden; padding: 18px; }
   .lead-sales-progress .lead-card-heading { align-items: flex-start; flex-direction: column; gap: 8px; }

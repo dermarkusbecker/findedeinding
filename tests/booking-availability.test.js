@@ -12,6 +12,7 @@ const settings = {
   },
   slotIntervalMinutes: 15,
   defaultDurationMinutes: 45,
+  offeredDurations: [30, 45],
   minNoticeHours: 0,
   bookingHorizonDays: 180,
 };
@@ -53,4 +54,11 @@ test('Serverprüfung lehnt Termine außerhalb der Freigabe und des Rasters ab', 
 
 test('Ungültige Admin-Zeitfenster werden nicht gespeichert', () => {
   assert.throws(() => normalizeBookingSettings({ weeklyAvailability: { 1: [{ start: '20:00', end: '16:00' }] } }), /gültige Start- und Endzeit/);
+});
+
+test('nur vom Admin angebotene Termindauern erzeugen freie Slots', () => {
+  assert.throws(() => generateAvailableSlots({ settings, from: '2026-08-31', to: '2026-08-31', duration: 60, now: new Date('2026-08-30T00:00:00Z') }), /nicht angeboten/);
+  const normalized = normalizeBookingSettings({ ...settings, defaultDurationMinutes: 90, offeredDurations: [30, 45] });
+  assert.equal(normalized.defaultDurationMinutes, 30);
+  assert.deepEqual(normalized.offeredDurations, [30, 45]);
 });

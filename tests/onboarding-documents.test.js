@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PDFDocument } from 'pdf-lib';
 import { buildPrivacyConsentText, buildStartCommitmentDocument } from '../lib/onboarding-documents.js';
-import { buildCompletedPrivacyPdf, buildDraftPrivacyPreviewPdf, buildReadonlyPrivacyPreviewPdf, missingOnboardingFields, normalizePrivacyConsent } from '../lib/privacy-consent.js';
-import { buildCompletedStartCommitmentPdf, normalizeStartCommitment } from '../lib/start-commitment.js';
+import { buildCompletedPrivacyPdf, buildDraftPrivacyPreviewPdf, buildReadonlyPrivacyPreviewPdf, missingOnboardingFields, normalizeOnboardingProfile, normalizePrivacyConsent } from '../lib/privacy-consent.js';
+import { buildCompletedStartCommitmentPdf, buildDraftStartCommitmentPreviewPdf, buildReadonlyStartCommitmentPreviewPdf, normalizeStartCommitment } from '../lib/start-commitment.js';
 
 test('Datenschutz-Text erklärt Zweck, Verarbeitung und Widerruf klar und eindeutig', () => {
   const consent = buildPrivacyConsentText({ name: 'Anna Muster' });
@@ -39,7 +39,10 @@ test('Datenschutzeinwilligung verlangt drei bewusste Bestätigungen, Name, Ort u
 
 test('Onboarding kann erst mit vollständigen Stammdaten abgeschlossen werden', () => {
   assert.deepEqual(missingOnboardingFields({ name: 'Anna Muster', birth_date: '1990-01-02', street: 'Musterweg 1', postal_code: '10115', city: 'Berlin', country: 'Deutschland', mobile_phone: '01701234567' }, 'anna@example.de'), []);
-  assert.deepEqual(missingOnboardingFields({ name: 'Anna Muster' }, 'anna@example.de'), ['Geburtsdatum', 'Straße und Hausnummer', 'Postleitzahl', 'Ort', 'Land', 'Telefon- oder Mobilnummer']);
+  assert.deepEqual(missingOnboardingFields({ name: 'Anna Muster' }, 'anna@example.de'), ['Geburtsdatum', 'Straße und Hausnummer', 'Postleitzahl', 'Ort', 'Land', 'Mobilnummer']);
+  assert.deepEqual(missingOnboardingFields({ name: 'Anna Muster', birth_date: '1990-01-02', street: 'Musterweg 1', postal_code: '10115', city: 'Berlin', country: 'Deutschland', phone: '0711 123456' }, 'keine-mail'), ['gültige E-Mail-Adresse', 'Mobilnummer']);
+  const changedEmail = normalizeOnboardingProfile({ email: 'NEU@EXAMPLE.DE', mobilePhone: '01701234567' }, { email: 'alt@example.de' });
+  assert.equal(changedEmail.profile.email, 'neu@example.de');
 });
 
 test('aus dem Originalformular entsteht ein ausgefülltes, abgeflachtes PDF', async () => {
@@ -83,6 +86,20 @@ test('aus dem Original-Commitment entsteht ein digital ausgefülltes, abgeflacht
   assert.equal(completed.getForm().getFields().length, 0);
 });
 
+test('Commitment-Vorlage und Live-Vorschau sind schreibgeschützt und übernehmen laufende Eingaben', async () => {
+  const readonly = await buildReadonlyStartCommitmentPreviewPdf();
+  const blank = await buildDraftStartCommitmentPreviewPdf({});
+  const longAnswer = 'Diese ausführliche persönliche Antwort soll vollständig in das Originalformular übernommen werden. '.repeat(5);
+  const commitment = { name: 'Anna Muster', startDate: '2026-09-10', why: longAnswer, change: longAnswer, costOfUnclarity: longAnswer, place: 'Berlin', signatureDate: '2026-09-10', accepted: true };
+  const filled = await buildDraftStartCommitmentPreviewPdf(commitment);
+  const completed = await buildCompletedStartCommitmentPdf(commitment);
+  for (const buffer of [readonly, filled, completed]) {
+    const pdf = await PDFDocument.load(buffer);
+    assert.equal(pdf.getForm().getFields().length, 0);
+  }
+  assert.notDeepEqual(blank, filled);
+});
+
 test('Portal verknüpft Stammdaten, Original-PDF, drei Bestätigungen und digitales Commitment', async () => {
   const [html, script, api, migration] = await Promise.all([
     readFile(new URL('../portal.html', import.meta.url), 'utf8'),
@@ -91,6 +108,11 @@ test('Portal verknüpft Stammdaten, Original-PDF, drei Bestätigungen und digita
     readFile(new URL('../supabase/migrations/20260907130000_privacy_consent_document.sql', import.meta.url), 'utf8'),
   ]);
   assert.match(html, /id="onboardingProfileForm"/);
+  assert.match(html, /id="onboardingEmail"[^>]*required/);
+  assert.doesNotMatch(html, /id="onboardingEmail"[^>]*readonly/);
+  assert.match(html, /id="onboardingCountry"[^>]*>\s*<option value="Deutschland">Deutschland<\/option>/);
+  for (const id of ['onboardingBirthDay', 'onboardingBirthMonth', 'onboardingBirthYear']) assert.match(html, new RegExp(`id="${id}"`));
+  assert.match(html, /id="onboardingMobilePhone"[^>]*required/);
   assert.match(html, /id="privacyPdfPreview"/);
   assert.match(html, /feature=privacy-template/);
   assert.match(html, /id="privacySpecialCategories"/);
@@ -99,14 +121,23 @@ test('Portal verknüpft Stammdaten, Original-PDF, drei Bestätigungen und digita
   assert.match(html, /id="privacyPreviewStatus"/);
   assert.match(html, /id="commitmentDialog"/);
   assert.match(html, /id="commitmentPdfPreview"/);
+  assert.match(html, /feature=commitment-template/);
+  assert.doesNotMatch(html, /commitmentPdfPreview[^>]+assets\/forms\/FDD-FRM-001/);
   assert.match(html, /data-commitment-step="4"/);
   assert.match(html, /id="commitmentAccepted"/);
   assert.match(script, /action: 'confirm_privacy'/);
   assert.match(script, /feature=privacy-preview/);
   assert.match(script, /confirmation\.documentId/);
   assert.match(script, /closePrivacyConsentDialog\('confirmed'\)/);
+  assert.match(script, /downloadCustomerDocument\(confirmation\.documentId/);
+  assert.match(script, /onboardingBirthParts/);
+  assert.match(script, /onboardingBirthParts\[index \+ 1\]\.focus\(\)/);
+  assert.match(script, /Bitte ergänze noch:/);
   assert.match(script, /function closePrivacyConsentDialog/);
   assert.match(script, /action: 'confirm_commitment'/);
+  assert.match(script, /feature=commitment-preview/);
+  assert.match(script, /scheduleCommitmentPdfPreview/);
+  assert.match(script, /downloadCustomerDocument\(confirmation\.documentId, confirmation\.document\?\.original_file_name \|\| 'FDD-Mein-persoenliches-Commitment\.pdf'/);
   assert.match(script, /currentCommitmentInput/);
   assert.match(script, /function closeCommitmentDialog/);
   assert.match(script, /queueOnboardingFormDraft/);
@@ -116,6 +147,10 @@ test('Portal verknüpft Stammdaten, Original-PDF, drei Bestätigungen und digita
   assert.match(api, /buildDraftPrivacyPreviewPdf/);
   assert.match(api, /document: \{ id: document\.id/);
   assert.match(api, /storeStartCommitmentDocument/);
+  assert.match(api, /buildDraftStartCommitmentPreviewPdf/);
+  assert.match(api, /feature === 'commitment-template'/);
   assert.match(api, /currentDocument\.participant_confirmed_at/);
+  assert.match(api, /auth\/v1\/admin\/users/);
+  assert.match(await readFile(new URL('../lib/privacy-consent.js', import.meta.url), 'utf8'), /checkedWidgets/);
   assert.match(migration, /privacy_consent/);
 });

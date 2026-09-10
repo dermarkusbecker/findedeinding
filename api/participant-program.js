@@ -10,7 +10,7 @@ import { handleParticipantDocument } from '../lib/documents/api-handler.js';
 import { weekResetScope } from '../lib/week-reset.js';
 import { ensureWeekReflection, generateWeekReflection } from '../lib/week-reflection-agent.js';
 import { buildDraftPrivacyPreviewPdf, buildReadonlyPrivacyPreviewPdf, missingOnboardingFields, normalizeOnboardingProfile, normalizePrivacyConsent, readPrivacyConsentDocument, storePrivacyConsentDocument } from '../lib/privacy-consent.js';
-import { normalizeStartCommitment, readStartCommitmentDocument, storeStartCommitmentDocument } from '../lib/start-commitment.js';
+import { buildDraftStartCommitmentPreviewPdf, buildReadonlyStartCommitmentPreviewPdf, normalizeStartCommitment, readStartCommitmentDocument, storeStartCommitmentDocument } from '../lib/start-commitment.js';
 import { artifactIsAfterOnboardingReset, assertActivePreviewAdmin, resetParticipantOnboarding } from '../lib/onboarding-reset.js';
 import { deleteOnboardingFormDraft, readOnboardingFormDrafts, saveOnboardingFormDraft } from '../lib/onboarding-form-drafts.js';
 import { syncCustomerProfileToLead } from '../lib/contact-lifecycle.js';
@@ -174,14 +174,30 @@ async function optionalRows(response, fallback) {
   return data;
 }
 
-async function patchOnboardingProfile(service, participantId, profile) {
+async function patchOnboardingProfile(service, participantId, profile, currentProfile = {}) {
+  const previousEmail = String(currentProfile.email || '').trim().toLowerCase();
+  const nextEmail = String(profile.email || '').trim().toLowerCase();
+  const emailChanged = Boolean(nextEmail && nextEmail !== previousEmail);
+  if (emailChanged) {
+    if (!currentProfile.auth_user_id) throw Object.assign(new Error('Die Login-E-Mail konnte nicht eindeutig mit deinem Zugang verknüpft werden.'), { status: 409 });
+    const authResult = await fetch(`${service.url}/auth/v1/admin/users/${encodeURIComponent(currentProfile.auth_user_id)}`, {
+      method: 'PUT', headers: serviceHeaders(service.key), body: JSON.stringify({ email: nextEmail, email_confirm: true }),
+    });
+    const authData = await authResult.json().catch(() => ({}));
+    if (!authResult.ok) throw Object.assign(new Error(authData.message || authData.msg || 'Die E-Mail-Adresse konnte nicht als neue Login-Adresse gespeichert werden.'), { status: authResult.status });
+  }
   const result = await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(participantId)}&role=eq.user`, {
     method: 'PATCH',
     headers: serviceHeaders(service.key, { Prefer: 'return=representation' }),
     body: JSON.stringify(profile),
   });
   const rows = await result.json().catch(() => ([]));
-  if (!result.ok || !rows[0]) throw Object.assign(new Error(rows.message || 'Deine persönlichen Angaben konnten nicht gespeichert werden.'), { status: result.status });
+  if (!result.ok || !rows[0]) {
+    if (emailChanged && previousEmail) await fetch(`${service.url}/auth/v1/admin/users/${encodeURIComponent(currentProfile.auth_user_id)}`, {
+      method: 'PUT', headers: serviceHeaders(service.key), body: JSON.stringify({ email: previousEmail, email_confirm: true }),
+    }).catch(() => null);
+    throw Object.assign(new Error(rows.message || 'Deine persönlichen Angaben konnten nicht gespeichert werden.'), { status: result.status });
+  }
   await syncCustomerProfileToLead(service, rows[0]);
   return rows[0];
 }
@@ -228,6 +244,13 @@ export default async function handler(request, response) {
       response.setHeader('Cache-Control', 'private, max-age=300');
       return response.status(200).send(pdf);
     }
+    if (request.method === 'GET' && request.query?.feature === 'commitment-template') {
+      const pdf = await buildReadonlyStartCommitmentPreviewPdf();
+      response.setHeader('Content-Type', 'application/pdf');
+      response.setHeader('Content-Disposition', 'inline; filename="FDD-Commitment-Vorschau.pdf"');
+      response.setHeader('Cache-Control', 'private, max-age=300');
+      return response.status(200).send(pdf);
+    }
     const result = await getParticipantProgramAccess(session.participantId);
     if (request.method === 'POST' && request.query?.feature === 'privacy-preview') {
       if (isOnboardingComplete(result.progress) || result.progress.privacy_consent_at) return response.status(409).json({ error: 'Die Datenschutzeinwilligung ist bereits bestätigt und schreibgeschützt.' });
@@ -235,6 +258,17 @@ export default async function handler(request, response) {
       const pdf = await buildDraftPrivacyPreviewPdf(normalized.consent);
       response.setHeader('Content-Type', 'application/pdf');
       response.setHeader('Content-Disposition', 'inline; filename="FDD-Datenschutzinformation-Live-Vorschau.pdf"');
+      response.setHeader('Cache-Control', 'private, no-store');
+      return response.status(200).send(pdf);
+    }
+    if (request.method === 'POST' && request.query?.feature === 'commitment-preview') {
+      if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Commitment ist bereits bestätigt und schreibgeschützt.' });
+      const latestDocument = await readStartCommitmentDocument(result.service, session.participantId);
+      if (artifactIsAfterOnboardingReset(latestDocument, result.progress.onboarding_reset_at)) return response.status(409).json({ error: 'Das Commitment ist bereits bestätigt und schreibgeschützt.' });
+      const normalized = normalizeStartCommitment(request.body?.commitment, result.profile, result.progress.program_start_date);
+      const pdf = await buildDraftStartCommitmentPreviewPdf(normalized.commitment);
+      response.setHeader('Content-Type', 'application/pdf');
+      response.setHeader('Content-Disposition', 'inline; filename="FDD-Commitment-Live-Vorschau.pdf"');
       response.setHeader('Cache-Control', 'private, no-store');
       return response.status(200).send(pdf);
     }
@@ -305,7 +339,7 @@ export default async function handler(request, response) {
     } else if (action === 'save_onboarding_profile') {
       if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
       const normalized = normalizeOnboardingProfile(request.body?.profile, result.profile);
-      const profile = await patchOnboardingProfile(result.service, session.participantId, normalized.profile);
+      const profile = await patchOnboardingProfile(result.service, session.participantId, normalized.profile, result.profile);
       return response.status(200).json({ ok: true, profile, profileComplete: normalized.missing.length === 0, missingFields: normalized.missing });
     } else if (action === 'save_onboarding_form_draft') {
       if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
@@ -344,7 +378,8 @@ export default async function handler(request, response) {
       const currentDocument = artifactIsAfterOnboardingReset(latestDocument, result.progress.onboarding_reset_at) ? latestDocument : null;
       if (currentDocument) {
         await deleteOnboardingFormDraft(result.service, session.participantId, 'start_commitment');
-        return response.status(200).json({ ok: true, confirmedAt: currentDocument.participant_confirmed_at || currentDocument.created_at, documentId: currentDocument.id, document: { id: currentDocument.id, week: 0, document_type: currentDocument.document_type, display_title: currentDocument.display_title || 'Mein persönliches Commitment', original_file_name: currentDocument.original_file_name, source: currentDocument.source || 'system', visibility: currentDocument.visibility || 'customer', processing_status: currentDocument.processing_status || 'ready', created_at: currentDocument.created_at }, recovered: true });
+        await Promise.allSettled(result.gates.filter((gate) => Number(gate.week) === 0 && gate.gate_key === 'start_commitment').map((gate) => setGate(result.service, session.participantId, gate.id, true)));
+        return response.status(200).json({ ok: true, confirmedAt: currentDocument.participant_confirmed_at || currentDocument.created_at, documentId: currentDocument.id, document: { id: currentDocument.id, week: 0, document_type: currentDocument.document_type, display_title: currentDocument.display_title || 'Mein persönliches Commitment', original_file_name: currentDocument.original_file_name, mime_type: currentDocument.mime_type || 'application/pdf', source: currentDocument.source || 'system', visibility: currentDocument.visibility || 'customer', processing_status: currentDocument.processing_status || 'ready', created_at: currentDocument.created_at }, recovered: true });
       }
       const normalized = normalizeStartCommitment(request.body?.commitment, result.profile, result.progress.program_start_date);
       if (normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze bzw. bestätige noch: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
@@ -352,7 +387,8 @@ export default async function handler(request, response) {
       const document = await storeStartCommitmentDocument(result.service, session.participantId, normalized.commitment, now);
       await patchParticipantProgress(result.service, session.participantId, { last_activity_at: now });
       await deleteOnboardingFormDraft(result.service, session.participantId, 'start_commitment');
-      return response.status(200).json({ ok: true, confirmedAt: now, documentId: document.id, document: { id: document.id, week: 0, document_type: document.document_type, display_title: document.display_title, original_file_name: document.original_file_name, source: document.source, visibility: document.visibility, processing_status: document.processing_status, created_at: document.created_at } });
+      await Promise.allSettled(result.gates.filter((gate) => Number(gate.week) === 0 && gate.gate_key === 'start_commitment').map((gate) => setGate(result.service, session.participantId, gate.id, true)));
+      return response.status(200).json({ ok: true, confirmedAt: now, documentId: document.id, document: { id: document.id, week: 0, document_type: document.document_type, display_title: document.display_title, original_file_name: document.original_file_name, mime_type: document.mime_type || 'application/pdf', source: document.source, visibility: document.visibility, processing_status: document.processing_status, created_at: document.created_at } });
     } else if (action === 'start') {
       if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
       if (result.access.status !== 'active') return response.status(423).json({ error: 'Dein Programm ist aktuell pausiert.' });
@@ -361,7 +397,7 @@ export default async function handler(request, response) {
       if (!result.progress.privacy_consent_at || !commitmentDocument) return response.status(400).json({ error: 'Bitte bestätige zuerst die Datenschutzeinwilligung und dein persönliches Commitment digital.' });
       const normalizedProfile = normalizeOnboardingProfile(request.body?.profile, result.profile);
       if (normalizedProfile.missing.length) return response.status(400).json({ error: `Bitte vervollständige vor dem Start deine persönlichen Angaben: ${normalizedProfile.missing.join(', ')}.`, missingFields: normalizedProfile.missing });
-      await patchOnboardingProfile(result.service, session.participantId, normalizedProfile.profile);
+      await patchOnboardingProfile(result.service, session.participantId, normalizedProfile.profile, result.profile);
       const startGates = result.gates.filter((gate) => Number(gate.week) === 0);
       const now = new Date().toISOString();
       const berlinDateParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());

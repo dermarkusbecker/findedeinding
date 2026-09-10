@@ -9,7 +9,7 @@ let activeCommunicationTemplateId=null;
 let campaignSelectedContacts=new Set();
 
 const templateCategoryLabels={general:'Allgemein',lead:'Interessenten',appointment:'Termine',contract:'Vertrag',participant:'Teilnehmer',program:'8-Wochen-Prozess'};
-const triggerLabels={lead_created:'Interessent neu angelegt',appointment_scheduled:'Termin vereinbart',contract_signed:'Vertrag abgeschlossen',participant_activated:'Teilnehmer aktiviert',week_unlocked:'Programmwoche freigeschaltet',inactivity:'Keine Aktivität'};
+const triggerLabels={lead_created:'Interessent neu angelegt',appointment_scheduled:'Termin vereinbart',sales_conversation_completed:'Verkaufsgespräch abgeschlossen',contract_signed:'Vertrag abgeschlossen',participant_activated:'Teilnehmer aktiviert',week_unlocked:'Programmwoche freigeschaltet',inactivity:'Keine Aktivität'};
 const audienceLabels={all:'Alle Kontakte',leads:'Interessenten',customers:'Teilnehmer',selected:'Ausgewählte Kontakte',event_contact:'Betroffener Kontakt'};
 const campaignStatusLabels={draft:'Entwurf',scheduled:'Geplant',paused:'Pausiert',completed:'Abgeschlossen',cancelled:'Abgebrochen'};
 const delayUnitLabels={minutes:'Min.',hours:'Std.',days:'Tage'};

@@ -20,22 +20,51 @@ test('Interessenten öffnen eine vollständige CRM-Detailakte statt nur eines Be
   assert.doesNotMatch(html.slice(html.indexOf('id="leadDashboard"'), html.indexOf('data-panel="settings"')), /Wirtschaftliche Verhältnisse/i);
 });
 
-test('Verkaufsgespräch ordnet Stammdaten und Anliegen in einem lesbaren Dialograster an', async () => {
+test('Verkaufsgespräch erfasst nur die klaren Kontaktdaten mit bedingter WhatsApp-Pflicht', async () => {
   const [html, script, styles] = await Promise.all([file('admin.html'), file('admin.js'), file('admin-crm-refresh.css')]);
   assert.match(html, /<section class="lead-basics lead-wizard-page" data-lead-step="1">/);
-  assert.match(html, /<div class="lead-context-grid">/);
-  assert.match(html, /class="lead-status-field"/);
+  for (const name of ['firstName', 'lastName', 'email', 'mobilePhone']) assert.match(html, new RegExp(`name="${name}"[^>]*required`));
+  assert.match(html, /name="hasAlternateWhatsapp"/);
+  assert.match(html, /id="leadWhatsappField" hidden/);
+  assert.doesNotMatch(html.slice(html.indexOf('data-lead-step="1"'),html.indexOf('data-lead-step="2"')), /Anliegen des Interessenten|Interne Notizen|lead-status-field/);
   assert.match(styles, /#leadDialog\.lead-dialog \{[^}]*max-width: 920px;[^}]*overflow: hidden;[^}]*width: calc\(100% - 36px\);/);
-  assert.match(styles, /\.lead-contact-grid label,\.lead-context-grid label \{[^}]*display: flex;[^}]*flex-direction: column;/);
-  assert.match(styles, /\.lead-context-grid \{[^}]*grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(styles, /#leadDialog \.lead-contact-grid label \{[^}]*font-size: 12px/);
+  assert.match(styles, /#leadDialog \.lead-whatsapp-field \{[^}]*grid-column: 1\/-1/);
   assert.equal((html.match(/data-lead-step="[1-4]"/g)||[]).length,4);
   assert.match(html, /id="leadStepBack"[^>]*hidden/);
   assert.match(html, /id="leadStepNext">Weiter →/);
-  assert.match(html, /id="leadStepSave"[^>]*hidden>Verkaufsgespräch speichern/);
+  assert.match(html, /id="leadStepSave"[^>]*hidden>Verkaufsgespräch abschließen/);
   assert.match(script, /function setLeadWizardStep/);
   assert.match(script, /function validateLeadWizardStep/);
   assert.match(script, /setLeadWizardStep\(leadWizardStep\+1\)/);
   assert.match(styles, /\.lead-wizard-progress ol \{[^}]*grid-template-columns: repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(script, /function setAlternateWhatsapp/);
+  assert.match(script, /whatsappSameAsMobile=!leadForm\.elements\.hasAlternateWhatsapp\.checked/);
+});
+
+test('Terminseite zeigt konfigurierte Dauern und führt erst über Tag, dann freie Uhrzeit', async () => {
+  const [html, script, styles, api, migration] = await Promise.all([file('admin.html'), file('admin.js'), file('admin-crm-refresh.css'), file('api/leads.js'), file('supabase/migrations/20260910120000_sales_conversation_contact_and_booking.sql')]);
+  assert.match(html, /id="availableDays"/);
+  assert.match(html, /id="availableTimes"/);
+  assert.match(html, /name="offeredDuration" value="30"/);
+  assert.doesNotMatch(html, /id="demoAppointmentSlots"/);
+  assert.match(script, /function renderAvailableTimes/);
+  assert.match(script, /settings\.offeredDurations/);
+  assert.match(styles, /#leadDialog \.appointment-slot-picker/);
+  assert.match(api, /offered_durations: settings\.offeredDurations/);
+  assert.match(migration, /offered_durations integer\[\]/);
+});
+
+test('Terminbestätigung wird erst beim vollständigen Abschluss des Verkaufsgesprächs ausgelöst', async () => {
+  const [html, script, communication, api, migration] = await Promise.all([file('admin.html'), file('admin.js'), file('admin-communication-center.js'), file('api/leads.js'), file('supabase/migrations/20260910120000_sales_conversation_contact_and_booking.sql')]);
+  assert.match(script, /action=complete-sales-conversation/);
+  assert.match(api, /action === 'complete-sales-conversation'/);
+  assert.match(api, /appointment_confirmation_prepared_at/);
+  assert.match(api, /notifyAttendees: false/);
+  assert.match(api, /notifyAttendees: true/);
+  assert.match(html, /value="sales_conversation_completed">Verkaufsgespräch abgeschlossen/);
+  assert.match(communication, /sales_conversation_completed:'Verkaufsgespräch abgeschlossen'/);
+  assert.match(migration, /sales_conversation_appointment_confirmation/);
 });
 
 test('Interessenten-Navigation bildet Eingang, aktive Fälle, kein und späteres Interesse mit Echtdaten ab', async () => {
@@ -55,7 +84,7 @@ test('Interessenten-Navigation bildet Eingang, aktive Fälle, kein und späteres
   assert.match(script, /lead\.converted_user_profile_id\|\|lead\.status==='customer'/);
   assert.match(script, /renderContextNavigation\('leads'\)/);
   assert.match(html, /id="leadListSearch"/);
-  assert.match(html, /option value="later">Später Interesse/);
+  assert.match(script, /later:'Später Interesse'/);
   assert.match(styles, /\.lead-context-group\s*\{/);
   assert.match(styles, /\.lead-context-filter\.active/);
   assert.match(api, /'offer', 'later', 'customer'/);
@@ -65,12 +94,51 @@ test('Interessenten-Navigation bildet Eingang, aktive Fälle, kein und späteres
   assert.match(migration, /'later'/);
 });
 
+test('Interessenentscheidung ordnet Listen zu und erzeugt eine zentrale Wiedervorlage', async () => {
+  const [html, script, styles, api, migration] = await Promise.all([
+    file('admin.html'),
+    file('admin.js'),
+    file('admin-lead-dashboard.css'),
+    file('api/leads.js'),
+    file('supabase/migrations/20260910173000_lead_interest_follow_up.sql'),
+  ]);
+  assert.match(html, /id="markLeadLost"[^>]*>Kein Interesse/);
+  assert.match(html, /id="markLeadLater"[^>]*>Später Interesse/);
+  assert.match(html, /Wann sollen wir Dich nochmal kontaktieren\?/);
+  assert.match(html, /name="followUpDate" type="date" required/);
+  assert.match(styles, /\.lead-follow-up-dialog::backdrop/);
+  assert.match(script, /action=set-interest-status/);
+  assert.match(script, /setLeadListFilter\(status\)/);
+  assert.match(api, /async function setLeadInterestStatus/);
+  assert.match(api, /rpc\/set_lead_interest_status/);
+  assert.match(migration, /task_type = 'lead_follow_up'/);
+  assert.match(migration, /'Wiedervorlage: Interessenten erneut kontaktieren'/);
+  assert.match(migration, /update public\.leads[\s\S]*set status = p_status/);
+});
+
 test('CRM-Akte unterstützt Verträge, Zahlungen, E-Mail, Aufgaben, Notizen und Bankdaten', async () => {
   const [script, api, migration] = await Promise.all([file('admin.js'), file('api/leads.js'), file('supabase/migrations/20260904190000_lead_admin_dashboard.sql')]);
   for (const recordType of ['contract', 'payment', 'communication', 'task', 'bank', 'note']) assert.match(script, new RegExp(`${recordType}:\\{`));
   assert.match(api, /action === 'dashboard'/);
   assert.match(api, /action === 'dashboard-record'/);
   for (const table of ['lead_contracts', 'lead_payments', 'lead_communications', 'lead_tasks', 'lead_bank_accounts', 'customer_questions']) assert.match(migration, new RegExp(`create table if not exists public\\.${table}`));
+});
+
+test('Vertragsnummern werden zentral, fortlaufend und ohne manuelle Eingabe vergeben', async () => {
+  const [script, api, migration] = await Promise.all([
+    file('admin.js'),
+    file('api/leads.js'),
+    file('supabase/migrations/20260910170000_automatic_contract_numbers.sql'),
+  ]);
+  assert.doesNotMatch(script, /name="contractNumber"/);
+  assert.match(script, /Schema: FDD–Jahr–laufende Nummer/);
+  assert.match(api, /async function reserveContractNumber/);
+  assert.match(api, /rpc\/next_contract_number/);
+  assert.doesNotMatch(api, /crypto\.randomInt/);
+  assert.match(migration, /create table if not exists public\.contract_number_counters/);
+  assert.match(migration, /return format\('FDD-%s-%s'/);
+  assert.match(migration, /create unique index if not exists lead_contracts_contract_number_unique/);
+  assert.match(migration, /create trigger lead_contracts_assign_contract_number/);
 });
 
 test('Fragen aus dem Acht-Wochen-Portal werden serverseitig an die Admin-Akte übergeben', async () => {
