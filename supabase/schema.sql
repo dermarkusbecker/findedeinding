@@ -444,7 +444,7 @@ create table if not exists public.participant_documents (
   visibility text not null default 'customer' check (visibility in ('customer','staff')),
   uploaded_by_profile_id uuid references public.user_profiles(id) on delete set null,
   processing_status text not null default 'uploaded' check (processing_status in ('uploaded','extracting','needs_ocr','ready','failed')),
-  extraction_method text,
+  extraction_method text check (extraction_method in ('pdf_text','docx_text','ocr','manual','pdf_form_fill')),
   extracted_text text,
   extracted_data jsonb not null default '{}'::jsonb,
   extraction_version text,

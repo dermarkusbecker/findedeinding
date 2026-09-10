@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { storeGeneratedParticipantDocument } from '../lib/generated-document-storage.js';
 
 test('erzeugte Onboarding-PDF wird in Storage und mit derselben Kunden-ID in der Dokumentenakte abgelegt', async () => {
@@ -29,8 +30,18 @@ test('erzeugte Onboarding-PDF wird in Storage und mit derselben Kunden-ID in der
     assert.equal(document.processing_status, 'ready');
     const databaseCall = calls.find((call) => call.url.includes('/rest/v1/participant_documents'));
     assert.ok(databaseCall);
-    assert.equal(JSON.parse(databaseCall.options.body).storage_bucket, 'participant-documents');
+    const payload = JSON.parse(databaseCall.options.body);
+    assert.equal(payload.storage_bucket, 'participant-documents');
+    assert.equal(payload.extraction_method, 'pdf_form_fill');
   } finally {
     global.fetch = originalFetch;
   }
+});
+
+test('Supabase erlaubt die Verarbeitungsart systemseitig befüllter PDFs', async () => {
+  const migration = await readFile(new URL('../supabase/migrations/20260910193000_generated_pdf_extraction_method.sql', import.meta.url), 'utf8');
+  const schema = await readFile(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
+  assert.match(migration, /drop constraint if exists participant_documents_extraction_method_check/);
+  assert.match(migration, /'pdf_form_fill'/);
+  assert.match(schema, /extraction_method text check \(extraction_method in \([^)]*'pdf_form_fill'/);
 });
