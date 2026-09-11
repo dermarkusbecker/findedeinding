@@ -1,3 +1,4 @@
+import { defaultProgramDefinition } from '../lib/program-builder.js';
 import { requireCurrentAdmin } from '../lib/user-auth.js';
 import { gateTemplateSettingRows, gateWeekDefaults, gateWeekSettingRows } from '../lib/gate-templates.js';
 import { getParticipantProgramAccess } from '../lib/program-access-service.js';
@@ -55,6 +56,25 @@ export default async function handler(request,response){
   const admin=await requireCurrentAdmin(request,response,['settings','program']);if(!admin)return;
   const service=config(),participantId=request.query?.participantId||request.body?.participantId;
   if(!service)return response.status(503).json({error:'Supabase ist noch nicht konfiguriert.'});
+  if(request.query?.action==='catalog') {
+    try {
+      if(request.method==='PATCH') {
+        const {tariffId,versionId}=request.body||{};
+        const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if(!uuid.test(tariffId||'')||(versionId!==null&&!uuid.test(versionId||'')))return response.status(400).json({error:'Gültigen Tarif und veröffentlichten Prozess wählen.'});
+        const rows=await responseJson(await fetch(`${service.url}/rest/v1/service_tariffs?id=eq.${encodeURIComponent(tariffId)}`,{method:'PATCH',headers:headers(service.key,{Prefer:'return=representation'}),body:JSON.stringify({program_version_id:versionId,updated_at:new Date().toISOString()})}),'Prozesszuordnung konnte nicht gespeichert werden.');
+        if(!rows.length)return response.status(404).json({error:'Tarif nicht gefunden.'});
+        return response.status(200).json({tariff:rows[0]});
+      }
+      if(request.method!=='GET')return response.status(405).json({error:'Methode nicht erlaubt.'});
+      const [tariffs,versions]=await Promise.all([
+        fetch(`${service.url}/rest/v1/service_tariffs?select=id,name,is_active,is_default,program_version_id&order=is_default.desc,sort_order.asc,name.asc`,{headers:headers(service.key)}).then(r=>responseJson(r,'Tarife konnten nicht geladen werden.')),
+        fetch(`${service.url}/rest/v1/program_versions?select=id,version,definition,published_at&order=version.desc`,{headers:headers(service.key)}).then(r=>responseJson(r,'Prozesse konnten nicht geladen werden.')),
+      ]);
+      response.setHeader('Cache-Control','private, no-store');
+      return response.status(200).json({tariffs,versions,defaultDefinition:defaultProgramDefinition()});
+    } catch(error){return response.status(error.status||500).json({error:error.message});}
+  }
   if(request.query?.action==='settings'){
     try{return await handleGateSettings(request,response,service,admin);}catch(error){return response.status(error.status||500).json({error:error.message||'Gate-Einstellungen konnten nicht verarbeitet werden.'});}
   }

@@ -77,7 +77,7 @@ test('CRM verwendet Kunden und Interessenten und bietet editierbare Klarheitsfra
   assert.match(script, /Kundenverwaltung.*Portal-Login/s);
 });
 
-test('Wochen-Gates besitzen anklickbare Felder und einen zentralen Admin-Dialog', async () => {
+test('Wochen-Gates zeigen neutrale Prozessstruktur mit Tarif- und Versionsauswahl', async () => {
   const [html, script, styles] = await Promise.all([
     readFile(htmlUrl, 'utf8'),
     readFile(scriptUrl, 'utf8'),
@@ -85,7 +85,10 @@ test('Wochen-Gates besitzen anklickbare Felder und einen zentralen Admin-Dialog'
   ]);
   assert.match(html, /id="gateSettingsDialog"/);
   assert.match(html, /id="gateFieldEditors"/);
-  assert.match(script, /class="gate-menu"/);
+  assert.match(html, /id="gateTariffSelect"/);
+  assert.match(html, /id="gateProcessSelect"/);
+  assert.match(script, /class="gate-card catalog-week"/);
+  assert.doesNotMatch(script, /index<3\?'Abgeschlossen'/);
   assert.match(script, /data-edit-gate/);
   assert.match(script, /fetch\('\/api\/gates\?action=settings'/);
   assert.match(styles, /\.gate-menu:hover/);

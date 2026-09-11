@@ -323,11 +323,18 @@
             <p class="eyebrow">Qualitätssicherung</p>
             <h1>Wochen-Gates</h1>
             <p>
-              Ein Schritt zählt erst, wenn die fachliche Pflicht wirklich
-              erfüllt ist.
+              Wochen, Aufgaben und Abschlusskriterien je Tarif. Kundenfortschritte findest du in der jeweiligen Kundenakte.
             </p>
           </div>
         </div>
+        <section class="gate-catalog-toolbar" id="gateTariffSection" aria-label="Tarif und Prozess auswählen">
+          <label>Tarif<select id="gateTariffSelect" disabled><option>Tarife werden geladen …</option></select></label>
+          <label>Prozess für neue Kunden<select id="gateProcessSelect" disabled><option>Prozess wird geladen …</option></select></label>
+          <button type="button" class="primary" id="saveGateProcess" disabled>Zuordnung speichern</button>
+          <button type="button" class="secondary" id="openGateBuilder">Prozess bearbeiten ↗</button>
+          <p id="gateCatalogStatus" role="status">Prozessübersicht wird geladen …</p>
+        </section>
+        <div class="gate-catalog-summary" id="gateCatalogSummary"></div>
         <div class="gate-grid" id="gateGrid"></div>
       </section>
       <section class="view" data-panel="leads">
