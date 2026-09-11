@@ -52,6 +52,23 @@ test('eine echte Verbesserung startet die gewählte Woche und öffnet den Glück
   assert.match(styles, /@keyframes clarityScoreCelebrate/);
 });
 
+test('Demo-Vollzugriff gilt auch für die Datenbank-Sperre und Speicherfehler bleiben im Dialog sichtbar', async () => {
+  const [html, script, api, migration] = await Promise.all([
+    file('portal.html'),
+    file('portal.js'),
+    file('api/participant-program.js'),
+    file('supabase/migrations/20260911190000_demo_full_access_week_writes.sql'),
+  ]);
+
+  assert.match(migration, /'demo_full_access' = any\(profile\.permissions\)/);
+  assert.match(migration, /profile\.status = 'active'/);
+  assert.match(migration, /progress\.program_status = 'active'/);
+  assert.match(migration, /progress\.program_start_date \+ \(\(target_week - 1\) \* 7\)/);
+  assert.match(html, /id="clarityCheckinError"[^>]+role="alert"[^>]+hidden/);
+  assert.match(script, /clarityCheckinError[\s\S]*?error\.message/);
+  assert.match(api, /releaseBlocked[\s\S]*?laut Datenbank noch nicht freigeschaltet/);
+});
+
 function saveWeeklyClaritySource(script) {
   return script.match(/async function saveWeeklyClarityCheckin\(\) \{[\s\S]*?\n\}/)?.[0] || '';
 }

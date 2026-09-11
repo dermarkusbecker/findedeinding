@@ -14,6 +14,7 @@ import { buildDraftStartCommitmentPreviewPdf, buildReadonlyStartCommitmentPrevie
 import { artifactIsAfterOnboardingReset, assertActivePreviewAdmin, resetParticipantOnboarding } from '../lib/onboarding-reset.js';
 import { deleteOnboardingFormDraft, readOnboardingFormDrafts, saveOnboardingFormDraft } from '../lib/onboarding-form-drafts.js';
 import { syncCustomerProfileToLead } from '../lib/contact-lifecycle.js';
+import { persistWeeklyClarity } from '../lib/weekly-clarity.js';
 
 const programWeeks = [
   { week: 1, title: 'Jetzt geht es los', mode: 'Ist-Aufnahme', description: 'Du klärst deine heutige Ausgangslage, dein persönliches Ziel für die acht Wochen und die Erfahrungen, die dich bisher geprägt haben.', topics: ['Drei Wünsche und ihre Bedeutung', 'Persönliches Zielbild', 'Klarheits-Baseline', 'Beruflicher Werdegang'], question: 'Stell dir vor, vor dir steht eine Fee und du hast genau drei Wünsche frei. Welche drei Dinge würdest du dir für dein Leben aktuell am meisten wünschen?', help: 'Nenne zunächst einfach alle drei. Danach vertiefen wir sie einzeln.', upload: 'Lebenslauf optional' },
@@ -56,17 +57,11 @@ async function readGuidedWeekState(result, participantId, week) {
 }
 
 async function readGuidedWeekStates(result, participantId) {
-  const response = await fetch(`${result.service.url}/rest/v1/process_entries?user_profile_id=eq.${encodeURIComponent(participantId)}&week=gte.2&week=lte.8&select=week,data_block,structured_data,created_at&order=created_at.desc&limit=500`, { headers: serviceHeaders(result.service.key) });
-  const rows = await response.json();
-  if (!response.ok) throw new Error(rows.message || 'Die Klarheitsentwicklung konnte nicht geladen werden.');
-  const states = new Map();
-  rows.forEach((row) => {
-    const week = Number(row.week);
-    if (states.has(week) || row.data_block !== `week_${week}_state`) return;
-    const saved = row.structured_data?.[`week_${week}`];
-    if (saved) states.set(week, normalizeGuidedWeekState(week, saved));
-  });
-  return states;
+  const states = await Promise.all(Array.from({ length: 7 }, async (_, index) => {
+    const week = index + 2;
+    return [week, await readGuidedWeekState(result, participantId, week)];
+  }));
+  return new Map(states);
 }
 
 function buildClarityHistory(weekOneState, guidedStates) {
@@ -81,7 +76,11 @@ function buildClarityHistory(weekOneState, guidedStates) {
 
 async function saveGuidedWeekState(result, participantId, week, state, rawAnswer = '', evidenceLevel = 'participant_statement') {
   const response = await fetch(`${result.service.url}/rest/v1/process_entries`, { method: 'POST', headers: serviceHeaders(result.service.key), body: JSON.stringify({ user_profile_id: participantId, week, data_block: `week_${week}_state`, raw_answer: String(rawAnswer || '').slice(0, 10000) || null, structured_data: { [`week_${week}`]: state }, evidence_level: evidenceLevel }) });
-  if (!response.ok) throw new Error(`Dein Fortschritt in Woche ${week} konnte nicht gespeichert werden.`);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    const releaseBlocked = error.code === '23514' && /Programm-Woche|freigeschaltet/i.test(error.message || '');
+    throw Object.assign(new Error(releaseBlocked ? `Woche ${week} ist laut Datenbank noch nicht freigeschaltet.` : error.message || `Dein Fortschritt in Woche ${week} konnte nicht gespeichert werden.`), { status: response.status, code: error.code || '' });
+  }
 }
 
 async function saveWeekOneState(result, participantId, state, rawAnswer = '', evidenceLevel = 'participant_statement') {
@@ -236,6 +235,7 @@ export default async function handler(request, response) {
   if (request.query?.feature === 'participant-document') return handleParticipantDocument(request, response);
   const session = await requireCurrentPermission('clara_program')(request, response);
   if (!session) return;
+  response.setHeader('Cache-Control', 'private, no-store');
   try {
     if (request.method === 'GET' && request.query?.feature === 'privacy-template') {
       const pdf = await buildReadonlyPrivacyPreviewPdf();
@@ -430,7 +430,13 @@ export default async function handler(request, response) {
       const currentState = await readWeekOneState(result, session.participantId);
       const stepAction = request.body?.stepAction || {};
       if (!currentState.clarity_baseline?.completed && stepAction.type !== 'save_clarity') return response.status(409).json({ error: 'Bitte speichere zuerst deinen Klarheitsscore für diese Woche.', details: { reason: 'CLARITY_CHECKIN_REQUIRED' }, weekOne: currentState });
-      if (currentState.clarity_baseline?.completed && stepAction.type === 'save_clarity') return response.status(409).json({ error: 'Dein Klarheitsscore für Woche 1 ist bereits verbindlich gespeichert.', details: { reason: 'CLARITY_CHECKIN_ALREADY_COMPLETED' }, weekOne: currentState });
+      if (currentState.clarity_baseline?.completed && stepAction.type === 'save_clarity' && Number(currentState.clarity_baseline.score) !== Number(stepAction.score)) return response.status(409).json({ error: 'Dein Klarheitsscore für Woche 1 ist bereits verbindlich gespeichert.', details: { reason: 'CLARITY_CHECKIN_ALREADY_COMPLETED' }, weekOne: currentState });
+      if (stepAction.type === 'save_clarity') {
+        const update = applyWeekOneAction(currentState, stepAction);
+        if (!update.ok) return response.status(400).json({ error: update.error });
+        const saved = await persistWeeklyClarity(result.service, session.participantId, 1, stepAction.score, stepAction.reason, update.state);
+        return response.status(200).json({ ok: true, weekOne: saved.state, alreadySaved: saved.alreadySaved });
+      }
       const update = applyWeekOneAction(currentState, stepAction);
       if (!update.ok) return response.status(400).json({ error: update.error, details: update.details, weekOne: update.state });
       const rawAnswer = stepAction.answer || stepAction.wishes?.join('\n') || stepAction.fileName || (stepAction.type === 'save_clarity' ? `${stepAction.score}/10` : '');
@@ -459,6 +465,10 @@ export default async function handler(request, response) {
         if (!storageFallbackValid && !storedDocumentValid) return response.status(400).json({ error: 'Der zugehörige sichere Upload wurde nicht gefunden.' });
       }
       const currentState = await readGuidedWeekState(result, session.participantId, week);
+      if (stepAction.type === 'save_clarity_checkin') {
+        const saved = await persistWeeklyClarity(result.service, session.participantId, week, stepAction.score, stepAction.note, currentState);
+        return response.status(200).json({ ok: true, weekState: saved.state, alreadySaved: saved.alreadySaved });
+      }
       const update = applyGuidedWeekAction(currentState, stepAction);
       if (!update.ok) return response.status(400).json({ error: update.error, details: update.details, weekState: update.state });
       const rawAnswer = stepAction.answer || stepAction.note || stepAction.fileName || (stepAction.type === 'save_clarity_checkin' ? `${stepAction.score}/10` : '');

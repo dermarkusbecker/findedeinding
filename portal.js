@@ -1,7 +1,9 @@
+import { buildDocumentLibrary, renderDocumentLibrary } from './lib/document-library.js';
 import { journeyStepStatuses, weekOnePrompt } from './lib/week-one.js';
 import { currentGuidedStep, guidedClarityStep, guidedStepStatuses, guidedWeekDefinition, MOTIVATOR_OPTIONS, needsGuidedClarityCheckin } from './lib/guided-weeks.js';
 import { buildProgressCelebration } from './lib/progress-celebration.js';
 import { buildJourneyWeeks } from './lib/journey-weeks.js';
+import { clarityFeedback, assertClarityPersisted } from './lib/weekly-clarity.js';
 
 const previewUrl = new URL(window.location.href);
 const suppliedAdminPreviewToken = previewUrl.searchParams.get('adminPreview') || '';
@@ -118,6 +120,7 @@ function showView(name, { openMobileProcess = false } = {}) {
   if (program) render();
   syncPortalMobileMenuLabel();
   if (name === 'appointments') renderPortalAppointments();
+  if (name === 'documents') void refreshDocumentLibrary();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (name === 'today' && openMobileProcess) window.requestAnimationFrame(openMobileProcessDialog);
 }
@@ -279,10 +282,10 @@ async function request(url, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (options.body) headers['Content-Type'] = 'application/json';
   if (adminPreviewToken) headers.Authorization = `Bearer ${adminPreviewToken}`;
-  const response = await fetch(url, { ...options, headers });
+  const response = await fetch(url, { cache: 'no-store', ...options, headers });
   const responseText = await response.text();
   let data = {};
-  try { data = responseText ? JSON.parse(responseText) : {}; } catch { data = {}; }
+  try { data = responseText ? JSON.parse(responseText) : {}; } catch { throw new Error('Der Server hat keine gültige Antwort geliefert. Bitte versuche es erneut.'); }
   if (!response.ok) { const error = new Error(data.error || 'Die Anfrage konnte nicht verarbeitet werden.'); error.status = response.status; error.data = data; throw error; }
   return data;
 }
@@ -1171,6 +1174,8 @@ function clarityScoreBeforeWeek(week) {
 function openClarityCheckin(week) {
   pendingClarityWeek = Number(week);
   selectedClarityScore = null;
+  $('#clarityDeclineReason').hidden = true;
+  $('#clarityDeclineNote').value = '';
   const previousScore = clarityScoreBeforeWeek(week);
   $('#clarityCheckinWeek').textContent = `Woche ${week} von 8`;
   $('#clarityCheckinTitle').textContent = Number(week) === 1 ? 'Deine Ausgangsbasis.' : 'Wo stehst du heute?';
@@ -1181,6 +1186,8 @@ function openClarityCheckin(week) {
   $('#claritySelectedScore').textContent = '—';
   $('#saveClarityCheckin').disabled = true;
   $('#saveClarityCheckin').textContent = 'Klarheitsscore speichern & Woche starten →';
+  $('#clarityCheckinError').hidden = true;
+  $('#clarityCheckinError').textContent = '';
   $$('#clarityCheckinScale [data-clarity-dialog-score]').forEach((button) => {
     button.classList.remove('selected');
     button.setAttribute('aria-pressed', 'false');
@@ -1196,31 +1203,50 @@ async function revealOpenedWeekWithClara() {
 }
 
 function openClarityImprovement({ week, previousScore, score }) {
+  const feedback = clarityFeedback(week, previousScore, score);
+  $('#clarityImprovementDialog').dataset.week = String(week);
+  $('#clarityImprovementTitle').textContent = feedback.title;
   $('#clarityImprovementWeek').textContent = `Woche ${week} · +${score - previousScore} ${score - previousScore === 1 ? 'Punkt' : 'Punkte'}`;
   $('#clarityImprovementScore').textContent = String(score);
-  $('#clarityImprovementText').textContent = `Glückwunsch! Du hast deinen Klarheitsscore erfolgreich von ${previousScore} auf ${score} erhöht. Deine Entwicklung ist jetzt auch im Klarheitsdiagramm sichtbar.`;
+  $('#clarityImprovementText').textContent = `${feedback.text} Von ${previousScore} auf ${score}: Deine Entwicklung ist jetzt auch im Klarheitsdiagramm sichtbar.`;
   $('#continueAfterClarityImprovement').dataset.week = String(week);
   $('#clarityImprovementDialog').showModal();
 }
 
+let claritySaveInFlight = false;
 async function saveWeeklyClarityCheckin() {
+  if (claritySaveInFlight) return;
   const week = Number(pendingClarityWeek);
   const score = Number(selectedClarityScore);
   if (!Number.isInteger(week) || week < 1 || week > 8 || !Number.isInteger(score) || score < 1 || score > 10) return;
   const button = $('#saveClarityCheckin');
   const previousScore = clarityScoreBeforeWeek(week);
+  const note = $('#clarityDeclineNote').value.trim();
+  if (previousScore !== null && score < previousScore && !note) {
+    $('#clarityCheckinError').textContent = 'Bitte beschreibe kurz, warum du deinen Wert heute niedriger einschätzt. Auch „Ich weiß es noch nicht“ ist okay.';
+    $('#clarityCheckinError').hidden = false;
+    $('#clarityDeclineNote').focus();
+    return;
+  }
+  claritySaveInFlight = true;
+  $$('#clarityCheckinScale button').forEach((item) => { item.disabled = true; });
+  $('#leaveClarityCheckin').disabled = true;
   button.disabled = true;
   button.textContent = 'Wird sicher gespeichert …';
+  $('#clarityCheckinError').hidden = true;
+  $('#clarityCheckinError').textContent = '';
   try {
     const stepAction = week === 1
       ? { type: 'save_clarity', score, reason: '' }
-      : { type: 'save_clarity_checkin', stepId: 'weekly_clarity', score, changed: previousScore !== null && score !== previousScore, note: '' };
-    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: week === 1 ? 'week_1_update' : 'guided_week_update', week, stepAction }) });
+      : { type: 'save_clarity_checkin', stepId: 'weekly_clarity', score, changed: previousScore !== null && score !== previousScore, note };
+    const saved = await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: week === 1 ? 'week_1_update' : 'guided_week_update', week, stepAction }) });
+    if (saved.ok !== true) throw new Error('Der Server hat das Speichern nicht bestätigt. Bitte versuche es erneut.');
     // Der Check-in ist das Eingangstor der gewählten Woche. Den Wochenmodus
     // deshalb vor dem Neuladen ausdrücklich beibehalten, damit eine mögliche
     // Score-Feier nicht zurück auf das Dashboard navigiert.
     todayMode = 'week';
     await loadProgram(week);
+    assertClarityPersisted(program, week, score);
     $('#clarityCheckinDialog').close();
     document.body.classList.remove('clarity-checkin-open');
     pendingClarityWeek = null;
@@ -1228,11 +1254,20 @@ async function saveWeeklyClarityCheckin() {
     await revealOpenedWeekWithClara();
     if (previousScore !== null && score > previousScore) {
       openClarityImprovement({ week, previousScore, score });
+    } else {
+      const feedback = clarityFeedback(week, previousScore, score);
+      toast(`${feedback.title} ${feedback.text}`);
     }
   } catch (error) {
     button.disabled = false;
     button.textContent = 'Klarheitsscore speichern & Woche starten →';
+    $('#clarityCheckinError').textContent = error.message || 'Dein Klarheitsscore konnte gerade nicht gespeichert werden. Bitte versuche es erneut.';
+    $('#clarityCheckinError').hidden = false;
     toast(error.message);
+  } finally {
+    claritySaveInFlight = false;
+    $$('#clarityCheckinScale button').forEach((item) => { item.disabled = false; });
+    $('#leaveClarityCheckin').disabled = false;
   }
 }
 
@@ -2081,19 +2116,23 @@ function renderInsights() {
 }
 
 function renderDocuments() {
-  const articles = $$('#documentList article');
-  if (program.onboardingComplete) { articles[0].classList.remove('locked'); articles[0].querySelector('small').textContent = 'Digital bestätigt'; articles[0].querySelector('i').textContent = 'Erledigt'; }
-  [[4, 1, 'Bereit'], [6, 2, 'Bereit'], [8, 3, 'Wird erzeugt']].forEach(([week, index, label]) => { if (program.access.completedWeeks.includes(week)) { articles[index].classList.remove('locked'); articles[index].querySelector('i').textContent = label; } });
-  $$('#documentList .customer-record-doc').forEach((item) => item.remove());
-  const documents = [...(customerWorkspace?.documents || [])];
-  const privacyDocumentId = program?.onboarding?.privacyDocumentId;
-  const commitmentDocumentId = program?.onboarding?.commitmentDocumentId;
-  if (privacyDocumentId && !documents.some((document) => document.id === privacyDocumentId)) documents.unshift({ id: privacyDocumentId, week: 0, document_type: 'privacy_consent', display_title: 'Datenschutzinformation & Einwilligung', source: 'system', visibility: 'customer', processing_status: 'ready' });
-  if (commitmentDocumentId && !documents.some((document) => document.id === commitmentDocumentId)) documents.unshift({ id: commitmentDocumentId, week: 0, document_type: 'start_commitment', display_title: 'Mein persönliches Commitment', source: 'system', visibility: 'customer', processing_status: 'ready' });
-  articles[0].classList.toggle('hidden', documents.some((document) => document.document_type === 'start_commitment'));
-  const official = (customerWorkspace?.contracts || []).flatMap((contract) => [{ title: contract.title || 'Vertragsdokument', ready: Boolean(contract.document_confirmed_at), label: 'Vertrag' }, { title: `Videovertrag · ${contract.title || 'Vertragsabschluss'}`, ready: Boolean(contract.video_contract_confirmed_at), label: 'Videovertrag' }]);
-  const uploaded = documents.map((document) => ({ title: document.display_title || document.original_file_name, ready: true, label: document.document_type === 'privacy_consent' ? 'Digital bestätigte Datenschutzeinwilligung' : document.document_type === 'start_commitment' ? 'Digital bestätigtes persönliches Commitment' : document.source === 'customer' ? 'Von dir hochgeladen' : 'Für dich bereitgestellt', document }));
-  $('#documentList').insertAdjacentHTML('beforeend', [...official, ...uploaded].map((item) => `<article class="customer-record-doc ${item.ready ? '' : 'locked'} ${item.document ? 'is-previewable' : ''}"${item.document ? ` data-document-preview data-document-id="${escapeHtml(item.document.id)}" data-document-title="${escapeHtml(item.title)}" data-document-file="${escapeHtml(item.document.original_file_name || `${item.title}.pdf`)}" data-document-mime="${escapeHtml(item.document.mime_type || 'application/pdf')}" tabindex="0" role="button" aria-haspopup="dialog"` : ''}><span>▤</span><div><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.label)}</small></div>${item.document ? '<button type="button" class="document-preview-open">Ansehen ↗</button>' : `<i>${item.ready ? 'Bestätigt' : 'Offen'}</i>`}</article>`).join(''));
+  $('#documentList').innerHTML = renderDocumentLibrary(buildDocumentLibrary(program, customerWorkspace));
+}
+
+let documentLibraryRefreshing = false;
+async function refreshDocumentLibrary() {
+  if (documentLibraryRefreshing) return;
+  documentLibraryRefreshing = true;
+  const status = $('#documentLibraryStatus');
+  status.hidden = false;
+  status.textContent = 'Deine Dokumente werden aktualisiert …';
+  try {
+    customerWorkspace = await request('/api/customer-records?action=overview');
+    renderDocuments();
+    status.hidden = true;
+  } catch {
+    status.textContent = 'Die Dokumente konnten gerade nicht aktualisiert werden. Öffne den Bereich erneut, um es noch einmal zu versuchen.';
+  } finally { documentLibraryRefreshing = false; }
 }
 
 function openDocumentPreviewFromElement(element) {
@@ -2149,10 +2188,13 @@ $$('#clarityCheckinScale [data-clarity-dialog-score]').forEach((button) => butto
     item.setAttribute('aria-pressed', String(selected));
   });
   $('#claritySelectedScore').textContent = String(selectedClarityScore);
+  const previousScore = clarityScoreBeforeWeek(pendingClarityWeek);
+  $('#clarityDeclineReason').hidden = previousScore === null || selectedClarityScore >= previousScore;
   $('#saveClarityCheckin').disabled = false;
 }));
 $('#saveClarityCheckin').addEventListener('click', saveWeeklyClarityCheckin);
 function leaveClarityCheckin() {
+  if (claritySaveInFlight) return;
   $('#clarityCheckinDialog').close();
   document.body.classList.remove('clarity-checkin-open');
   pendingClarityWeek = null;

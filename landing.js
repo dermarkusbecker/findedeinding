@@ -1,3 +1,118 @@
+const COOKIE_CONSENT_KEY = 'fdd-cookie-consent-v1';
+const COOKIE_CONSENT_VERSION = 1;
+const cookieConsent = document.querySelector('#cookieConsent');
+const cookieConsentSettings = document.querySelector('#cookieConsentSettings');
+const cookieAnalytics = document.querySelector('#cookieAnalytics');
+const cookieMarketing = document.querySelector('#cookieMarketing');
+let activeCookieConsent = readCookieConsent();
+let cookieConsentHideTimer = null;
+let cookieConsentTrigger = null;
+
+function normalizeCookieConsent(value) {
+  if (!value || value.version !== COOKIE_CONSENT_VERSION || typeof value.analytics !== 'boolean' || typeof value.marketing !== 'boolean') return null;
+  return { version: COOKIE_CONSENT_VERSION, necessary: true, analytics: value.analytics, marketing: value.marketing, decidedAt: value.decidedAt || null };
+}
+
+function readCookieConsent() {
+  try { return normalizeCookieConsent(JSON.parse(localStorage.getItem(COOKIE_CONSENT_KEY) || 'null')); }
+  catch { return null; }
+}
+
+function applyCookieConsent(consent) {
+  const preference = normalizeCookieConsent(consent) || { version: COOKIE_CONSENT_VERSION, necessary: true, analytics: false, marketing: false, decidedAt: null };
+  document.documentElement.dataset.analyticsConsent = preference.analytics ? 'granted' : 'denied';
+  document.documentElement.dataset.marketingConsent = preference.marketing ? 'granted' : 'denied';
+  if (typeof window.fbq === 'function') window.fbq('consent', preference.marketing ? 'grant' : 'revoke');
+  window.dispatchEvent(new CustomEvent('fdd:cookie-consent', { detail: { ...preference } }));
+}
+
+function cookieConsentAllows(category) {
+  return category === 'necessary' || Boolean(activeCookieConsent?.[category]);
+}
+
+function setCookieSettingsVisibility(visible) {
+  if (!cookieConsentSettings) return;
+  cookieConsentSettings.hidden = !visible;
+  document.querySelector('[data-cookie-settings-toggle]')?.setAttribute('aria-expanded', String(visible));
+  cookieConsent?.classList.toggle('has-settings', visible);
+}
+
+function showCookieConsent({ settings = false, trigger = null } = {}) {
+  if (!cookieConsent) return;
+  clearTimeout(cookieConsentHideTimer);
+  cookieConsentTrigger = trigger;
+  if (cookieAnalytics) cookieAnalytics.checked = Boolean(activeCookieConsent?.analytics);
+  if (cookieMarketing) cookieMarketing.checked = Boolean(activeCookieConsent?.marketing);
+  setCookieSettingsVisibility(settings);
+  cookieConsent.hidden = false;
+  requestAnimationFrame(() => {
+    cookieConsent.classList.add('is-visible');
+    if (trigger) cookieConsent.querySelector(settings ? '#cookieAnalytics' : '[data-cookie-choice="all"]')?.focus();
+  });
+}
+
+function hideCookieConsent() {
+  if (!cookieConsent) return;
+  cookieConsent.classList.remove('is-visible');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  cookieConsentHideTimer = window.setTimeout(() => {
+    cookieConsent.hidden = true;
+    cookieConsentTrigger?.focus();
+    cookieConsentTrigger = null;
+  }, reducedMotion ? 0 : 260);
+}
+
+function saveCookieConsent({ analytics = false, marketing = false } = {}) {
+  activeCookieConsent = { version: COOKIE_CONSENT_VERSION, necessary: true, analytics: Boolean(analytics), marketing: Boolean(marketing), decidedAt: new Date().toISOString() };
+  try { localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(activeCookieConsent)); } catch {}
+  applyCookieConsent(activeCookieConsent);
+  hideCookieConsent();
+}
+
+function revealCookieConsentIfNeeded() {
+  const url = new URL(window.location.href);
+  const settingsRequested = url.searchParams.get('cookie-settings') === '1';
+  if (!activeCookieConsent || settingsRequested) showCookieConsent({ settings: settingsRequested });
+  if (settingsRequested) {
+    url.searchParams.delete('cookie-settings');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  }
+}
+
+applyCookieConsent(activeCookieConsent);
+
+const siteLoader = document.querySelector('#siteLoader');
+let siteLoaderFinished = false;
+const finishSiteLoader = () => {
+  if (siteLoaderFinished) return;
+  siteLoaderFinished = true;
+  if (!siteLoader) {
+    document.body.classList.remove('site-loading');
+    revealCookieConsentIfNeeded();
+    return;
+  }
+  clearTimeout(window.__fddLoaderSlowTimer);
+  clearTimeout(window.__fddLoaderFailSafe);
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const startedAt = Number(window.__fddLoaderStartedAt) || performance.now();
+  const elapsed = performance.now() - startedAt;
+  const finishDelay = reducedMotion ? 0 : Math.max(0, 300 - elapsed);
+  window.setTimeout(() => {
+    siteLoader.classList.add('is-finishing');
+    const message = document.querySelector('#siteLoaderStatus');
+    if (message) message.textContent = 'Bereit. Dein Weg kann beginnen.';
+    window.setTimeout(() => {
+      siteLoader.classList.add('is-complete');
+      document.body.classList.remove('site-loading');
+      revealCookieConsentIfNeeded();
+      window.setTimeout(() => siteLoader.remove(), reducedMotion ? 120 : 600);
+    }, reducedMotion ? 0 : 420);
+  }, finishDelay);
+};
+
+if (document.readyState === 'complete') queueMicrotask(finishSiteLoader);
+else window.addEventListener('load', finishSiteLoader, { once: true });
+
 const params = new URLSearchParams(location.search);
 const form = document.querySelector('#leadForm');
 const status = document.querySelector('#formStatus');
@@ -6,13 +121,29 @@ const navigation = document.querySelector('.site-header nav');
 const navWrap = document.querySelector('.nav-wrap');
 const leadDialog = document.querySelector('#leadDialog');
 const claraDetailsDialog = document.querySelector('#claraDetailsDialog');
+const clarityDetailsDialog = document.querySelector('#clarityDetailsDialog');
 let leadDialogTrigger = null;
 let claraDetailsTrigger = null;
 let restoreClaraDetailsFocus = true;
+let clarityDetailsTrigger = null;
+let restoreClarityDetailsFocus = true;
 let publicLeadStep = 1;
 let publicSlotRangeStart = '';
 const publicLeadDraftKey = 'fdd-public-lead-draft-v1';
 let publicLeadDraftTimer = null;
+
+document.querySelectorAll('[data-cookie-choice]').forEach((button) => button.addEventListener('click', () => {
+  const choice = button.dataset.cookieChoice;
+  if (choice === 'all') saveCookieConsent({ analytics: true, marketing: true });
+  else if (choice === 'selection') saveCookieConsent({ analytics: cookieAnalytics?.checked, marketing: cookieMarketing?.checked });
+  else saveCookieConsent();
+}));
+document.querySelector('[data-cookie-settings-toggle]')?.addEventListener('click', (event) => {
+  const expanded = event.currentTarget.getAttribute('aria-expanded') === 'true';
+  setCookieSettingsVisibility(!expanded);
+  if (!expanded) requestAnimationFrame(() => cookieAnalytics?.focus());
+});
+document.querySelectorAll('[data-open-cookie-settings]').forEach((button) => button.addEventListener('click', () => showCookieConsent({ settings: true, trigger: button })));
 
 const openClaraDetails = (trigger = null) => {
   if (!claraDetailsDialog || claraDetailsDialog.open) return;
@@ -29,9 +160,25 @@ const closeClaraDetails = ({ restoreFocus = true } = {}) => {
   claraDetailsDialog.close();
 };
 
+const openClarityDetails = (trigger = null) => {
+  if (!clarityDetailsDialog || clarityDetailsDialog.open) return;
+  clarityDetailsTrigger = trigger;
+  restoreClarityDetailsFocus = true;
+  document.body.classList.add('lead-dialog-open');
+  clarityDetailsDialog.showModal();
+  requestAnimationFrame(() => clarityDetailsDialog.querySelector('[data-close-clarity-details]')?.focus());
+};
+
+const closeClarityDetails = ({ restoreFocus = true } = {}) => {
+  if (!clarityDetailsDialog?.open) return;
+  restoreClarityDetailsFocus = restoreFocus;
+  clarityDetailsDialog.close();
+};
+
 const openLeadDialog = (trigger = null) => {
   if (!leadDialog || leadDialog.open) return;
   closeClaraDetails({ restoreFocus: false });
+  closeClarityDetails({ restoreFocus: false });
   leadDialogTrigger = trigger;
   resetPublicLeadJourney();
   document.body.classList.add('lead-dialog-open');
@@ -76,6 +223,15 @@ claraDetailsDialog?.addEventListener('close', () => {
   claraDetailsTrigger = null;
   restoreClaraDetailsFocus = true;
 });
+document.querySelectorAll('[data-open-clarity-details]').forEach((trigger) => trigger.addEventListener('click', () => openClarityDetails(trigger)));
+document.querySelectorAll('[data-close-clarity-details]').forEach((trigger) => trigger.addEventListener('click', () => closeClarityDetails()));
+clarityDetailsDialog?.addEventListener('click', (event) => { if (event.target === clarityDetailsDialog) closeClarityDetails(); });
+clarityDetailsDialog?.addEventListener('close', () => {
+  if (!leadDialog?.open && !claraDetailsDialog?.open) document.body.classList.remove('lead-dialog-open');
+  if (restoreClarityDetailsFocus) clarityDetailsTrigger?.focus();
+  clarityDetailsTrigger = null;
+  restoreClarityDetailsFocus = true;
+});
 document.querySelectorAll('[data-close-lead-dialog]').forEach((button) => button.addEventListener('click', closeLeadDialog));
 leadDialog?.addEventListener('click', (event) => { if (event.target === leadDialog) closeLeadDialog(); });
 leadDialog?.addEventListener('close', () => {
@@ -119,6 +275,60 @@ document.querySelectorAll('.process-tab').forEach((button) => button.addEventLis
   document.querySelector('#processOutcome').textContent = outcome;
   replayPanel(document.querySelector('.process-preview'));
 }));
+
+const clarityStoryContent = {
+  1: ['Deine Ausgangslage wird ehrlich sichtbar – ohne dass du heute schon eine Lösung kennen musst.', 'Dein Startwert'],
+  2: ['Erste Zusammenhänge geben Orientierung: Du erkennst, welche Fähigkeiten und Bedingungen wirklich zu dir passen.', '+2 Punkte seit deinem Start'],
+  3: ['Ein niedrigerer Wert ist kein Rückschritt. Neue Erkenntnisse können zunächst mehr Fragen öffnen – und genau das macht den Prozess ehrlich.', '+1 Punkt seit deinem Start'],
+  4: ['Wiederkehrende Muster werden greifbar. Du kannst klarer benennen, was dir Energie gibt und was dir fehlt.', '+3 Punkte seit deinem Start'],
+  5: ['Deine Werte werden zu konkreten Kriterien. Möglichkeiten lassen sich dadurch bewusster vergleichen.', '+3 Punkte seit deinem Start'],
+  6: ['Mehr Klarheit heißt: Du kannst deine Optionen jetzt an deinen eigenen Kriterien prüfen.', '+4 Punkte seit deinem Start'],
+  7: ['Deine Favoriten sind nicht mehr nur Ideen. Du kannst begründen, welche Richtung wirklich zu dir passt.', '+5 Punkte seit deinem Start'],
+  8: ['Die Richtung steht. Jetzt wird aus deiner Klarheit ein konkreter 90-Tage-Plan.', '+4 Punkte seit deinem Start'],
+};
+const clarityClaraPrompts = [
+  'Was soll nach diesen acht Wochen für dich klarer sein?',
+  'Wann hast du dich zuletzt am richtigen Platz gefühlt – und warum?',
+  'Welche neue Frage verunsichert dich gerade? Lass uns sie einzeln betrachten.',
+  'Welche Tätigkeiten geben dir Energie? Was wiederholt sich in deinen Antworten?',
+  'Was muss eine Richtung erfüllen, damit sie zu deinen Werten passt?',
+  'Welche deiner Optionen erfüllt diese Kriterien – und was möchtest du noch prüfen?',
+  'Woran würdest du im Alltag merken, dass diese Richtung zu dir passt?',
+  'Welcher erste Schritt macht deine Richtung im Alltag konkret?',
+];
+const activateClarityWeek = (button) => {
+  const week = Number(button.dataset.clarityWeek);
+  const score = Number(button.dataset.score);
+  const content = clarityStoryContent[week];
+  if (!content) return;
+  document.querySelectorAll('[data-clarity-week]').forEach((item) => {
+    item.classList.toggle('active', item === button);
+    item.setAttribute('aria-pressed', String(item === button));
+  });
+  document.querySelectorAll('[data-clarity-point]').forEach((point) => point.setAttribute('aria-pressed', String(Number(point.dataset.clarityPoint) === week)));
+  document.querySelectorAll('.clarity-story-points circle').forEach((point, index) => {
+    point.classList.toggle('current', index === week - 1);
+    point.setAttribute('r', index === week - 1 ? '9' : '7');
+  });
+  document.querySelector('#clarityStoryScore').textContent = String(score);
+  document.querySelector('#clarityStoryWeek').textContent = `WOCHE ${week} · DEIN MESSPUNKT`;
+  document.querySelector('#clarityStoryInsight').textContent = content[0];
+  document.querySelector('#clarityStoryDelta').textContent = content[1];
+  document.querySelector('#clarityClaraPrompt').textContent = clarityClaraPrompts[week - 1];
+  replayPanel(document.querySelector('.clarity-week-insight'));
+};
+document.querySelectorAll('[data-clarity-week]').forEach((button) => button.addEventListener('click', () => activateClarityWeek(button)));
+document.querySelectorAll('[data-clarity-week]').forEach((button) => button.setAttribute('aria-pressed', String(button.classList.contains('active'))));
+document.querySelectorAll('[data-clarity-point]').forEach((point) => {
+  const selectPoint = () => activateClarityWeek(document.querySelector(`[data-clarity-week="${point.dataset.clarityPoint}"]`));
+  point.addEventListener('click', selectPoint);
+  point.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      selectPoint();
+    }
+  });
+});
 
 const claraContent = {
   memory: ['Was würde sich in deinem Leben verändern, wenn dieser Wunsch erfüllt wäre?', 'Ich hätte wieder das Gefühl, meine Zeit für etwas zu nutzen, das mir wirklich wichtig ist.', 'MUSTER FESTGEHALTEN', 'Sinn · Selbstbestimmung · Wirkung'],
@@ -307,7 +517,7 @@ form.addEventListener('submit', async (event) => {
     clearTimeout(publicLeadDraftTimer);
     try { localStorage.removeItem(publicLeadDraftKey); } catch {}
     status.textContent = '';
-    if (window.fbq) window.fbq('track', 'Lead');
+    if (cookieConsentAllows('marketing') && typeof window.fbq === 'function') window.fbq('track', 'Lead');
   } catch (error) { status.textContent = error.message || 'Das hat nicht geklappt. Bitte versuche es erneut.'; status.className = 'form-status error'; }
   finally { button.disabled = false; }
 });

@@ -47,7 +47,10 @@ test('digital erzeugte Onboarding-Dokumente bleiben direkt in der Kunden-Dokumen
   const [client, privacyStorage, commitmentStorage, sharedStorage, customerRecords] = await Promise.all([file('portal.js'), file('lib/privacy-consent.js'), file('lib/start-commitment.js'), file('lib/generated-document-storage.js'), file('lib/customer-records-service.js')]);
   assert.match(client, /program\?\.onboarding\?\.privacyDocumentId/);
   assert.match(client, /program\?\.onboarding\?\.commitmentDocumentId/);
-  assert.match(client, /Digital bestätigte Datenschutzeinwilligung/);
+  const { buildDocumentLibrary } = await import('../lib/document-library.js');
+  const library = buildDocumentLibrary({ onboarding: { privacyDocumentId: 'privacy', commitmentDocumentId: 'commitment' } }, {});
+  assert.equal(library.groups[0].documents[0].id, 'privacy');
+  assert.equal(library.groups[1].documents[0].id, 'commitment');
   assert.match(client, /adminPreviewUrl\(`\/api\/customer-records\?action=document-download/);
   assert.match(privacyStorage, /storeGeneratedParticipantDocument/);
   assert.match(commitmentStorage, /storeGeneratedParticipantDocument/);
