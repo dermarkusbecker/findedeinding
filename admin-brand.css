@@ -218,3 +218,6 @@ dialog::backdrop { background: #0a263e66; backdrop-filter: blur(6px); }
 .eyebrow, .sidebar nav p, .metrics article div b, .note, .communication-metrics small, .week-row span, .week-counts i {
   font-family: 'DM Mono', ui-monospace, monospace;
 }
+
+.crm-demoBadge { display:inline-flex; vertical-align:middle; align-items:center; margin-left:8px; padding:3px 7px; border:1px solid #edb88f; border-radius:6px; background:#fff0e4; color:#93441e; font:700 9px/1.4 Manrope,sans-serif; letter-spacing:.07em; white-space:nowrap; }
+#openDemoCustomer { background:#fff4eb; border-color:#eab990; color:#88451f; }
