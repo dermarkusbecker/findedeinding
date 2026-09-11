@@ -979,38 +979,44 @@ main > header .header-clarity { color: rgba(225, 240, 247, .78); font-size: 10px
 @media(max-width:600px){.demo-week-step summary{flex-wrap:wrap;gap:8px}.demo-week-step summary small{flex-basis:100%;padding-left:26px}.demo-week-step>div{padding-left:18px}.demo-week-step ul{columns:1}.demo-week-nav{gap:4px}.demo-week-nav button{font-size:10px}}
 
 /* Larger, luminous motivator selection, independent of sidebar styling. */
-#activeWeek .motivator-priority{border:1px solid #77d9e161;border-radius:24px;background:radial-gradient(ellipse at 0 0,#257c9138,transparent 65%),#092635;box-shadow:0 0 42px #52c9d012,0 20px 60px #0003}
-#activeWeek .motivator-priority>header{position:static;inset:auto;height:auto;min-height:0;margin:0;padding:32px;border:0;border-bottom:1px solid #81d9e138;border-radius:0;background:linear-gradient(115deg,#174c60,#0d3043);backdrop-filter:none;box-shadow:none}
-#activeWeek .motivator-priority>header h3{color:#f2fbff;font-size:clamp(30px,3.8vw,48px);line-height:1.12;letter-spacing:-.04em;text-shadow:0 0 26px #8ee1e61a}
-#activeWeek .motivator-priority>header p:not(.eyebrow){color:#c4dfe9;font-size:15px;line-height:1.7;max-width:850px}
-#activeWeek .motivator-priority>header .eyebrow{color:#ffb781;font-size:12px;letter-spacing:.16em}
-#activeWeek #motivatorSelectionCount{font-size:14px;color:#ffcb9e;border-color:#ffb78166;padding:12px 16px;background:#ffab6514;box-shadow:0 0 20px #ffab6510}
-#activeWeek #motivatorSelectionCount.complete{color:#a3ffe0;border-color:#82e4c199;background:#64d9aa1a}
-#activeWeek .motivator-priority-board{grid-template-columns:minmax(0,1.4fr) minmax(320px,1fr);border-color:#8cc9d52b}
-#activeWeek .motivator-choice-panel,#activeWeek .motivator-ranking-panel{padding:28px;min-width:0}
-#activeWeek .motivator-ranking-panel{display:block;position:static;width:auto;height:auto;min-height:0;inset:auto;margin:0;grid-template-columns:none;background:linear-gradient(160deg,#143e4d,#0a2938);border:0;border-left:1px solid #82d9ce30;box-shadow:none}
-#activeWeek .motivator-panel-title{flex-wrap:wrap;gap:8px;margin-bottom:20px}
-#activeWeek .motivator-panel-title b{color:#f1faff;font-size:18px}
-#activeWeek .motivator-panel-title small{color:#a4c8d6;font-size:12px}
-#activeWeek .motivator-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-#activeWeek .motivator-choice-grid button{min-height:62px;padding:15px 16px;gap:12px;font-size:16px;line-height:1.35;overflow-wrap:anywhere;color:#eafaff;border:1px solid #78d4e254;border-radius:13px;background:linear-gradient(135deg,#1b5269,#113548);box-shadow:inset 0 1px 0 #ffffff0c,0 3px 12px #0002;transition:transform .2s,box-shadow .2s,border-color .2s}
-#activeWeek .motivator-choice-grid button>span{flex:0 0 26px;height:26px;width:26px;font-size:17px;color:#99eaf0;background:#6ad3df14;border-color:#83dbe15c}
-#activeWeek .motivator-choice-grid button:hover{border-color:#a1edf1;box-shadow:0 0 22px #79dbe526;transform:translateY(-2px)}
-#activeWeek .motivator-choice-grid button.selected{color:#fff5e8;border-color:#ffb87f;background:linear-gradient(125deg,#805031,#3e3840);box-shadow:0 0 22px #ffa56329,inset 0 1px 0 #ffdbb833}
-#activeWeek .motivator-choice-grid button.selected>span{color:#18372f;background:#9aead0;border-color:#b1ffe7;box-shadow:0 0 12px #80f0c344}
-#activeWeek #motivatorRanking li{min-height:74px;padding:14px 12px;gap:12px;background:linear-gradient(120deg,#204f59,#123443);border-color:#8ee4d75e}
-#activeWeek #motivatorRanking li>span{color:#f1fcff;font-size:16px;overflow-wrap:anywhere}
-#activeWeek #motivatorRanking li>b{color:#ffcb98;background:#ffc08716;font-size:18px;height:38px}
-#activeWeek #motivatorRanking button{width:34px;height:38px;font-size:18px;color:#c9f6ed;background:#83d8cf10;border-color:#8cded74d}
-#activeWeek .motivator-ranking-empty{min-height:230px;border-color:#8ee1d64f;background:#82d8ca05;color:#8be5d6}
-#activeWeek .motivator-ranking-empty p{color:#c1dedf;font-size:14px}
-#activeWeek .motivator-priority>footer{padding:24px 28px;gap:18px;background:#0a2636;border-top:1px solid #81d9ce26}
-#activeWeek .motivator-priority>footer p{color:#c8e2ea;font-size:14px}
-#activeWeek #saveMotivatorPriority{min-height:56px;font-size:16px;padding:16px 22px}
-#activeWeek #saveMotivatorPriority:disabled{opacity:.5;box-shadow:none;cursor:not-allowed}
-#activeWeek .motivator-choice-grid button:focus-visible,#activeWeek #motivatorRanking button:focus-visible{outline:3px solid #aff8ea;outline-offset:3px}
-@media(min-width:1450px){#activeWeek .motivator-choice-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:1100px){#activeWeek .motivator-priority-board{grid-template-columns:1fr}#activeWeek .motivator-ranking-panel{border-left:0;border-top:1px solid #82d9ce30}#activeWeek .motivator-choice-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:650px){#activeWeek .motivator-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}#activeWeek .motivator-priority>header{padding:24px 18px}#activeWeek .motivator-choice-panel,#activeWeek .motivator-ranking-panel{padding:20px 16px}#activeWeek .motivator-choice-grid button{font-size:14px;padding:13px 10px;gap:8px;min-height:60px}#activeWeek .motivator-priority>footer{padding:20px 16px}#activeWeek #saveMotivatorPriority{width:100%}}
-@media(max-width:380px){#activeWeek .motivator-choice-grid{grid-template-columns:1fr}}
-@media(prefers-reduced-motion:reduce){#activeWeek .motivator-choice-grid button{transition:none}#activeWeek .motivator-choice-grid button:hover{transform:none}}
+:is(#activeWeek,#stepReviewDialog) .motivator-priority{border:1px solid #77d9e161;border-radius:24px;background:radial-gradient(ellipse at 0 0,#257c9138,transparent 65%),#092635;box-shadow:0 0 42px #52c9d012,0 20px 60px #0003}
+:is(#activeWeek,#stepReviewDialog) .motivator-priority>header{position:static;inset:auto;height:auto;min-height:0;margin:0;padding:32px;border:0;border-bottom:1px solid #81d9e138;border-radius:0;background:linear-gradient(115deg,#174c60,#0d3043);backdrop-filter:none;box-shadow:none}
+:is(#activeWeek,#stepReviewDialog) .motivator-priority>header h3{color:#f2fbff;font-size:clamp(30px,3.8vw,48px);line-height:1.12;letter-spacing:-.04em;text-shadow:0 0 26px #8ee1e61a}
+:is(#activeWeek,#stepReviewDialog) .motivator-priority>header p:not(.eyebrow){color:#c4dfe9;font-size:15px;line-height:1.7;max-width:850px}
+:is(#activeWeek,#stepReviewDialog) .motivator-priority>header .eyebrow{color:#ffb781;font-size:12px;letter-spacing:.16em}
+:is(#activeWeek,#stepReviewDialog) #motivatorSelectionCount{font-size:14px;color:#ffcb9e;border-color:#ffb78166;padding:12px 16px;background:#ffab6514;box-shadow:0 0 20px #ffab6510}
+:is(#activeWeek,#stepReviewDialog) #motivatorSelectionCount.complete{color:#a3ffe0;border-color:#82e4c199;background:#64d9aa1a}
+:is(#activeWeek,#stepReviewDialog) .motivator-priority-board{grid-template-columns:minmax(0,1.4fr) minmax(320px,1fr);border-color:#8cc9d52b}
+:is(#activeWeek,#stepReviewDialog) .motivator-choice-panel,:is(#activeWeek,#stepReviewDialog) .motivator-ranking-panel{padding:28px;min-width:0}
+:is(#activeWeek,#stepReviewDialog) .motivator-ranking-panel{display:block;position:static;width:auto;height:auto;min-height:0;inset:auto;margin:0;grid-template-columns:none;background:linear-gradient(160deg,#143e4d,#0a2938);border:0;border-left:1px solid #82d9ce30;box-shadow:none}
+:is(#activeWeek,#stepReviewDialog) .motivator-panel-title{flex-wrap:wrap;gap:8px;margin-bottom:20px}
+:is(#activeWeek,#stepReviewDialog) .motivator-panel-title b{color:#f1faff;font-size:18px}
+:is(#activeWeek,#stepReviewDialog) .motivator-panel-title small{color:#a4c8d6;font-size:12px}
+:is(#activeWeek,#stepReviewDialog) .motivator-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+:is(#activeWeek,#stepReviewDialog) .motivator-choice-grid button{min-height:62px;padding:15px 16px;gap:12px;font-size:16px;line-height:1.35;overflow-wrap:anywhere;color:#eafaff;border:1px solid #78d4e254;border-radius:13px;background:linear-gradient(135deg,#1b5269,#113548);box-shadow:inset 0 1px 0 #ffffff0c,0 3px 12px #0002;transition:transform .2s,box-shadow .2s,border-color .2s}
+:is(#activeWeek,#stepReviewDialog) .motivator-choice-grid button>span{flex:0 0 26px;height:26px;width:26px;font-size:17px;color:#99eaf0;background:#6ad3df14;border-color:#83dbe15c}
+:is(#activeWeek,#stepReviewDialog) .motivator-choice-grid button:hover{border-color:#a1edf1;box-shadow:0 0 22px #79dbe526;transform:translateY(-2px)}
+:is(#activeWeek,#stepReviewDialog) .motivator-choice-grid button.selected{color:#fff5e8;border-color:#ffb87f;background:linear-gradient(125deg,#805031,#3e3840);box-shadow:0 0 22px #ffa56329,inset 0 1px 0 #ffdbb833}
+:is(#activeWeek,#stepReviewDialog) .motivator-choice-grid button.selected>span{color:#18372f;background:#9aead0;border-color:#b1ffe7;box-shadow:0 0 12px #80f0c344}
+:is(#activeWeek,#stepReviewDialog) #motivatorRanking li{min-height:74px;padding:14px 12px;gap:12px;background:linear-gradient(120deg,#204f59,#123443);border-color:#8ee4d75e}
+:is(#activeWeek,#stepReviewDialog) #motivatorRanking li>span{color:#f1fcff;font-size:16px;overflow-wrap:anywhere}
+:is(#activeWeek,#stepReviewDialog) #motivatorRanking li>b{color:#ffcb98;background:#ffc08716;font-size:18px;height:38px}
+:is(#activeWeek,#stepReviewDialog) #motivatorRanking button{width:34px;height:38px;font-size:18px;color:#c9f6ed;background:#83d8cf10;border-color:#8cded74d}
+:is(#activeWeek,#stepReviewDialog) .motivator-ranking-empty{min-height:230px;border-color:#8ee1d64f;background:#82d8ca05;color:#8be5d6}
+:is(#activeWeek,#stepReviewDialog) .motivator-ranking-empty p{color:#c1dedf;font-size:14px}
+:is(#activeWeek,#stepReviewDialog) .motivator-priority>footer{padding:24px 28px;gap:18px;background:#0a2636;border-top:1px solid #81d9ce26}
+:is(#activeWeek,#stepReviewDialog) .motivator-priority>footer p{color:#c8e2ea;font-size:14px}
+:is(#activeWeek,#stepReviewDialog) #saveMotivatorPriority{min-height:56px;font-size:16px;padding:16px 22px}
+:is(#activeWeek,#stepReviewDialog) #saveMotivatorPriority:disabled{opacity:.5;box-shadow:none;cursor:not-allowed}
+:is(#activeWeek,#stepReviewDialog) .motivator-choice-grid button:focus-visible,:is(#activeWeek,#stepReviewDialog) #motivatorRanking button:focus-visible{outline:3px solid #aff8ea;outline-offset:3px}
+@media(min-width:1450px){:is(#activeWeek,#stepReviewDialog) .motivator-choice-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:1100px){:is(#activeWeek,#stepReviewDialog) .motivator-priority-board{grid-template-columns:1fr}:is(#activeWeek,#stepReviewDialog) .motivator-ranking-panel{border-left:0;border-top:1px solid #82d9ce30}:is(#activeWeek,#stepReviewDialog) .motivator-choice-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:650px){:is(#activeWeek,#stepReviewDialog) .motivator-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}:is(#activeWeek,#stepReviewDialog) .motivator-priority>header{padding:24px 18px}:is(#activeWeek,#stepReviewDialog) .motivator-choice-panel,:is(#activeWeek,#stepReviewDialog) .motivator-ranking-panel{padding:20px 16px}:is(#activeWeek,#stepReviewDialog) .motivator-choice-grid button{font-size:14px;padding:13px 10px;gap:8px;min-height:60px}:is(#activeWeek,#stepReviewDialog) .motivator-priority>footer{padding:20px 16px}:is(#activeWeek,#stepReviewDialog) #saveMotivatorPriority{width:100%}}
+@media(max-width:380px){:is(#activeWeek,#stepReviewDialog) .motivator-choice-grid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){:is(#activeWeek,#stepReviewDialog) .motivator-choice-grid button{transition:none}:is(#activeWeek,#stepReviewDialog) .motivator-choice-grid button:hover{transform:none}}
+
+#stepReviewDialog.is-editing-motivators{width:min(1200px,calc(100% - 24px));max-width:1200px;background:#092635;color:#edf7fb}
+#stepReviewDialog.is-editing-motivators .step-review-shell{background:#092635;color:#edf7fb}
+#stepReviewDialog.is-editing-motivators .step-review-content{background:transparent;padding:0;border:0}
+#stepReviewDialog [data-edit-motivators]{margin-top:18px;min-height:48px;padding:12px 26px}
+#stepReviewDialog.is-editing-motivators .step-review-head h2,#stepReviewDialog.is-editing-motivators .step-review-question{color:#eef9fc}

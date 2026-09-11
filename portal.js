@@ -1515,7 +1515,29 @@ function openStepReview(stepId) {
     : step.status === 'in_progress'
       ? 'Die Bearbeitung dieses Schritts erfolgt weiterhin im Dialog mit Clara. Diese Detailansicht verändert keine Inhalte.'
       : 'Dieser Schritt ist noch nicht an der Reihe. Du kannst bereits sehen, was dich erwartet.';
-  $('#stepReviewDialog').showModal();
+  const dialog = $('#stepReviewDialog');
+  dialog.classList.remove('is-editing-motivators');
+  dialog.querySelector('[data-edit-motivators]')?.remove();
+  const canEdit = currentWeek === 3 && stepId === 'motivators' && completed && !weekIsFinalized() && program.weekState?.status !== 'completed' && !program.weekState?.completed_at && Number(program.access.processWeek) === currentWeek && program.access.status !== 'paused';
+  if (canEdit) {
+    $('#stepReviewEyebrow').textContent = 'Woche 3 · Schritt gespeichert';
+    $('#stepReviewStatus').textContent = '✓ Gespeichert · noch änderbar';
+    $('#stepReviewLock').textContent = 'Du kannst deine Top 5 und ihre Reihenfolge ändern, bis du diese Woche abschließt.';
+    $('#stepReviewLock').insertAdjacentHTML('afterend', '<button type="button" class="primary" data-edit-motivators>Ändern</button>');
+    dialog.querySelector('[data-edit-motivators]').addEventListener('click', () => {
+      dialog.classList.add('is-editing-motivators');
+      dialog.querySelector('[data-edit-motivators]').remove();
+      const target = guidedWeekDefinition(3).steps.find((item) => item.id === 'motivators');
+      renderMotivatorPrioritySelection($('#stepReviewContent'), target, { editing: true, onSave: async (items) => {
+        const result = await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'guided_week_update', week: 3, stepAction: { type: 'correct_answer', stepId: 'motivators', items } }) });
+        if (result.ok !== true) throw new Error('Das Speichern wurde nicht bestätigt. Bitte versuche es erneut.');
+        await loadProgram(3);
+        openStepReview('motivators');
+        toast('Deine Top 5 wurden aktualisiert.');
+      } });
+    });
+  }
+  if (!dialog.open) dialog.showModal();
 }
 
 function stepTaskMarkup(step) {
@@ -1806,12 +1828,12 @@ async function updateGuidedWeek(stepAction) {
   } catch (error) { finishClaraTurn(); toast(error.message); }
 }
 
-function renderMotivatorPrioritySelection(flow, active) {
+function renderMotivatorPrioritySelection(flow, active, { editing = false, onSave = null } = {}) {
   const draftKey = `${active.id}:priority`;
   const availableDraft = { ...(local.drafts[currentWeek] || {}), ...(program?.weekDraft || {}) };
   let selected = [];
   try {
-    const parsed = JSON.parse(availableDraft[draftKey] || '[]');
+    const parsed = editing ? (program.weekState.answers[active.id]?.items || []) : JSON.parse(availableDraft[draftKey] || '[]');
     if (Array.isArray(parsed)) selected = parsed.filter((item) => MOTIVATOR_OPTIONS.includes(item)).slice(0, 5);
   } catch {}
   selected = [...new Set(selected)];
@@ -1823,7 +1845,7 @@ function renderMotivatorPrioritySelection(flow, active) {
   const hint = flow.querySelector('#motivatorSelectionHint');
   const save = flow.querySelector('#saveMotivatorPriority');
   let draggedIndex = null;
-  const persistSelection = () => queueDraftValue(draftKey, JSON.stringify(selected));
+  const persistSelection = () => { if (!editing) queueDraftValue(draftKey, JSON.stringify(selected)); };
   const renderSelection = () => {
     choiceGrid.innerHTML = MOTIVATOR_OPTIONS.map((motivator) => `<button type="button" class="${selected.includes(motivator) ? 'selected' : ''}" data-motivator-choice="${escapeHtml(motivator)}" aria-pressed="${selected.includes(motivator)}"><span>${selected.includes(motivator) ? '✓' : '+'}</span>${escapeHtml(motivator)}</button>`).join('');
     ranking.innerHTML = selected.map((motivator, index) => `<li draggable="true" data-motivator-rank="${index}"><b>${index + 1}</b><span>${escapeHtml(motivator)}</span><div><button type="button" data-rank-up="${index}" aria-label="${escapeHtml(motivator)} höher priorisieren" ${index === 0 ? 'disabled' : ''}>↑</button><button type="button" data-rank-down="${index}" aria-label="${escapeHtml(motivator)} niedriger priorisieren" ${index === selected.length - 1 ? 'disabled' : ''}>↓</button><button type="button" data-rank-remove="${index}" aria-label="${escapeHtml(motivator)} entfernen">×</button></div></li>`).join('');
@@ -1868,7 +1890,17 @@ function renderMotivatorPrioritySelection(flow, active) {
       });
     });
   };
-  save.addEventListener('click', () => updateGuidedWeek({ type: 'save_answer', stepId: active.id, answer: selected.map((item, index) => `${index + 1}. ${item}`).join('\n'), items: selected }));
+  if (editing) save.textContent = 'Änderungen speichern →';
+  save.addEventListener('click', async () => {
+    if (selected.length !== 5 || save.disabled) return;
+    if (!onSave) { updateGuidedWeek({ type: 'save_answer', stepId: active.id, answer: selected.map((item, index) => `${index + 1}. ${item}`).join('\n'), items: selected }); return; }
+    const snapshot = [...selected];
+    flow.inert = true;
+    save.disabled = true;
+    try { await onSave(snapshot); }
+    catch (error) { hint.textContent = error.message || 'Die Änderung konnte nicht gespeichert werden.'; }
+    finally { flow.inert = false; save.disabled = false; }
+  });
   renderSelection();
 }
 
