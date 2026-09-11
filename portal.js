@@ -1,3 +1,4 @@
+import { buildDemoWeekPreview } from './lib/demo-week-preview.js';
 import { buildDocumentLibrary, renderDocumentLibrary } from './lib/document-library.js';
 import { journeyStepStatuses, weekOnePrompt } from './lib/week-one.js';
 import { currentGuidedStep, guidedClarityStep, guidedStepStatuses, guidedWeekDefinition, MOTIVATOR_OPTIONS, needsGuidedClarityCheckin } from './lib/guided-weeks.js';
@@ -1272,6 +1273,7 @@ async function saveWeeklyClarityCheckin() {
 }
 
 async function openWeek(week) {
+  if (program?.access?.fullProgramAccess && Number(week) !== Number(program.access.processWeek)) { openDemoWeek(week); return; }
   try {
     claraEntranceLoading = false;
     todayMode = 'week';
@@ -1293,7 +1295,32 @@ function formatProgramDate(value) {
   return new Date(`${value}T12:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function openDemoWeek(week) {
+  const preview = buildDemoWeekPreview(program, week);
+  if (!preview) return;
+  let dialog = $('#demoWeekDialog');
+  if (!dialog) {
+    document.body.insertAdjacentHTML('beforeend', '<dialog id="demoWeekDialog" class="demo-week-dialog" aria-labelledby="demoWeekTitle"><div class="demo-week-shell"><button type="button" class="demo-week-close" aria-label="Demo-Ansicht schließen">×</button><p class="eyebrow">DEMO · ALLE WOCHEN ENTDECKEN</p><nav class="demo-week-nav" aria-label="Demo-Woche wählen"></nav><h2 id="demoWeekTitle" tabindex="-1"></h2><p id="demoWeekDescription"></p><p class="demo-week-note">Hier kannst du alle Inhalte ansehen. Deine Antworten und dein Fortschritt bleiben unverändert. Zum Bearbeiten startest du deine aktuelle Woche auf der Übersicht.</p><div id="demoWeekSteps"></div></div></dialog>');
+    dialog = $('#demoWeekDialog');
+    dialog.querySelector('.demo-week-close').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close();
+      const button = event.target.closest('[data-demo-week]');
+      if (button) openDemoWeek(Number(button.dataset.demoWeek));
+    });
+  }
+  dialog.querySelector('.demo-week-nav').innerHTML = Array.from({ length: 8 }, (_, index) => `<button type="button" data-demo-week="${index + 1}" aria-pressed="${index + 1 === preview.week}">W${index + 1}</button>`).join('');
+  $('#demoWeekTitle').textContent = `Woche ${preview.week} · ${preview.title}`;
+  $('#demoWeekDescription').textContent = preview.description;
+  const kinds = { upload: 'Dokument hochladen', external: 'Begleitete Übung / Auswertung', scale: 'Deine Einschätzung', priority_selection: 'Auswählen und priorisieren' };
+  $('#demoWeekSteps').innerHTML = preview.steps.map((step, index) => `<details class="demo-week-step"${index === 0 ? ' open' : ''}><summary><span>${String(index + 1).padStart(2, '0')}</span><strong>${escapeHtml(step.title || step.label)}</strong><small>${kinds[step.kind] || 'Reflexion mit Clara'}</small></summary><div><p>${escapeHtml(step.question || 'Deine Ergebnisse werden gemeinsam reflektiert.')}</p>${step.options?.length ? `<ul>${step.options.map((option) => `<li>${escapeHtml(option)}</li>`).join('')}</ul>` : ''}${step.minItems ? `<small>Mindestens ${step.minItems} Punkte${step.maxItems ? ` · höchstens ${step.maxItems}` : ''}</small>` : ''}</div></details>`).join('');
+  if (!dialog.open) dialog.showModal();
+  dialog.scrollTop = 0;
+  $('#demoWeekTitle').focus({ preventScroll: true });
+}
+
 function openWeekPreview(week) {
+  if (buildDemoWeekPreview(program, week)) { openDemoWeek(week); return; }
   const journeyWeek = buildJourneyWeeks(program).find((item) => item.week === Number(week));
   const summary = journeyWeek?.summary;
   const state = journeyWeek;
@@ -1567,7 +1594,7 @@ function renderProgramDashboard() {
   $('#dashboardStatusBadge').textContent = program.access.status === 'paused' ? 'Programm pausiert' : completed === 8 ? 'Programm abgeschlossen' : program.access.fullProgramAccess ? 'Demo-Modus · alle Wochen offen' : activeAccessible ? 'Programm aktiv' : 'Nächste Woche noch gesperrt';
   $('#dashboardCurrentNumber').textContent = String(activeWeek).padStart(2, '0');
   $('#dashboardCurrentTitle').textContent = activeSummary?.title || 'Deine aktuelle Woche';
-  $('#dashboardCurrentCopy').textContent = activeSummary ? activeAccessible ? program.access.fullProgramAccess ? `${activeSummary.mode} · Im Demo-Modus kannst du nach dem Abschluss direkt mit der nächsten Woche weitermachen.` : `${activeSummary.mode} · Diese Woche ist entsprechend deinem persönlichen Zeitplan freigeschaltet.` : `${activeSummary.mode} · Öffnet am ${formatProgramDate(activeState?.unlocksAt)}. Bis dahin bleibt der Bereich gesperrt.` : 'Dein nächster Bereich wird vorbereitet.';
+  $('#dashboardCurrentCopy').textContent = activeSummary ? activeAccessible ? program.access.fullProgramAccess ? `${activeSummary.mode} · Im Demo-Modus kannst du alle acht Wochen anklicken und ihre Fragen und Aufgaben ansehen.` : `${activeSummary.mode} · Diese Woche ist entsprechend deinem persönlichen Zeitplan freigeschaltet.` : `${activeSummary.mode} · Öffnet am ${formatProgramDate(activeState?.unlocksAt)}. Bis dahin bleibt der Bereich gesperrt.` : 'Dein nächster Bereich wird vorbereitet.';
   $('#dashboardStartDate').textContent = formatProgramDate(program.access.programStartDate);
   $('#dashboardEndDate').textContent = formatProgramDate(program.access.programEndDate);
   $('#dashboardNextDate').textContent = nextState ? `Woche ${nextState.week} · ${formatProgramDate(nextState.unlocksAt)}` : 'Alle Wochen freigeschaltet';
