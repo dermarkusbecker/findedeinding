@@ -716,3 +716,6 @@ body.site-loading{overflow:hidden}
 .clarity-story-weeks button[data-score="10"].active{border-color:#f3c466;background:linear-gradient(145deg,#dfab3429,#153c47);color:#ffe3a1}
 @keyframes clarityTrophyArrive{0%{opacity:0;transform:translateY(9px) scale(.5) rotate(-12deg)}70%{opacity:1;transform:translateY(-3px) scale(1.1) rotate(5deg)}100%{opacity:1;transform:translateY(0) scale(1) rotate(0)}}
 @media(prefers-reduced-motion:reduce){.clarity-story-board.visible .clarity-trophy-icon{animation:none;opacity:1}}
+
+/* AI emphasis in the hero wordmark. */
+.hero h1 .hero-ai{color:#8ee1e6;text-shadow:0 0 24px rgba(104,218,229,.25)}
