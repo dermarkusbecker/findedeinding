@@ -1,3 +1,4 @@
+import { handleCrmTasks } from '../lib/crm-tasks.js';
 import { dashboardClarity } from '../lib/dashboard-clarity.js';
 import { checkIntegrationHealth, applyIntegrationHealth } from '../lib/integration-health.js';
 import {beginRecording,prepareRecordingUpload,completeRecordingUpload} from '../lib/contract-recording-service.js';
@@ -257,7 +258,7 @@ async function commandDashboard(service, admin) {
   overdueGates.forEach((gate) => { const list = gatesByParticipant.get(gate.user_profile_id) || []; list.push(gate); gatesByParticipant.set(gate.user_profile_id, list); });
   gatesByParticipant.forEach((gates, profileId) => { const profile = profileMap.get(profileId), progress = progressMap.get(profileId), access = accessMap.get(profileId); attention.push({ id: `gate-${profileId}`, priority: 1, tone: 'orange', icon: '↗', title: `${profile?.name || 'Teilnehmer'} · Gate blockiert`, subtitle: `Woche ${access?.processWeek || 0} · ${gates.length} offene Pflichtschritte`, actionLabel: 'Prüfen', entityType: 'participant', entityId: profileId, createdAt: progress?.last_activity_at || progress?.updated_at }); });
   const tomorrowEnd = new Date(now.getTime() + 36 * 60 * 60 * 1000);
-  tasks.filter((item) => item.due_at && new Date(`${item.due_at}T23:59:59`) <= tomorrowEnd).forEach((item) => { const lead = leadMap.get(item.lead_id); attention.push({ id: `task-${item.id}`, priority: 1, tone: 'orange', icon: '✓', title: `${lead?.name || 'Interessent'} · Aufgabe fällig`, subtitle: item.title, actionLabel: 'Öffnen', entityType: 'lead', entityId: item.lead_id, createdAt: item.due_at }); });
+  tasks.filter((item) => item.due_at && new Date(`${item.due_at}T23:59:59`) <= tomorrowEnd).forEach((item) => { const lead = leadMap.get(item.lead_id); attention.push({ id: `task-${item.id}`, priority: 1, tone: 'orange', icon: '✓', title: `${lead?.name || 'Intern'} · Aufgabe fällig`, subtitle: item.title, actionLabel: 'Öffnen', entityType: 'task', entityId: item.id, createdAt: item.due_at }); });
   unreadMessages.forEach((item) => { const lead = leadMap.get(item.lead_id); attention.push({ id: `message-${item.id}`, priority: 2, tone: 'green', icon: '✉', title: `${lead?.name || 'Kontakt'} · Neue Nachricht`, subtitle: item.subject, actionLabel: 'Lesen', entityType: 'lead', entityId: item.lead_id, createdAt: item.occurred_at }); });
   const upcomingEnd = now.getTime() + 48 * 60 * 60 * 1000;
   leads.filter((lead) => { const time = new Date(lead.appointment_start || 0).getTime(); return time >= now.getTime() && time <= upcomingEnd; }).forEach((lead) => attention.push({ id: `appointment-${lead.id}`, priority: 3, tone: 'green', icon: '◷', title: `${lead.name} · Gespräch steht an`, subtitle: new Date(lead.appointment_start).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' }), actionLabel: 'Öffnen', entityType: 'lead', entityId: lead.id, createdAt: lead.appointment_start }));
@@ -528,6 +529,7 @@ async function publicLead(request, response, service) {
 }
 
 function permissionForAction(action) {
+  if (action === 'tasks') return ['leads','sales_calls','customers','program'];
   if (action === 'command-dashboard') return 'dashboard';
   if (action.startsWith('communication')) return 'communications';
   if (['available-slots', 'tariffs'].includes(action)) return ['settings', 'sales_calls', 'leads'];
@@ -559,6 +561,7 @@ export default async function handler(request, response) {
   const admin = await requireCurrentAdmin(request, response, permissionForAction(action));
   if (!admin) return;
   try {
+    if(action==='tasks')return await handleCrmTasks(request,response,service);
     if (request.method === 'GET' && action === 'google-connect') {
       if (!googleConfig()) return response.status(503).json({ error: 'Google Client-ID und Secret fehlen in Vercel.' });
       return response.redirect(302, authorizationUrl(admin.profileId));

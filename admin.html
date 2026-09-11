@@ -33,7 +33,7 @@
         <button class="active" data-view="command">
           <span>⌂</span>Dashboard</button
         ><button data-view="participants"><span>◎</span>Kunden</button
-        ><button data-view="gates"><span>✓</span>Wochen-Gates</button
+        ><button data-view="tasks"><span>✓</span>Aufgaben</button><button data-view="gates"><span>✓</span>Wochen-Gates</button
         >
         <p>Vertrieb & System</p>
         <button data-view="leads"><span>↗</span>Interessenten</button
@@ -323,6 +323,13 @@
         </section>
       </section>
 
+      <section class="view" data-panel="tasks" id="taskWorkspace">
+        <div class="intro"><div><p class="eyebrow">Dein Arbeitsbereich</p><h1>Aufgaben</h1><p>Wiedervorlagen, Kundenfragen und nächste Schritte an einem Ort.</p></div><div><button type="button" class="secondary" id="refreshTasks">Aktualisieren ↻</button><button type="button" class="primary" id="createTask">+ Aufgabe anlegen</button></div></div>
+        <div class="task-statistics" id="taskStatistics"></div>
+        <div class="toolbar task-filters" id="taskFilters"><input id="taskSearch" placeholder="Aufgabe oder Kontakt suchen" aria-label="Aufgaben durchsuchen"><select id="taskStatus" aria-label="Aufgabenstatus"><option value="open">Offen</option><option value="overdue">Überfällig</option><option value="today">Heute fällig</option><option value="completed">Erledigt</option><option value="all">Alle</option></select><select id="taskSource" aria-label="Aufgabenquelle"><option value="">Alle Quellen</option><option value="manual">Manuell</option><option value="lead_follow_up">Wiedervorlage</option><option value="clarity_decline">Klarheitsrückgang</option><option value="customer_question">Kundenfrage</option></select></div>
+        <p id="taskLoadStatus" role="status"></p><div id="taskList" class="crm-task-list"></div>
+      </section>
+      <dialog id="taskEditor" class="crm-task-editor"><form id="taskEditorForm"><div class="dialog-head"><h2 id="taskEditorTitle">Aufgabe</h2><button type="button" id="closeTaskEditor" aria-label="Schließen">×</button></div><label>Kontakt<select name="leadId" id="taskContact"></select></label><label>Titel<input name="title" maxlength="220" required></label><label>Beschreibung<textarea name="details" rows="4" maxlength="2000"></textarea></label><label id="taskDueLabel">Fällig am<input name="dueAt" type="date"></label><label id="taskNoteLabel" hidden>Bearbeitungsnotiz<textarea name="adminNote" rows="3" maxlength="2000"></textarea></label><label class="task-completed"><input name="completed" type="checkbox">Erledigt</label><p id="taskSaveStatus" role="status"></p><button type="submit" class="primary" id="saveTask">Speichern</button></form></dialog>
       <section class="view" data-panel="gates" id="gateOverviewTop">
         <div class="intro">
           <div>
@@ -1667,7 +1674,7 @@
       </div>
     </dialog>
     <div id="toast"></div>
-    <script src="admin.js"></script>
+    <script src="admin.js"></script><script type="module" src="admin-tasks.js"></script>
     <script src="admin-communication-center.js"></script>
   <dialog id="builderPreview" class="builder-preview-dialog" aria-label="Kundenvorschau des Prozessentwurfs"></dialog><dialog id="builderPublish" class="builder-publish-dialog" aria-labelledby="builderPublishTitle"><h2 id="builderPublishTitle">Prozess veröffentlichen?</h2><p>Der aktuelle Entwurf wird als neue Version gespeichert. Neue Kunden erhalten diese Version. Laufende Kunden und ihre Antworten bleiben unverändert.</p><button type="button" class="secondary" id="builderPublishCancel">Zurück zum Entwurf</button><button type="button" class="primary" id="builderPublishConfirm">Version veröffentlichen</button></dialog><script type="module" src="admin-process-builder.js"></script></body>
 </html>
