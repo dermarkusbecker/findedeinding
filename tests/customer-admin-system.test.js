@@ -28,7 +28,7 @@ test('Kundenliste unterstützt Kacheln, Liste und große Detailansicht mit aussc
   assert.match(api, /status=eq\.customer/);
   assert.match(api, /linked_lead_id/);
   assert.match(api, /week_gates\?required=eq\.true/);
-  assert.match(api, /participants\.filter\(\(participant\) => leadByCustomer\.has\(participant\.id\)\)/);
+  assert.match(api, /participants\.filter\(\(participant\) => leadByCustomer\.has\(participant\.id\) \|\| participant\.permissions\?\.includes\('demo_full_access'\)\)/);
   assert.match(html, /id="participantStatusFilter"/);
   assert.match(html, /id="participantSort"/);
   assert.match(styles, /\.customer-overview-results\.tiles/);

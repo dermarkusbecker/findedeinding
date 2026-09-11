@@ -181,7 +181,6 @@
             </p>
           </div>
           <div class="customer-overview-actions">
-            <button class="secondary" id="openDemoCustomer" type="button" hidden>DEMO-Kunde öffnen →</button>
             <button class="secondary" data-jump="leads">
               Zu den Interessenten →
             </button>
@@ -190,6 +189,12 @@
             </button>
           </div>
         </div>
+        <section class="demo-customer-entry" id="demoCustomerEntry" hidden aria-labelledby="demoCustomerEntryTitle">
+          <span class="demo-customer-icon" aria-hidden="true">D</span>
+          <div><p>DEMO-KUNDE</p><h2 id="demoCustomerEntryTitle">Dein Demo-Zugang</h2><span id="demoCustomerEntryDetail"></span></div>
+          <button class="secondary" id="showDemoInList" type="button">In Kundenliste anzeigen</button>
+          <button class="primary" id="openDemoCustomer" type="button" hidden>DEMO-Kundenakte öffnen →</button>
+        </section>
         <div class="toolbar">
           <label
             >⌕

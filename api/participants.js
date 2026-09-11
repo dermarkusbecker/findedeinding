@@ -113,6 +113,7 @@ export default async function handler(request, response) {
   const service = config();
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
   if (request.method === 'GET') {
+    response.setHeader('Cache-Control', 'private, no-store');
     const [result, linksResult, gatesResult, entriesResult] = await Promise.all([
       fetch(`${service.url}/rest/v1/user_profiles?role=eq.user&select=*,participant_progress!inner(*)&order=created_at.desc`, { headers: headers(service.key) }),
       fetch(`${service.url}/rest/v1/leads?converted_user_profile_id=not.is.null&status=eq.customer&select=id,converted_user_profile_id,converted_at,created_at`, { headers: headers(service.key) }),
@@ -138,7 +139,7 @@ export default async function handler(request, response) {
       entriesByCustomer.set(entry.user_profile_id, rows);
     });
     const fullCustomerAccess = admin.staffPermissions.some((permission) => ['customers', 'program'].includes(permission));
-    const customers = participants.filter((participant) => leadByCustomer.has(participant.id)).map((participant) => {
+    const customers = participants.filter((participant) => leadByCustomer.has(participant.id) || participant.permissions?.includes('demo_full_access')).map((participant) => {
       const lead = leadByCustomer.get(participant.id);
       const progress = participant.participant_progress?.[0] || {};
       const visibleProfile = fullCustomerAccess ? participant : {
@@ -151,8 +152,8 @@ export default async function handler(request, response) {
       return {
         ...visibleProfile,
         is_demo: participant.permissions?.includes('demo_full_access') === true,
-        linked_lead_id: participant.source_lead_id || lead.id,
-        customer_since: lead.converted_at || lead.created_at || participant.created_at,
+        linked_lead_id: participant.source_lead_id || lead?.id || null,
+        customer_since: lead?.converted_at || lead?.created_at || participant.created_at,
         ...summarizeCustomerProgress(gatesByCustomer.get(participant.id) || [], progress, entriesByCustomer.get(participant.id) || [], new Date(), participant.permissions?.includes('demo_full_access')),
       };
     });

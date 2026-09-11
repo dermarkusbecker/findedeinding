@@ -20,3 +20,14 @@ test('real demo account is identified, searchable by Demo and reachable without 
  profiles=profiles.slice(1);await vm.runInContext('loadParticipants()',context);
  assert.equal(nodes.get('#openDemoCustomer').hidden,true);
 });
+
+test('pinned demo entry remains accessible independently of customer list filters',()=>{
+ const nodes=new Map();const context=vm.createContext({participants:[{id:'demo',isDemo:true,name:'Dominik Seidler',customerNumber:'DEMO-1',processWeek:4}],document:{querySelector(selector){if(!nodes.has(selector))nodes.set(selector,{});return nodes.get(selector);}}});
+ const start=script.indexOf('function renderDemoCustomerEntry()');const end=script.indexOf('function renderParticipants()',start);
+ vm.runInContext(script.slice(start,end),context);vm.runInContext('renderDemoCustomerEntry()',context);
+ assert.equal(nodes.get('#demoCustomerEntry').hidden,false);
+ assert.equal(nodes.get('#demoCustomerEntryTitle').textContent,'Dominik Seidler');
+ assert.match(nodes.get('#demoCustomerEntryDetail').textContent,/Woche 4/);
+ context.participants=[];vm.runInContext('renderDemoCustomerEntry()',context);
+ assert.equal(nodes.get('#demoCustomerEntry').hidden,true);
+});
