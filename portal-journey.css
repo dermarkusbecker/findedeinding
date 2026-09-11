@@ -1020,3 +1020,27 @@ main > header .header-clarity { color: rgba(225, 240, 247, .78); font-size: 10px
 #stepReviewDialog.is-editing-motivators .step-review-content{background:transparent;padding:0;border:0}
 #stepReviewDialog [data-edit-motivators]{margin-top:18px;min-height:48px;padding:12px 26px}
 #stepReviewDialog.is-editing-motivators .step-review-head h2,#stepReviewDialog.is-editing-motivators .step-review-question{color:#eef9fc}
+
+/* Crisp, readable process preview; retain the established dark palette. */
+.demo-week-dialog { background:#0b2938; }
+.demo-week-shell { font-size:15px; line-height:1.65; }
+.demo-week-shell .eyebrow { font-size:11px; font-weight:700; letter-spacing:.14em; color:#ffb17c; padding-right:32px; }
+#demoWeekTitle { letter-spacing:-.025em; font-weight:750; text-shadow:none; }
+#demoWeekDescription,.demo-week-note { font-size:15px; line-height:1.7; color:#d0e0e8; }
+.demo-week-nav { gap:8px; }
+.demo-week-nav button { min-height:44px; font-size:14px; font-weight:600; color:#dae8ee; border-color:#456573; background:#123444; }
+.demo-week-nav button[aria-pressed="true"] { color:#ffe0c9; border-color:#ffa569; background:#4a3b33; }
+.demo-week-start { display:inline-flex; align-items:center; min-height:46px; padding:12px 20px; margin:0 0 18px; font-size:15px; font-weight:700; border-radius:12px; }
+.demo-week-start[hidden] { display:none; }
+.demo-week-step { border-color:#3c5b6a; background:#10303f; }
+.demo-week-step summary { padding:18px 20px; min-height:64px; }
+.demo-week-step summary::-webkit-details-marker { display:none; }
+.demo-week-step summary::marker { content:''; }
+.demo-week-step strong { font-size:16px; font-weight:650; color:#f1f7fa; }
+.demo-week-step summary>span { font-size:12px; font-weight:600; color:#ffb681; }
+.demo-week-step summary small { font-size:12px; color:#acdcdf; }
+.demo-week-step>div { font-size:15px; line-height:1.75; color:#d0e0e8; border-top-color:#355361; padding:0 20px 20px 48px; }
+.demo-week-step summary::after { font-size:20px; line-height:1; min-width:16px; text-align:center; }
+.demo-week-close { width:44px; height:44px; right:12px; top:12px; }
+.demo-week-start:focus-visible { outline:2px solid #ffbb88; outline-offset:4px; }
+@media(max-width:600px){.demo-week-nav{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.demo-week-nav button{font-size:14px}.demo-week-step summary{padding:16px}.demo-week-step summary small{padding-left:0}.demo-week-step>div{padding:0 16px 16px}.demo-week-start{width:100%;justify-content:center}.demo-week-shell{padding:24px 20px}}

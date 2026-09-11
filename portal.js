@@ -1300,9 +1300,17 @@ function openDemoWeek(week) {
   if (!preview) return;
   let dialog = $('#demoWeekDialog');
   if (!dialog) {
-    document.body.insertAdjacentHTML('beforeend', '<dialog id="demoWeekDialog" class="demo-week-dialog" aria-labelledby="demoWeekTitle"><div class="demo-week-shell"><button type="button" class="demo-week-close" aria-label="Demo-Ansicht schließen">×</button><p class="eyebrow">DEMO · ALLE WOCHEN ENTDECKEN</p><nav class="demo-week-nav" aria-label="Demo-Woche wählen"></nav><h2 id="demoWeekTitle" tabindex="-1"></h2><p id="demoWeekDescription"></p><p class="demo-week-note">Hier kannst du alle Inhalte ansehen. Deine Antworten und dein Fortschritt bleiben unverändert. Zum Bearbeiten startest du deine aktuelle Woche auf der Übersicht.</p><div id="demoWeekSteps"></div></div></dialog>');
+    document.body.insertAdjacentHTML('beforeend', '<dialog id="demoWeekDialog" class="demo-week-dialog" aria-labelledby="demoWeekTitle"><div class="demo-week-shell"><button type="button" class="demo-week-close" aria-label="Demo-Ansicht schließen">×</button><p class="eyebrow">DEMO · ALLE WOCHEN ENTDECKEN</p><nav class="demo-week-nav" aria-label="Demo-Woche wählen"></nav><h2 id="demoWeekTitle" tabindex="-1"></h2><p id="demoWeekDescription"></p><p class="demo-week-note">Hier kannst du alle Inhalte ansehen.</p><button type="button" class="primary demo-week-start" id="startDemoProcessWeek"></button><div id="demoWeekSteps"></div></div></dialog>');
     dialog = $('#demoWeekDialog');
     dialog.querySelector('.demo-week-close').addEventListener('click', () => dialog.close());
+    $('#startDemoProcessWeek').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      if (button.disabled) return;
+      button.disabled = true;
+      dialog.close();
+      try { await openWeek(activeProcessWeek(program?.access)); }
+      finally { button.disabled = false; }
+    });
     dialog.addEventListener('click', (event) => {
       if (event.target === dialog) dialog.close();
       const button = event.target.closest('[data-demo-week]');
@@ -1312,6 +1320,16 @@ function openDemoWeek(week) {
   dialog.querySelector('.demo-week-nav').innerHTML = Array.from({ length: 8 }, (_, index) => `<button type="button" data-demo-week="${index + 1}" aria-pressed="${index + 1 === preview.week}">W${index + 1}</button>`).join('');
   $('#demoWeekTitle').textContent = `Woche ${preview.week} · ${preview.title}`;
   $('#demoWeekDescription').textContent = preview.description;
+  const runningWeek = activeProcessWeek(program?.access);
+  const finished = program.access.completedWeeks?.length === 8;
+  const startButton = $('#startDemoProcessWeek');
+  startButton.hidden = finished;
+  startButton.textContent = `Woche ${runningWeek} starten / fortsetzen →`;
+  dialog.querySelector('.demo-week-note').textContent = finished
+    ? 'Dein Prozess ist abgeschlossen. Hier kannst du alle Wocheninhalte weiterhin ansehen.'
+    : preview.week === runningWeek
+      ? 'Das ist deine aktuelle Woche. Starte direkt mit Clara oder setze an deinem gespeicherten Stand fort.'
+      : `Du siehst die Inhalte von Woche ${preview.week}. Dein Prozess steht in Woche ${runningWeek} – dort kannst du direkt weiterarbeiten.`;
   const kinds = { upload: 'Dokument hochladen', external: 'Begleitete Übung / Auswertung', scale: 'Deine Einschätzung', priority_selection: 'Auswählen und priorisieren' };
   $('#demoWeekSteps').innerHTML = preview.steps.map((step, index) => `<details class="demo-week-step"${index === 0 ? ' open' : ''}><summary><span>${String(index + 1).padStart(2, '0')}</span><strong>${escapeHtml(step.title || step.label)}</strong><small>${kinds[step.kind] || 'Reflexion mit Clara'}</small></summary><div><p>${escapeHtml(step.question || 'Deine Ergebnisse werden gemeinsam reflektiert.')}</p>${step.options?.length ? `<ul>${step.options.map((option) => `<li>${escapeHtml(option)}</li>`).join('')}</ul>` : ''}${step.minItems ? `<small>Mindestens ${step.minItems} Punkte${step.maxItems ? ` · höchstens ${step.maxItems}` : ''}</small>` : ''}</div></details>`).join('');
   if (!dialog.open) dialog.showModal();
