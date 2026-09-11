@@ -1,3 +1,4 @@
+import {beginRecording,prepareRecordingUpload,completeRecordingUpload} from '../lib/contract-recording-service.js';
 import crypto from 'node:crypto';
 import { DEFAULT_BOOKING_SETTINGS, generateAvailableSlots, isWithinBookingAvailability, normalizeBookingSettings } from '../lib/booking-availability.js';
 import { authorizationUrl, assertCalendarAvailable, calendarBusyIntervals, decryptCredential, deleteCalendarEvent, emailFromIdToken, encryptCredential, exchangeAuthorizationCode, googleConfig, refreshAccessToken, saveCalendarEvent, verifyOAuthState } from '../lib/google-calendar.js';
@@ -9,7 +10,7 @@ import { calculateProgramAccess } from '../lib/program-access.js';
 import { reconcileAccessFromEntries } from '../lib/program-position.js';
 import { syncLeadToCustomerProfile } from '../lib/contact-lifecycle.js';
 import { buildVideoContractPdf, normalizeVideoContract, VIDEO_CONFIRMATION_KEYS } from '../lib/video-contract.js';
-import { createSignedCustomerUpload, customerObjectExists, deleteCustomerObject, importCustomerObject, signedCustomerUrl, uploadCustomerObject } from '../lib/customer-storage.js';
+import { customerObjectExists, deleteCustomerObject, importCustomerObject, signedCustomerUrl, uploadCustomerObject } from '../lib/customer-storage.js';
 import { handlePublicContractSign } from '../lib/contract-sign-service.js';
 
 const VALID_STATUSES = ['new', 'contacted', 'scheduled', 'consultation', 'offer', 'later', 'customer', 'lost'];
@@ -536,7 +537,7 @@ function permissionForAction(action) {
   if (['dashboard', 'dashboard-record'].includes(action)) return ['leads', 'customers', 'finance'];
   if (['update', 'complete-sales-conversation', 'set-interest-status'].includes(action)) return ['leads', 'sales_calls', 'customers'];
   if (['schedule', 'cancel-appointment'].includes(action)) return ['leads', 'sales_calls'];
-  if (['create-video-contract', 'begin-video-recording', 'sync-google-meet-recording', 'video-recording-upload', 'finalize-video-contract', 'contract-download', 'video-recording-download'].includes(action)) return ['leads', 'sales_calls'];
+  if (['create-video-contract', 'begin-video-recording', 'sync-google-meet-recording', 'video-recording-upload', 'complete-video-recording-upload', 'finalize-video-contract', 'contract-download', 'video-recording-download'].includes(action)) return ['leads', 'sales_calls'];
   return 'leads';
 }
 
@@ -685,33 +686,18 @@ export default async function handler(request, response) {
       if (existing?.document_bucket && existing.document_storage_path !== stored.storagePath) await deleteCustomerObject(service, existing.document_bucket, existing.document_storage_path);
       return response.status(201).json({ record, documentUrl: `/api/leads?action=contract-download&id=${encodeURIComponent(lead.id)}&contractId=${encodeURIComponent(record.id)}` });
     }
-    if (request.method === 'POST' && action === 'video-recording-upload') {
+    if (request.method === 'POST' && ['video-recording-upload','complete-video-recording-upload'].includes(action)) {
       const lead = await leadById(service, request.body?.id);
       const contract = await leadContractById(service, lead.id, request.body?.contractId);
-      if (request.body?.recordingConsent !== true) return response.status(400).json({ error: 'Vor Beginn muss die ausdrückliche Einwilligung des Gesprächspartners bestätigt werden.' });
-      const upload = await createSignedCustomerUpload(service, 'contractRecordings', lead.id, {
-        fileName: clean(request.body?.fileName, 120) || `${contract.contract_number || 'videovertrag'}.webm`,
-        mimeType: clean(request.body?.mimeType, 120), byteSize: Number(request.body?.byteSize),
-      });
-      const startedAt = request.body?.startedAt && !Number.isNaN(new Date(request.body.startedAt).getTime()) ? new Date(request.body.startedAt).toISOString() : new Date().toISOString();
-      await patchLeadContract(service, lead.id, contract.id, {
-        video_recording_bucket: upload.bucket, video_recording_path: upload.storagePath,
-        video_recording_mime_type: upload.mimeType, video_recording_bytes: upload.byteSize,
-        video_recording_started_at: contract.video_recording_started_at || startedAt, video_recording_consent_at: contract.video_recording_consent_at || new Date().toISOString(),
-      });
-      return response.status(200).json({ uploadUrl: upload.uploadUrl, storagePath: upload.storagePath, bucket: upload.bucket });
+      if (action === 'video-recording-upload') return response.status(200).json(await prepareRecordingUpload(service,lead,contract,request.body));
+      const record = await completeRecordingUpload(service,lead,contract,request.body);
+      return response.status(200).json({record,message:'Video vollständig gespeichert und der Vertragsakte zugeordnet.'});
     }
     if (request.method === 'POST' && action === 'begin-video-recording') {
       const lead = await leadById(service, request.body?.id);
       const contract = await leadContractById(service, lead.id, request.body?.contractId);
-      if (request.body?.recordingConsent !== true || request.body?.recordingPurposeAccepted !== true || request.body?.recordingRevocationAccepted !== true) return response.status(400).json({ error: 'Alle drei Hinweise zur konkreten Aufzeichnung müssen vor Beginn ausdrücklich bestätigt sein.' });
-      const connection = await googleConnection(service);
-      if (!googleMeetRecordingReady(connection)) return response.status(409).json({ error: 'Google muss unter Einstellungen → Schnittstellen einmal neu verbunden werden, damit Meet-Aufzeichnungen übernommen werden dürfen.' });
-      const accessToken = await googleAccessToken(service);
-      await assertGoogleMeetSpace(accessToken, lead.meet_url);
-      const startedAt = new Date().toISOString();
-      await patchLeadContract(service, lead.id, contract.id, { video_recording_provider: 'google_meet', google_meet_recording_state: 'awaiting_recording', video_recording_started_at: startedAt, video_recording_consent_at: startedAt });
-      return response.status(200).json({ startedAt, meetUrl: lead.meet_url, message: 'Einwilligung protokolliert. Starte die native Aufzeichnung jetzt direkt in Google Meet.' });
+      const startedAt = await beginRecording(service,lead,contract,request.body);
+      return response.status(200).json({startedAt,message:'Einwilligung zur Aufnahme protokolliert.'});
     }
     if (request.method === 'POST' && action === 'sync-google-meet-recording') {
       const lead = await leadById(service, request.body?.id);
@@ -752,6 +738,7 @@ export default async function handler(request, response) {
       const lead = await leadById(service, request.body?.id);
       const existing = await leadContractById(service, lead.id, request.body?.contractId);
       if (!existing.video_recording_path || !await customerObjectExists(service, existing.video_recording_bucket, existing.video_recording_path)) return response.status(409).json({ error: 'Die Videoaufzeichnung wurde noch nicht vollständig hochgeladen.' });
+      if (['browser_screen','device_upload'].includes(existing.video_recording_provider) && request.body?.recordingReviewed !== true) return response.status(400).json({error:'Bitte die gespeicherte Aufnahme ansehen und Bild sowie beide Gesprächsstimmen prüfen.'});
       const normalized = normalizeVideoContract({ ...(existing.contract_data || {}), ...(request.body?.contract || {}), answers: request.body?.answers || {} }, lead);
       if (normalized.missing.length) return response.status(400).json({ error: `Im Vertrag fehlen noch: ${normalized.missing.join(', ')}.` });
       const missingConfirmations = VIDEO_CONFIRMATION_KEYS.filter((key) => normalized.contract.answers[key] !== true);
@@ -764,6 +751,7 @@ export default async function handler(request, response) {
       const tokenHash = crypto.createHash('sha256').update(signingToken).digest('hex');
       const record = await patchLeadContract(service, lead.id, existing.id, {
         status: 'signed', signed_at: now, document_confirmed_at: now, video_contract_confirmed_at: now,
+        video_recording_reviewed_at: request.body?.recordingReviewed === true ? now : existing.video_recording_reviewed_at,
         contract_data: normalized.contract, video_answers: normalized.contract.answers,
         video_recording_ended_at: existing.video_recording_ended_at || now, document_bucket: stored.bucket, document_storage_path: stored.storagePath,
         document_mime_type: 'application/pdf', signing_token_hash: tokenHash,

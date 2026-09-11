@@ -221,3 +221,27 @@ dialog::backdrop { background: #0a263e66; backdrop-filter: blur(6px); }
 
 .crm-demoBadge { display:inline-flex; vertical-align:middle; align-items:center; margin-left:8px; padding:3px 7px; border:1px solid #edb88f; border-radius:6px; background:#fff0e4; color:#93441e; font:700 9px/1.4 Manrope,sans-serif; letter-spacing:.07em; white-space:nowrap; }
 #openDemoCustomer { background:#fff4eb; border-color:#eab990; color:#88451f; }
+/* Independent contract recording */
+#contractRecordingPreview { width:100%; max-height:300px; border:1px solid #cadce6; border-radius:12px; background:#0b293b; margin:16px 0; }
+.device-recording-help { border:1px solid #d7e3eb; border-radius:12px; background:#f8fbfd; margin:14px 0; padding:16px; }
+.device-recording-help summary { cursor:pointer; color:#1b536c; font-weight:750; line-height:1.6; }
+.device-recording-help p,.recording-upload-note { color:#577384; font-size:12px; line-height:1.7; }
+.device-recording-help a { color:#245f7a; text-decoration:underline; }
+.recording-file-label { display:grid; gap:9px; margin-top:16px; font-size:12px; font-weight:700; }
+.recording-file-label input { max-width:100%; }
+.recording-review { display:flex; align-items:flex-start; gap:10px; margin:18px 0; padding:14px; background:#edf5f9; border-radius:10px; color:#244b61; font-size:12px; line-height:1.6; }
+.recording-review input { flex:0 0 auto; margin-top:4px; }
+.recording-state time { white-space:nowrap; font-size:10px; }
+@media(max-width:620px){.recording-controls { flex-wrap:wrap; }.recording-controls > * { max-width:100%; white-space:normal; } .recording-state { flex-wrap:wrap; }}
+#videoContractDialog .video-contract-section > header { position:static; top:auto; height:auto; width:auto; z-index:auto; background:transparent; padding:0 0 15px; box-shadow:none; }
+#videoContractDialog .recording-control-section { background:#fff; color:#163545; border-color:#d7e3eb; }
+#videoContractDialog .recording-control-section > header h3 { color:#163545; }
+#videoContractDialog .recording-warning { background:#edf5f9; border-color:#d5e6ef; color:#365e72; font-size:12px; }
+#videoContractDialog .recording-controls .secondary { background:#f5f9fc; border-color:#ccdee8; color:#28556d; }
+#videoContractDialog .recording-state { background:#edf5f9; border-color:#ccdee8; }
+#videoContractDialog .recording-state span,#videoContractDialog .recording-state time { color:#28556d; font-size:11px; }
+#videoContractDialog .recording-file-label { color:#244b61; }
+#videoContractDialog .video-contract-legal-note { color:#5a7383; }
+#videoContractDialog .video-contract-head > button { display:inline-flex; align-items:center; justify-content:center; gap:10px; flex:0 0 auto; min-height:38px; padding:8px 13px; font:700 12px Manrope,sans-serif; }
+#videoContractDialog .video-contract-head > button b { font-size:22px; }
+@media(max-width:620px){#videoContractDialog .video-contract-head { gap:12px; align-items:flex-start; padding:18px; }#videoContractDialog .video-contract-head > div { min-width:0; }#videoContractDialog .video-contract-head > button span { display:none; }#videoContractDialog .video-contract-head > button { width:38px; padding:6px; }#videoContractDialog .video-contract-head h2 { font-size:22px; line-height:1.25; } }

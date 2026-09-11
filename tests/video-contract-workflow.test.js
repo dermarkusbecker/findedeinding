@@ -44,15 +44,16 @@ test('Originalformular wird als ausgefülltes und abgeflachtes Vertrags-PDF erze
   assert.equal(pdf.getForm().getFields().length, 0);
 });
 
-test('Native Google-Meet-Aufzeichnung wird aus Drive in die private Vertragsakte übernommen', async () => {
+test('Bildschirmaufnahme ersetzt Meet als Pflichtweg; bisherige Meet-Dateien bleiben lesbar', async () => {
   const [html, js, api, meet, storage, migration] = await Promise.all([read('admin.html'), read('admin.js'), read('api/leads.js'), read('lib/google-meet.js'), read('lib/customer-storage.js'), read('supabase/migrations/20260910153000_google_meet_contract_recordings.sql')]);
   assert.match(html, /id="startVideoContractRecording"/);
   assert.match(html, /data-close-video-contract[^>]+aria-label="Videovertrag schließen und zum Abschluss zurückkehren"/);
-  assert.match(html, /Native Google-Meet-Aufzeichnung/);
+  assert.match(html, /Bildschirmaufnahme starten/);
+  assert.match(html, /contractRecordingFile/);
   assert.doesNotMatch(js, /getDisplayMedia/);
   assert.doesNotMatch(js, /new MediaRecorder/);
-  assert.match(js, /action=begin-video-recording/);
-  assert.match(js, /action=sync-google-meet-recording/);
+  assert.match(js, /browser-contract-recorder/);
+  assert.doesNotMatch(js, /action=sync-google-meet-recording/);
   assert.match(js, /closeVideoContractToConclusion/);
   assert.match(js, /setLeadWizardStep\(4\)/);
   assert.match(api, /action === 'sync-google-meet-recording'/);
