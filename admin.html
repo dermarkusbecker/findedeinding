@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="admin-crm-refresh.css" />
     <link rel="stylesheet" href="admin-lead-dashboard.css" />
     <link rel="stylesheet" href="admin-communication.css" />
-  </head>
+  <link rel="stylesheet" href="admin-process-builder.css"></head>
   <body class="dashboard-view">
     <aside class="sidebar">
       <a class="brand" href="/"
@@ -734,7 +734,7 @@
                   </p>
                 </div>
               </div>
-              <section class="card clarity-question-settings">
+              <div id="programBuilder" class="card program-builder"></div><details class="builder-legacy-settings"><summary>Frageneditor für bestehende Kunden im bisherigen Prozess</summary><section class="card clarity-question-settings">
                 <div class="settings-card-head">
                   <div>
                     <h3>Fragen verwalten</h3>
@@ -772,7 +772,7 @@
                 <div class="clarity-question-list" id="clarityQuestionList">
                   <div class="empty">Klarheitsfragen werden geladen …</div>
                 </div>
-              </section>
+              </section></details>
             </section>
             <section class="settings-panel" data-settings-panel="signatures">
               <div class="card settings-hero">
@@ -1642,5 +1642,5 @@
     <div id="toast"></div>
     <script src="admin.js"></script>
     <script src="admin-communication-center.js"></script>
-  </body>
+  <dialog id="builderPreview" class="builder-preview-dialog" aria-label="Kundenvorschau des Prozessentwurfs"></dialog><dialog id="builderPublish" class="builder-publish-dialog" aria-labelledby="builderPublishTitle"><h2 id="builderPublishTitle">Prozess veröffentlichen?</h2><p>Der aktuelle Entwurf wird als neue Version gespeichert. Neue Kunden erhalten diese Version. Laufende Kunden und ihre Antworten bleiben unverändert.</p><button type="button" class="secondary" id="builderPublishCancel">Zurück zum Entwurf</button><button type="button" class="primary" id="builderPublishConfirm">Version veröffentlichen</button></dialog><script type="module" src="admin-process-builder.js"></script></body>
 </html>

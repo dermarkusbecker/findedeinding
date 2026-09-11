@@ -1,3 +1,4 @@
+import { handleProgramBuilder } from '../lib/program-builder-service.js';
 import { CLARITY_QUESTION_CATALOG, clarityQuestionSeedRows, defaultClarityQuestion, readClarityQuestionOverrides } from '../lib/clarity-questions.js';
 import { authHeaders, requireCurrentAdmin } from '../lib/user-auth.js';
 
@@ -65,6 +66,10 @@ export default async function handler(request, response) {
   if (!admin) return;
   const service = config(), participantId = request.query?.participantId;
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
+  if (request.query?.action === 'builder') {
+    try { return await handleProgramBuilder(request, response, admin, service, request.method === 'GET' ? await readClarityQuestionOverrides(service) : []); }
+    catch (error) { return response.status(error.status || 500).json({ error: error.message }); }
+  }
   if (request.query?.action === 'settings') {
     try { return await handleQuestionSettings(request, response, service, admin); }
     catch (error) { return response.status(error.status || 500).json({ error: error.message || 'Klarheitsfragen konnten nicht verarbeitet werden.' }); }

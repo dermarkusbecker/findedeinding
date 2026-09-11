@@ -16,7 +16,7 @@ test('Woche 3 besitzt ein großes Auswahlfeld und eine rechts angeordnete Top-5-
   assert.match(portal, /data-rank-up/);
   assert.match(portal, /data-rank-down/);
   assert.match(portal, /draggable="true"/);
-  assert.match(portal, /selected\.length !== 5/);
+  assert.match(portal, /selected\.length < minimum \|\| selected\.length > limit/);
   assert.match(portal, /queueDraftValue\(draftKey, JSON\.stringify\(selected\)\)/);
   assert.match(styles, /grid-template-columns: minmax\(0, 1\.45fr\) minmax\(280px, 0\.75fr\)/);
   assert.match(styles, /\.motivator-choice-grid/);

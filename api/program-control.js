@@ -1,3 +1,4 @@
+import { configuredWeekState } from '../lib/program-builder-service.js';
 import crypto from 'node:crypto';
 import { requireCurrentAdmin } from '../lib/user-auth.js';
 import { PROGRAM_STATUSES } from '../lib/program-access.js';
@@ -70,13 +71,13 @@ async function readGuidedStates(result, participantId) {
     const stateResponse = await fetch(`${result.service.url}/rest/v1/process_entries?user_profile_id=eq.${id}&week=eq.${week}&data_block=eq.week_${week}_state&select=structured_data&order=created_at.desc&limit=1`, { headers: serviceHeaders(result.service.key) });
     const rows = await stateResponse.json().catch(() => ([]));
     if (!stateResponse.ok) throw new Error(rows.message || `Woche ${week} konnte nicht für die Admin-Prüfung geladen werden.`);
-    return normalizeGuidedWeekState(week, rows[0]?.structured_data?.[`week_${week}`]);
+    return normalizeGuidedWeekState(week, configuredWeekState(week, rows[0]?.structured_data?.[`week_${week}`], result.processVersion));
   }));
 }
 
 function technicalResult(states) {
   return states.flatMap((state) => {
-    const definition = guidedWeekDefinition(state.week);
+    const definition = guidedWeekDefinition(state.week, state);
     const active = currentGuidedStep(state);
     return definition.steps.filter((step) => step.kind === 'external').map((step) => ({
       week: state.week,
@@ -117,7 +118,7 @@ function weekOneAnswers(state = {}) {
 }
 
 function guidedAnswers(week, state = {}) {
-  const definition = guidedWeekDefinition(week);
+  const definition = guidedWeekDefinition(week, state);
   const answers = [];
   if (state.clarity_checkin?.completed || Number(state.clarity_checkin?.score) >= 1) {
     const note = readableValue(state.clarity_checkin?.note);
@@ -143,8 +144,8 @@ export function processWeekResult(result) {
   return Array.from({ length: 8 }, (_, index) => index + 1).map((week) => {
     const entry = latest.get(week);
     const stored = entry?.structured_data?.[`week_${week}`] || {};
-    const state = week === 1 ? stored : normalizeGuidedWeekState(week, stored);
-    const definition = guidedWeekDefinition(week);
+    const state = week === 1 ? stored : normalizeGuidedWeekState(week, configuredWeekState(week, stored, result.processVersion));
+    const definition = guidedWeekDefinition(week, state);
     const access = result.serializedAccess.weekStates?.find((item) => Number(item.week) === week) || {};
     const released = Number(result.serializedAccess.processWeek) > 0 && (result.serializedAccess.automaticUnlockedWeeks || []).includes(week);
     return {
@@ -175,8 +176,8 @@ async function backfillCompletedWeekReflections(result, participantId) {
     const entry = latest.get(week);
     const stored = entry?.structured_data?.[`week_${week}`];
     if (!stored) continue;
-    const state = week === 1 ? stored : normalizeGuidedWeekState(week, stored);
-    const title = week === 1 ? 'Jetzt geht es los' : guidedWeekDefinition(week)?.title || `Woche ${week}`;
+    const state = week === 1 ? stored : normalizeGuidedWeekState(week, configuredWeekState(week, stored, result.processVersion));
+    const title = week === 1 ? 'Jetzt geht es los' : guidedWeekDefinition(week, state)?.title || `Woche ${week}`;
     const ensured = await ensureWeekReflection({
       participantId,
       participantName: result.profile.name,

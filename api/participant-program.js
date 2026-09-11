@@ -1,3 +1,5 @@
+import { configuredWeekState, processQuestionOverrides } from '../lib/program-builder-service.js';
+import { definitionForWeek } from '../lib/program-builder.js';
 import { requireCurrentPermission } from '../lib/user-auth.js';
 import { getParticipantProgramAccess, patchParticipantProgress, serviceHeaders } from '../lib/program-access-service.js';
 import { isOnboardingComplete } from '../lib/program-access.js';
@@ -35,7 +37,7 @@ const weekContent = (week, gates, weekOneState = null, guidedState = null, quest
     return { ...content, question: resolveClarityPrompt(questionOverrides, 1, weekOneState.current_step, prompt.question || content.question), help: prompt.help || content.help, tasks: stepStatuses(weekOneState) };
   }
   if (Number(week) >= 2 && guidedState) {
-    const definition = guidedWeekDefinition(week);
+    const definition = guidedWeekDefinition(week, guidedState);
     const activeStep = needsGuidedClarityCheckin(guidedState) ? guidedClarityStep(guidedState) : definition.steps.find((step) => step.id === guidedState.current_step);
     return { ...content, title: definition.title, mode: definition.mode, question: activeStep ? resolveClarityPrompt(questionOverrides, week, activeStep.id, activeStep.question) : 'Diese Woche ist bereit zum Abschluss.', help: definition.intro, tasks: guidedStepStatuses(guidedState) };
   }
@@ -53,7 +55,7 @@ async function readGuidedWeekState(result, participantId, week) {
   const response = await fetch(`${result.service.url}/rest/v1/process_entries?user_profile_id=eq.${encodeURIComponent(participantId)}&week=eq.${week}&data_block=eq.week_${week}_state&select=structured_data&order=created_at.desc&limit=1`, { headers: serviceHeaders(result.service.key) });
   const rows = await response.json();
   if (!response.ok) throw new Error(rows.message || `Woche ${week} konnte nicht geladen werden.`);
-  return normalizeGuidedWeekState(week, rows[0]?.structured_data?.[`week_${week}`] || createGuidedWeekState(week));
+  return normalizeGuidedWeekState(week, configuredWeekState(week, rows[0]?.structured_data?.[`week_${week}`] || createGuidedWeekState(week), result.processVersion));
 }
 
 async function readGuidedWeekStates(result, participantId) {
@@ -121,7 +123,7 @@ function reflectionFromState(week, state) {
 async function backfillCompletedWeekReflections({ result, participantId, access, weekOneState, guidedStates }) {
   let resolvedWeekOneState = weekOneState;
   for (const week of [...(access.completedWeeks || [])].map(Number).sort((left, right) => left - right)) {
-    const definition = programWeeks.find((item) => item.week === week);
+    const definition = definitionForWeek(result.processVersion?.definition, week) || programWeeks.find((item) => item.week === week);
     const state = week === 1 ? resolvedWeekOneState : guidedStates.get(week);
     if (!definition || !state) continue;
     const ensured = await ensureWeekReflection({
@@ -295,7 +297,9 @@ export default async function handler(request, response) {
       const progressRepair = canonicalProgressPatch(access, result.progress);
       if (progressRepair) await patchParticipantProgress(result.service, session.participantId, progressRepair);
       const accessibleWeeks = (onboardingComplete ? access.unlockedWeeks : []).map((week) => {
-        const content = programWeeks.find((item) => item.week === week);
+        const original = programWeeks.find((item) => item.week === week);
+        const configured = definitionForWeek(result.processVersion?.definition, week);
+        const content = configured || original;
         return { week, title: content.title, mode: content.mode };
       });
       const processWeekAccessible = access.weekStates.some((state) => state.week === Number(access.processWeek) && state.accessible);
@@ -306,7 +310,7 @@ export default async function handler(request, response) {
         ? item
         : { week: item.week, score: null, changed: null, note: '', recordedAt: null });
       const currentClarity = clarityHistory.filter((item) => Number.isInteger(item.score)).at(-1) || null;
-      const questionOverrides = selectedWeek ? await readClarityQuestionOverrides(result.service, selectedWeek) : [];
+      const questionOverrides = processQuestionOverrides(result.processVersion, selectedWeek ? await readClarityQuestionOverrides(result.service, selectedWeek) : []);
       const weekDraft = selectedWeek && selectedWeek === Number(access.processWeek) && !access.completedWeeks.includes(selectedWeek) ? await readWeekDraft(result, session.participantId, selectedWeek) : {};
       const weekReflections = [reflectionFromState(1, weekOneState), ...Array.from({ length: 7 }, (_, index) => reflectionFromState(index + 2, guidedStates.get(index + 2)))].filter((item) => item && access.completedWeeks.includes(Number(item.week)));
       const profile = {
@@ -325,9 +329,11 @@ export default async function handler(request, response) {
         preferredChannel: result.profile.preferred_communication_channel || 'email',
       };
       const missingProfileFields = missingOnboardingFields(result.profile, result.profile.email);
-      const motivatorState = guidedStates.get(3);
-      profile.programInsights = { motivators: releasedWeeks.has(3) && motivatorState?.completed_steps?.includes('motivators') ? (motivatorState.answers?.motivators?.items || []) : [] };
-      return response.status(200).json({ profile, onboarding: { privacyConfirmed: Boolean(result.progress.privacy_consent_at), privacyConfirmedAt: result.progress.privacy_consent_at || privacyDocument?.participant_confirmed_at || null, privacyDocumentId: privacyDocument?.id || null, privacyDetails: privacyDocument?.extracted_data?.consent || null, commitmentConfirmed: Boolean(commitmentDocument), commitmentConfirmedAt: commitmentDocument?.participant_confirmed_at || null, commitmentDetails: commitmentDocument?.extracted_data?.commitment || null, commitmentUploaded: Boolean(commitmentDocument), commitmentDocumentId: commitmentDocument?.id || null, commitmentFileName: commitmentDocument?.original_file_name || null, formDrafts: onboardingFormDrafts, profileComplete: missingProfileFields.length === 0, missingProfileFields, resetAt: result.progress.onboarding_reset_at || null }, access, onboardingComplete, adminPreview: session.adminPreview === true, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => ({ week, title, mode, description, topics })), accessibleWeeks, selectedWeek, week: selectedWeek ? weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null, weekDraft, weekReflections, clarityHistory, currentClarity });
+      const motivatorWeek = result.processVersion?.definition?.weeks.findIndex(week => week.steps.some(step => step.id === 'motivators'));
+      const motivatorNumber = motivatorWeek >= 0 ? motivatorWeek + 1 : 3;
+      const motivatorState = guidedStates.get(motivatorNumber);
+      profile.programInsights = { motivators: releasedWeeks.has(motivatorNumber) && motivatorState?.completed_steps?.includes('motivators') ? (motivatorState.answers?.motivators?.items || []) : [] };
+      return response.status(200).json({ profile, onboarding: { privacyConfirmed: Boolean(result.progress.privacy_consent_at), privacyConfirmedAt: result.progress.privacy_consent_at || privacyDocument?.participant_confirmed_at || null, privacyDocumentId: privacyDocument?.id || null, privacyDetails: privacyDocument?.extracted_data?.consent || null, commitmentConfirmed: Boolean(commitmentDocument), commitmentConfirmedAt: commitmentDocument?.participant_confirmed_at || null, commitmentDetails: commitmentDocument?.extracted_data?.commitment || null, commitmentUploaded: Boolean(commitmentDocument), commitmentDocumentId: commitmentDocument?.id || null, commitmentFileName: commitmentDocument?.original_file_name || null, formDrafts: onboardingFormDrafts, profileComplete: missingProfileFields.length === 0, missingProfileFields, resetAt: result.progress.onboarding_reset_at || null }, access, onboardingComplete, adminPreview: session.adminPreview === true, processVersion: result.processVersion, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => { const configured = definitionForWeek(result.processVersion?.definition, week); return configured ? { week, title: configured.title, mode: configured.mode, description: configured.intro, topics: configured.steps.map((step) => step.title) } : { week, title, mode, description, topics }; }), accessibleWeeks, selectedWeek, week: selectedWeek ? ({ ...weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides), ...(result.processVersion ? { title: result.processVersion.definition.weeks[selectedWeek - 1].title, mode: result.processVersion.definition.weeks[selectedWeek - 1].mode } : {}) }) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null, weekDraft, weekReflections, clarityHistory, currentClarity });
     }
     if (request.method !== 'PATCH') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
     const action = request.body?.action;
@@ -473,7 +479,7 @@ export default async function handler(request, response) {
       if (!update.ok) return response.status(400).json({ error: update.error, details: update.details, weekState: update.state });
       const rawAnswer = stepAction.answer || stepAction.note || stepAction.fileName || (stepAction.type === 'save_clarity_checkin' ? `${stepAction.score}/10` : '');
       await saveGuidedWeekState(result, session.participantId, week, update.state, rawAnswer);
-      const gateMap = Object.fromEntries([...new Set(guidedWeekDefinition(week).steps.map((step) => step.gateKey))].map((key) => [key, guidedWeekDefinition(week).steps.filter((step) => step.gateKey === key).every((step) => update.state.completed_steps.includes(step.id))]));
+      const gateMap = Object.fromEntries([...new Set(guidedWeekDefinition(week, update.state).steps.map((step) => step.gateKey))].map((key) => [key, guidedWeekDefinition(week, update.state).steps.filter((step) => step.gateKey === key).every((step) => update.state.completed_steps.includes(step.id))]));
       await Promise.allSettled(result.gates.filter((gate) => Number(gate.week) === week && gate.gate_key in gateMap).map((gate) => setGate(result.service, session.participantId, gate.id, gateMap[gate.gate_key])));
       return response.status(200).json({ ok: true, weekState: update.state, steps: guidedStepStatuses(update.state), gate: { complete: guidedWeekComplete(update.state), missingRequirements: missingGuidedRequirements(update.state) } });
     } else if (action === 'set_gate') {
@@ -529,7 +535,7 @@ export default async function handler(request, response) {
       if (!result.access.canAccessWeek(week)) return response.status(403).json({ error: `Woche ${week} ist noch nicht freigeschaltet.` });
       if (result.access.completedWeeks.includes(week)) return response.status(409).json({ error: `Woche ${week} wurde bereits abgeschlossen.` });
       ensureRunningWeek(result, week);
-      const weekDefinition = programWeeks.find((item) => item.week === week);
+      const weekDefinition = definitionForWeek(result.processVersion?.definition, week) || programWeeks.find((item) => item.week === week);
       const finalDraft = await readWeekDraft(result, session.participantId, week);
       if (week === 1) {
         const weekOneState = await readWeekOneState(result, session.participantId);
@@ -549,9 +555,10 @@ export default async function handler(request, response) {
         const guidedState = await readGuidedWeekState(result, session.participantId, week);
         if (!guidedWeekComplete(guidedState)) return response.status(409).json({ error: `Fast geschafft. Es fehlt noch: ${missingGuidedRequirements(guidedState).join(', ')}.` });
         const required = result.gates.filter((gate) => Number(gate.week) === week && gate.required !== false);
-        if (!required.length || required.some((gate) => !gate.completed_at)) return response.status(409).json({ error: 'Die Woche ist erst abgeschlossen, wenn alle Pflichtaufgaben bestätigt sind.' });
+        if (!result.processVersion && (!required.length || required.some((gate) => !gate.completed_at))) return response.status(409).json({ error: 'Die Woche ist erst abgeschlossen, wenn alle Pflichtaufgaben bestätigt sind.' });
+        if (result.processVersion) await Promise.all(required.map(gate => setGate(result.service, session.participantId, gate.id, true)));
         if (Object.keys(finalDraft).length) guidedState.final_draft_notes = finalDraft;
-        actionReflection = await generateWeekReflection({ participantId: session.participantId, participantName: result.profile.name, week, title: weekDefinition.title, state: guidedState });
+        actionReflection = await generateWeekReflection({ participantId: session.participantId, participantName: result.profile.name, week, title: guidedWeekDefinition(week, guidedState).title, state: guidedState });
         guidedState.status = 'completed';
         guidedState.completed_at = new Date().toISOString();
         guidedState.week_reflection = actionReflection;
