@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const css = await readFile(new URL('../portal-journey.css', import.meta.url), 'utf8');
+const baseCss = await readFile(new URL('../portal.css', import.meta.url), 'utf8');
+const html = await readFile(new URL('../portal.html', import.meta.url), 'utf8');
+const script = await readFile(new URL('../portal.js', import.meta.url), 'utf8');
 
 function luminance(hex) {
   const channels = hex.match(/[a-f\d]{2}/gi).map((value) => Number.parseInt(value, 16) / 255);
@@ -36,4 +39,21 @@ test('Hinweise in dunklen Karten verwenden keine Kleinstschrift mehr', () => {
   assert.match(css, /\.gate-header small \{[^}]*font-size: 11px/s);
   assert.match(css, /#activeWeek \.clara-step-control span \{[^}]*font-size: 12px/s);
   assert.match(css, /\.clarity-dialog-hint \{[^}]*font-size: 11px/s);
+});
+
+test('Portal-Kopf besitzt eine lesbare Clara-Hierarchie und große Aktionen', () => {
+  assert.match(html, /class="portal-topbar"/);
+  assert.match(html, /class="portal-topbar-line"/);
+  assert.match(css, /header\.portal-topbar \{[\s\S]*?min-height: 96px/);
+  assert.match(css, /header\.portal-topbar #headerPhase \{[\s\S]*?font-size: clamp\(16px, 1\.25vw, 20px\)/);
+  assert.match(css, /header\.portal-topbar \.coach \{[\s\S]*?font-size: 13px/);
+});
+
+test('Mobile Portal-Navigation öffnet kompakt ohne horizontales Scrollen', () => {
+  assert.match(html, /id="portalMobileMenuToggle"[^>]*aria-controls="portalNavigation"[^>]*aria-expanded="false"/);
+  assert.match(html, /<nav id="portalNavigation"/);
+  assert.match(baseCss, /aside #portalNavigation \{[\s\S]*?display: none;[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*?overflow: visible/);
+  assert.match(baseCss, /aside #portalNavigation \.onboarding-link \{[\s\S]*?margin: 0;[\s\S]*?min-height: 52px/);
+  assert.match(script, /function setPortalMobileMenu\(open\)/);
+  assert.match(script, /setPortalMobileMenu\(false\)/);
 });

@@ -64,3 +64,14 @@ test('program signals below the hero remain large and high-contrast', () => {
   assert.match(css, /\.signal-strip span\{[^}]*color:#b8c7d3[^}]*font-size:13px/s);
   assert.match(css, /\.signal-strip b\{[^}]*color:#fff[^}]*font-size:16px[^}]*font-weight:800/s);
 });
+
+test('Landingpage verwendet durchgängig die dunkle Clara-Farbwelt des Kundenportals', () => {
+  assert.match(html, /<meta name="theme-color" content="#071b2a">/);
+  assert.match(css, /Clara Night: dieselbe Farbwelt wie im Kundenportal/);
+  assert.match(css, /body \{[\s\S]*?background: #071b2a;[\s\S]*?color: #eef7fb;/);
+  assert.match(css, /\.site-header \{[\s\S]*?rgba\(10, 36, 53, \.9\)[\s\S]*?rgba\(13, 48, 67, \.88\)/);
+  assert.match(css, /\.hero::before \{[\s\S]*?linear-gradient\(135deg, #071b2a 0%, #0a2b3f 54%, #061724 100%\)/);
+  assert.match(css, /\.hero h1 \{ color: #f6fbfd;/);
+  assert.match(css, /\.trust-line span \{[\s\S]*?rgba\(18, 54, 73, \.88\)[\s\S]*?color: #e8f4f8;/);
+  assert.match(css, /@media \(max-width: 820px\) \{[\s\S]*?\.site-header nav \{[\s\S]*?rgba\(8, 31, 47, \.99\)/);
+});

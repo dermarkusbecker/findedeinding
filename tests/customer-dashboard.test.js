@@ -79,9 +79,27 @@ test('Mein Bereich zeigt den serverseitigen Klarheitsverlauf und den goldenen Zi
   assert.match(guided, /clarity_checkin/);
 });
 
+test('Karte Nächster Check-in öffnet exakt die von ihr angezeigte Woche', async () => {
+  const [html, script, styles] = await Promise.all([
+    readFile(htmlUrl, 'utf8'),
+    readFile(scriptUrl, 'utf8'),
+    readFile(stylesUrl, 'utf8'),
+  ]);
+  assert.match(html, /id="dashboardClarityNextCard"[\s\S]*?id="dashboardClarityNext"[\s\S]*?id="dashboardClarityNextHint"/);
+  assert.match(script, /nextCheckinCard\.dataset\.week = nextMeasurement \? String\(nextCheckinWeek\) : ''/);
+  assert.match(script, /dashboardClarityNextCard[\s\S]*?const week = Number\(button\.dataset\.week\)/);
+  assert.match(script, /if \(!state\?\.accessible\) \{[\s\S]*?openWeekPreview\(week\)/);
+  assert.match(script, /try \{ await openWeek\(week\); \}/);
+  const checkinHandler = script.match(/\$\('#dashboardClarityNextCard'\)\.addEventListener\('click'[\s\S]*?\n\}\);/)?.[0] || '';
+  assert.match(checkinHandler, /const week = Number\(button\.dataset\.week\)/);
+  assert.doesNotMatch(checkinHandler, /activeProcessWeek/);
+  assert.match(styles, /\.dashboard-clarity-stats>button \{[^}]*cursor: pointer/);
+  assert.match(styles, /\.dashboard-clarity-stats>button:focus-visible/);
+});
+
 test('Kundennavigation übernimmt die moderne Landingpage-Typografie und eigene Linienicons', async () => {
   const [html, styles] = await Promise.all([readFile(htmlUrl, 'utf8'), readFile(stylesUrl, 'utf8')]);
-  assert.match(html, /<nav aria-label="Kundenportal">/);
+  assert.match(html, /<nav id="portalNavigation" aria-label="Kundenportal">/);
   assert.match(html, /data-view="today"><svg/);
   assert.match(html, /data-view="support"><svg/);
   assert.match(styles, /aside nav button\s*\{[\s\S]*?font-family:\s*Manrope/);

@@ -101,7 +101,7 @@ function finishClaraTurn() {
 
 function saveLocal() { localStorage.setItem('fdd_customer_notes', JSON.stringify(local)); }
 function toast(message) { const el = $('#portalToast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2800); }
-function showView(name) {
+function showView(name, { openMobileProcess = false } = {}) {
   const isLockedView = !program?.onboardingComplete && lockedNonOnboardingViews.includes(name);
   const safeName = name;
   const targetPanel = safeName === 'onboarding' ? 'today' : safeName;
@@ -116,8 +116,39 @@ function showView(name) {
     toast('Bitte zuerst das Onboarding abschließen, um diesen Bereich zu bearbeiten.');
   }
   if (program) render();
+  syncPortalMobileMenuLabel();
   if (name === 'appointments') renderPortalAppointments();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (name === 'today' && openMobileProcess) window.requestAnimationFrame(openMobileProcessDialog);
+}
+
+function syncPortalMobileMenuLabel() {
+  const activeLabel = document.querySelector('#portalNavigation [data-view].active span')?.textContent;
+  if ($('#portalMobileMenuLabel') && activeLabel) $('#portalMobileMenuLabel').textContent = activeLabel;
+}
+
+function setPortalMobileMenu(open) {
+  const toggle = $('#portalMobileMenuToggle');
+  const navigation = $('#portalNavigation');
+  if (!toggle || !navigation) return;
+  const expanded = Boolean(open);
+  toggle.setAttribute('aria-expanded', String(expanded));
+  navigation.classList.toggle('mobile-open', expanded);
+}
+
+function mobilePortalViewport() {
+  return window.matchMedia?.('(max-width: 700px)').matches === true;
+}
+
+function openMobileProcessDialog() {
+  const dialog = $('#mobileProcessDialog');
+  if (!dialog || dialog.open || !mobilePortalViewport()) return;
+  dialog.showModal();
+}
+
+function closeMobileProcessDialog() {
+  const dialog = $('#mobileProcessDialog');
+  if (dialog?.open) dialog.close();
 }
 
 function setSpeechButtonState(button, isListening) {
@@ -219,9 +250,28 @@ function attachSpeechButton(button) {
 
 $$('[data-view]').forEach((button) => button.addEventListener('click', () => {
   if (button.dataset.view === 'today') todayMode = 'dashboard';
-  showView(button.dataset.view);
+  showView(button.dataset.view, { openMobileProcess: button.dataset.view === 'today' });
+  setPortalMobileMenu(false);
 }));
 $$('[data-view-link]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.viewLink)));
+$('#portalMobileMenuToggle')?.addEventListener('click', (event) => {
+  const expanded = event.currentTarget.getAttribute('aria-expanded') === 'true';
+  setPortalMobileMenu(!expanded);
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && $('#portalMobileMenuToggle')?.getAttribute('aria-expanded') === 'true') {
+    setPortalMobileMenu(false);
+    $('#portalMobileMenuToggle').focus();
+  }
+});
+$('#closeMobileProcess')?.addEventListener('click', closeMobileProcessDialog);
+$('#mobileProcessDialog')?.addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) closeMobileProcessDialog();
+});
+$('#mobileProcessDetails')?.addEventListener('click', () => {
+  closeMobileProcessDialog();
+  openProgressCelebration();
+});
 wireSpeechControls();
 window.wireSpeechControls = wireSpeechControls;
 
@@ -968,7 +1018,7 @@ async function loadProgram(week = null) {
   }
   if (initialView) {
     initialViewResolved = true;
-    showView(initialView);
+    showView(initialView, { openMobileProcess: initialView === 'today' });
     return;
   }
   render();
@@ -1166,16 +1216,18 @@ async function saveWeeklyClarityCheckin() {
       ? { type: 'save_clarity', score, reason: '' }
       : { type: 'save_clarity_checkin', stepId: 'weekly_clarity', score, changed: previousScore !== null && score !== previousScore, note: '' };
     await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: week === 1 ? 'week_1_update' : 'guided_week_update', week, stepAction }) });
+    // Der Check-in ist das Eingangstor der gewählten Woche. Den Wochenmodus
+    // deshalb vor dem Neuladen ausdrücklich beibehalten, damit eine mögliche
+    // Score-Feier nicht zurück auf das Dashboard navigiert.
+    todayMode = 'week';
     await loadProgram(week);
     $('#clarityCheckinDialog').close();
     document.body.classList.remove('clarity-checkin-open');
     pendingClarityWeek = null;
+    showView('today');
+    await revealOpenedWeekWithClara();
     if (previousScore !== null && score > previousScore) {
-      todayMode = 'dashboard';
-      showView('today');
       openClarityImprovement({ week, previousScore, score });
-    } else {
-      await revealOpenedWeekWithClara();
     }
   } catch (error) {
     button.disabled = false;
@@ -1432,6 +1484,18 @@ function renderDashboardClarityChart() {
   $('#dashboardClarityDelta').className = delta > 0 ? 'positive' : delta < 0 ? 'negative' : 'neutral';
   $('#dashboardClarityCount').textContent = `${measurements.length} / 8`;
   $('#dashboardClarityNext').textContent = nextMeasurement ? `Woche ${nextMeasurement.week}` : 'Vollständig';
+  const nextCheckinCard = $('#dashboardClarityNextCard');
+  const nextCheckinWeek = Number(nextMeasurement?.week);
+  const nextCheckinState = (program?.access?.weekStates || []).find((state) => Number(state.week) === nextCheckinWeek);
+  const nextCheckinAccessible = Boolean(nextCheckinState?.accessible) && program?.access?.status !== 'paused';
+  nextCheckinCard.dataset.week = nextMeasurement ? String(nextCheckinWeek) : '';
+  nextCheckinCard.disabled = !nextMeasurement || program?.access?.status === 'paused';
+  nextCheckinCard.setAttribute('aria-label', nextMeasurement ? `Klarheits-Check-in für Woche ${nextCheckinWeek} öffnen` : 'Alle Klarheits-Check-ins vollständig');
+  $('#dashboardClarityNextHint').textContent = !nextMeasurement
+    ? 'alle Messpunkte erfasst'
+    : nextCheckinAccessible
+      ? 'direkt zum Wochenstart'
+      : `öffnet am ${formatProgramDate(nextCheckinState?.unlocksAt)}`;
   target.setAttribute('aria-label', measurements.length ? `Klarheitsverlauf: ${measurements.map((item) => `Woche ${item.week}: ${item.score} von 10`).join(', ')}` : 'Noch keine Klarheitswerte vorhanden');
 
   const left = 66;
@@ -1671,7 +1735,9 @@ async function updateGuidedWeek(stepAction) {
   try {
     await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'guided_week_update', week: currentWeek, stepAction }) });
     await clearDraftKeys((key) => key.startsWith(draftPrefix)).catch(() => {});
+    if (stepAction.type === 'save_clarity_checkin') todayMode = 'week';
     await loadProgram(currentWeek);
+    if (stepAction.type === 'save_clarity_checkin') showView('today');
     await waitForClaraTyping();
     finishClaraTurn();
     toast('✓ Dein Schritt wurde gespeichert.');
@@ -1845,6 +1911,10 @@ function render() {
   $('#sidePercent').textContent = `${pct} % abgeschlossen`;
   $('#sidePhase').textContent = !showOnboarding && started ? `Woche ${canonicalWeek} · ${canonicalSummary?.title || 'Dein Prozess'}` : 'Onboarding';
   $('#sideClarityValue').textContent = `${currentClarity?.score || '—'} / 10`;
+  $('#mobileProcessProgress').style.width = `${pct}%`;
+  $('#mobileProcessPercent').textContent = `${pct} % abgeschlossen`;
+  $('#mobileProcessPhase').textContent = !showOnboarding && started ? `Woche ${canonicalWeek} · ${canonicalSummary?.title || 'Dein Prozess'}` : 'Onboarding';
+  $('#mobileProcessClarity').textContent = `${currentClarity?.score || '—'} / 10`;
   $('#headerClarity').textContent = `Klarheit ${currentClarity?.score || '—'} / 10`;
   $('#headerPhase').textContent = !showOnboarding && started ? `Woche ${canonicalWeek} von 8 · ${canonicalSummary?.title || 'Dein Prozess'}` : 'Onboarding';
   renderProgressCelebration();
@@ -1978,9 +2048,24 @@ function renderWeekReflections() {
   const target = $('#weekReflectionList');
   if (!target) return;
   const reflections = program?.weekReflections || [];
-  target.innerHTML = reflections.length
-    ? reflections.map((reflection) => `<button type="button" class="week-reflection-card" data-reflection-week="${reflection.week}"><span>Woche ${reflection.week} · freigeschaltet</span><strong>${escapeHtml(reflection.title || `Wochenreflexion ${reflection.week}`)}</strong><p>${escapeHtml(reflection.summary || '')}</p><b>Reflexion vollständig lesen →</b></button>`).join('')
-    : '<div class="week-reflection-empty"><span>◇</span><div><strong>Noch keine Reflexion freigeschaltet</strong><p>Beende deine laufende Woche final. Danach findest du Claras Zusammenfassung genau hier.</p></div></div>';
+  const reflectionByWeek = new Map(reflections.map((reflection) => [Number(reflection.week), reflection]));
+  const completedWeeks = new Set((program?.access?.completedWeeks || []).map(Number));
+  const weekStates = program?.access?.weekStates || [];
+  const definitions = program?.programWeeks || [];
+  $('#weekReflectionCount').textContent = `${reflectionByWeek.size} von 8 gespeichert`;
+  target.innerHTML = Array.from({ length: 8 }, (_, index) => {
+    const week = index + 1;
+    const reflection = reflectionByWeek.get(week);
+    const definition = definitions.find((item) => Number(item.week) === week);
+    const weekState = weekStates.find((item) => Number(item.week) === week);
+    if (reflection) return `<button type="button" class="week-reflection-card is-ready" data-reflection-week="${week}"><span>Woche ${week} · gespeichert</span><strong>${escapeHtml(reflection.title || `Wochenreflexion ${week}`)}</strong><p>${escapeHtml(reflection.summary || '')}</p><b>Reflexion vollständig lesen →</b></button>`;
+    const pendingCopy = completedWeeks.has(week)
+      ? 'Clara trägt diese abgeschlossene Woche gerade automatisch nach.'
+      : weekState?.accessible
+        ? 'Wird nach deinem finalen Wochenabschluss automatisch erstellt und gespeichert.'
+        : 'Wird freigeschaltet, sobald du diese Woche abgeschlossen hast.';
+    return `<article class="week-reflection-card is-locked" aria-disabled="true"><span>Woche ${week} · noch offen</span><strong>${escapeHtml(definition?.title || `Woche ${week}`)}</strong><p>${escapeHtml(pendingCopy)}</p><b>${completedWeeks.has(week) ? 'Reflexion wird nachgetragen' : 'Noch nicht verfügbar'}</b></article>`;
+  }).join('');
   target.querySelectorAll('[data-reflection-week]').forEach((button) => button.addEventListener('click', () => openWeekReflection(Number(button.dataset.reflectionWeek))));
 }
 
@@ -2043,6 +2128,19 @@ $('#openCurrentWeek').addEventListener('click', async (event) => {
   try { await openWeek(activeProcessWeek(program?.access)); }
   finally { button.disabled = false; }
 });
+$('#dashboardClarityNextCard').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  const week = Number(button.dataset.week);
+  if (button.disabled || !Number.isInteger(week) || week < 1 || week > 8) return;
+  const state = (program?.access?.weekStates || []).find((item) => Number(item.week) === week);
+  if (!state?.accessible) {
+    openWeekPreview(week);
+    return;
+  }
+  button.disabled = true;
+  try { await openWeek(week); }
+  finally { button.disabled = false; }
+});
 $$('#clarityCheckinScale [data-clarity-dialog-score]').forEach((button) => button.addEventListener('click', () => {
   selectedClarityScore = Number(button.dataset.clarityDialogScore);
   $$('#clarityCheckinScale [data-clarity-dialog-score]').forEach((item) => {
@@ -2064,9 +2162,9 @@ function leaveClarityCheckin() {
 $('#leaveClarityCheckin').addEventListener('click', leaveClarityCheckin);
 $('#clarityCheckinDialog').addEventListener('cancel', (event) => { event.preventDefault(); leaveClarityCheckin(); });
 $('#continueAfterClarityImprovement').addEventListener('click', (event) => {
-  const week = Number(event.currentTarget.dataset.week);
   $('#clarityImprovementDialog').close();
-  if (week) openWeek(week);
+  todayMode = 'week';
+  showView('today');
 });
 $('#clarityImprovementDialog').addEventListener('cancel', (event) => event.preventDefault());
 $('#openProgressCelebration').addEventListener('click', openProgressCelebration);

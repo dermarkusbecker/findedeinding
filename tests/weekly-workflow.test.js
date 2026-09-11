@@ -36,5 +36,16 @@ test('final completion creates and publishes a weekly reflection', () => {
   assert.match(adminApi, /if \(await backfillCompletedWeekReflections\(result, participantId\)\) result = await getParticipantProgramAccess\(participantId\)/);
   assert.match(api, /week_reflection/);
   assert.match(api, /weekReflections/);
-  assert.match(html, /Deine Wochenreflexionen/);
+  assert.match(html, /Deine (acht )?Wochenreflexionen/);
+});
+
+test('Erkenntnisse zeigt eine dauerhaft gespeicherte Reflexionsbibliothek für alle acht Wochen', () => {
+  const insights = html.match(/<section class="screen" data-panel="insights">[\s\S]*?<section class="evidence">/)?.[0] || '';
+  const journey = html.match(/<section class="screen" data-panel="journey">[\s\S]*?<\/section>/)?.[0] || '';
+  assert.match(insights, /id="weekReflectionList"/);
+  assert.match(insights, /id="weekReflectionCount"/);
+  assert.doesNotMatch(journey, /id="weekReflectionList"/);
+  assert.match(portal, /Array\.from\(\{ length: 8 \}/);
+  assert.match(portal, /reflectionByWeek/);
+  assert.match(portal, /data-reflection-week/);
 });

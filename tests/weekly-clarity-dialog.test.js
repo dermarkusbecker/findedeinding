@@ -39,13 +39,19 @@ test('fehlender Wochen-Score sperrt sowohl Formularaktionen als auch Clara serve
   assert.match(clara, /Bitte speichere zuerst deinen Klarheitsscore für diese Woche/);
 });
 
-test('eine echte Verbesserung aktualisiert das Dashboard und öffnet den Glückwunsch-Moment', async () => {
+test('eine echte Verbesserung startet die gewählte Woche und öffnet den Glückwunsch-Moment darüber', async () => {
   const [html, script, styles] = await Promise.all([file('portal.html'), file('portal.js'), file('portal-journey.css')]);
 
   assert.match(html, /id="clarityImprovementDialog"/);
   assert.match(html, /Glückwunsch, deine Klarheit ist gewachsen/);
   assert.match(script, /score > previousScore/);
-  assert.match(script, /todayMode = 'dashboard';[\s\S]*?showView\('today'\);[\s\S]*?openClarityImprovement/);
+  assert.match(script, /todayMode = 'week';[\s\S]*?await loadProgram\(week\);[\s\S]*?showView\('today'\);[\s\S]*?await revealOpenedWeekWithClara\(\);[\s\S]*?openClarityImprovement/);
+  assert.doesNotMatch(saveWeeklyClaritySource(script), /todayMode = 'dashboard'/);
+  assert.match(script, /continueAfterClarityImprovement[\s\S]*?todayMode = 'week';[\s\S]*?showView\('today'\)/);
   assert.match(script, /Klarheitsdiagramm sichtbar/);
   assert.match(styles, /@keyframes clarityScoreCelebrate/);
 });
+
+function saveWeeklyClaritySource(script) {
+  return script.match(/async function saveWeeklyClarityCheckin\(\) \{[\s\S]*?\n\}/)?.[0] || '';
+}

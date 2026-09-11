@@ -170,6 +170,73 @@ main > header strong { color: #fff; }
 main > header .icon { color: #dbeef7; background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .13); }
 main > header .coach { color: #fff; background: linear-gradient(135deg, #f89454, #f2762e); border-color: rgba(255, 195, 153, .46); }
 
+main > header.portal-topbar {
+  min-height: 96px;
+  padding: 15px clamp(20px, 2vw, 30px);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 82% -30%, rgba(44, 143, 187, .2), transparent 30rem),
+    linear-gradient(135deg, rgba(15, 54, 75, .96), rgba(7, 31, 46, .98));
+}
+
+.portal-topbar-status { min-width: 0; }
+.portal-topbar-status > small {
+  color: rgba(192, 218, 231, .76);
+  font: 700 10px/1.2 DM Mono, monospace;
+  letter-spacing: .13em;
+}
+.portal-topbar-line { align-items: center; display: flex; flex-wrap: wrap; gap: 10px 14px; margin-top: 8px; }
+main > header.portal-topbar #headerPhase {
+  color: #f7fbfd;
+  font-size: clamp(16px, 1.25vw, 20px);
+  font-weight: 800;
+  letter-spacing: -.025em;
+  line-height: 1.35;
+  margin: 0;
+}
+main > header.portal-topbar .header-clarity {
+  background: linear-gradient(135deg, rgba(255, 224, 143, .98), rgba(248, 190, 79, .95));
+  border: 1px solid rgba(255, 231, 170, .72);
+  box-shadow: 0 8px 22px rgba(246, 169, 58, .18);
+  color: #563b06;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  margin: 0;
+  padding: 8px 11px;
+}
+.portal-topbar-actions { gap: 11px; }
+main > header.portal-topbar .icon {
+  background: rgba(255, 255, 255, .09);
+  border: 1px solid rgba(207, 231, 241, .25);
+  color: #f4fbfe;
+  flex: 0 0 42px;
+  font-size: 15px;
+  height: 42px;
+  width: 42px;
+}
+main > header.portal-topbar .coach {
+  align-items: center;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(242, 111, 42, .28), 0 0 22px rgba(255, 139, 75, .12);
+  display: inline-flex;
+  font-size: 13px;
+  gap: 12px;
+  min-height: 46px;
+  padding: 11px 17px;
+}
+main > header.portal-topbar .coach b { font-size: 16px; }
+
+@media (max-width: 700px) {
+  main > header.portal-topbar { min-height: 82px; padding: 12px 14px; }
+  .portal-topbar-line { gap: 7px 9px; margin-top: 6px; }
+  main > header.portal-topbar #headerPhase { font-size: 15px; }
+  main > header.portal-topbar .header-clarity { font-size: 10px; padding: 7px 9px; }
+  main > header.portal-topbar .icon { display: inline-flex; flex-basis: 40px; height: 40px; width: 40px; }
+  main > header.portal-topbar .coach { display: inline-flex; font-size: 0; min-height: 40px; padding: 9px 12px; }
+  main > header.portal-topbar .coach b { font-size: 17px; }
+}
+
 .screen > .section-intro,
 .screen[data-panel="today"] > .welcome {
   border-color: rgba(117, 185, 217, .14);
