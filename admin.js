@@ -531,7 +531,7 @@ function setVideoContractValues(lead,record){
   videoContractForm.reset();
   const data=record?.contract_data||{};
   const tariff=renderVideoContractTariffs(data.tariffId||'');
-  const values={contractId:record?.id||'',tariffId:data.tariffId||tariff?.id||'',customerName:data.customerName||lead.name||'',birthDate:data.birthDate||'',street:data.street||'',postalCity:data.postalCity||'',customerEmail:data.customerEmail||lead.email||'',customerPhone:data.customerPhone||lead.phone||'',serviceStart:data.serviceStart||browserDateKey(),product:data.product||tariff?.product_label||'Finde dein Ding · 8-Wochen-Programm',duration:data.duration||tariff?.duration_label||'8 Wochen',totalPrice:data.totalPrice||(tariff?tariffPrice(tariff.gross_price):''),paymentModel:data.paymentModel||tariff?.payment_model||'',paymentDue:data.paymentDue||tariff?.payment_due||'',place:data.place||'Online · Google Meet',contractDate:data.contractDate||browserDateKey(),additionalAgreements:data.additionalAgreements||tariff?.additional_agreements||''};
+  const values={contractId:record?.id||'',tariffId:data.tariffId??tariff?.id??'',customerName:data.customerName??lead.name??'',birthDate:data.birthDate??'',street:data.street??'',postalCity:data.postalCity??'',customerEmail:data.customerEmail??lead.email??'',customerPhone:data.customerPhone??lead.phone??'',serviceStart:data.serviceStart??browserDateKey(),product:data.product??tariff?.product_label??'Finde dein Ding · 8-Wochen-Programm',duration:data.duration??tariff?.duration_label??'8 Wochen',totalPrice:data.totalPrice??(tariff?tariffPrice(tariff.gross_price):''),paymentModel:data.paymentModel??tariff?.payment_model??'',paymentDue:data.paymentDue??tariff?.payment_due??'',place:data.place??'Online · Videogespräch',contractDate:data.contractDate??browserDateKey(),additionalAgreements:data.additionalAgreements??tariff?.additional_agreements??''};
   Object.entries(values).forEach(([name,value])=>{if(videoContractForm.elements[name])videoContractForm.elements[name].value=value;});
   for(const name of ['recordingConsent','recordingPurposeAccepted','recordingRevocationAccepted'])videoContractForm.elements[name].checked=Boolean(data[name]);
   videoConfirmationQuestions.forEach(([key])=>{const input=videoContractForm.elements[key];if(input)input.value=data.answers?.[key]?'yes':'';});
@@ -544,7 +544,7 @@ function setVideoContractValues(lead,record){
 }
 function renderVideoConfirmationQuestions(){
   document.querySelector('#videoConfirmationList').innerHTML=videoConfirmationQuestions.map(([key,question],index)=>`<article data-video-question="${key}"><input type="hidden" name="${key}"><span>${String(index+1).padStart(2,'0')}</span><p>${escapeHtml(question)}</p><div><button type="button" data-video-answer="yes">Ja</button><button type="button" data-video-answer="no">Nein</button></div></article>`).join('');
-  document.querySelectorAll('[data-video-question] [data-video-answer]').forEach(button=>button.addEventListener('click',()=>{const row=button.closest('[data-video-question]'),input=videoContractForm.elements[row.dataset.videoQuestion];input.value=button.dataset.videoAnswer;row.querySelectorAll('[data-video-answer]').forEach(item=>item.classList.toggle('selected',item===button));updateVideoFinalizeState();}));
+  document.querySelectorAll('[data-video-question] [data-video-answer]').forEach(button=>button.addEventListener('click',()=>{const row=button.closest('[data-video-question]'),input=videoContractForm.elements[row.dataset.videoQuestion];input.value=button.dataset.videoAnswer;row.querySelectorAll('[data-video-answer]').forEach(item=>item.classList.toggle('selected',item===button));updateVideoFinalizeState();queueVideoContractDraft();}));
 }
 function syncVideoConfirmationButtons(){document.querySelectorAll('[data-video-question]').forEach(row=>row.querySelectorAll('[data-video-answer]').forEach(button=>button.classList.toggle('selected',button.dataset.videoAnswer===videoContractForm.elements[row.dataset.videoQuestion].value)));updateVideoFinalizeState();}
 function videoAnswers(){return Object.fromEntries(videoConfirmationQuestions.map(([key])=>[key,videoContractForm.elements[key]?.value==='yes']));}
@@ -555,24 +555,55 @@ async function openVideoContract(){
   const leadId=leadForm.elements.id.value||activeLeadDashboard?.lead?.id;if(!leadId)return toast('Bitte zuerst einen Interessenten öffnen.');
   if(activeLeadDashboard?.lead?.id!==leadId){try{await loadLeadDashboard(leadId);}catch(error){return toast(error.message);}}
   try{await loadServiceTariffs();}catch(error){return toast(error.message);}
-  setVideoContractValues(activeLeadDashboard.lead,latestVideoContract());videoContractDialog.showModal();
+  setVideoContractValues(activeLeadDashboard.lead,latestVideoContract());videoContractDialog.showModal();queueVideoContractDraft();
 }
 renderVideoConfirmationQuestions();
 videoContractForm.elements.tariffId.addEventListener('change',event=>applyTariffToVideoContract(event.target.value));
 document.querySelector('#createContractDocument').addEventListener('click',openVideoContract);
 document.querySelector('#createVideoContract').addEventListener('click',openVideoContract);
-function closeVideoContractToConclusion(){if(contractRecorder?.hasUnsaved())return toast('Bitte die Aufnahme zuerst stoppen und speichern oder die lokale Datei herunterladen und verwerfen.');if(videoContractDialog.open)videoContractDialog.close();setLeadWizardStep(4);if(!leadDialog.open)leadDialog.showModal();requestAnimationFrame(()=>document.querySelector('[data-open-lead-step="4"]')?.focus({preventScroll:true}));}
+async function closeVideoContractToConclusion(){if(contractRecorder?.hasUnsaved())return toast('Bitte die Aufnahme zuerst stoppen und speichern oder die lokale Datei herunterladen und verwerfen.');try{await flushVideoContractDraft();}catch(error){return toast(error.message);}if(videoContractDialog.open)videoContractDialog.close();setLeadWizardStep(4);if(!leadDialog.open)leadDialog.showModal();requestAnimationFrame(()=>document.querySelector('[data-open-lead-step="4"]')?.focus({preventScroll:true}));}
 document.querySelectorAll('[data-close-video-contract]').forEach(button=>button.addEventListener('click',closeVideoContractToConclusion));
 videoContractDialog.addEventListener('cancel',event=>{event.preventDefault();closeVideoContractToConclusion();});
 videoContractForm.addEventListener('change',event=>{if(event.target.matches('input[type="checkbox"]'))updateVideoFinalizeState();});
-document.querySelector('#prepareVideoContractPdf').addEventListener('click',async()=>{
-  if(!videoContractForm.reportValidity())return;
-  const button=document.querySelector('#prepareVideoContractPdf');button.disabled=true;
-  try{const response=await fetch('/api/leads?action=create-video-contract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:activeLeadDashboard.lead.id,contractId:videoContractForm.elements.contractId.value||null,contract:videoContractPayload()})}),data=await response.json();if(!response.ok)throw new Error(data.error);videoContractForm.elements.contractId.value=data.record.id;activeLeadDashboard.contracts=[data.record,...(activeLeadDashboard.contracts||[]).filter(item=>item.id!==data.record.id)];document.querySelector('#videoContractPdf').src=`${data.documentUrl}#view=FitH`;document.querySelector('#videoContractPdfLink').href=data.documentUrl;document.querySelector('#videoContractDocumentState').textContent=`${data.record.contract_number} wurde aus FDD-VTR-001 erstellt und sicher gespeichert.`;renderSalesContractState();updateVideoFinalizeState();toast('Vertragsdokument wurde als PDF vorbereitet.');}catch(error){toast(error.message);}finally{button.disabled=false;}
-});
+let videoDraftTimer, videoDraftPending=false, videoDraftSaving=null;
+function queueVideoContractDraft(){
+  if(!videoContractDialog.open || (latestVideoContract() && latestVideoContract().status!=='draft'))return;
+  videoDraftPending=true;
+  document.querySelector('#videoContractDocumentState').textContent='Änderungen werden in die PDF übernommen …';
+  clearTimeout(videoDraftTimer);
+  videoDraftTimer=setTimeout(()=>flushVideoContractDraft().catch(()=>{}),800);
+}
+async function flushVideoContractDraft(){
+  clearTimeout(videoDraftTimer);
+  if(videoDraftSaving)return videoDraftSaving;
+  if(!videoDraftPending)return;
+  videoDraftSaving=(async()=>{
+    while(videoDraftPending){
+      videoDraftPending=false;
+      const leadId=activeLeadDashboard.lead.id;
+      const response=await fetch('/api/leads?action=create-video-contract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:leadId,contractId:videoContractForm.elements.contractId.value||null,saveDraft:true,contract:videoContractPayload()})});
+      const data=await response.json();if(!response.ok)throw new Error(data.error||'PDF konnte nicht gespeichert werden.');
+      videoContractForm.elements.contractId.value=data.record.id;
+      const current=(activeLeadDashboard.contracts||[]).find(item=>item.id===data.record.id);
+      const record={...data.record,...current};
+      for(const key of ['contract_data','document_storage_path','document_bucket','document_mime_type','updated_at','title','amount','tariff_id','program_start_date'])record[key]=data.record[key];
+      activeLeadDashboard.contracts=[record,...(activeLeadDashboard.contracts||[]).filter(item=>item.id!==record.id)];
+      const url=`${data.documentUrl}&version=${encodeURIComponent(data.record.updated_at||Date.now())}`;
+      document.querySelector('#videoContractPdf').src=`${url}#view=FitH`;
+      document.querySelector('#videoContractPdfLink').href=url;
+      document.querySelector('#videoContractDocumentState').textContent=videoDraftPending?'Weitere Änderungen werden gespeichert …':`Entwurf automatisch in der PDF gespeichert · ${new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}`;
+      renderSalesContractState();contractRecorder?.controls();updateVideoFinalizeState();
+    }
+  })();
+  try{await videoDraftSaving;}catch(error){videoDraftPending=true;document.querySelector('#videoContractDocumentState').textContent=`Nicht gespeichert: ${error.message} Bitte „Jetzt zwischenspeichern“ anklicken.`;throw error;}finally{videoDraftSaving=null;}
+}
+videoContractForm.addEventListener('input',event=>{if(event.target.name!=='recordingReviewed')queueVideoContractDraft();});
+videoContractForm.addEventListener('change',event=>{if(event.target.name!=='recordingReviewed')queueVideoContractDraft();});
+window.addEventListener('beforeunload',event=>{if(videoDraftPending||videoDraftSaving){event.preventDefault();event.returnValue='';}});
+document.querySelector('#prepareVideoContractPdf').addEventListener('click',()=>{queueVideoContractDraft();flushVideoContractDraft().catch(error=>toast(error.message));});
 document.querySelector('#finalizeVideoContract').addEventListener('click',async()=>{
   if(!videoContractForm.reportValidity())return;const button=document.querySelector('#finalizeVideoContract');button.disabled=true;
-  try{const payload=videoContractPayload(),response=await fetch('/api/leads?action=finalize-video-contract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:activeLeadDashboard.lead.id,contractId:videoContractForm.elements.contractId.value,contract:payload,answers:payload.answers,recordingReviewed:videoContractForm.elements.recordingReviewed.checked})}),data=await response.json();if(!response.ok)throw new Error(data.error);await Promise.all([loadLeadDashboard(activeLeadDashboard.lead.id),loadLeads(),loadParticipants(),loadUsers(),loadCommunications()]);const signingUrl=new URL(data.signingPath,location.origin).href;document.querySelector('#videoContractDocumentState').innerHTML=`Video-Abschluss vollständig dokumentiert. <a href="${escapeHtml(data.signingPath)}" target="_blank" rel="noopener">Zusätzliche digitale Bestätigung öffnen ↗</a><button type="button" data-copy-signing-link>Signaturlink kopieren</button>`;document.querySelector('[data-copy-signing-link]')?.addEventListener('click',async()=>{await navigator.clipboard.writeText(signingUrl);toast('Signaturlink wurde kopiert.');});renderSalesContractState();toast(data.message||'Videovertrag wurde gespeichert.');}catch(error){toast(error.message);}finally{updateVideoFinalizeState();}
+  try{await flushVideoContractDraft();const payload=videoContractPayload(),response=await fetch('/api/leads?action=finalize-video-contract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:activeLeadDashboard.lead.id,contractId:videoContractForm.elements.contractId.value,contract:payload,answers:payload.answers,recordingReviewed:videoContractForm.elements.recordingReviewed.checked})}),data=await response.json();if(!response.ok)throw new Error(data.error);await Promise.all([loadLeadDashboard(activeLeadDashboard.lead.id),loadLeads(),loadParticipants(),loadUsers(),loadCommunications()]);const signingUrl=new URL(data.signingPath,location.origin).href;document.querySelector('#videoContractDocumentState').innerHTML=`Video-Abschluss vollständig dokumentiert. <a href="${escapeHtml(data.signingPath)}" target="_blank" rel="noopener">Zusätzliche digitale Bestätigung öffnen ↗</a><button type="button" data-copy-signing-link>Signaturlink kopieren</button>`;document.querySelector('[data-copy-signing-link]')?.addEventListener('click',async()=>{await navigator.clipboard.writeText(signingUrl);toast('Signaturlink wurde kopiert.');});renderSalesContractState();toast(data.message||'Videovertrag wurde gespeichert.');}catch(error){toast(error.message);}finally{updateVideoFinalizeState();}
 });
 const systemStatusLabels={active:'Aktiv',ready:'Bereit zur Verbindung',missing:'Konfiguration fehlt',planned:'Geplant'};
 function systemStatusBadge(item){const key=item.status?.key||'missing';return `<span class="system-status-badge ${escapeHtml(item.status?.tone||'danger')}"><i></i>${escapeHtml(item.status?.label||systemStatusLabels[key]||key)}</span>`;}

@@ -52,8 +52,8 @@ async function leadContractById(service, leadId, contractId) {
   return rows[0];
 }
 
-async function patchLeadContract(service, leadId, contractId, payload) {
-  const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_contracts?id=eq.${encodeURIComponent(contractId)}&lead_id=eq.${encodeURIComponent(leadId)}`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ ...payload, updated_at: new Date().toISOString() }) }), 'Vertrag konnte nicht aktualisiert werden.');
+async function patchLeadContract(service, leadId, contractId, payload, draftOnly = false) {
+  const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_contracts?id=eq.${encodeURIComponent(contractId)}&lead_id=eq.${encodeURIComponent(leadId)}${draftOnly ? '&status=eq.draft' : ''}`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ ...payload, updated_at: new Date().toISOString() }) }), 'Vertrag konnte nicht aktualisiert werden.');
   if (!rows[0]) throw Object.assign(new Error('Der Vertrag wurde nicht gefunden.'), { status: 404 });
   return rows[0];
 }
@@ -665,24 +665,24 @@ export default async function handler(request, response) {
     if (request.method === 'POST' && action === 'create-video-contract') {
       const lead = await leadById(service, request.body?.id);
       const normalized = normalizeVideoContract(request.body?.contract, lead);
-      if (normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze zuerst: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
+      if (request.body?.saveDraft !== true && normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze zuerst: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
       const now = new Date().toISOString();
       const existing = uuidValid(request.body?.contractId) ? await leadContractById(service, lead.id, request.body.contractId) : null;
       if (existing && existing.status !== 'draft') {
         return response.status(409).json({ error: 'Ein bereits dokumentierter Video-Abschluss kann nicht überschrieben werden. Lege dafür einen neuen Vertrag an.' });
       }
       const contractNumber = existing?.contract_number || await reserveContractNumber(service, normalized.contract.contractDate);
-      const pdf = await buildVideoContractPdf(normalized.contract);
+      const pdf = await buildVideoContractPdf(normalized.contract, { draft: true });
       const stored = await uploadCustomerObject(service, 'documents', lead.id, pdfUpload(pdf, `${contractNumber}-Videovertrag-Entwurf.pdf`));
       const amount = currencyNumber(normalized.contract.totalPrice);
       const payload = {
         title: normalized.contract.product, contract_number: existing?.contract_number || contractNumber,
         tariff_id: uuidValid(normalized.contract.tariffId) ? normalized.contract.tariffId : null,
-        amount, status: 'draft', program_start_date: normalized.contract.serviceStart,
+        amount, status: 'draft', program_start_date: normalized.contract.serviceStart || null,
         contract_data: normalized.contract, document_bucket: stored.bucket, document_storage_path: stored.storagePath,
         document_mime_type: 'application/pdf', signature_method: null, updated_at: now,
       };
-      const record = existing ? await patchLeadContract(service, lead.id, existing.id, payload) : await insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, ...payload });
+      const record = existing ? await patchLeadContract(service, lead.id, existing.id, payload, true) : await insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, ...payload });
       if (existing?.document_bucket && existing.document_storage_path !== stored.storagePath) await deleteCustomerObject(service, existing.document_bucket, existing.document_storage_path);
       return response.status(201).json({ record, documentUrl: `/api/leads?action=contract-download&id=${encodeURIComponent(lead.id)}&contractId=${encodeURIComponent(record.id)}` });
     }
