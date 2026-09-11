@@ -1044,3 +1044,47 @@ main > header .header-clarity { color: rgba(225, 240, 247, .78); font-size: 10px
 .demo-week-close { width:44px; height:44px; right:12px; top:12px; }
 .demo-week-start:focus-visible { outline:2px solid #ffbb88; outline-offset:4px; }
 @media(max-width:600px){.demo-week-nav{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.demo-week-nav button{font-size:14px}.demo-week-step summary{padding:16px}.demo-week-step summary small{padding-left:0}.demo-week-step>div{padding:0 16px 16px}.demo-week-start{width:100%;justify-content:center}.demo-week-shell{padding:24px 20px}}
+
+/* Document and insight panels must not inherit the global light page header. */
+#documentList .library-group > header,
+#documentList .library-section-heading,
+#documentList .library-stage > header {
+  position:static; inset:auto; width:auto; height:auto; min-height:0;
+  backdrop-filter:none; background:transparent; box-shadow:none;
+  border:0; border-radius:0; color:#edf7fb;
+}
+#documentList .library-group > header { padding:22px; border-bottom:1px solid #315767; gap:14px; }
+#documentList .library-section-heading { padding:0; margin-bottom:22px; }
+#documentList .library-group { background:linear-gradient(135deg,#123b4e,#0b2939); border:1px solid #355c6d; border-radius:18px; overflow:hidden; }
+#documentList .library-group h3 { font-size:17px; color:#f2f9fc; }
+#documentList .library-group header p,#documentList .library-empty { color:#bdd3df; font-size:13px; line-height:1.65; }
+#documentList .library-general-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+#documentList .library-group:last-child { grid-column:auto; }
+#documentList .library-group-icon { background:#ffab6514; border:1px solid #ffb57850; color:#ffb985; }
+#documentList .library-files { padding:14px 20px; }
+#documentList .library-file strong,.insight-files .library-file strong { font-size:14px; color:#edf8fc; overflow-wrap:anywhere; }
+#documentList .library-file small,.insight-files .library-file small { font-size:12px; color:#b7d1dd; }
+.insight-reflections .week-reflection-list { grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:22px; }
+.insight-reflections .week-reflection-card { padding:18px; border-radius:14px; background:#123648; border:1px solid #416676; box-shadow:none; min-width:0; }
+.insight-reflections .week-reflection-card.is-ready { border-color:#66b9bd; box-shadow:inset 0 2px #83ddd4,0 4px 18px #50c5c510; }
+.insight-reflections .week-reflection-card span { font-size:11px; color:#ffc28f; }
+.insight-reflections .week-reflection-card strong { font-size:16px; line-height:1.4; color:#f0f8fc; }
+.insight-reflections .week-reflection-card p { font-size:13px; line-height:1.65; color:#c6dce6; -webkit-line-clamp:2; }
+.insight-reflections .week-reflection-card b { font-size:12px; color:#99e9df; }
+.insight-reflections .week-reflection-card.is-locked { opacity:1; background:#0d2938; border-color:#2c4d5e; }
+.insight-reflections .week-reflection-card:focus-visible,.insight-files button:focus-visible { outline:2px solid #ffb77f; outline-offset:4px; }
+.insight-files { margin:24px 0; padding:26px; border:1px solid #365e70; border-radius:20px; background:#0b2b3c; }
+.insight-files h2 { font-size:25px; color:#f0f8fc; }
+.insight-files-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.insight-file-group { min-width:0; }.insight-file-group h3 { font-size:15px; color:#cce7f0; }
+[data-panel="insights"] .motivator-results-card { border-color:#6bafb9; background:radial-gradient(ellipse at top left,#23607655,transparent 70%),#0b2c3e; box-shadow:0 0 28px #54c9d214; }
+[data-panel="insights"] .motivator-results-card > span { font-size:18px; color:#edfaff; font-weight:700; }
+#motivatorTags { display:grid; gap:10px; margin-top:20px; }
+#motivatorTags .motivator-result { display:flex; align-items:center; gap:15px; min-height:60px; padding:12px 16px; border:1px solid #548e9e; border-radius:12px; background:linear-gradient(110deg,#174758,#103243); color:#f0fcff; }
+#motivatorTags .motivator-result b { display:grid; place-items:center; flex:0 0 34px; height:34px; border-radius:10px; border:1px solid #ffb27677; background:#ffad7520; color:#ffcb9f; font-size:15px; }
+#motivatorTags .motivator-result strong { font-size:18px; font-weight:650; line-height:1.4; letter-spacing:0; overflow-wrap:anywhere; }
+#motivatorTags .motivator-result:first-child { border-color:#8be1d7; box-shadow:0 0 16px #69ddd81c; }
+@media(max-width:900px){.insight-reflections .week-reflection-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){#documentList .library-general-grid,.insight-files-grid{grid-template-columns:1fr}.insight-reflections .week-reflections-head{display:block}.insight-reflections .week-reflections-head>strong{display:inline-block;margin-top:12px}.insight-reflections .week-reflection-card{padding:13px}.insight-reflections .week-reflection-card strong{font-size:15px}.insight-files{padding:20px}#motivatorTags .motivator-result strong{font-size:17px}}
+#motivatorTags .motivator-result { margin:0; text-transform:none; letter-spacing:0; }
+#motivatorTags .motivator-result strong { text-transform:none; }

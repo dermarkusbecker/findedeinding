@@ -1,5 +1,5 @@
 import { buildDemoWeekPreview } from './lib/demo-week-preview.js';
-import { buildDocumentLibrary, renderDocumentLibrary } from './lib/document-library.js';
+import { buildDocumentLibrary, renderDocumentLibrary, renderInsightDocuments } from './lib/document-library.js';
 import { journeyStepStatuses, weekOnePrompt } from './lib/week-one.js';
 import { currentGuidedStep, guidedClarityStep, guidedStepStatuses, guidedWeekDefinition, MOTIVATOR_OPTIONS, needsGuidedClarityCheckin } from './lib/guided-weeks.js';
 import { buildProgressCelebration } from './lib/progress-celebration.js';
@@ -2178,7 +2178,7 @@ function renderWeekReflections() {
     const reflection = reflectionByWeek.get(week);
     const definition = definitions.find((item) => Number(item.week) === week);
     const weekState = weekStates.find((item) => Number(item.week) === week);
-    if (reflection) return `<button type="button" class="week-reflection-card is-ready" data-reflection-week="${week}"><span>Woche ${week} · gespeichert</span><strong>${escapeHtml(reflection.title || `Wochenreflexion ${week}`)}</strong><p>${escapeHtml(reflection.summary || '')}</p><b>Reflexion vollständig lesen →</b></button>`;
+    if (reflection) return `<button type="button" class="week-reflection-card is-ready" data-reflection-week="${week}"><span>Woche ${week} · gespeichert</span><strong>${escapeHtml(reflection.title || `Wochenreflexion ${week}`)}</strong><p>${escapeHtml(reflection.summary || '')}</p><b>Reflexion öffnen ↗</b></button>`;
     const pendingCopy = completedWeeks.has(week)
       ? 'Clara trägt diese abgeschlossene Woche gerade automatisch nach.'
       : weekState?.accessible
@@ -2190,8 +2190,10 @@ function renderWeekReflections() {
 }
 
 function renderInsights() {
+  renderWeekReflections();
+  $('#insightDocuments').innerHTML = renderInsightDocuments(buildDocumentLibrary(program, customerWorkspace));
   const motivators = program?.profile?.programInsights?.motivators || [];
-  $('#motivatorTags').innerHTML = motivators.length ? motivators.map((item, index) => `<span class="tag"><b>${index + 1}</b>${escapeHtml(item)}</span>`).join('') : '<i>Entwickelt sich in Woche 3</i>';
+  $('#motivatorTags').innerHTML = motivators.length ? motivators.map((item, index) => `<span class="motivator-result"><b aria-label="Platz ${index + 1}">${String(index + 1).padStart(2, '0')}</b><strong>${escapeHtml(item)}</strong></span>`).join('') : '<i>Entwickelt sich in Woche 3</i>';
   const values = program.access.completedWeeks.includes(5) ? ['Eigenverantwortung', 'Ehrlichkeit', 'Entwicklung'] : [];
   $('#valueTags').innerHTML = values.length ? values.map((item) => `<span class="tag">${item}</span>`).join('') : '<i>Öffnet sich in Woche 5</i>';
   const measurements = (program?.clarityHistory || []).filter((item) => Number.isInteger(Number(item.score)) && Number(item.score) >= 1 && Number(item.score) <= 10);
@@ -2201,7 +2203,7 @@ function renderInsights() {
 }
 
 function renderDocuments() {
-  $('#documentList').innerHTML = renderDocumentLibrary(buildDocumentLibrary(program, customerWorkspace));
+  $('#documentList').innerHTML = renderDocumentLibrary(buildDocumentLibrary(program, customerWorkspace), { generalOnly: true });
 }
 
 let documentLibraryRefreshing = false;
@@ -2214,6 +2216,7 @@ async function refreshDocumentLibrary() {
   try {
     customerWorkspace = await request('/api/customer-records?action=overview');
     renderDocuments();
+    renderInsights();
     status.hidden = true;
   } catch {
     status.textContent = 'Die Dokumente konnten gerade nicht aktualisiert werden. Öffne den Bereich erneut, um es noch einmal zu versuchen.';
@@ -2224,6 +2227,10 @@ function openDocumentPreviewFromElement(element) {
   openDocumentPreview({ id: element.dataset.documentId, title: element.dataset.documentTitle, fileName: element.dataset.documentFile, mimeType: element.dataset.documentMime });
 }
 
+$('#insightDocuments').addEventListener('click', (event) => {
+  const item = event.target.closest('[data-document-preview]');
+  if (item) openDocumentPreviewFromElement(item);
+});
 $('#documentList').addEventListener('click', (event) => {
   const item = event.target.closest('[data-document-preview]');
   if (item) openDocumentPreviewFromElement(item);

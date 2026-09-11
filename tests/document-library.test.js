@@ -59,3 +59,15 @@ test('empty account retains all general categories and eight planned weeks', () 
   assert.equal(model.weeks.filter((week) => week.accessible).length, 0);
   assert.match(renderDocumentLibrary(model), /Termin folgt mit deinem Programmstart/);
 });
+
+test('personal documents and weekly insight files have separate views without exposing locked files', async () => {
+  const { renderInsightDocuments } = await import('../lib/document-library.js');
+  const model = buildDocumentLibrary(program, { documents: docs });
+  const personal = renderDocumentLibrary(model, { generalOnly: true });
+  const insights = renderInsightDocuments(model);
+  assert.match(personal, /data-document-id="cv"/);
+  assert.doesNotMatch(personal, /data-document-id="halfway"|library-timeline/);
+  assert.match(insights, /data-document-id="halfway"/);
+  assert.doesNotMatch(insights, /data-document-id="(?:cv|privacy|commitment|future|internal)"/);
+  assert.equal(renderInsightDocuments(buildDocumentLibrary({}, {})), '');
+});
