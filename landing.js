@@ -381,6 +381,21 @@ if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-mot
   revealItems.forEach((item) => item.classList.add('visible'));
 }
 
+const trustCards = document.querySelectorAll('.trust-card');
+if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+  trustCards.forEach((card) => {
+    card.addEventListener('pointermove', (event) => {
+      const bounds = card.getBoundingClientRect();
+      card.style.setProperty('--trust-x', `${Math.round(((event.clientX - bounds.left) / bounds.width) * 100)}%`);
+      card.style.setProperty('--trust-y', `${Math.round(((event.clientY - bounds.top) / bounds.height) * 100)}%`);
+    });
+    card.addEventListener('pointerleave', () => {
+      card.style.setProperty('--trust-x', '50%');
+      card.style.setProperty('--trust-y', '50%');
+    });
+  });
+}
+
 const landingDateKey = (date = new Date()) => {
   const shifted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return shifted.toISOString().slice(0, 10);

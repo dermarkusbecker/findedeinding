@@ -552,3 +552,157 @@ body.site-loading{overflow:hidden}
 
 #leadForm .consent a,.cookie-consent-copy p:last-child a{color:#75d7ee;font-weight:800;text-decoration:underline;text-decoration-color:rgba(117,215,238,.42);text-underline-offset:3px}
 #leadForm .consent a:hover,.cookie-consent-copy p:last-child a:hover{color:#fff}
+
+/* Premium benefit deck — final cascade layer for the hero. */
+.hero .trust-line{
+  background:
+    radial-gradient(circle at 9% 15%,rgba(255,153,92,.12),transparent 26%),
+    radial-gradient(circle at 91% 85%,rgba(91,205,222,.11),transparent 30%),
+    linear-gradient(135deg,rgba(8,35,51,.92),rgba(5,24,37,.96));
+  border:1px solid rgba(116,207,235,.26);
+  border-radius:24px;
+  bottom:20px;
+  box-shadow:0 24px 65px rgba(0,10,18,.38),inset 0 1px 0 rgba(255,255,255,.08);
+  isolation:isolate;
+  left:32px;
+  overflow:hidden;
+  padding:12px;
+  right:32px;
+}
+.hero .trust-line::before{
+  background-image:linear-gradient(rgba(117,203,231,.038) 1px,transparent 1px),linear-gradient(90deg,rgba(117,203,231,.038) 1px,transparent 1px);
+  background-size:28px 28px;
+  content:"";
+  inset:0;
+  mask-image:linear-gradient(90deg,#000,transparent 75%);
+  pointer-events:none;
+  position:absolute;
+  z-index:-1;
+}
+.hero .trust-line::after{
+  animation:trustDeckBeam 7s cubic-bezier(.45,0,.2,1) infinite;
+  background:linear-gradient(90deg,transparent,rgba(111,218,239,.75),rgba(255,158,98,.9),transparent);
+  content:"";
+  filter:blur(.2px) drop-shadow(0 0 7px rgba(99,210,232,.58));
+  height:1px;
+  left:-38%;
+  pointer-events:none;
+  position:absolute;
+  top:0;
+  width:38%;
+}
+.hero .trust-track{display:grid;gap:12px;grid-template-columns:repeat(3,minmax(0,1fr));position:relative;width:100%;z-index:1}
+.hero .trust-card{
+  --trust-x:50%;
+  --trust-y:50%;
+  align-items:center;
+  animation:trustCardReveal .72s cubic-bezier(.2,.75,.25,1) both;
+  background:
+    radial-gradient(circle at var(--trust-x) var(--trust-y),rgba(var(--trust-accent),.2),transparent 42%),
+    linear-gradient(138deg,rgba(25,66,84,.8),rgba(7,29,43,.92));
+  border:1px solid rgba(var(--trust-accent),.3);
+  border-radius:17px;
+  box-shadow:0 14px 34px rgba(0,7,13,.23),inset 0 1px 0 rgba(255,255,255,.07);
+  gap:16px;
+  min-height:90px;
+  overflow:hidden;
+  padding:17px 20px;
+  position:relative;
+  transform:translateZ(0);
+  transition:border-color .28s ease,box-shadow .28s ease,transform .28s cubic-bezier(.2,.75,.25,1);
+}
+.hero .trust-card:nth-child(2){animation-delay:.1s}.hero .trust-card:nth-child(3){animation-delay:.2s}
+.hero .trust-card::before{
+  animation:trustLightPass 6.8s ease-in-out infinite;
+  background:linear-gradient(105deg,transparent 23%,rgba(var(--trust-accent),.17),transparent 77%);
+  content:"";
+  inset:0;
+  pointer-events:none;
+  position:absolute;
+  transform:translateX(-115%);
+}
+.hero .trust-card::after{
+  background:linear-gradient(90deg,rgba(var(--trust-accent),.92),rgba(var(--trust-accent),.08));
+  border-radius:99px;
+  bottom:0;
+  box-shadow:0 0 12px rgba(var(--trust-accent),.45);
+  content:"";
+  height:2px;
+  left:20px;
+  opacity:.72;
+  position:absolute;
+  right:42%;
+  transform:scaleX(.45);
+  transform-origin:left;
+  transition:opacity .28s ease,right .28s ease,transform .28s ease;
+}
+.hero .trust-card:hover{
+  border-color:rgba(var(--trust-accent),.7);
+  box-shadow:0 20px 46px rgba(0,8,15,.38),0 0 30px rgba(var(--trust-accent),.13),inset 0 1px 0 rgba(255,255,255,.12);
+  transform:translateY(-5px);
+}
+.hero .trust-card:hover::after{opacity:1;right:20px;transform:scaleX(1)}
+.hero .trust-icon{
+  animation:trustIconBreathe 3.4s ease-in-out infinite;
+  background:linear-gradient(145deg,rgba(var(--trust-accent),.27),rgba(var(--trust-accent),.07));
+  border:1px solid rgba(var(--trust-accent),.48);
+  border-radius:15px;
+  box-shadow:0 9px 23px rgba(0,10,17,.28),0 0 18px rgba(var(--trust-accent),.08),inset 0 1px 0 rgba(255,255,255,.14);
+  color:rgb(var(--trust-accent));
+  flex:0 0 50px;
+  height:50px;
+  position:relative;
+  transition:transform .28s ease,box-shadow .28s ease;
+}
+.hero .trust-card:nth-child(2) .trust-icon{animation-delay:.7s}.hero .trust-card:nth-child(3) .trust-icon{animation-delay:1.4s}
+.hero .trust-icon::after{
+  animation:trustStatusPulse 2.2s ease-in-out infinite;
+  background:rgb(var(--trust-accent));
+  border:2px solid #123447;
+  border-radius:50%;
+  box-shadow:0 0 11px rgba(var(--trust-accent),.86);
+  content:"";
+  height:8px;
+  position:absolute;
+  right:-3px;
+  top:-3px;
+  width:8px;
+}
+.hero .trust-card:hover .trust-icon{box-shadow:0 12px 27px rgba(0,10,17,.34),0 0 25px rgba(var(--trust-accent),.2),inset 0 1px 0 rgba(255,255,255,.17);transform:rotate(-3deg) scale(1.06)}
+.hero .trust-icon svg{height:25px;overflow:visible;width:25px}
+.hero .trust-icon svg>*{animation:trustIconDraw 1.15s ease-out both;stroke-dasharray:70;stroke-dashoffset:0}
+.hero .trust-copy strong{color:#f7fbfd;font-size:15px;font-weight:800;letter-spacing:-.025em;line-height:1.25;text-shadow:0 2px 10px rgba(0,0,0,.18)}
+.hero .trust-copy small{color:#a9c0cb;font-size:11px;line-height:1.45;margin-top:5px}
+
+@keyframes trustDeckBeam{0%,12%{left:-38%}60%,100%{left:110%}}
+@keyframes trustCardReveal{from{opacity:0;transform:translateY(16px) scale(.975)}to{opacity:1;transform:none}}
+@keyframes trustIconBreathe{0%,100%{box-shadow:0 9px 23px rgba(0,10,17,.28),0 0 12px rgba(var(--trust-accent),.06),inset 0 1px 0 rgba(255,255,255,.14)}50%{box-shadow:0 11px 27px rgba(0,10,17,.32),0 0 24px rgba(var(--trust-accent),.2),inset 0 1px 0 rgba(255,255,255,.17)}}
+@keyframes trustStatusPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.58;transform:scale(.7)}}
+@keyframes trustIconDraw{from{stroke-dashoffset:70}to{stroke-dashoffset:0}}
+
+@media(max-width:1000px){
+  .hero .trust-card{gap:11px;padding:15px 13px}
+  .hero .trust-icon{border-radius:13px;flex-basis:44px;height:44px}
+  .hero .trust-icon svg{height:22px;width:22px}
+  .hero .trust-copy strong{font-size:13px}
+  .hero .trust-copy small{font-size:10px}
+}
+@media(max-width:820px){
+  .hero{padding-bottom:230px}
+  .hero .trust-line{bottom:18px;left:24px;right:24px}
+  .hero .trust-track{grid-template-columns:1fr 1fr}
+  .hero .trust-card:nth-child(3){grid-column:1/-1}
+}
+@media(max-width:560px){
+  .hero{padding-bottom:332px}
+  .hero .trust-line{border-radius:19px;bottom:16px;left:12px;padding:9px;right:12px}
+  .hero .trust-track{gap:8px;grid-template-columns:1fr}
+  .hero .trust-card,.hero .trust-card:nth-child(3){border-radius:14px;grid-column:auto;min-height:82px;padding:13px 15px}
+  .hero .trust-icon{border-radius:12px;flex-basis:43px;height:43px}
+  .hero .trust-copy strong{font-size:14px}
+  .hero .trust-copy small{font-size:10.5px}
+}
+@media(prefers-reduced-motion:reduce){
+  .hero .trust-line::after,.hero .trust-card,.hero .trust-card::before,.hero .trust-icon,.hero .trust-icon::after,.hero .trust-icon svg>*{animation:none!important}
+  .hero .trust-card{transition:none}.hero .trust-card:hover{transform:none}
+}
