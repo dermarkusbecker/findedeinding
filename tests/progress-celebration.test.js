@@ -35,6 +35,18 @@ test('abgeschlossener Prozess erhält einen eigenen Abschlussmoment', () => {
   assert.equal(result.ctaLabel, 'Meine Entwicklung ansehen →');
 });
 
+test('Onboarding-Fortschritt bleibt auch mit noch leeren Daten stabil und führt ins Onboarding', () => {
+  const result = buildProgressCelebration({
+    activeWeek: null,
+    completedWeeks: null,
+    clarityHistory: null,
+    onboardingComplete: false,
+  });
+  assert.equal(result.percent, 0);
+  assert.equal(result.currentScore, null);
+  assert.equal(result.ctaLabel, 'Onboarding fortsetzen →');
+});
+
 test('Prozesskarte öffnet ein zugängliches, schließbares Clara-Fortschrittsfenster', async () => {
   const [html, script, styles] = await Promise.all([file('portal.html'), file('portal.js'), file('portal.css')]);
   assert.match(html, /id="openProgressCelebration"[^>]+role="button"[^>]+aria-haspopup="dialog"/);
@@ -43,6 +55,8 @@ test('Prozesskarte öffnet ein zugängliches, schließbares Clara-Fortschrittsfe
   assert.match(html, /assets\/clara-progress-guide-v1\.png/);
   assert.match(script, /function renderProgressCelebration/);
   assert.match(script, /progressCelebrationDialog.*showModal/s);
+  assert.match(script, /typeof dialog\.showModal === 'function'/);
+  assert.match(script, /if \(!program\?\.onboardingComplete\) showView\('onboarding'\)/);
   assert.match(script, /event\.key === 'Enter'.*event\.key === ' '/s);
   assert.match(styles, /\.progress-celebration-dialog::backdrop/);
   assert.match(styles, /\.progress-celebration-head \{[\s\S]*?display: block;/);

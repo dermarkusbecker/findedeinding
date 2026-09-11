@@ -701,3 +701,98 @@ main > header .coach { color: #fff; background: linear-gradient(135deg, #f89454,
 @media (prefers-reduced-motion: reduce) {
   .clarity-improvement-score strong { animation: none; }
 }
+
+/* Portal-Kontrastaudit: keine dunklen Altfarben auf der neuen Clara-Bühne. */
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+aside .phase small { color: rgba(232, 243, 248, .72); font-size: 10px; }
+aside .phase em { color: rgba(232, 243, 248, .74); font-size: 10px; }
+aside .phase-clarity span { color: rgba(232, 243, 248, .76); font-size: 10px; }
+aside .side-foot small { color: rgba(227, 240, 246, .7); font-size: 10px; }
+main > header small,
+main > header .header-clarity { color: rgba(225, 240, 247, .78); font-size: 10px; }
+
+.onboarding-welcome .clara-head small { color: rgba(224, 239, 246, .76); font-size: 10px; }
+.onboarding-welcome .clara-copy p { color: #dcecf3; font-size: 14px; line-height: 1.72; }
+.onboarding-welcome .promise { padding: 18px 20px; }
+.onboarding-welcome .promise strong {
+  color: #f7fbfd;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.55;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, .18);
+}
+.start-gates > h2 { color: #f7fbfd; }
+.gates-intro p { color: #d9eaf2; font-size: 13px; line-height: 1.65; }
+.gate-header strong { color: #f7fbfd; font-size: 15px; }
+.gate-header small { color: rgba(220, 237, 244, .76); font-size: 11px; line-height: 1.5; }
+.gate-card > small { color: rgba(220, 237, 244, .74); font-size: 11px; }
+.gate-card .consent-box strong { color: #f5fbfe; font-size: 14px; }
+.gate-card .consent-box p { color: rgba(224, 239, 246, .78); font-size: 12px; line-height: 1.62; }
+.onboarding-profile-grid label,
+.onboarding-birth-field legend { color: #e5f2f7; font-size: 12px; }
+.onboarding-birth-inputs label > span { color: #bcd4df; font-size: 9px; }
+.onboarding-profile-footer { border-top-color: rgba(143, 198, 222, .17); }
+.onboarding-profile-footer p { color: rgba(222, 238, 245, .76); font-size: 11px; }
+.onboarding-profile-footer p.complete { color: #80e0b9; }
+.onboarding-complete-state strong { color: #9ce8c9; font-size: 15px; }
+.onboarding-complete-state p { color: rgba(220, 239, 246, .78); font-size: 12px; line-height: 1.55; }
+.privacy-gate-card.is-confirmed,
+.commitment-card.is-confirmed { color: #eefaf6; background: linear-gradient(145deg, rgba(16, 83, 69, .96), rgba(7, 45, 49, .98)); border-color: rgba(86, 215, 166, .34); }
+.privacy-gate-card.is-confirmed #privacyConsentStatus,
+.commitment-card.is-confirmed #signedCommitmentStatus { color: #8ce4bd; }
+
+.pre-onboarding-dashboard h2 { color: #f5fbff; }
+.pre-onboarding-dashboard p:last-child { color: rgba(220, 236, 244, .78); font-size: 13px; }
+.program-progress-head > div > p:last-child { color: rgba(220, 236, 244, .76); font-size: 13px; }
+.dashboard-week-tile small { color: rgba(229, 241, 247, .78); font-size: 11px; }
+.dashboard-week-tile b { color: #f5fbff; font-size: 14px; line-height: 1.42; }
+.dashboard-week-tile i { color: rgba(222, 238, 245, .72); font-size: 11px; }
+.dashboard-schedule dt { color: rgba(220, 236, 244, .76); }
+.dashboard-schedule > p:last-child { color: rgba(220, 236, 244, .72); font-size: 12px; }
+.dashboard-clarity-stats span,
+.dashboard-clarity-stats small { color: rgba(222, 237, 244, .72); font-size: 10px; }
+.dashboard-clarity-legend span { color: rgba(226, 240, 246, .76); font-size: 11px; }
+
+.journey-grid .week-card p { color: rgba(221, 237, 244, .76); font-size: 12px; line-height: 1.58; }
+.journey-grid .week-card b { color: rgba(229, 241, 247, .78); font-size: 11px; }
+.journey-grid .week-card i { color: #ffbd88; background: rgba(255, 148, 84, .12); }
+.week-reflections > div:first-child > p:last-child { color: rgba(225, 239, 246, .78); font-size: 13px; }
+.insight-grid article > span { color: #f5fbff; font-size: 13px; }
+.documents article b { color: #f5fbff; font-size: 14px; }
+.documents article small { color: rgba(221, 237, 244, .76); font-size: 11px; line-height: 1.55; }
+.support-grid article p,
+.evidence li { color: rgba(221, 237, 244, .76); font-size: 12px; line-height: 1.6; }
+
+#activeWeek .week-save-state { color: rgba(225, 240, 247, .78); font-size: 11px; }
+#activeWeek .week-one-task { color: rgba(229, 241, 247, .78); }
+#activeWeek .week-one-task b { color: #eef8fc; font-size: 12px; }
+#activeWeek .week-one-task small { color: rgba(215, 234, 242, .72); font-size: 10px; }
+#activeWeek .week-actions summary { color: rgba(219, 236, 244, .74); font-size: 11px; }
+#activeWeek .week-final-note { color: rgba(229, 241, 247, .78); }
+#activeWeek .week-final-note strong { font-size: 12px; }
+#activeWeek .week-final-note span,
+#activeWeek .gate-note p { color: rgba(219, 236, 244, .74); font-size: 11px; line-height: 1.55; }
+#activeWeek .clara-head small { color: rgba(222, 239, 246, .74); font-size: 10px; }
+#activeWeek .clara-head > i { font-size: 9px; }
+#activeWeek .question-label,
+.clara-entry-typing > span,
+#activeWeek .clara-message span { font-size: 10px; }
+#activeWeek .clara-message p { color: #f2f9fc; font-size: 15px; }
+#activeWeek .clara-message.loading p em { color: rgba(225, 240, 247, .76); font-size: 11px; }
+#activeWeek .clara-step-control span { color: rgba(225, 240, 247, .76); font-size: 12px; }
+#activeWeek .journey-upload small,
+#activeWeek .weekly-clarity-checkin small,
+#activeWeek .motivator-priority p,
+#activeWeek .cv-required-card small { color: rgba(222, 238, 245, .76); font-size: 11px; line-height: 1.55; }
+
+.clarity-dialog-eyebrow,
+.clarity-improvement-copy > p:first-child { font-size: 10px; }
+.clarity-previous small { color: rgba(218, 236, 244, .74); font-size: 10px; }
+.clarity-previous span { color: rgba(222, 238, 245, .74); font-size: 11px; }
+.clarity-dialog-scale > p { color: rgba(219, 236, 244, .72); font-size: 10px; }
+.clarity-dialog-selection span,
+.clarity-dialog-selection small { color: rgba(225, 240, 247, .76); font-size: 11px; }
+.clarity-dialog-hint { color: rgba(221, 238, 245, .74); font-size: 11px; }
+.clarity-improvement-score small { color: #f4d98e; font-size: 10px; }
+.clarity-improvement-score span { color: rgba(230, 241, 246, .76); }

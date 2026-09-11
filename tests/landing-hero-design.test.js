@@ -57,3 +57,10 @@ test('landing navigation is crisp and orange calls to action glow accessibly', (
   assert.match(css, /\.nav-cta:focus-visible,\.button-orange:focus-visible/);
   assert.match(css, /prefers-reduced-motion:reduce[^}]*\.nav-cta,\.button-orange/s);
 });
+
+test('program signals below the hero remain large and high-contrast', () => {
+  assert.match(html, /class="signal-strip[\s\S]*?<b>8 Wochen<\/b>[\s\S]*?<b>Dein Plan<\/b>/);
+  assert.match(css, /\.signal-strip>div\{[^}]*min-height:116px[^}]*padding:0 clamp\(22px,2\.2vw,34px\)/s);
+  assert.match(css, /\.signal-strip span\{[^}]*color:#b8c7d3[^}]*font-size:13px/s);
+  assert.match(css, /\.signal-strip b\{[^}]*color:#fff[^}]*font-size:16px[^}]*font-weight:800/s);
+});

@@ -45,3 +45,47 @@ test('Supabase erlaubt die Verarbeitungsart systemseitig befüllter PDFs', async
   assert.match(migration, /'pdf_form_fill'/);
   assert.match(schema, /extraction_method text check \(extraction_method in \([^)]*'pdf_form_fill'/);
 });
+
+test('PDF-Ablage bleibt mit älteren Dokument-Constraints für Datenschutz und Commitment funktionsfähig', async () => {
+  const originalFetch = global.fetch;
+  const participantId = '11111111-1111-4111-8111-111111111111';
+  const accepted = [];
+  global.fetch = async (url, options = {}) => {
+    const target = String(url);
+    if (target.includes('/storage/v1/bucket/participant-documents')) return new Response('{}', { status: 200 });
+    if (target.includes('/storage/v1/object/participant-documents/')) return new Response('{}', { status: 200 });
+    if (target.includes('/rest/v1/participant_documents')) {
+      const payload = JSON.parse(options.body);
+      if (payload.extraction_method === 'pdf_form_fill') {
+        return new Response(JSON.stringify({ code: '23514', message: 'new row violates check constraint participant_documents_extraction_method_check' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (payload.document_type === 'privacy_consent') {
+        return new Response(JSON.stringify({ code: '23514', message: 'new row violates check constraint participant_documents_document_type_check' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      }
+      accepted.push(payload);
+      return new Response(JSON.stringify([{ id: `document-${accepted.length}`, created_at: '2026-09-11T12:00:00Z', ...payload }]), { status: 201, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response('{}', { status: 404 });
+  };
+  try {
+    const privacy = await storeGeneratedParticipantDocument({
+      service: { url: 'https://example.supabase.co', key: 'service-key' }, participantId,
+      buffer: Buffer.from('%PDF-privacy'), fileName: 'datenschutz.pdf', documentType: 'privacy_consent', fallbackDocumentType: 'other',
+      title: 'Datenschutzinformation & Einwilligung', extractedData: { artifactType: 'privacy_consent' }, extractionVersion: 'privacy-v1',
+    });
+    const commitment = await storeGeneratedParticipantDocument({
+      service: { url: 'https://example.supabase.co', key: 'service-key' }, participantId,
+      buffer: Buffer.from('%PDF-commitment'), fileName: 'commitment.pdf', documentType: 'start_commitment',
+      title: 'Mein persönliches Commitment', extractedData: { artifactType: 'start_commitment' }, extractionVersion: 'commitment-v1',
+    });
+    assert.equal(privacy.document_type, 'other');
+    assert.equal(privacy.extraction_method, 'manual');
+    assert.equal(privacy.extracted_data.artifactType, 'privacy_consent');
+    assert.equal(commitment.document_type, 'start_commitment');
+    assert.equal(commitment.extraction_method, 'manual');
+    assert.equal(commitment.extracted_data.artifactType, 'start_commitment');
+    assert.equal(accepted.length, 2);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

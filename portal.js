@@ -1,6 +1,7 @@
 import { journeyStepStatuses, weekOnePrompt } from './lib/week-one.js';
 import { currentGuidedStep, guidedClarityStep, guidedStepStatuses, guidedWeekDefinition, MOTIVATOR_OPTIONS, needsGuidedClarityCheckin } from './lib/guided-weeks.js';
 import { buildProgressCelebration } from './lib/progress-celebration.js';
+import { buildJourneyWeeks } from './lib/journey-weeks.js';
 
 const previewUrl = new URL(window.location.href);
 const suppliedAdminPreviewToken = previewUrl.searchParams.get('adminPreview') || '';
@@ -778,7 +779,7 @@ function closeCommitmentDialog(result = '') {
 
 function progressPercent() {
   if (!program) return 0;
-  return Math.round(program.access.completedWeeks.length / 8 * 100);
+  return Math.round((Array.isArray(program?.access?.completedWeeks) ? program.access.completedWeeks.length : 0) / 8 * 100);
 }
 
 function weekIsFinalized(week = currentWeek) {
@@ -895,14 +896,15 @@ function currentWeekStepProgress(week) {
 }
 
 function renderProgressCelebration() {
-  if (!program?.access) return null;
-  const week = activeProcessWeek(program.access);
+  if (!program) return null;
+  const access = program.access || {};
+  const week = activeProcessWeek(access);
   const summary = (program.programWeeks || []).find((item) => Number(item.week) === week);
   const steps = currentWeekStepProgress(week);
   const celebration = buildProgressCelebration({
     activeWeek: week,
-    completedWeeks: program.access.completedWeeks,
-    clarityHistory: program.clarityHistory,
+    completedWeeks: Array.isArray(access.completedWeeks) ? access.completedWeeks : [],
+    clarityHistory: Array.isArray(program.clarityHistory) ? program.clarityHistory : [],
     completedSteps: steps.completed,
     totalSteps: steps.total,
     currentWeekTitle: summary?.title || `Woche ${week}`,
@@ -925,12 +927,28 @@ function renderProgressCelebration() {
 }
 
 function openProgressCelebration() {
-  const celebration = renderProgressCelebration();
-  if (!celebration) return;
   const dialog = $('#progressCelebrationDialog');
-  dialog.classList.remove('is-celebrating');
-  dialog.showModal();
-  requestAnimationFrame(() => dialog.classList.add('is-celebrating'));
+  if (!dialog) {
+    toast('Der Fortschritt konnte gerade nicht geöffnet werden. Bitte lade die Seite neu.');
+    return;
+  }
+  try {
+    const celebration = renderProgressCelebration();
+    if (!celebration) {
+      toast('Dein Fortschritt wird noch geladen. Bitte versuche es gleich noch einmal.');
+      return;
+    }
+    dialog.classList.remove('is-celebrating');
+    if (!dialog.open) {
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+      else dialog.setAttribute('open', '');
+    }
+    requestAnimationFrame(() => dialog.classList.add('is-celebrating'));
+  } catch (error) {
+    dialog.setAttribute('open', '');
+    dialog.classList.add('is-celebrating');
+    toast('Dein Fortschritt ist geöffnet. Einzelne Werte werden noch synchronisiert.');
+  }
 }
 
 async function loadProgram(week = null) {
@@ -1186,9 +1204,13 @@ function formatProgramDate(value) {
 }
 
 function openWeekPreview(week) {
-  const summary = (program?.programWeeks || []).find((item) => Number(item.week) === Number(week));
-  const state = (program?.access?.weekStates || []).find((item) => Number(item.week) === Number(week));
-  if (!summary || !state) return;
+  const journeyWeek = buildJourneyWeeks(program).find((item) => item.week === Number(week));
+  const summary = journeyWeek?.summary;
+  const state = journeyWeek;
+  if (!summary || !state) {
+    toast('Diese Woche konnte gerade nicht geladen werden. Bitte versuche es erneut.');
+    return;
+  }
   const completed = Boolean(state.completed);
   const accessible = Boolean(state.accessible) && program.access.status !== 'paused';
   $('#weekPreviewEyebrow').textContent = `Woche ${week} · ${summary.mode}`;
@@ -1933,12 +1955,12 @@ function render() {
 }
 
 function renderJourney() {
-  const summaries = new Map((program?.programWeeks || []).map((week) => [week.week, week]));
-  $('#journeyGrid').innerHTML = (program?.access.weekStates || []).map((state) => {
-    const summary = summaries.get(state.week);
+  const journeyWeeks = buildJourneyWeeks(program);
+  $('#journeyGrid').innerHTML = journeyWeeks.map((state) => {
+    const summary = state.summary;
     const active = state.week === currentWeek;
     const status = state.completed ? '✓ abgeschlossen' : active ? '● geöffnet' : state.accessible ? '○ verfügbar' : 'gesperrt';
-    const reason = state.reason === 'demo_full_access' ? 'Im Demo-Modus sofort verfügbar' : state.reason === 'admin_unlocked' ? 'Vom Admin freigegeben' : state.reason === 'admin_locked' ? 'Vom Admin gesperrt' : state.reason === 'scheduled_release' ? `Freigeschaltet seit ${formatProgramDate(state.unlocksAt)}` : state.reason === 'scheduled_wait' ? `Öffnet am ${formatProgramDate(state.unlocksAt)}` : state.accessible ? 'Zugriff freigegeben' : 'Noch nicht freigeschaltet';
+    const reason = state.reason === 'demo_full_access' ? 'Im Demo-Modus sofort verfügbar' : state.reason === 'admin_unlocked' ? 'Vom Admin freigegeben' : state.reason === 'admin_locked' ? 'Vom Admin gesperrt' : state.reason === 'scheduled_release' ? `Freigeschaltet seit ${formatProgramDate(state.unlocksAt)}` : state.reason === 'scheduled_wait' ? `Öffnet am ${formatProgramDate(state.unlocksAt)}` : state.reason === 'onboarding_required' ? 'Nach dem Onboarding verfügbar' : state.accessible ? 'Zugriff freigegeben' : 'Noch nicht freigeschaltet';
     return `<article class="week-card ${state.completed ? 'completed' : active ? 'active' : state.accessible ? 'available' : 'locked'}" data-preview-week="${state.week}" tabindex="0" role="button"><span>Woche ${state.week}</span><i>${status}</i><h2>${escapeHtml(summary?.title || `Woche ${state.week}`)}</h2><p>${escapeHtml(summary?.description || summary?.mode || 'Dein nächster Schritt im Acht-Wochen-Prozess.')}</p><b>${reason} · Details ansehen</b></article>`;
   }).join('');
   $$('#journeyGrid [data-preview-week]').forEach((card) => {
@@ -2059,7 +2081,8 @@ $('#progressCelebrationDialog').addEventListener('close', () => $('#progressCele
 $('#celebrationContinue').addEventListener('click', (event) => {
   const week = Number(event.currentTarget.dataset.week || 1);
   $('#progressCelebrationDialog').close();
-  if (program?.access?.completedWeeks?.length === 8) showView('insights');
+  if (!program?.onboardingComplete) showView('onboarding');
+  else if (program?.access?.completedWeeks?.length === 8) showView('insights');
   else openWeek(week);
 });
 $('#closeStepReview').addEventListener('click', () => $('#stepReviewDialog').close());

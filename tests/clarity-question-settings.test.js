@@ -59,6 +59,26 @@ test('Fragenabruf filtert nur bei ausdrücklich gewählter Woche', async () => {
   assert.match(urls[1], /week=eq\.4/);
 });
 
+test('fehlende neue Fragenbaukasten-Spalten legen das Kundenportal nicht mehr lahm', async () => {
+  const originalFetch = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    urls.push(String(url));
+    if (urls.length === 1) return new Response(JSON.stringify({ code: '42703', message: 'column clarity_questions.guidance_text does not exist' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify([{ question_key: '1.THREE_WISHES_COLLECTION', week: 1, prompt_text: 'Drei Wünsche?', enabled: true }]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  try {
+    const rows = await readClarityQuestionOverrides({ url: 'https://example.supabase.co', key: 'service-key' }, 1);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].prompt_text, 'Drei Wünsche?');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.match(urls[0], /guidance_text/);
+  assert.doesNotMatch(urls[1], /guidance_text/);
+  assert.match(urls[1], /week=eq\.1/);
+});
+
 test('Admin-API schützt und persistiert die konfigurierten Fragen', async () => {
   const [api, participantApi, claraApi] = await Promise.all([
     readFile(new URL('../api/clarity.js', import.meta.url), 'utf8'),

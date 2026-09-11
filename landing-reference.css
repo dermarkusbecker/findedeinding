@@ -185,3 +185,46 @@ body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-s
 @media(prefers-reduced-motion:reduce){
   .nav-cta,.button-orange,.nav-cta::before,.button-orange::before,.nav-cta span,.button-orange span{animation:none!important}
 }
+
+/* Gut lesbare Programm-Signale direkt unter dem Hero */
+.signal-strip{
+  border-color:rgba(116,181,226,.28);
+}
+.signal-strip>div{
+  gap:18px;
+  min-height:116px;
+  padding:0 clamp(22px,2.2vw,34px);
+}
+.signal-strip i{
+  color:#ff9b5d;
+  flex:0 0 24px;
+  font-size:11px;
+  font-weight:800;
+  line-height:1;
+  text-shadow:0 0 18px rgba(255,122,47,.2);
+}
+.signal-strip span{
+  color:#b8c7d3;
+  font-size:13px;
+  line-height:1.45;
+}
+.signal-strip b{
+  color:#fff;
+  font-size:16px;
+  font-weight:800;
+  letter-spacing:-.02em;
+  line-height:1.25;
+  margin-bottom:5px;
+}
+@media(max-width:820px){
+  .signal-strip>div{min-height:104px;padding-inline:22px}
+  .signal-strip span{font-size:12px}
+  .signal-strip b{font-size:15px}
+}
+@media(max-width:560px){
+  .signal-strip{padding-inline:17px}
+  .signal-strip>div{gap:13px;min-height:92px;padding-inline:10px}
+  .signal-strip i{flex-basis:20px;font-size:10px}
+  .signal-strip span{font-size:11px}
+  .signal-strip b{font-size:14px}
+}
