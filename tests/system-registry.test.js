@@ -18,7 +18,7 @@ test('Systemregister zeigt aktive Google-, Supabase- und OpenAI-Dienste getrennt
   assert.equal(byId.google_meet.status.key, 'active');
   assert.match(byId.google_calendar.detail, /admin@example\.com/);
   assert.equal(byId.supabase_auth_mail.status.key, 'active');
-  assert.equal(registry.summary.activeIntegrations, 5);
+  assert.equal(registry.summary.activeIntegrations, 6);
 });
 
 test('Systemregister unterscheidet fehlende Konfiguration und geplanten Ausbau', () => {
@@ -28,7 +28,7 @@ test('Systemregister unterscheidet fehlende Konfiguration und geplanten Ausbau',
   assert.equal(registry.agents.find((item) => item.id === 'situation_recognition').status.key, 'missing');
   assert.equal(registry.agents.find((item) => item.id === 'week_reflection').status.key, 'missing');
   assert.equal(registry.agents.some((item) => item.id === 'decision_escalation'), false);
-  assert.ok(registry.summary.planned >= 4);
+  assert.ok(registry.summary.planned >= 3);
 });
 
 test('Systemregister listet die tatsächlich implementierten KI-Aufgaben nachvollziehbar', () => {

@@ -1,3 +1,5 @@
+import { dashboardClarity } from '../lib/dashboard-clarity.js';
+import { checkIntegrationHealth, applyIntegrationHealth } from '../lib/integration-health.js';
 import {beginRecording,prepareRecordingUpload,completeRecordingUpload} from '../lib/contract-recording-service.js';
 import crypto from 'node:crypto';
 import { DEFAULT_BOOKING_SETTINGS, generateAvailableSlots, isWithinBookingAvailability, normalizeBookingSettings } from '../lib/booking-availability.js';
@@ -220,7 +222,6 @@ async function commandDashboard(service, admin) {
   const requests = [
     fetch(`${service.url}/rest/v1/user_profiles?role=eq.user&select=id,name,email,status,permissions,created_at&limit=1000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/participant_progress?select=user_profile_id,current_week,process_status,program_start_date,program_status,privacy_consent_at,start_commitment_at,last_activity_at,updated_at&limit=1000`, { headers: headers(service.key) }),
-    fetch(`${service.url}/rest/v1/clarity_measurements?select=user_profile_id,phase,score,measured_at&limit=3000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/week_gates?required=eq.true&select=id,user_profile_id,week,label,completed_at&limit=5000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/process_entries?data_block=like.week_*_state&select=user_profile_id,week,data_block,structured_data,created_at&order=created_at.desc&limit=10000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/customer_questions?status=eq.open&select=id,user_profile_id,week,question,created_at&order=created_at.asc&limit=200`, { headers: headers(service.key) }),
@@ -229,10 +230,11 @@ async function commandDashboard(service, admin) {
     fetch(`${service.url}/rest/v1/lead_communications?direction=eq.inbound&read_at=is.null&select=id,lead_id,subject,occurred_at&order=occurred_at.asc&limit=200`, { headers: headers(service.key) }),
   ];
   const results = await Promise.all(requests);
-  const [profiles, progressRows, measurements, gateRows, stateEntries, questions, tasks, leads, unreadMessages] = await Promise.all(results.map((result) => readJson(result, 'Dashboard-Daten konnten nicht geladen werden.')));
+  const [profiles, progressRows, gateRows, stateEntries, questions, tasks, leads, unreadMessages] = await Promise.all(results.map((result) => readJson(result, 'Dashboard-Daten konnten nicht geladen werden.')));
   const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
   const leadMap = new Map(leads.map((lead) => [lead.id, lead]));
-  const activeProgress = progressRows.filter((progress) => progress.program_status === 'active' && profileMap.get(progress.user_profile_id)?.status === 'active');
+  const customerIds = new Set(leads.filter(lead=>lead.status==='customer'&&lead.converted_user_profile_id).map(lead=>lead.converted_user_profile_id));
+  const activeProgress = progressRows.filter((progress) => (customerIds.has(progress.user_profile_id)||profileMap.get(progress.user_profile_id)?.permissions?.includes('demo_full_access')) && progress.program_status === 'active' && profileMap.get(progress.user_profile_id)?.status === 'active');
   const progressMap = new Map(activeProgress.map((progress) => [progress.user_profile_id, progress]));
   const accessMap = new Map(activeProgress.map((progress) => {
     const participantId = progress.user_profile_id;
@@ -245,11 +247,6 @@ async function commandDashboard(service, admin) {
   const newCustomers = activeProgress.filter((progress) => new Date(profileMap.get(progress.user_profile_id)?.created_at || 0) >= monthStart).length;
   const activeLeads = leads.filter((lead) => !lead.converted_user_profile_id && !['customer', 'lost', 'later'].includes(lead.status)).length;
   const distribution = Array.from({ length: 9 }, (_, week) => activeProgress.filter((progress) => Number(accessMap.get(progress.user_profile_id)?.processWeek || 0) === week).length);
-
-  const measurementsByParticipant = new Map();
-  measurements.forEach((measurement) => { const entry = measurementsByParticipant.get(measurement.user_profile_id) || {}; entry[measurement.phase] = Number(measurement.score); measurementsByParticipant.set(measurement.user_profile_id, entry); });
-  const completedGains = [...measurementsByParticipant.values()].filter((item) => Number.isFinite(item.start) && Number.isFinite(item.end)).map((item) => item.end - item.start);
-  const clarityPhases = ['start', 'midpoint', 'end'].map((phase) => ({ phase, average: average(measurements.filter((item) => item.phase === phase).map((item) => item.score)), count: measurements.filter((item) => item.phase === phase).length }));
 
   const relevantOpenGates = gateRows.filter((gate) => !gate.completed_at).filter((gate) => { const access = accessMap.get(gate.user_profile_id); return access && Number(gate.week) === Number(access.processWeek) && access.weekStates.some((state) => Number(state.week) === Number(gate.week) && state.accessible); });
   const staleThreshold = now.getTime() - 48 * 60 * 60 * 1000;
@@ -285,7 +282,8 @@ async function commandDashboard(service, admin) {
     generatedAt: now.toISOString(),
     adminName: admin?.profile?.name || admin?.name || 'Markus',
     summary: { activeCustomers: activeProgress.length, newCustomers, activeLeads, unreadMessages: unreadMessages.length, openGates: relevantOpenGates.length, overdueGates: overdueGates.length, onboarding: distribution[0] || 0 },
-    clarity: { averageGain: average(completedGains), completedComparisons: completedGains.length, phases: clarityPhases },
+    clarity: dashboardClarity(stateEntries, accessMap),
+    openGateCustomers: [...new Set(relevantOpenGates.map(gate=>gate.user_profile_id))].map(id=>({id,name:profileMap.get(id)?.name||'Kunde',week:accessMap.get(id)?.processWeek,gates:relevantOpenGates.filter(gate=>gate.user_profile_id===id).map(gate=>gate.label)})),
     weekDistribution: distribution.slice(1),
     attention: { total: attention.length, items: attention.slice(0, 6) },
     upcomingAppointments,
@@ -584,16 +582,20 @@ export default async function handler(request, response) {
       const googleConfigured = Boolean(googleConfig());
       const googleConnectionRecord = googleConfigured ? await googleConnection(service).catch(() => null) : null;
       const openai = claraConfig();
-      return response.status(200).json(buildSystemRegistry({
+      const registry = buildSystemRegistry({
         googleConfigured,
         googleConnection: googleConnectionRecord,
         googleMeetRecordingReady: googleMeetRecordingReady(googleConnectionRecord),
         openaiConfigured: Boolean(openai.apiKey),
         openaiModel: openai.model,
         whatsappConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
-      }));
+      });
+      const checks=await checkIntegrationHealth({service,openaiKey:openai.apiKey,openaiModel:openai.model,googleToken:googleConnectionRecord?()=>googleAccessToken(service):null,whatsappToken:process.env.WHATSAPP_ACCESS_TOKEN,whatsappId:process.env.WHATSAPP_PHONE_NUMBER_ID,whatsappVersion:process.env.WHATSAPP_GRAPH_API_VERSION||'v23.0'});
+      response.setHeader('Cache-Control','private, no-store');
+      return response.status(200).json(applyIntegrationHealth(registry,checks));
     }
     if (request.method === 'GET' && action === 'command-dashboard') {
+      response.setHeader('Cache-Control','private, no-store');
       return response.status(200).json(await commandDashboard(service, admin));
     }
     if (request.method === 'GET' && action === 'communications') {

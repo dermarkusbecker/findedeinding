@@ -17,13 +17,13 @@ test('geschützte Dashboard-API aggregiert die fachlichen Supabase-Echtdaten', a
   const api = await file('api/leads.js');
   assert.match(api, /action === 'command-dashboard'/);
   assert.match(api, /async function commandDashboard/);
-  for (const table of ['user_profiles', 'participant_progress', 'clarity_measurements', 'week_gates', 'customer_questions', 'lead_tasks', 'leads', 'lead_communications']) assert.match(api, new RegExp(`rest/v1/${table}`));
+  for (const table of ['user_profiles', 'participant_progress', 'process_entries', 'week_gates', 'customer_questions', 'lead_tasks', 'leads', 'lead_communications']) assert.match(api, new RegExp(`rest/v1/${table}`));
   assert.doesNotMatch(api, /coach_escalations|coachNeeded|escalationCounts/);
   assert.match(api, /week_gates\?required=eq\.true&select=/);
   assert.match(api, /process_entries\?data_block=like\.week_\*_state/);
   assert.match(api, /reconcileAccessFromEntries/);
   assert.match(api, /direction=eq\.inbound&read_at=is\.null/);
-  assert.match(api, /completedGains/);
+  assert.match(api, /dashboardClarity/);
   assert.match(api, /weekDistribution: distribution\.slice\(1\)/);
   assert.match(api, /upcomingAppointments/);
   assert.match(api, /!lead\.converted_user_profile_id/);
@@ -34,7 +34,7 @@ test('geschützte Dashboard-API aggregiert die fachlichen Supabase-Echtdaten', a
 test('Dashboard rendert Live-Metriken, Klarheitskurve, Wochenverteilung und echte Fokusvorgänge', async () => {
   const [script, styles] = await Promise.all([file('admin.js'), file('admin-crm-refresh.css')]);
   for (const fn of ['loadCommandDashboard', 'renderCommandDashboard', 'renderDashboardClarity', 'renderDashboardDistribution', 'renderDashboardAttention', 'renderDashboardAppointments']) assert.match(script, new RegExp(`function ${fn}`));
-  assert.match(script, /fetch\('\/api\/leads\?action=command-dashboard'\)/);
+  assert.match(script, /fetch\('\/api\/leads\?action=command-dashboard',\{cache:'no-store'\}\)/);
   assert.match(script, /openDashboardAction/);
   assert.match(styles, /\.dashboard-live-state/);
   assert.match(styles, /#dashboardClarityPoints/);

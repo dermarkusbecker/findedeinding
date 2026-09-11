@@ -95,7 +95,7 @@
               gebraucht wirst.
             </p>
           </div>
-          <span class="dashboard-live-state"><i></i><span id="dashboardLiveSummary">Live-Daten werden geladen</span></span>
+          <button type="button" class="secondary" id="refreshDashboardData">Daten aktualisieren ↻</button><span class="dashboard-live-state"><i></i><span id="dashboardLiveSummary">Live-Daten werden geladen</span></span>
         </div>
         <div class="metrics">
           <article class="dark">
@@ -108,13 +108,14 @@
           </article>
           <article class="peach">
             <span>Ø Klarheitsgewinn</span><strong id="dashboardClarityGain">—</strong>
-            <p id="dashboardClarityCopy">Noch keine vollständige Start-/Endmessung</p>
+            <p id="dashboardClarityCopy">Noch keine vergleichbaren Wochen-Check-ins</p>
           </article>
           <article class="yellow">
             <span>Offene Gates</span><strong id="dashboardOpenGates">0</strong>
             <p id="dashboardOpenGateCopy">Keine offenen Pflichtschritte</p>
           </article>
         </div>
+        <details class="dashboard-gate-detail"><summary>Offene Gates nach Kunden ansehen</summary><div id="dashboardGateCustomers"></div></details>
         <div class="main-grid">
           <section class="card participants-card">
             <div class="card-head">
