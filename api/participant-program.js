@@ -428,9 +428,12 @@ export default async function handler(request, response) {
       if (result.access.completedWeeks.includes(1)) return response.status(409).json({ error: 'Woche 1 ist abgeschlossen und kann nur noch angesehen werden.' });
       ensureRunningWeek(result, 1);
       const currentState = await readWeekOneState(result, session.participantId);
-      const update = applyWeekOneAction(currentState, request.body?.stepAction || {});
+      const stepAction = request.body?.stepAction || {};
+      if (!currentState.clarity_baseline?.completed && stepAction.type !== 'save_clarity') return response.status(409).json({ error: 'Bitte speichere zuerst deinen Klarheitsscore für diese Woche.', details: { reason: 'CLARITY_CHECKIN_REQUIRED' }, weekOne: currentState });
+      if (currentState.clarity_baseline?.completed && stepAction.type === 'save_clarity') return response.status(409).json({ error: 'Dein Klarheitsscore für Woche 1 ist bereits verbindlich gespeichert.', details: { reason: 'CLARITY_CHECKIN_ALREADY_COMPLETED' }, weekOne: currentState });
+      const update = applyWeekOneAction(currentState, stepAction);
       if (!update.ok) return response.status(400).json({ error: update.error, details: update.details, weekOne: update.state });
-      const rawAnswer = request.body?.stepAction?.answer || request.body?.stepAction?.wishes?.join('\n') || request.body?.stepAction?.fileName || '';
+      const rawAnswer = stepAction.answer || stepAction.wishes?.join('\n') || stepAction.fileName || (stepAction.type === 'save_clarity' ? `${stepAction.score}/10` : '');
       await saveWeekOneState(result, session.participantId, update.state, rawAnswer);
       const statuses = stepStatuses(update.state);
       const gateMap = { three_wishes: statuses[0].status === 'completed', target_and_baseline: statuses[1].status === 'completed' && statuses[2].status === 'completed', career_history: statuses[3].status === 'completed' };

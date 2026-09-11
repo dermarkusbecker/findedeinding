@@ -47,3 +47,13 @@ test('landing page introduces Clara as a personal guide with a live chat and det
   assert.match(css, /\.clara-live-card \.typing i\{/);
   assert.match(css, /@keyframes landingClaraFloat/);
 });
+
+test('landing navigation is crisp and orange calls to action glow accessibly', () => {
+  assert.match(css, /\.site-header nav\{[^}]*font-size:13px[^}]*font-weight:750[^}]*text-rendering:geometricPrecision/s);
+  assert.match(css, /\.nav-cta,\.button-orange\{[^}]*animation:fddCtaAura[^}]*font-size:13px/s);
+  assert.match(css, /@keyframes fddCtaAura/);
+  assert.match(css, /@keyframes fddCtaSheen/);
+  assert.match(css, /@keyframes fddCtaArrow/);
+  assert.match(css, /\.nav-cta:focus-visible,\.button-orange:focus-visible/);
+  assert.match(css, /prefers-reduced-motion:reduce[^}]*\.nav-cta,\.button-orange/s);
+});

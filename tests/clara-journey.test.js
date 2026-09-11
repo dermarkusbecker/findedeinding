@@ -46,6 +46,6 @@ test('erst die explizite Confirmation schreibt in den Week-1-Reducer', () => {
   assert.equal(confirmed.ok, true);
   assert.equal(confirmed.state.current_step, WEEK_ONE_STEPS.WISH_1);
   assert.deepEqual(confirmed.state.wishes.map((wish) => wish.final_answer), wishes);
-  assert.equal(journeyStepStatuses(confirmed.state)[0].status, 'completed');
+  assert.equal(journeyStepStatuses(confirmed.state).find((step) => step.id === 'wishes_collected').status, 'completed');
   assert.match(weekOnePrompt(confirmed.state).question, /Was würde sich in deinem Leben konkret verändern/);
 });

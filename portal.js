@@ -39,6 +39,14 @@ let initialViewResolved = false;
 let todayMode = 'dashboard';
 let journeyMessages = [];
 let journeyLoading = false;
+let claraEntranceLoading = false;
+let claraCurrentPrompt = '';
+let claraStepTransition = null;
+let claraStepTransitionTimer = null;
+let claraTurnStartedAt = 0;
+const CLARA_TYPING_MINIMUM_MS = 850;
+let pendingClarityWeek = null;
+let selectedClarityScore = null;
 let draftSaveTimer = null;
 let pendingWeekAction = null;
 let onboardingProfileDirty = false;
@@ -56,6 +64,39 @@ const onboardingFormDraftTimers = new Map();
 const onboardingFormDraftQueues = new Map();
 const onboardingFormsFinalizing = new Set();
 const speechState = { recognition: null, activeButton: null };
+
+function nowMs() {
+  return typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+}
+
+function syncClaraTypingState() {
+  const activeWeek = $('#activeWeek');
+  const entryTyping = $('#claraEntryTyping');
+  if (!activeWeek || !entryTyping) return;
+  const chatIsVisible = !$('#claraJourney')?.classList.contains('hidden');
+  activeWeek.classList.toggle('clara-is-typing', claraEntranceLoading);
+  activeWeek.setAttribute('aria-busy', String(claraEntranceLoading || journeyLoading));
+  entryTyping.classList.toggle('hidden', !claraEntranceLoading || chatIsVisible);
+}
+
+function beginClaraTurn({ deferTimer = false } = {}) {
+  claraEntranceLoading = true;
+  claraTurnStartedAt = deferTimer ? 0 : nowMs();
+  syncClaraTypingState();
+  renderClaraJourney();
+}
+
+async function waitForClaraTyping(startedAt = claraTurnStartedAt) {
+  const elapsed = nowMs() - (startedAt || nowMs());
+  const remaining = Math.max(0, CLARA_TYPING_MINIMUM_MS - elapsed);
+  if (remaining) await new Promise((resolve) => setTimeout(resolve, remaining));
+}
+
+function finishClaraTurn() {
+  claraEntranceLoading = false;
+  syncClaraTypingState();
+  renderClaraJourney();
+}
 
 function saveLocal() { localStorage.setItem('fdd_customer_notes', JSON.stringify(local)); }
 function toast(message) { const el = $('#portalToast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2800); }
@@ -893,6 +934,7 @@ function openProgressCelebration() {
 }
 
 async function loadProgram(week = null) {
+  clearClaraStepTransition();
   const suffix = week ? `?week=${week}` : '';
   program = await request(`/api/participant-program${suffix}`);
   if (!customerWorkspace) {
@@ -903,8 +945,11 @@ async function loadProgram(week = null) {
   currentWeek = safeSelectedWeek(program);
   currentContent = program.week;
   if (program.onboardingComplete && currentWeek >= 1) {
-    try { journeyMessages = (await request(`/api/participant-program?feature=clara-message&week=${currentWeek}`)).messages || []; }
-    catch { journeyMessages = []; }
+    try {
+      const claraData = await request(`/api/participant-program?feature=clara-message&week=${currentWeek}`);
+      journeyMessages = claraData.messages || [];
+      claraCurrentPrompt = claraData.currentPrompt || '';
+    } catch { journeyMessages = []; claraCurrentPrompt = ''; }
   }
   if (initialView) {
     initialViewResolved = true;
@@ -920,26 +965,87 @@ function renderClaraJourney() {
   const clarityCheckinPending = currentWeek >= 2 && needsGuidedClarityCheckin(program?.weekState);
   const guidedStep = currentWeek >= 2 ? currentGuidedStep(program?.weekState) : null;
   const usesStructuredPanel = ['upload', 'scale', 'external', 'priority_selection'].includes(guidedStep?.kind);
-  journey.classList.toggle('hidden', !program?.onboardingComplete || clarityCheckinPending || usesStructuredPanel);
-  const initialPrompt = program?.weekOne?.current_step === 'THREE_WISHES_COLLECTION'
-    ? '<article class="clara-message assistant"><span>Clara</span><p>Stell dir vor, du hättest drei Wünsche frei – ganz unabhängig davon, ob sie gerade realistisch sind.<br><br><strong>Welche drei Dinge würdest du dir für dein Leben gerade am meisten wünschen?</strong><br><br>Schreib einfach drauflos. Wir schauen sie uns danach gemeinsam an.</p></article>'
+  const weekOneUsesStructuredInput = currentWeek === 1 && program?.weekOne?.current_step !== 'THREE_WISHES_COLLECTION';
+  const showOnlyCurrentPrompt = clarityCheckinPending || usesStructuredPanel || weekOneUsesStructuredInput;
+  journey.classList.toggle('hidden', !program?.onboardingComplete);
+  const initialPrompt = clarityCheckinPending
+    ? '<article class="clara-message assistant"><span>Clara</span><p>Bevor wir inhaltlich weitergehen: <strong>Wie klar ist dir heute, was dein Ding ist?</strong><br><br>Halte kurz fest, ob sich seit der letzten Woche etwas verändert hat.</p></article>'
+    : program?.weekOne?.current_step === 'THREE_WISHES_COLLECTION'
+    ? `<article class="clara-message assistant"><span>Clara</span><p>${escapeHtml(claraCurrentPrompt || 'Stell dir vor, du hättest drei Wünsche frei – ganz unabhängig davon, ob sie gerade realistisch sind. Welche drei Dinge würdest du dir für dein Leben gerade am meisten wünschen?')}</p></article>`
     : guidedStep
-      ? `<article class="clara-message assistant"><span>Clara</span><p>${escapeHtml(guidedStep.question)}</p></article>`
-      : '<p class="clara-chat-empty">Hier ist Raum für alles, was nicht in ein festes Feld passt.</p>';
-  const messageHtml = journeyMessages.length
-    ? journeyMessages.map((message) => `<article class="clara-message ${message.role}"><span>${message.role === 'assistant' ? 'Clara' : 'Du'}</span><p>${escapeHtml(message.content).replace(/\n/g, '<br>')}</p>${renderClaraResultCard(message.uiAction)}</article>`).join('')
-    : initialPrompt;
-  $('#journeyMessages').innerHTML = `${messageHtml}${journeyLoading ? '<article class="clara-message assistant loading" aria-live="polite"><span>Clara</span><p><i></i><i></i><i></i><em>Clara denkt nach …</em></p></article>' : ''}`;
+      ? `<article class="clara-message assistant"><span>Clara</span><p>${escapeHtml(claraCurrentPrompt || guidedStep.question)}</p></article>`
+      : `<article class="clara-message assistant"><span>Clara</span><p>${$('#questionHelp')?.innerHTML || `<strong>${escapeHtml($('#questionText')?.textContent || 'Lass uns gemeinsam den nächsten Schritt anschauen.')}</strong>`}</p></article>`;
+  const historyHtml = journeyMessages.map((message) => `<article class="clara-message ${message.role}"><span>${message.role === 'assistant' ? 'Clara' : 'Du'}</span><p>${escapeHtml(message.content).replace(/\n/g, '<br>')}</p>${renderClaraResultCard(message.uiAction)}</article>`).join('');
+  const messageHtml = claraEntranceLoading
+    ? ''
+    : journeyMessages.length && !showOnlyCurrentPrompt
+      ? historyHtml
+      : initialPrompt;
+  const typingMarkup = journeyLoading || claraEntranceLoading
+    ? '<article class="clara-message assistant loading" role="status" aria-label="Clara schreibt"><span>Clara</span><p><i></i><i></i><i></i><em>Clara schreibt …</em></p></article>'
+    : '';
+  $('#journeyMessages').innerHTML = `${messageHtml}${typingMarkup}`;
+  journey.closest('.clara-card')?.classList.toggle('chat-mode', !journey.classList.contains('hidden'));
   const list = $('#journeyMessages');
   list.scrollTop = list.scrollHeight;
   const readOnly = weekIsFinalized();
-  $('#claraJourneyForm').hidden = Boolean(readOnly || clarityCheckinPending || usesStructuredPanel);
+  $('#claraJourneyForm').hidden = Boolean(readOnly || clarityCheckinPending || usesStructuredPanel || weekOneUsesStructuredInput);
+  const stepControl = $('#claraStepControl');
+  const nextButton = $('#claraNextStep');
+  const stepReady = Boolean(claraStepTransition?.ready && claraStepTransition?.nextPrompt && !readOnly);
+  stepControl.hidden = Boolean(readOnly || clarityCheckinPending || usesStructuredPanel || weekOneUsesStructuredInput);
+  stepControl.classList.toggle('is-ready', stepReady);
+  nextButton.disabled = !stepReady || journeyLoading || claraEntranceLoading;
+  $('#claraJourneyInput').disabled = stepReady || journeyLoading || claraEntranceLoading;
+  $('#sendJourneyMessage').disabled = stepReady || journeyLoading || claraEntranceLoading;
+  $('#claraStepStatus').textContent = stepReady
+    ? 'Alle Punkte sind erfasst. Clara hat keine offene Rückfrage mehr.'
+    : journeyLoading || claraEntranceLoading
+      ? 'Clara prüft deine Antwort anhand der aktuellen Abschlusskriterien …'
+      : '„Nächster Schritt“ wird freigeschaltet, sobald alle offenen Fragen geklärt sind.';
   list.querySelectorAll('button').forEach((button) => { button.disabled = Boolean(readOnly); });
   list.querySelectorAll('[data-clara-confirm]').forEach((button) => button.addEventListener('click', () => confirmClaraResult(button.dataset.claraConfirm, button)));
   list.querySelectorAll('[data-clara-revise]').forEach((button) => button.addEventListener('click', () => {
     $('#claraJourneyInput').value = button.dataset.claraRevise;
     $('#claraJourneyInput').focus();
   }));
+  syncClaraTypingState();
+}
+
+function clearClaraStepTransition() {
+  if (claraStepTransitionTimer) clearTimeout(claraStepTransitionTimer);
+  claraStepTransitionTimer = null;
+  claraStepTransition = null;
+}
+
+function queueClaraStepTransition(transition) {
+  clearClaraStepTransition();
+  if (!transition?.ready || !transition?.nextPrompt) return;
+  claraStepTransition = { ...transition };
+  claraCurrentPrompt = transition.nextPrompt;
+  renderClaraJourney();
+  claraStepTransitionTimer = setTimeout(() => revealNextClaraStep(), 1600);
+}
+
+async function revealNextClaraStep() {
+  if (!claraStepTransition?.ready || !claraStepTransition.nextPrompt || journeyLoading) return;
+  const activeTransition = claraStepTransition;
+  if (claraStepTransitionTimer) clearTimeout(claraStepTransitionTimer);
+  claraStepTransitionTimer = null;
+  const prompt = claraStepTransition.nextPrompt;
+  claraStepTransition.ready = false;
+  journeyLoading = true;
+  const typingStartedAt = nowMs();
+  renderClaraJourney();
+  await waitForClaraTyping(typingStartedAt);
+  if (claraStepTransition !== activeTransition) { journeyLoading = false; renderClaraJourney(); return; }
+  if (!journeyMessages.some((message) => message.syntheticStep === claraStepTransition?.toStep)) {
+    journeyMessages.push({ role: 'assistant', content: prompt, created_at: new Date().toISOString(), syntheticStep: claraStepTransition?.toStep || null });
+  }
+  journeyLoading = false;
+  claraStepTransition = null;
+  renderClaraJourney();
+  $('#claraJourneyInput')?.focus();
 }
 
 function renderClaraResultCard(uiAction) {
@@ -954,10 +1060,12 @@ async function confirmClaraResult(confirmationToken, button) {
   if (!confirmationToken || button.disabled || journeyLoading) return;
   button.closest('.clara-result-card').querySelectorAll('button').forEach((control) => { control.disabled = true; });
   journeyLoading = true;
+  const typingStartedAt = nowMs();
   $('#sendJourneyMessage').disabled = true;
   renderClaraJourney();
   try {
     const result = await request('/api/participant-program?feature=clara-message', { method: 'POST', body: JSON.stringify({ week: 1, action: 'confirm_result', confirmationToken, clientMessageId: crypto.randomUUID() }) });
+    await waitForClaraTyping(typingStartedAt);
     journeyMessages.push({ role: 'participant', content: 'Passt so', created_at: new Date().toISOString() }, result.message);
     program.weekOne = result.weekOne;
     program.weekOneGate = result.gate;
@@ -965,6 +1073,7 @@ async function confirmClaraResult(confirmationToken, button) {
     journeyLoading = false;
     $('#sendJourneyMessage').disabled = false;
     render();
+    queueClaraStepTransition(result.transition);
     toast('✓ Deine drei Wünsche wurden bestätigt.');
   } catch (error) {
     journeyLoading = false;
@@ -974,9 +1083,101 @@ async function confirmClaraResult(confirmationToken, button) {
   }
 }
 
+function weekNeedsClarityCheckin(week = currentWeek) {
+  const normalizedWeek = Number(week);
+  if (normalizedWeek === 1) return !program?.weekOne?.clarity_baseline?.completed;
+  if (normalizedWeek >= 2 && normalizedWeek <= 8) return needsGuidedClarityCheckin(program?.weekState);
+  return false;
+}
+
+function clarityScoreBeforeWeek(week) {
+  return (program?.clarityHistory || [])
+    .filter((item) => Number(item.week) < Number(week) && Number.isInteger(Number(item.score)) && Number(item.score) >= 1 && Number(item.score) <= 10)
+    .map((item) => Number(item.score))
+    .at(-1) ?? null;
+}
+
+function openClarityCheckin(week) {
+  pendingClarityWeek = Number(week);
+  selectedClarityScore = null;
+  const previousScore = clarityScoreBeforeWeek(week);
+  $('#clarityCheckinWeek').textContent = `Woche ${week} von 8`;
+  $('#clarityCheckinTitle').textContent = Number(week) === 1 ? 'Deine Ausgangsbasis.' : 'Wo stehst du heute?';
+  $('#clarityPreviousScore').classList.toggle('is-empty', previousScore === null);
+  $('#clarityPreviousScore').innerHTML = previousScore === null
+    ? '<small>Heute entsteht deine Ausgangsbasis</small><strong>—</strong><span>noch kein Vorwert</span>'
+    : `<small>Dein Wert aus Woche ${Number(week) - 1}</small><strong>${previousScore}</strong><span>von 10</span>`;
+  $('#claritySelectedScore').textContent = '—';
+  $('#saveClarityCheckin').disabled = true;
+  $('#saveClarityCheckin').textContent = 'Klarheitsscore speichern & Woche starten →';
+  $$('#clarityCheckinScale [data-clarity-dialog-score]').forEach((button) => {
+    button.classList.remove('selected');
+    button.setAttribute('aria-pressed', 'false');
+  });
+  document.body.classList.add('clarity-checkin-open');
+  $('#clarityCheckinDialog').showModal();
+}
+
+async function revealOpenedWeekWithClara() {
+  beginClaraTurn();
+  await waitForClaraTyping();
+  finishClaraTurn();
+}
+
+function openClarityImprovement({ week, previousScore, score }) {
+  $('#clarityImprovementWeek').textContent = `Woche ${week} · +${score - previousScore} ${score - previousScore === 1 ? 'Punkt' : 'Punkte'}`;
+  $('#clarityImprovementScore').textContent = String(score);
+  $('#clarityImprovementText').textContent = `Glückwunsch! Du hast deinen Klarheitsscore erfolgreich von ${previousScore} auf ${score} erhöht. Deine Entwicklung ist jetzt auch im Klarheitsdiagramm sichtbar.`;
+  $('#continueAfterClarityImprovement').dataset.week = String(week);
+  $('#clarityImprovementDialog').showModal();
+}
+
+async function saveWeeklyClarityCheckin() {
+  const week = Number(pendingClarityWeek);
+  const score = Number(selectedClarityScore);
+  if (!Number.isInteger(week) || week < 1 || week > 8 || !Number.isInteger(score) || score < 1 || score > 10) return;
+  const button = $('#saveClarityCheckin');
+  const previousScore = clarityScoreBeforeWeek(week);
+  button.disabled = true;
+  button.textContent = 'Wird sicher gespeichert …';
+  try {
+    const stepAction = week === 1
+      ? { type: 'save_clarity', score, reason: '' }
+      : { type: 'save_clarity_checkin', stepId: 'weekly_clarity', score, changed: previousScore !== null && score !== previousScore, note: '' };
+    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: week === 1 ? 'week_1_update' : 'guided_week_update', week, stepAction }) });
+    await loadProgram(week);
+    $('#clarityCheckinDialog').close();
+    document.body.classList.remove('clarity-checkin-open');
+    pendingClarityWeek = null;
+    if (previousScore !== null && score > previousScore) {
+      todayMode = 'dashboard';
+      showView('today');
+      openClarityImprovement({ week, previousScore, score });
+    } else {
+      await revealOpenedWeekWithClara();
+    }
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = 'Klarheitsscore speichern & Woche starten →';
+    toast(error.message);
+  }
+}
+
 async function openWeek(week) {
-  try { todayMode = 'week'; await loadProgram(week); showView('today'); }
-  catch (error) { toast(error.status === 403 ? 'Diese Woche ist noch gesperrt.' : error.message); }
+  try {
+    claraEntranceLoading = false;
+    todayMode = 'week';
+    await loadProgram(week);
+    showView('today');
+    if (weekNeedsClarityCheckin(currentWeek)) {
+      openClarityCheckin(currentWeek);
+      return;
+    }
+    await revealOpenedWeekWithClara();
+  } catch (error) {
+    finishClaraTurn();
+    toast(error.status === 403 ? 'Diese Woche ist noch gesperrt.' : error.message);
+  }
 }
 
 function formatProgramDate(value) {
@@ -1301,16 +1502,20 @@ async function updateWeekOne(stepAction) {
     flow.classList.add('is-saving');
     flow.querySelectorAll('button, input, textarea').forEach((control) => { control.disabled = true; });
   }
+  beginClaraTurn();
   try {
     await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'week_1_update', stepAction }) });
     await clearDraftKeys((key) => key.startsWith(draftPrefix)).catch(() => {});
     await loadProgram(1);
+    await waitForClaraTyping();
+    finishClaraTurn();
     $('#weekOneFlow')?.classList.remove('is-saving');
     const nextControl = $('#weekOneFlow textarea:not([disabled]), #weekOneFlow input:not([disabled]), #weekOneFlow button:not([disabled])');
     nextControl?.focus({ preventScroll: true });
     $('#questionText')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     toast('✓ Deine Antwort wurde gespeichert.');
   } catch (error) {
+    finishClaraTurn();
     if (errorBox) errorBox.textContent = error.message;
     else toast(error.message);
     if (flow) {
@@ -1437,12 +1642,15 @@ function renderWeekOne() {
 
 async function updateGuidedWeek(stepAction) {
   const draftPrefix = `${program?.weekState?.current_step || 'general'}:`;
+  beginClaraTurn();
   try {
     await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'guided_week_update', week: currentWeek, stepAction }) });
     await clearDraftKeys((key) => key.startsWith(draftPrefix)).catch(() => {});
     await loadProgram(currentWeek);
+    await waitForClaraTyping();
+    finishClaraTurn();
     toast('✓ Dein Schritt wurde gespeichert.');
-  } catch (error) { toast(error.message); }
+  } catch (error) { finishClaraTurn(); toast(error.message); }
 }
 
 function renderMotivatorPrioritySelection(flow, active) {
@@ -1810,6 +2018,32 @@ $('#openCurrentWeek').addEventListener('click', async (event) => {
   try { await openWeek(activeProcessWeek(program?.access)); }
   finally { button.disabled = false; }
 });
+$$('#clarityCheckinScale [data-clarity-dialog-score]').forEach((button) => button.addEventListener('click', () => {
+  selectedClarityScore = Number(button.dataset.clarityDialogScore);
+  $$('#clarityCheckinScale [data-clarity-dialog-score]').forEach((item) => {
+    const selected = item === button;
+    item.classList.toggle('selected', selected);
+    item.setAttribute('aria-pressed', String(selected));
+  });
+  $('#claritySelectedScore').textContent = String(selectedClarityScore);
+  $('#saveClarityCheckin').disabled = false;
+}));
+$('#saveClarityCheckin').addEventListener('click', saveWeeklyClarityCheckin);
+function leaveClarityCheckin() {
+  $('#clarityCheckinDialog').close();
+  document.body.classList.remove('clarity-checkin-open');
+  pendingClarityWeek = null;
+  todayMode = 'dashboard';
+  showView('today');
+}
+$('#leaveClarityCheckin').addEventListener('click', leaveClarityCheckin);
+$('#clarityCheckinDialog').addEventListener('cancel', (event) => { event.preventDefault(); leaveClarityCheckin(); });
+$('#continueAfterClarityImprovement').addEventListener('click', (event) => {
+  const week = Number(event.currentTarget.dataset.week);
+  $('#clarityImprovementDialog').close();
+  if (week) openWeek(week);
+});
+$('#clarityImprovementDialog').addEventListener('cancel', (event) => event.preventDefault());
 $('#openProgressCelebration').addEventListener('click', openProgressCelebration);
 $('#openProgressCelebration').addEventListener('keydown', (event) => {
   if (event.key === 'Enter' || event.key === ' ') {
@@ -2074,8 +2308,17 @@ $('#closeAdminPreview')?.addEventListener('click', () => {
 $('#answerForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const answer = $('#answer').value.trim(); if (!answer) return;
   const savedDraftKey = draftKeyFor($('#answer'));
-  try { await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'save_answer', week: currentWeek, answer }) }); await clearDraftKeys((key) => key === savedDraftKey).catch(() => {}); local.answers[currentWeek] = answer; saveLocal(); await loadProgram(currentWeek); toast('Deine Antwort wurde serverseitig gespeichert.'); }
-  catch (error) { toast(error.message); }
+  beginClaraTurn();
+  try {
+    await request('/api/participant-program', { method: 'PATCH', body: JSON.stringify({ action: 'save_answer', week: currentWeek, answer }) });
+    await clearDraftKeys((key) => key === savedDraftKey).catch(() => {});
+    local.answers[currentWeek] = answer;
+    saveLocal();
+    await loadProgram(currentWeek);
+    await waitForClaraTyping();
+    finishClaraTurn();
+    toast('Deine Antwort wurde serverseitig gespeichert.');
+  } catch (error) { finishClaraTurn(); toast(error.message); }
 });
 $('#claraJourneyForm').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -2088,12 +2331,14 @@ $('#claraJourneyForm').addEventListener('submit', async (event) => {
   journeyMessages.push(pending);
   input.value = '';
   journeyLoading = true;
+  const typingStartedAt = nowMs();
   button.disabled = true;
   button.textContent = 'Clara denkt …';
   renderClaraJourney();
   try {
     const result = await request('/api/participant-program?feature=clara-message', { method: 'POST', body: JSON.stringify({ week: currentWeek, message, clientMessageId: crypto.randomUUID() }) });
     await clearDraftKeys((key) => key === sentDraftKey).catch(() => {});
+    await waitForClaraTyping(typingStartedAt);
     journeyMessages.push(result.message);
     if (currentWeek === 1) {
       program.weekOne = result.weekOne;
@@ -2103,7 +2348,9 @@ $('#claraJourneyForm').addEventListener('submit', async (event) => {
       program.weekGate = result.gate;
     }
     currentContent.tasks = result.steps;
+    journeyLoading = false;
     render();
+    queueClaraStepTransition(result.transition);
   } catch (error) {
     journeyMessages = journeyMessages.filter((item) => item !== pending);
     input.value = message;
@@ -2116,6 +2363,8 @@ $('#claraJourneyForm').addEventListener('submit', async (event) => {
     renderClaraJourney();
   }
 });
+
+$('#claraNextStep')?.addEventListener('click', () => revealNextClaraStep());
 
 $('#claraJourneyInput').addEventListener('keydown', (event) => {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;

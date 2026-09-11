@@ -115,3 +115,73 @@ body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-s
 .glass-note small,.result-visual small,.preview-callout small,.value-grid small{font-size:9px}
 .glass-note strong,.signal-strip span,.process-tab small,.preview-callout span,.footer-links a,footer>div:first-child p{font-size:10px}
 @media(max-width:560px){.app-frame{left:0;max-width:100%;top:20px;transform:none;width:100%}.frame-content{padding:30px 22px}.frame-content h2{font-size:29px}.hero-stage{min-height:430px}}
+
+/* Klare Navigation und leuchtende Handlungsaufforderungen */
+.site-header nav{
+  font-size:13px;
+  font-weight:750;
+  gap:clamp(18px,1.8vw,30px);
+  letter-spacing:-.012em;
+  text-rendering:geometricPrecision;
+  -webkit-font-smoothing:auto;
+}
+.site-header nav>a:not(.nav-cta){
+  color:#39271e;
+  line-height:1.2;
+  padding-block:10px;
+  text-shadow:0 1px 0 rgba(255,255,255,.34);
+}
+.site-header nav>a:not(.nav-cta):hover{color:#120d0a}
+.nav-cta,.button-orange{
+  animation:fddCtaAura 2.6s ease-in-out infinite;
+  background:linear-gradient(115deg,#ffc092 0%,#ff9453 43%,#f36a29 100%);
+  border:1px solid rgba(255,247,240,.94);
+  box-shadow:0 10px 26px rgba(235,91,25,.34),0 0 0 4px rgba(255,144,76,.12),inset 0 1px 0 rgba(255,255,255,.58);
+  color:#2b150c;
+  font-size:13px;
+  font-weight:800;
+  isolation:isolate;
+  overflow:hidden;
+  position:relative;
+  text-rendering:geometricPrecision;
+  -webkit-font-smoothing:auto;
+}
+.nav-cta{border-radius:12px;padding:15px 20px}
+.button-orange{border-radius:12px;min-height:54px;padding-inline:23px}
+.nav-cta::before,.button-orange::before{
+  animation:fddCtaSheen 3.3s ease-in-out infinite;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.72),transparent);
+  content:"";
+  inset:-35% auto -35% -38%;
+  pointer-events:none;
+  position:absolute;
+  transform:skewX(-22deg);
+  width:24%;
+  z-index:-1;
+}
+.nav-cta span,.button-orange span{animation:fddCtaArrow 1.45s ease-in-out infinite;display:inline-block}
+.nav-cta:hover,.button-orange:hover{
+  background:linear-gradient(115deg,#ffca9f 0%,#ff9c5e 40%,#fa6e2c 100%);
+  box-shadow:0 14px 38px rgba(235,91,25,.46),0 0 0 6px rgba(255,144,76,.16),inset 0 1px 0 rgba(255,255,255,.72);
+}
+.nav-cta:focus-visible,.button-orange:focus-visible{
+  outline:3px solid #fff7ef;
+  outline-offset:4px;
+}
+@keyframes fddCtaAura{
+  0%,100%{box-shadow:0 10px 26px rgba(235,91,25,.32),0 0 0 3px rgba(255,144,76,.10),inset 0 1px 0 rgba(255,255,255,.58)}
+  50%{box-shadow:0 14px 38px rgba(235,91,25,.48),0 0 0 7px rgba(255,144,76,.17),inset 0 1px 0 rgba(255,255,255,.72)}
+}
+@keyframes fddCtaSheen{
+  0%,58%{left:-38%}
+  88%,100%{left:125%}
+}
+@keyframes fddCtaArrow{
+  0%,100%{transform:translateX(0)}
+  50%{transform:translateX(4px)}
+}
+@media(max-width:1050px){.site-header nav{font-size:12px;gap:16px}}
+@media(max-width:820px){.site-header nav{font-size:14px}.nav-cta{font-size:14px;text-align:center}}
+@media(prefers-reduced-motion:reduce){
+  .nav-cta,.button-orange,.nav-cta::before,.button-orange::before,.nav-cta span,.button-orange span{animation:none!important}
+}

@@ -14,13 +14,24 @@ async function ensureQuestionCatalog(service) {
   const existing = await readClarityQuestionOverrides(service);
   const known = new Set(existing.map((item) => item.question_key));
   const missing = clarityQuestionSeedRows().filter((item) => !known.has(item.question_key));
-  if (!missing.length) return existing;
+  if (!missing.length) return existing.map(hydrateQuestionDefinition);
   await parseJson(await fetch(`${service.url}/rest/v1/clarity_questions`, {
     method: 'POST',
     headers: { ...authHeaders(service.key), Prefer: 'resolution=ignore-duplicates,return=minimal' },
     body: JSON.stringify(missing),
   }), 'Die Standardfragen konnten nicht angelegt werden.');
-  return readClarityQuestionOverrides(service);
+  return (await readClarityQuestionOverrides(service)).map(hydrateQuestionDefinition);
+}
+
+function hydrateQuestionDefinition(item) {
+  const definition = defaultClarityQuestion(item.question_key);
+  return {
+    ...item,
+    guidance_text: item.guidance_text?.trim() || definition?.guidanceText || '',
+    default_guidance_text: item.default_guidance_text?.trim() || definition?.guidanceText || '',
+    completion_criteria: item.completion_criteria?.trim() || definition?.completionCriteria || '',
+    default_completion_criteria: item.default_completion_criteria?.trim() || definition?.completionCriteria || '',
+  };
 }
 
 async function handleQuestionSettings(request, response, service, admin) {
@@ -34,15 +45,19 @@ async function handleQuestionSettings(request, response, service, admin) {
   if (!definition) return response.status(400).json({ error: 'Diese Klarheitsfrage ist nicht Teil des freigegebenen Prozesses.' });
   const reset = request.body?.action === 'reset';
   const promptText = reset ? definition.promptText : String(request.body?.promptText || '').trim();
+  const guidanceText = reset ? definition.guidanceText : String(request.body?.guidanceText || '').trim();
+  const completionCriteria = reset ? definition.completionCriteria : String(request.body?.completionCriteria || '').trim();
   if (promptText.length < 5 || promptText.length > 2000) return response.status(400).json({ error: 'Die Frage muss zwischen 5 und 2.000 Zeichen lang sein.' });
+  if (guidanceText.length < 5 || guidanceText.length > 4000) return response.status(400).json({ error: 'Die Clara-Details müssen zwischen 5 und 4.000 Zeichen lang sein.' });
+  if (completionCriteria.length < 5 || completionCriteria.length > 4000) return response.status(400).json({ error: 'Die Abschlusskriterien müssen zwischen 5 und 4.000 Zeichen lang sein.' });
   await ensureQuestionCatalog(service);
   const rows = await parseJson(await fetch(`${service.url}/rest/v1/clarity_questions?question_key=eq.${encodeURIComponent(questionKey)}`, {
     method: 'PATCH',
     headers: { ...authHeaders(service.key), Prefer: 'return=representation' },
-    body: JSON.stringify({ prompt_text: promptText, updated_at: new Date().toISOString(), updated_by: admin.profile.id }),
+    body: JSON.stringify({ prompt_text: promptText, guidance_text: guidanceText, completion_criteria: completionCriteria, updated_at: new Date().toISOString(), updated_by: admin.profile.id }),
   }), 'Die Klarheitsfrage konnte nicht gespeichert werden.');
   if (!rows[0]) return response.status(404).json({ error: 'Die Klarheitsfrage wurde nicht gefunden.' });
-  return response.status(200).json({ question: rows[0], reset, catalogSize: CLARITY_QUESTION_CATALOG.length });
+  return response.status(200).json({ question: hydrateQuestionDefinition(rows[0]), reset, catalogSize: CLARITY_QUESTION_CATALOG.length });
 }
 
 export default async function handler(request, response) {

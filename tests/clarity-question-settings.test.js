@@ -6,6 +6,7 @@ import {
   clarityQuestionSeedRows,
   defaultClarityQuestion,
   readClarityQuestionOverrides,
+  resolveClarityQuestionConfig,
   resolveClarityPrompt,
 } from '../lib/clarity-questions.js';
 
@@ -15,6 +16,21 @@ test('Fragenkatalog deckt alle acht Prozesswochen eindeutig ab', () => {
   assert.ok(CLARITY_QUESTION_CATALOG.length >= 50);
   assert.equal(clarityQuestionSeedRows().length, CLARITY_QUESTION_CATALOG.length);
   assert.equal(defaultClarityQuestion('1.THREE_WISHES_COLLECTION')?.week, 1);
+  assert.match(defaultClarityQuestion('3.motivators')?.completionCriteria || '', /Genau 5/);
+  assert.ok(defaultClarityQuestion('2.education')?.guidanceText.length > 10);
+});
+
+test('Prozessbaukasten liefert Frage, Clara-Details und Abschlusskriterien gemeinsam aus', () => {
+  const overrides = [{
+    question_key: '2.education',
+    prompt_text: 'Welche Qualifikationen bringst du mit?',
+    guidance_text: 'Frage bei unklaren Abschlüssen einmal nach.',
+    completion_criteria: 'Mindestens eine konkrete Qualifikation oder eine eindeutige Negativantwort ist erfasst.',
+  }];
+  const configured = resolveClarityQuestionConfig(overrides, 2, 'education', { promptText: 'Fallback' });
+  assert.equal(configured.promptText, overrides[0].prompt_text);
+  assert.equal(configured.guidanceText, overrides[0].guidance_text);
+  assert.equal(configured.completionCriteria, overrides[0].completion_criteria);
 });
 
 test('individuelle Admin-Frage überschreibt den Standard, Reset erhält dynamische Rückfragen', () => {
@@ -55,6 +71,8 @@ test('Admin-API schützt und persistiert die konfigurierten Fragen', async () =>
   assert.match(api, /request\.method !== 'PATCH'/);
   assert.match(api, /action === 'reset'/);
   assert.match(api, /2\.000 Zeichen/);
+  assert.match(api, /completionCriteria/);
+  assert.match(api, /guidanceText/);
   assert.match(participantApi, /readClarityQuestionOverrides/);
   assert.match(participantApi, /resolveClarityPrompt/);
   assert.match(claraApi, /readClarityQuestionOverrides/);
