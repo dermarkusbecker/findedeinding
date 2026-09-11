@@ -40,9 +40,10 @@ test('Nächster Schritt bleibt bis zum validierten Clara-Übergang gesperrt und 
   ]);
 
   assert.match(html, /id="claraNextStep"[^>]*disabled>Nächster Schritt →/);
-  assert.match(script, /const stepReady = Boolean\(claraStepTransition\?\.ready/);
+  assert.match(script, /const stepReady = Boolean\(\(transitionReady \|\| pendingConfirmation\)/);
   assert.match(script, /claraStepTransitionTimer = setTimeout\(\(\) => revealNextClaraStep\(\), 1600\)/);
-  assert.match(script, /claraNextStep'\)\?\.addEventListener\('click', \(\) => revealNextClaraStep\(\)\)/);
+  assert.match(script, /claraNextStep'\)\?\.addEventListener\('click', \(event\) =>/);
+  assert.match(script, /if \(token\) confirmClaraResult\(token, event\.currentTarget\)/);
   assert.match(css, /#activeWeek #claraNextStep:disabled/);
 });
 

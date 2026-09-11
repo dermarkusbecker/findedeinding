@@ -1843,7 +1843,7 @@ header > div:last-child {
 .document-preview-shell>header>button { align-items: center; background: #f5f7f7; border: 1px solid rgba(31,66,82,.14); border-radius: 50%; color: var(--ink); cursor: pointer; display: flex; flex: 0 0 40px; font-size: 24px; height: 40px; justify-content: center; padding: 0 0 2px; width: 40px; }
 .document-preview-stage { align-items: center; background: #e7eeed; border: 1px solid rgba(31,66,82,.14); border-radius: 18px; display: flex; justify-content: center; min-height: min(680px,68dvh); overflow: hidden; }
 .document-preview-stage iframe { background: #fff; border: 0; height: min(680px,68dvh); width: 100%; }
-.document-preview-stage img,.document-preview-stage video { display: block; max-height: min(680px,68dvh); max-width: 100%; object-fit: contain; }
+.document-preview-stage img { display: block; max-height: min(680px,68dvh); max-width: 100%; object-fit: contain; }
 .document-preview-fallback { align-items: center; color: var(--muted-strong); flex-direction: column; justify-content: center; padding: 56px 24px; text-align: center; }
 .document-preview-fallback:not([hidden]) { display: flex; }
 .document-preview-fallback span { align-items: center; background: #fff1e8; border-radius: 18px; color: var(--orange-deep); display: flex; font-size: 25px; height: 58px; justify-content: center; margin-bottom: 17px; width: 58px; }

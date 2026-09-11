@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyWeekOneAction, createWeekOneState, journeyStepStatuses, weekOnePrompt, WEEK_ONE_STEPS } from '../lib/week-one.js';
-import { buildJourneyUiAction, verifyConfirmationToken } from '../lib/clara/journey-actions.js';
+import { buildJourneyUiAction, restorePendingJourneyConfirmation, verifyConfirmationToken } from '../lib/clara/journey-actions.js';
 
 process.env.AUTH_SECRET ||= 'clara-journey-test-secret';
 
@@ -33,6 +33,40 @@ test('kurze, aber klare Wünsche dürfen bestätigt werden', () => {
   const uiAction = buildJourneyUiAction({ state, response: response(wishes), participantId: 'p1', week: 1 });
   assert.equal(uiAction.type, 'show_confirmation');
   assert.deepEqual(uiAction.confirmation.wishes, wishes);
+});
+
+test('Backend korrigiert eine verfrühte complete_step-Antwort zu einer sicheren Bestätigung', () => {
+  const state = createWeekOneState();
+  state.current_step = WEEK_ONE_STEPS.WISHES;
+  const wishes = ['Ein neues Auto', 'Mehr Geld', 'Mehr Anerkennung'];
+  const modelResponse = { ...response(wishes), action: 'complete_step', step_status: 'completed', needs_followup: false, next_action: { type: 'advance_if_valid', step: null } };
+  const uiAction = buildJourneyUiAction({ state, response: modelResponse, participantId: 'p1', week: 1 });
+  assert.equal(uiAction.type, 'show_confirmation');
+  assert.deepEqual(uiAction.confirmation.wishes, wishes);
+});
+
+test('eine bestehende hängende Clara-Antwort erhält beim Laden wieder ihre Freigabe', () => {
+  const state = createWeekOneState();
+  state.current_step = WEEK_ONE_STEPS.WISHES;
+  const wishes = ['Ein neues Auto', 'Mehr Geld', 'Mehr Anerkennung'];
+  const messages = [{ id: 'm1', role: 'assistant', content: 'Alles geklärt.', structured_response: { ...response(wishes), action: 'complete_step', step_status: 'completed' }, uiAction: { type: 'complete_step' } }];
+  const restored = restorePendingJourneyConfirmation({ state, messages, participantId: 'p1', week: 1 });
+  assert.equal(restored[0].uiAction.type, 'show_confirmation');
+  assert.ok(restored[0].uiAction.confirmation.token);
+});
+
+test('eine neuere Rückfrage reaktiviert keine überholte Bestätigung', () => {
+  const state = createWeekOneState();
+  state.current_step = WEEK_ONE_STEPS.WISHES;
+  const wishes = ['Ein neues Auto', 'Mehr Geld', 'Mehr Anerkennung'];
+  const messages = [
+    { id: 'm1', role: 'assistant', content: 'Bitte bestätigen.', structured_response: response(wishes) },
+    { id: 'm2', role: 'participant', content: 'Ich möchte noch etwas ändern.' },
+    { id: 'm3', role: 'assistant', content: 'Was möchtest du ändern?', structured_response: { ...response(null), action: 'ask_followup', step_status: 'needs_clarification' } },
+  ];
+  const restored = restorePendingJourneyConfirmation({ state, messages, participantId: 'p1', week: 1 });
+  assert.equal(restored[0].uiAction, undefined);
+  assert.equal(restored[2].uiAction, undefined);
 });
 
 test('erst die explizite Confirmation schreibt in den Week-1-Reducer', () => {

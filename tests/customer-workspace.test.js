@@ -67,4 +67,7 @@ test('Kundendokumente öffnen im Portal und CRM in einer mittigen Vorschau', asy
   assert.match(admin, /data-customer-document-preview/);
   assert.match(admin, /function openCustomerDocumentPreview/);
   assert.match(adminStyles, /\.customer-document-preview-dialog::backdrop/);
+  assert.doesNotMatch(portal, /documentPreviewVideo/);
+  assert.doesNotMatch(adminHtml, /customerDocumentPreviewVideo/);
+  assert.doesNotMatch(admin, /customerDocumentPreviewVideo/);
 });

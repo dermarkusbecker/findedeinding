@@ -262,7 +262,7 @@ function ensureDocumentPreviewDialog() {
     <dialog id="documentPreviewDialog" class="document-preview-dialog" aria-labelledby="documentPreviewTitle">
       <div class="document-preview-shell">
         <header><div><p class="eyebrow">Deine Dokumentenakte</p><h2 id="documentPreviewTitle">Dokument ansehen</h2><p id="documentPreviewMeta">Sicher und schreibgeschützt geöffnet.</p></div><button type="button" data-close-document-preview aria-label="Dokumentenvorschau schließen">×</button></header>
-        <div class="document-preview-stage"><iframe id="documentPreviewFrame" title="Dokumentenvorschau" hidden></iframe><img id="documentPreviewImage" alt="" hidden><video id="documentPreviewVideo" controls playsinline hidden></video><div id="documentPreviewFallback" class="document-preview-fallback" hidden><span>▤</span><strong>Für dieses Dateiformat ist keine direkte Vorschau verfügbar.</strong><p>Du kannst die Originaldatei sicher herunterladen und auf deinem Gerät öffnen.</p></div></div>
+        <div class="document-preview-stage"><iframe id="documentPreviewFrame" title="Dokumentenvorschau" hidden></iframe><img id="documentPreviewImage" alt="" hidden><div id="documentPreviewFallback" class="document-preview-fallback" hidden><span>▤</span><strong>Für dieses Dateiformat ist keine direkte Vorschau verfügbar.</strong><p>Du kannst die Originaldatei sicher herunterladen und auf deinem Gerät öffnen.</p></div></div>
         <footer><button class="secondary" type="button" data-close-document-preview>Schließen</button><a class="primary" id="downloadPreviewDocument" href="#" download>Dokument herunterladen ↓</a></footer>
       </div>
     </dialog>`);
@@ -276,10 +276,8 @@ function ensureDocumentPreviewDialog() {
 function clearDocumentPreview() {
   const frame = $('#documentPreviewFrame');
   const image = $('#documentPreviewImage');
-  const video = $('#documentPreviewVideo');
   if (frame) frame.src = 'about:blank';
   if (image) image.removeAttribute('src');
-  if (video) { video.pause(); video.removeAttribute('src'); video.load(); }
 }
 
 function closeDocumentPreview() {
@@ -297,15 +295,14 @@ function openDocumentPreview({ id, title, fileName, mimeType }) {
   const isPdf = normalizedMime === 'application/pdf' || normalizedFile.endsWith('.pdf');
   const isImage = normalizedMime.startsWith('image/') || /\.(png|jpe?g|webp|gif)$/.test(normalizedFile);
   const isVideo = normalizedMime.startsWith('video/') || /\.(webm|mp4|mov)$/.test(normalizedFile);
-  const frame = $('#documentPreviewFrame'), image = $('#documentPreviewImage'), video = $('#documentPreviewVideo'), fallback = $('#documentPreviewFallback');
-  [frame, image, video, fallback].forEach((element) => { element.hidden = true; });
+  const frame = $('#documentPreviewFrame'), image = $('#documentPreviewImage'), fallback = $('#documentPreviewFallback');
+  [frame, image, fallback].forEach((element) => { element.hidden = true; });
   $('#documentPreviewTitle').textContent = title || fileName || 'Dokument ansehen';
   $('#documentPreviewMeta').textContent = [fileName, isPdf ? 'PDF-Dokument' : isImage ? 'Bilddatei' : isVideo ? 'Videodatei' : 'Originaldatei'].filter(Boolean).join(' · ');
   $('#downloadPreviewDocument').href = downloadUrl;
   $('#downloadPreviewDocument').download = fileName || 'Finde-Dein-Ding-Dokument';
   if (isPdf) { frame.hidden = false; frame.src = `${viewUrl}#view=FitH`; }
   else if (isImage) { image.hidden = false; image.src = viewUrl; image.alt = title || fileName || 'Dokumentenvorschau'; }
-  else if (isVideo) { video.hidden = false; video.src = viewUrl; }
   else fallback.hidden = false;
   dialog.showModal();
 }
@@ -1010,14 +1007,20 @@ function renderClaraJourney() {
   $('#claraJourneyForm').hidden = Boolean(readOnly || clarityCheckinPending || usesStructuredPanel || weekOneUsesStructuredInput);
   const stepControl = $('#claraStepControl');
   const nextButton = $('#claraNextStep');
-  const stepReady = Boolean(claraStepTransition?.ready && claraStepTransition?.nextPrompt && !readOnly);
+  const latestAssistantMessage = [...journeyMessages].reverse().find((message) => message.role === 'assistant');
+  const pendingConfirmation = latestAssistantMessage?.uiAction?.type === 'show_confirmation' ? latestAssistantMessage.uiAction.confirmation : null;
+  const transitionReady = Boolean(claraStepTransition?.ready && claraStepTransition?.nextPrompt);
+  const stepReady = Boolean((transitionReady || pendingConfirmation) && !readOnly);
   stepControl.hidden = Boolean(readOnly || clarityCheckinPending || usesStructuredPanel || weekOneUsesStructuredInput);
   stepControl.classList.toggle('is-ready', stepReady);
+  nextButton.dataset.confirmationToken = pendingConfirmation?.token || '';
   nextButton.disabled = !stepReady || journeyLoading || claraEntranceLoading;
   $('#claraJourneyInput').disabled = stepReady || journeyLoading || claraEntranceLoading;
   $('#sendJourneyMessage').disabled = stepReady || journeyLoading || claraEntranceLoading;
   $('#claraStepStatus').textContent = stepReady
-    ? 'Alle Punkte sind erfasst. Clara hat keine offene Rückfrage mehr.'
+    ? pendingConfirmation
+      ? 'Alle drei Punkte sind geklärt. Mit „Nächster Schritt“ bestätigst du sie und gehst direkt weiter.'
+      : 'Alle Punkte sind erfasst. Clara hat keine offene Rückfrage mehr.'
     : journeyLoading || claraEntranceLoading
       ? 'Clara prüft deine Antwort anhand der aktuellen Abschlusskriterien …'
       : '„Nächster Schritt“ wird freigeschaltet, sobald alle offenen Fragen geklärt sind.';
@@ -1075,8 +1078,8 @@ function renderClaraResultCard(uiAction) {
 }
 
 async function confirmClaraResult(confirmationToken, button) {
-  if (!confirmationToken || button.disabled || journeyLoading) return;
-  button.closest('.clara-result-card').querySelectorAll('button').forEach((control) => { control.disabled = true; });
+  if (!confirmationToken || button?.disabled || journeyLoading) return;
+  button?.closest('.clara-result-card')?.querySelectorAll('button').forEach((control) => { control.disabled = true; });
   journeyLoading = true;
   const typingStartedAt = nowMs();
   $('#sendJourneyMessage').disabled = true;
@@ -2387,7 +2390,11 @@ $('#claraJourneyForm').addEventListener('submit', async (event) => {
   }
 });
 
-$('#claraNextStep')?.addEventListener('click', () => revealNextClaraStep());
+$('#claraNextStep')?.addEventListener('click', (event) => {
+  const token = event.currentTarget.dataset.confirmationToken;
+  if (token) confirmClaraResult(token, event.currentTarget);
+  else revealNextClaraStep();
+});
 
 $('#claraJourneyInput').addEventListener('keydown', (event) => {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
