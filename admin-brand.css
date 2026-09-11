@@ -242,6 +242,9 @@ dialog::backdrop { background: #0a263e66; backdrop-filter: blur(6px); }
 #videoContractDialog .recording-state span,#videoContractDialog .recording-state time { color:#28556d; font-size:11px; }
 #videoContractDialog .recording-file-label { color:#244b61; }
 #videoContractDialog .video-contract-legal-note { color:#5a7383; }
-#videoContractDialog .video-contract-head > button { display:inline-flex; align-items:center; justify-content:center; gap:10px; flex:0 0 auto; min-height:38px; padding:8px 13px; font:700 12px Manrope,sans-serif; }
-#videoContractDialog .video-contract-head > button b { font-size:22px; }
-@media(max-width:620px){#videoContractDialog .video-contract-head { gap:12px; align-items:flex-start; padding:18px; }#videoContractDialog .video-contract-head > div { min-width:0; }#videoContractDialog .video-contract-head > button span { display:none; }#videoContractDialog .video-contract-head > button { width:38px; padding:6px; }#videoContractDialog .video-contract-head h2 { font-size:22px; line-height:1.25; } }
+#videoContractDialog .video-contract-head > button { display:inline-flex; align-items:center; justify-content:center; gap:8px; flex:0 0 auto; width:auto; min-height:36px; padding:7px 12px; border:1px solid rgba(183,218,231,.28); border-radius:10px; background:rgba(9,35,48,.22); color:#e2edf2; box-shadow:none; font:600 12px/1.2 Manrope,sans-serif; cursor:pointer; transition:background .18s,border-color .18s,color .18s; }
+#videoContractDialog .video-contract-head > button span { font:inherit; letter-spacing:0; }
+#videoContractDialog .video-contract-head > button b { font:400 18px/1 Manrope,sans-serif; }
+#videoContractDialog .video-contract-head > button:hover { background:rgba(255,143,76,.14); border-color:rgba(255,175,120,.6); color:#ffcca9; }
+#videoContractDialog .video-contract-head > button:focus-visible { outline:2px solid #ffb079; outline-offset:3px; }
+@media(max-width:620px){#videoContractDialog .video-contract-head { gap:12px; align-items:flex-start; padding:18px; }#videoContractDialog .video-contract-head > div { min-width:0; }#videoContractDialog .video-contract-head > button span { display:none; }#videoContractDialog .video-contract-head > button { width:44px; min-height:44px; padding:10px; }#videoContractDialog .video-contract-head h2 { font-size:22px; line-height:1.25; } }
