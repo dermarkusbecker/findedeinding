@@ -706,3 +706,13 @@ body.site-loading{overflow:hidden}
   .hero .trust-line::after,.hero .trust-card,.hero .trust-card::before,.hero .trust-icon,.hero .trust-icon::after,.hero .trust-icon svg>*{animation:none!important}
   .hero .trust-card{transition:none}.hero .trust-card:hover{transform:none}
 }
+
+/* A small trophy crowns the illustrative 10/10 endpoint. */
+.clarity-story-plot .clarity-target-label{left:8%;right:auto}
+.clarity-finish-trophy{pointer-events:none}
+.clarity-trophy-icon{fill:#f3c466;stroke:#ffe6a5;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform-box:fill-box;transform-origin:center;filter:drop-shadow(0 0 7px #edb94d66)}
+.clarity-trophy-icon>path:nth-child(2),.clarity-trophy-spark{fill:none}
+.clarity-story-board.visible .clarity-trophy-icon{animation:clarityTrophyArrive .65s 1.85s cubic-bezier(.2,.8,.3,1.2) forwards}
+.clarity-story-weeks button[data-score="10"].active{border-color:#f3c466;background:linear-gradient(145deg,#dfab3429,#153c47);color:#ffe3a1}
+@keyframes clarityTrophyArrive{0%{opacity:0;transform:translateY(9px) scale(.5) rotate(-12deg)}70%{opacity:1;transform:translateY(-3px) scale(1.1) rotate(5deg)}100%{opacity:1;transform:translateY(0) scale(1) rotate(0)}}
+@media(prefers-reduced-motion:reduce){.clarity-story-board.visible .clarity-trophy-icon{animation:none;opacity:1}}

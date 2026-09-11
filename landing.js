@@ -284,7 +284,7 @@ const clarityStoryContent = {
   5: ['Deine Werte werden zu konkreten Kriterien. Möglichkeiten lassen sich dadurch bewusster vergleichen.', '+3 Punkte seit deinem Start'],
   6: ['Mehr Klarheit heißt: Du kannst deine Optionen jetzt an deinen eigenen Kriterien prüfen.', '+4 Punkte seit deinem Start'],
   7: ['Deine Favoriten sind nicht mehr nur Ideen. Du kannst begründen, welche Richtung wirklich zu dir passt.', '+5 Punkte seit deinem Start'],
-  8: ['Die Richtung steht. Jetzt wird aus deiner Klarheit ein konkreter 90-Tage-Plan.', '+4 Punkte seit deinem Start'],
+  8: ['10 von 10 – deine Richtung ist glasklar! Jetzt wird daraus dein konkreter 90-Tage-Plan.', '+7 Punkte seit deinem Start · Ziel im Beispiel erreicht'],
 };
 const clarityClaraPrompts = [
   'Was soll nach diesen acht Wochen für dich klarer sein?',
