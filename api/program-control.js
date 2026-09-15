@@ -1,3 +1,4 @@
+import { readLoginClarity, mergeClarity, clarityRecordedAt } from '../lib/current-clarity.js';
 import { configuredWeekState } from '../lib/program-builder-service.js';
 import crypto from 'node:crypto';
 import { requireCurrentAdmin } from '../lib/user-auth.js';
@@ -202,8 +203,16 @@ async function publicResult(result, participantId) {
   if (await backfillCompletedWeekReflections(result, participantId)) result = await getParticipantProgramAccess(participantId);
   const states = await readGuidedStates(result, participantId);
   const processWeeks = processWeekResult(result);
+  const loginScores=await readLoginClarity(result.service,participantId);
+  const weekly=processWeeks.flatMap(w=>(w.answers||[]).filter(a=>a.key==='clarity'||a.key==='clarity_checkin').map(a=>({week:w.week,score:Number(a.value.match(/\b(10|[1-9])\b/)?.[1]),recordedAt:w.updatedAt})));
+  weekly.forEach(p=>{p.recordedAt=clarityRecordedAt(result.stateEntries||[],p.week,p.score)||p.recordedAt;});
+  const {current:currentClarity}=mergeClarity(weekly,loginScores,result.serializedAccess.processWeek);
+  if(currentClarity?.source==='login'){
+    const target=processWeeks.find(w=>w.week===Math.max(...processWeeks.filter(w=>w.accessible).map(w=>w.week),1));
+    if(target)target.answers.push({key:'login_clarity',label:'Aktuelle Klarheit · Login-Check-in',value:`${currentClarity.score} von 10 · ${currentClarity.recordedAt}`,status:'completed'});
+  }
   const clarityAnalysis = await ensureCustomerClarityAnalysis({ service: result.service, participantId, participantName: result.profile.name, processWeeks });
-  return { profile: result.profile, progress: result.progress, gates: result.gates, access: result.serializedAccess, technicalConfirmations: technicalResult(states), processWeeks, clarityAnalysis };
+  return { profile: result.profile, progress: result.progress, gates: result.gates, access: result.serializedAccess, technicalConfirmations: technicalResult(states), processWeeks, clarityAnalysis, currentClarity };
 }
 
 async function confirmTechnicalResult(current, participantId, admin, confirmation) {

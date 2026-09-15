@@ -956,7 +956,7 @@ function renderProgressCelebration() {
   const celebration = buildProgressCelebration({
     activeWeek: week,
     completedWeeks: Array.isArray(access.completedWeeks) ? access.completedWeeks : [],
-    clarityHistory: Array.isArray(program.clarityHistory) ? program.clarityHistory : [],
+    clarityHistory: program.clarityTimeline || program.clarityHistory || [],
     completedSteps: steps.completed,
     totalSteps: steps.total,
     currentWeekTitle: summary?.title || `Woche ${week}`,
@@ -1570,14 +1570,14 @@ function wireStepReviewButtons() {
 }
 
 function currentClarityMeasurement() {
-  return (program?.clarityHistory || []).filter((item) => Number.isInteger(Number(item.score)) && Number(item.score) >= 1 && Number(item.score) <= 10).at(-1) || null;
+  return program?.currentClarity || (program?.clarityHistory || []).filter((item) => Number.isInteger(Number(item.score)) && Number(item.score) >= 1 && Number(item.score) <= 10).at(-1) || null;
 }
 
 function renderDashboardClarityChart() {
   const target = $('#dashboardClarityChart');
   if (!target) return;
   const history = program?.clarityHistory || [];
-  const measurements = history.filter((item) => Number.isInteger(Number(item.score)) && Number(item.score) >= 1 && Number(item.score) <= 10);
+  const measurements = (program?.clarityTimeline || history).filter((item) => Number.isInteger(Number(item.score)) && Number(item.score) >= 1 && Number(item.score) <= 10);
   const latest = measurements.at(-1) || null;
   const first = measurements[0] || null;
   const delta = latest && first ? Number(latest.score) - Number(first.score) : null;
@@ -1585,7 +1585,7 @@ function renderDashboardClarityChart() {
   $('#dashboardClarityValue').textContent = latest?.score || '—';
   $('#dashboardClarityDelta').textContent = delta === null ? '—' : `${delta > 0 ? '+' : ''}${delta}`;
   $('#dashboardClarityDelta').className = delta > 0 ? 'positive' : delta < 0 ? 'negative' : 'neutral';
-  $('#dashboardClarityCount').textContent = `${measurements.length} / 8`;
+  $('#dashboardClarityCount').textContent = `${measurements.length} Messungen`;
   $('#dashboardClarityNext').textContent = nextMeasurement ? `Woche ${nextMeasurement.week}` : 'Vollständig';
   const nextCheckinCard = $('#dashboardClarityNextCard');
   const nextCheckinWeek = Number(nextMeasurement?.week);
@@ -1605,18 +1605,18 @@ function renderDashboardClarityChart() {
   const right = 842;
   const top = 24;
   const bottom = 236;
-  const x = (week) => left + ((Number(week) - 1) / 7) * (right - left);
+  const x = (index) => left + ((Number(index) - 1) / Math.max(1,measurements.length-1)) * (right - left);
   const y = (score) => bottom - ((Number(score) - 1) / 9) * (bottom - top);
-  const pointPairs = measurements.map((item) => [x(item.week), y(item.score)]);
+  const pointPairs = measurements.map((item,index) => [x(index+1), y(item.score)]);
   const points = pointPairs.map(([pointX, pointY]) => `${pointX},${pointY}`).join(' ');
   const linePath = pointPairs.map(([pointX, pointY], index) => `${index ? 'L' : 'M'} ${pointX} ${pointY}`).join(' ');
   const areaPath = pointPairs.length > 1 ? `${linePath} L ${pointPairs.at(-1)[0]} ${bottom} L ${pointPairs[0][0]} ${bottom} Z` : '';
   const scoreColor = (score) => Number(score) >= 7 ? '#c89a2e' : Number(score) >= 4 ? '#e98943' : '#d26758';
   const horizontalGrid = [1, 4, 7, 10].map((score) => `<g><line class="clarity-grid-line" x1="${left}" y1="${y(score)}" x2="${right}" y2="${y(score)}"></line><text x="42" y="${y(score) + 4}">${score}</text></g>`).join('');
-  const verticalGrid = Array.from({ length: 8 }, (_, index) => `<line class="clarity-week-line" x1="${x(index + 1)}" y1="${top}" x2="${x(index + 1)}" y2="${bottom}"></line>`).join('');
-  const weekLabels = Array.from({ length: 8 }, (_, index) => `<text class="week-label" x="${x(index + 1)}" y="274">W${index + 1}</text>`).join('');
-  const markerLines = measurements.map((item) => `<line class="clarity-marker-line" x1="${x(item.week)}" y1="${y(item.score) + 13}" x2="${x(item.week)}" y2="${bottom}"></line>`).join('');
-  const dots = measurements.map((item, index) => `<g class="clarity-point ${index === measurements.length - 1 ? 'is-latest' : ''}" style="--point-index:${index}"><circle class="clarity-point-pulse" cx="${x(item.week)}" cy="${y(item.score)}" r="18" stroke="${scoreColor(item.score)}"></circle><circle class="clarity-point-core" cx="${x(item.week)}" cy="${y(item.score)}" r="8" fill="${scoreColor(item.score)}"></circle><text x="${x(item.week)}" y="${y(item.score) - 20}">${item.score}</text></g>`).join('');
+  const verticalGrid = Array.from({ length: measurements.length }, (_, index) => `<line class="clarity-week-line" x1="${x(index + 1)}" y1="${top}" x2="${x(index + 1)}" y2="${bottom}"></line>`).join('');
+  const weekLabels = measurements.map((item, index) => `<text class="week-label" x="${x(index + 1)}" y="274">${item.source==='login'?'Login':'W'+item.week}</text>`).join('');
+  const markerLines = measurements.map((item,index) => `<line class="clarity-marker-line" x1="${x(index+1)}" y1="${y(item.score) + 13}" x2="${x(index+1)}" y2="${bottom}"></line>`).join('');
+  const dots = measurements.map((item, index) => `<g class="clarity-point ${index === measurements.length - 1 ? 'is-latest' : ''}" style="--point-index:${index}"><circle class="clarity-point-pulse" cx="${x(index+1)}" cy="${y(item.score)}" r="18" stroke="${scoreColor(item.score)}"></circle><circle class="clarity-point-core" cx="${x(index+1)}" cy="${y(item.score)}" r="8" fill="${scoreColor(item.score)}"></circle><text x="${x(index+1)}" y="${y(item.score) - 20}">${item.score}</text></g>`).join('');
   target.innerHTML = `<svg viewBox="0 0 880 292" aria-hidden="true" focusable="false"><defs><linearGradient id="clarityLineGradient" x1="0" x2="1"><stop offset="0" stop-color="#ff765e"></stop><stop offset=".48" stop-color="#ffad54"></stop><stop offset="1" stop-color="#f2cf6b"></stop></linearGradient><linearGradient id="clarityAreaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb45e" stop-opacity=".32"></stop><stop offset="1" stop-color="#ff765e" stop-opacity="0"></stop></linearGradient><linearGradient id="clarityTargetGradient" x1="0" x2="1"><stop offset="0" stop-color="#a87818" stop-opacity=".13"></stop><stop offset=".55" stop-color="#f2c85b" stop-opacity=".26"></stop><stop offset="1" stop-color="#ffe6a0" stop-opacity=".16"></stop></linearGradient><filter id="clarityGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="blur"></feGaussianBlur><feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter></defs><rect class="clarity-chart-surface" x="${left}" y="${top}" width="${right - left}" height="${bottom - top}"></rect><rect class="clarity-low-band" x="${left}" y="${y(4)}" width="${right - left}" height="${bottom - y(4)}"></rect><rect class="clarity-growth-band" x="${left}" y="${y(7)}" width="${right - left}" height="${y(4) - y(7)}"></rect><rect class="clarity-target-band" x="${left}" y="${top}" width="${right - left}" height="${y(7) - top}"></rect>${verticalGrid}${horizontalGrid}${markerLines}${areaPath ? `<path class="clarity-progress-area" d="${areaPath}"></path>` : ''}${points ? `<path class="clarity-progress-line clarity-progress-glow" d="${linePath}"></path><path class="clarity-progress-line" d="${linePath}"></path>` : ''}${dots}${weekLabels}<g class="target-chip"><rect x="${right - 170}" y="${top + 10}" width="158" height="28" rx="14"></rect><text class="target-label" x="${right - 91}" y="${top + 28}">ZIELBEREICH 7–10</text></g></svg>${measurements.length ? '' : '<p>Noch kein Klarheitswert gespeichert. Deine erste Messung entsteht in Woche 1.</p>'}`;
 }
 
@@ -2199,7 +2199,7 @@ function renderInsights() {
   $('#valueTags').innerHTML = values.length ? values.map((item) => `<span class="tag">${item}</span>`).join('') : '<i>Öffnet sich in Woche 5</i>';
   const measurements = (program?.clarityHistory || []).filter((item) => Number.isInteger(Number(item.score)) && Number(item.score) >= 1 && Number(item.score) <= 10);
   const first = measurements[0];
-  const latest = measurements.at(-1);
+  const latest = currentClarityMeasurement();
   $('#clarityChart').innerHTML = `<b>Start ${first?.score || '—'}</b><i></i><b>Heute ${latest?.score || '—'}</b>`;
 }
 
@@ -2719,3 +2719,5 @@ $('#customerLogout').addEventListener('click', async () => {
 });
 
 loadProgram().then(() => openLoginClarity()).catch((error) => { if (error.status === 401) location.replace('/kunden-login'); else toast(error.message); });
+
+window.addEventListener("fdd:clarity-saved",()=>loadProgram().catch(error=>toast(error.message)));

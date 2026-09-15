@@ -284,7 +284,7 @@ async function commandDashboard(service, admin) {
     generatedAt: now.toISOString(),
     adminName: admin?.profile?.name || admin?.name || 'Markus',
     summary: { activeCustomers: activeProgress.length, newCustomers, activeLeads, unreadMessages: unreadMessages.length, openGates: relevantOpenGates.length, overdueGates: overdueGates.length, onboarding: distribution[0] || 0 },
-    clarity: dashboardClarity(stateEntries, accessMap),
+    clarity: dashboardClarity(stateEntries, accessMap, await readJson(await fetch(`${service.url}/rest/v1/login_clarity_checkins?select=user_profile_id,score,created_at,week&order=created_at.desc&limit=10000`, {headers:headers(service.key)}), 'Klarheit konnte nicht geladen werden.')),
     openGateCustomers: [...new Set(relevantOpenGates.map(gate=>gate.user_profile_id))].map(id=>({id,name:profileMap.get(id)?.name||'Kunde',week:accessMap.get(id)?.processWeek,gates:relevantOpenGates.filter(gate=>gate.user_profile_id===id).map(gate=>gate.label)})),
     weekDistribution: distribution.slice(1),
     attention: { total: attention.length, items: attention.slice(0, 6) },
