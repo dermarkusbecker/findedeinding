@@ -1,5 +1,5 @@
 const COOKIE_CONSENT_KEY = 'fdd-cookie-consent-v1';
-const COOKIE_CONSENT_VERSION = 1;
+const COOKIE_CONSENT_VERSION = 2;
 const cookieConsent = document.querySelector('#cookieConsent');
 const cookieConsentSettings = document.querySelector('#cookieConsentSettings');
 const cookieAnalytics = document.querySelector('#cookieAnalytics');
@@ -47,7 +47,7 @@ function showCookieConsent({ settings = false, trigger = null } = {}) {
   cookieConsent.hidden = false;
   requestAnimationFrame(() => {
     cookieConsent.classList.add('is-visible');
-    if (trigger) cookieConsent.querySelector(settings ? '#cookieAnalytics' : '[data-cookie-choice="all"]')?.focus();
+    if (trigger) cookieConsent.querySelector('[data-cookie-choice="necessary"]')?.focus();
   });
 }
 
@@ -141,7 +141,7 @@ document.querySelectorAll('[data-cookie-choice]').forEach((button) => button.add
 document.querySelector('[data-cookie-settings-toggle]')?.addEventListener('click', (event) => {
   const expanded = event.currentTarget.getAttribute('aria-expanded') === 'true';
   setCookieSettingsVisibility(!expanded);
-  if (!expanded) requestAnimationFrame(() => cookieAnalytics?.focus());
+  if (!expanded) requestAnimationFrame(() => document.querySelector('[data-cookie-choice="selection"]')?.focus());
 });
 document.querySelectorAll('[data-open-cookie-settings]').forEach((button) => button.addEventListener('click', () => showCookieConsent({ settings: true, trigger: button })));
 

@@ -7,8 +7,9 @@ const file = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('landing page provides an accessible cookie consent banner and persistent settings entry', async () => {
   const html = await file('index.html');
   assert.match(html, /id="cookieConsent"[^>]*role="dialog"[^>]*aria-labelledby="cookieConsentTitle"/);
-  assert.match(html, /data-cookie-choice="necessary"[^>]*>Nur notwendige/);
-  assert.match(html, /data-cookie-choice="all"[^>]*>Alle akzeptieren/);
+  assert.match(html, /data-cookie-choice="necessary"[^>]*>Verstanden/);
+  assert.doesNotMatch(html, /data-cookie-choice="all"/);
+  assert.match(html, /id="cookieAnalytics" disabled/);
   assert.match(html, /data-cookie-choice="selection"[^>]*>Auswahl speichern/);
   assert.match(html, /id="cookieAnalytics"/);
   assert.match(html, /id="cookieMarketing"/);
