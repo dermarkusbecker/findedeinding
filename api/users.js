@@ -31,7 +31,7 @@ export default async function handler(request, response) {
   try {
     if (request.method === 'GET') {
       const [users, gates, entries] = await Promise.all([
-        data(await fetch(`${service.url}/rest/v1/user_profiles?select=id,auth_user_id,name,email,role,status,permissions,staff_role,staff_permissions,created_at,participant_progress(current_week,process_status,program_status,access_mode,program_start_date,privacy_consent_at,start_commitment_at)&order=created_at.desc`, { headers: authHeaders(service.serviceKey) })),
+        data(await fetch(`${service.url}/rest/v1/user_profiles?select=id,auth_user_id,name,email,role,status,permissions,staff_role,staff_permissions,created_at,participant_progress!participant_progress_user_profile_id_fkey(current_week,process_status,program_status,access_mode,program_start_date,privacy_consent_at,start_commitment_at)&order=created_at.desc`, { headers: authHeaders(service.serviceKey) })),
         data(await fetch(`${service.url}/rest/v1/week_gates?required=eq.true&select=user_profile_id,week,required,completed_at&limit=5000`, { headers: authHeaders(service.serviceKey) })),
         data(await fetch(`${service.url}/rest/v1/process_entries?data_block=like.week_*_state&select=user_profile_id,week,data_block,structured_data,created_at&order=created_at.desc&limit=10000`, { headers: authHeaders(service.serviceKey) })),
       ]);

@@ -31,3 +31,14 @@ test('pinned demo entry remains accessible independently of customer list filter
  context.participants=[];vm.runInContext('renderDemoCustomerEntry()',context);
  assert.equal(nodes.get('#demoCustomerEntry').hidden,true);
 });
+
+test('customer load failures stay visible and clear after successful retry',async()=>{
+ const nodes=new Map();let failed=true;
+ const context=vm.createContext({document:{querySelector(selector){if(!nodes.has(selector))nodes.set(selector,{});return nodes.get(selector);}},fetch:async()=>({ok:!failed,json:async()=>failed?{error:'Verknüpfung fehlgeschlagen'}:{participants:[]}}),renderParticipants(){},renderParticipantLogins(){},renderGlobalContactSearch(){},customerStatus(){return 'active';},toast(){}});
+ vm.runInContext(`let participants=[];${load}`,context);
+ await vm.runInContext('loadParticipants()',context);
+ assert.equal(nodes.get('#participantLoadError').hidden,false);
+ assert.match(nodes.get('#participantLoadError').textContent,/Kunden konnten nicht geladen werden/);
+ failed=false;await vm.runInContext('loadParticipants()',context);
+ assert.equal(nodes.get('#participantLoadError').hidden,true);
+});

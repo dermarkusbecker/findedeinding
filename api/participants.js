@@ -115,7 +115,7 @@ export default async function handler(request, response) {
   if (request.method === 'GET') {
     response.setHeader('Cache-Control', 'private, no-store');
     const [result, linksResult, gatesResult, entriesResult] = await Promise.all([
-      fetch(`${service.url}/rest/v1/user_profiles?role=eq.user&select=*,participant_progress!inner(*)&order=created_at.desc`, { headers: headers(service.key) }),
+      fetch(`${service.url}/rest/v1/user_profiles?role=eq.user&select=*,participant_progress!participant_progress_user_profile_id_fkey!inner(*)&order=created_at.desc`, { headers: headers(service.key) }),
       fetch(`${service.url}/rest/v1/leads?converted_user_profile_id=not.is.null&status=eq.customer&select=id,converted_user_profile_id,converted_at,created_at`, { headers: headers(service.key) }),
       fetch(`${service.url}/rest/v1/week_gates?required=eq.true&select=user_profile_id,week,required,completed_at&limit=5000`, { headers: headers(service.key) }),
       fetch(`${service.url}/rest/v1/process_entries?data_block=like.week_*_state&select=user_profile_id,week,data_block,structured_data,created_at&order=created_at.desc&limit=10000`, { headers: headers(service.key) }),
