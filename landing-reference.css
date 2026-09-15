@@ -749,3 +749,9 @@ footer .footer-links .footer-instagram{display:inline-flex;align-items:center;ju
 #leadDialog [hidden]{display:none!important}
 #leadDialog .lead-dialog-shell,#leadDialog #leadForm{min-width:0;max-width:100%;box-sizing:border-box}
 #leadDialog #intakeQuestion h3:focus{outline:none}
+/* Intake navigation: reserve space for the primary action at every width. */
+#leadDialog .public-lead-actions.split{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:stretch;gap:12px}
+#leadDialog .public-lead-actions.split .public-lead-back{flex:0 0 auto;width:auto;min-width:100px;padding:14px 18px;white-space:nowrap}
+#leadDialog .public-lead-actions.split .button-orange{flex:1 1 auto;width:auto;min-width:0;min-height:54px;padding:14px 22px;font-size:16px;line-height:1.4;text-align:center;justify-content:center;gap:12px}
+#leadDialog #intakeNext{min-width:160px;white-space:nowrap}
+@media(max-width:600px){#leadDialog .public-lead-actions.split{flex-direction:column-reverse}#leadDialog .public-lead-actions.split .button{flex:none;width:100%;box-sizing:border-box}#leadDialog .public-lead-actions.split .public-lead-back{min-height:46px}#leadDialog #intakeNext{min-width:0}}
