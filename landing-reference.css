@@ -728,3 +728,24 @@ footer .footer-links>a:hover,footer .footer-links>button:hover{color:#fff}
 footer .footer-links .footer-instagram{display:inline-flex;align-items:center;justify-content:center;flex:0 0 40px;width:40px;height:40px;margin:0;align-self:center}
 @media(max-width:1050px){footer.page-shell{grid-template-columns:1fr 1fr}footer .footer-links{grid-column:1/-1;justify-content:flex-start}}
 @media(max-width:560px){footer.page-shell{grid-template-columns:1fr;gap:18px}footer .footer-links{gap:4px 18px}footer .footer-claim{text-align:left}}
+
+/* Intake: readable, touch-friendly question pages. */
+#leadDialog .intake-counter{color:#aee9ff;font-size:14px;font-weight:700;margin:0 0 12px}
+#leadDialog .intake-meter{height:4px;background:#244356;border-radius:8px;margin-bottom:24px;overflow:hidden}
+#leadDialog .intake-meter span{display:block;height:100%;background:linear-gradient(90deg,#49caff,#ff853b)}
+#leadDialog #intakeQuestion h3{font-size:clamp(22px,2.4vw,29px);line-height:1.35;color:#f5faff;margin:0 0 24px;letter-spacing:-.02em}
+#leadDialog .intake-options{display:grid;gap:12px;margin-bottom:24px}
+#leadDialog .intake-options button{display:flex;align-items:center;gap:14px;text-align:left;min-height:64px;padding:16px;border:1px solid #416075;border-radius:12px;background:#102c3e;color:#f4f8fc;font:600 15px/1.5 Manrope,sans-serif;cursor:pointer;width:100%}
+#leadDialog .intake-options button span{display:grid;place-items:center;flex:0 0 28px;height:28px;border-radius:50%;background:#22475c;color:#beeaff;font-size:12px}
+#leadDialog .intake-options button:hover,#leadDialog .intake-options button[aria-pressed=true]{border-color:#61d2ff;background:#193e52}
+#leadDialog button:focus-visible{outline:3px solid #7cddff;outline-offset:3px}
+#leadDialog .intake-options button[aria-pressed=true] span{background:#77dec9;color:#073c36}
+#leadDialog .intake-outlook{font-size:16px;line-height:1.7;color:#e4eef5;margin-bottom:22px}
+#leadDialog .intake-contact-note{font-size:13px;line-height:1.6;color:#bbcfdb}
+#leadDialog .public-lead-actions button:disabled{opacity:.45;cursor:not-allowed}
+#leadDialog .lead-dialog-shell{height:auto;min-height:0}
+#leadDialog{max-height:92dvh;overflow:auto}
+@media(max-width:700px){#leadDialog .lead-copy{display:none}#leadDialog .lead-dialog-shell{display:block;padding:48px 18px 24px}#leadDialog #leadForm{padding:20px 14px}#leadDialog .public-lead-actions{flex-wrap:wrap}#leadDialog .intake-options button{font-size:15px}}
+#leadDialog [hidden]{display:none!important}
+#leadDialog .lead-dialog-shell,#leadDialog #leadForm{min-width:0;max-width:100%;box-sizing:border-box}
+#leadDialog #intakeQuestion h3:focus{outline:none}

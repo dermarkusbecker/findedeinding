@@ -1,3 +1,4 @@
+import { normalizeIntake } from '../lib/intake.js';
 import {readCurriculumIndex,curriculumAccess,curriculumGates} from '../lib/curriculum-progress.js';
 import {categoryBookingSettings,normalizeAppointmentCategories} from '../lib/appointment-categories.js';
 import { handleCrmTasks } from '../lib/crm-tasks.js';
@@ -504,6 +505,19 @@ function qualificationAnswers(value) {
   return Object.fromEntries(Array.from({ length: 6 }, (_, index) => [`q${index + 1}`, clean(source[`q${index + 1}`], 3000)]));
 }
 
+function intakeReceipt(service, id, email) {
+ const data=Buffer.from(JSON.stringify({id,email,expires:Date.now()+86400000})).toString('base64url');
+ return data+'.'+crypto.createHmac('sha256',service.key).update(data).digest('base64url');
+}
+function verifyIntakeReceipt(service, token, email) {
+ if(!token)return null;
+ const [data,signature]=String(token).split('.');
+ const expected=crypto.createHmac('sha256',service.key).update(data||'').digest('base64url');
+ if(!signature||signature.length!==expected.length||!crypto.timingSafeEqual(Buffer.from(signature),Buffer.from(expected)))throw Object.assign(new Error('Bitte speichere deine Kontaktdaten erneut.'),{status:400});
+ const receipt=JSON.parse(Buffer.from(data,'base64url').toString());
+ if(receipt.email!==email||receipt.expires<Date.now()||!uuidValid(receipt.id))throw Object.assign(new Error('Bitte speichere deine Kontaktdaten erneut.'),{status:400});
+ return receipt.id;
+}
 async function publicLead(request, response, service) {
   if (request.body?.website) return response.status(200).json({ ok: true });
   const name = clean(request.body?.name, 120), email = clean(request.body?.email, 254).toLowerCase();
@@ -511,6 +525,15 @@ async function publicLead(request, response, service) {
   const publicPhone = clean(request.body?.phone, 40) || null;
   const payload = { name, email, phone: publicPhone, mobile_phone: publicPhone, whatsapp_phone: publicPhone, whatsapp_same_as_mobile: true, challenge: clean(request.body?.challenge, 500) || null, source: clean(request.body?.source, 80) || 'website', utm_source: clean(request.body?.utm_source, 100) || null, utm_medium: clean(request.body?.utm_medium, 100) || null, utm_campaign: clean(request.body?.utm_campaign, 150) || null, consent_at: request.body?.consent ? new Date().toISOString() : null };
   if (!payload.consent_at) return response.status(400).json({ error: 'Bitte bestätige die Datenschutzhinweise.' });
+  if(request.body?.intakeAnswers)payload.intake_answers=normalizeIntake(request.body.intakeAnswers);
+  const intakeId=verifyIntakeReceipt(service,request.body?.intakeToken,email);
+  if(request.query?.action==='public-intake') {
+    payload.intake_answers=normalizeIntake(request.body?.intakeAnswers);
+    const endpoint=intakeId?`leads?id=eq.${intakeId}&status=eq.new`:'leads';
+    const rows=await readJson(await fetch(`${service.url}/rest/v1/${endpoint}`,{method:intakeId?'PATCH':'POST',headers:headers(service.key,{Prefer:'return=representation'}),body:JSON.stringify(payload)}),'Deine Anfrage konnte nicht gespeichert werden.');
+    if(!rows[0])return response.status(409).json({error:'Diese Anfrage wurde bereits weiterbearbeitet.'});
+    return response.status(200).json({ok:true,intakeToken:intakeReceipt(service,rows[0].id,email)});
+  }
   const settings = categoryBookingSettings(await bookingSettings(service));
   payload.appointment_title=settings.category.name;payload.appointment_category_id=settings.category.id;
   const startDate = new Date(request.body?.appointmentStart), duration = settings.defaultDurationMinutes;
@@ -525,8 +548,9 @@ async function publicLead(request, response, service) {
   const meetUrl = event?.hangoutLink || event?.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || null;
   const leadPayload = { ...payload, status: 'scheduled', appointment_start: startDate.toISOString(), appointment_end: endDate.toISOString(), appointment_timezone: settings.timezone, calendar_event_id: event?.id || null, calendar_event_url: event?.htmlLink || null, meet_url: meetUrl };
   try {
-    const rows = await readJson(await fetch(`${service.url}/rest/v1/leads`, { method: 'POST', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify(leadPayload) }), 'Interessent und Termin konnten nicht gespeichert werden.');
+    const rows = await readJson(await fetch(`${service.url}/rest/v1/leads${intakeId?`?id=eq.${intakeId}&status=eq.new`:''}`, { method: intakeId?'PATCH':'POST', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify(leadPayload) }), 'Interessent und Termin konnten nicht gespeichert werden.');
     const lead = rows[0];
+    if(!lead)throw Object.assign(new Error('Diese Anfrage wurde bereits gebucht oder weiterbearbeitet.'),{status:409});
     if (lead?.id) await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Dein Klarheitsgespräch ist vereinbart', preview: `Termin am ${startDate.toLocaleString('de-DE', { timeZone: settings.timezone })}${meetUrl ? ' mit Google Meet' : ''}.` }).catch(() => null);
     return response.status(201).json({ ok: true, appointment: { startsAt: startDate.toISOString(), endsAt: endDate.toISOString(), timezone: settings.timezone, calendarConnected: Boolean(accessToken), meetUrl } });
   } catch (error) {
@@ -561,7 +585,7 @@ export default async function handler(request, response) {
       return response.status(error.status || 503).json({ error: error.message });
     }
   }
-  if (request.method === 'POST' && !action) {
+  if (request.method === 'POST' && (!action || action === 'public-intake')) {
     try { return await publicLead(request, response, service); }
     catch (error) { return response.status(error.status || 500).json({ error: error.message }); }
   }

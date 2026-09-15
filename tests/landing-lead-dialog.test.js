@@ -29,7 +29,7 @@ test('Landingpage führt Interessenten über drei Seiten bis zur echten Terminbu
   const [html, script, styles, api] = await Promise.all([file('index.html'), file('landing.js'), file('landing.css'), file('api/leads.js')]);
   for (const step of ['1', '2', '3']) assert.match(html, new RegExp(`data-public-lead-step="${step}"`));
   assert.match(html, /<small>Kontakt<\/small>/);
-  assert.match(html, /Anliegen/);
+  assert.match(html, /Dein Stand/);
   assert.match(html, /Freie Termine/);
   assert.match(html, /name="appointmentStart"/);
   assert.match(html, /id="publicAvailableSlots"/);

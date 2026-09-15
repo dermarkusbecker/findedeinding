@@ -1,3 +1,4 @@
+import { INTAKE_QUESTIONS } from './lib/intake.js';
 const COOKIE_CONSENT_KEY = 'fdd-cookie-consent-v1';
 const COOKIE_CONSENT_VERSION = 2;
 const cookieConsent = document.querySelector('#cookieConsent');
@@ -183,7 +184,7 @@ const openLeadDialog = (trigger = null) => {
   resetPublicLeadJourney();
   document.body.classList.add('lead-dialog-open');
   leadDialog.showModal();
-  requestAnimationFrame(() => form.elements.name?.focus());
+  requestAnimationFrame(() => document.querySelector('#intakeQuestion h3')?.focus());
 };
 
 const closeLeadDialog = () => {
@@ -240,7 +241,7 @@ leadDialog?.addEventListener('close', () => {
   leadDialogTrigger?.focus();
   leadDialogTrigger = null;
 });
-if (location.hash === '#start') openLeadDialog();
+if (location.hash === '#start') queueMicrotask(() => openLeadDialog());
 
 const choiceContent = {
   direction: ['Deine Richtung', 'Du musst die Antwort noch nicht kennen.', 'Wir beginnen bei dem, was bereits da ist: deiner Geschichte, deinen Wünschen und den Momenten, die dir Energie geben.'],
@@ -410,6 +411,16 @@ const escapeLanding = (value = '') => {
   span.textContent = String(value);
   return span.innerHTML;
 };
+let intakeIndex = 0, intakeAnswers = {}, intakeToken = null;
+function renderIntakeQuestion() {
+ const q=INTAKE_QUESTIONS[intakeIndex], selected=intakeAnswers[q.id];
+ document.querySelector('#intakeQuestion').innerHTML=`<p class="intake-counter">Frage ${intakeIndex+1} von 6${q.optional?' · Optional':''}</p><div class="intake-meter" role="progressbar" aria-label="Fragenfortschritt" aria-valuemin="0" aria-valuemax="6" aria-valuenow="${intakeIndex+1}"><span style="width:${(intakeIndex+1)/6*100}%"></span></div><h3 tabindex="-1">${escapeLanding(q.question)}</h3><div class="intake-options" role="group" aria-label="${escapeLanding(q.question)}">${q.options.map((option,i)=>`<button type="button" data-intake-answer="${i}" aria-pressed="${selected===i}"><span>${selected===i?'✓':String(i+1).padStart(2,'0')}</span>${escapeLanding(option)}</button>`).join('')}</div>`;
+ document.querySelector('#intakeBack').hidden=intakeIndex===0;
+ const next=document.querySelector('#intakeNext'); next.disabled=!q.optional&&!Number.isInteger(selected);next.textContent=q.optional&&!Number.isInteger(selected)?'Überspringen →':intakeIndex===5?'Weiter zum Gespräch →':'Weiter →';
+ document.querySelectorAll('[data-intake-answer]').forEach(button=>button.addEventListener('click',()=>{intakeAnswers[q.id]=Number(button.dataset.intakeAnswer);renderIntakeQuestion();document.querySelector(`[data-intake-answer="${intakeAnswers[q.id]}"]`).focus();}));
+}
+document.querySelector('#intakeNext').addEventListener('click',()=>{if(intakeIndex<5){intakeIndex++;renderIntakeQuestion();document.querySelector('#intakeQuestion h3').focus();}else setPublicLeadStep(2);});
+document.querySelector('#intakeBack').addEventListener('click',()=>{intakeIndex=Math.max(0,intakeIndex-1);renderIntakeQuestion();document.querySelector('#intakeQuestion h3').focus();});
 function setPublicLeadStep(step, focus = true) {
   publicLeadStep = Math.max(1, Math.min(3, Number(step) || 1));
   form.querySelectorAll('[data-public-lead-step]').forEach((section) => { section.hidden = Number(section.dataset.publicLeadStep) !== publicLeadStep; });
@@ -425,6 +436,7 @@ function setPublicLeadStep(step, focus = true) {
 function resetPublicLeadJourney() {
   if (!form) return;
   form.reset();
+  intakeIndex=0; intakeAnswers={}; intakeToken=null; renderIntakeQuestion();
   try {
     const draft = JSON.parse(localStorage.getItem(publicLeadDraftKey) || '{}');
     for (const name of ['name', 'email', 'phone', 'challenge']) if (typeof draft[name] === 'string' && form.elements[name]) form.elements[name].value = draft[name];
@@ -500,7 +512,14 @@ async function loadPublicSlots({ advance = false } = {}) {
 }
 form.querySelectorAll('[data-public-lead-next]').forEach((button) => button.addEventListener('click', async () => {
   if (!validatePublicLeadStep(publicLeadStep)) return;
-  setPublicLeadStep(publicLeadStep + 1);
+  button.disabled=true;
+  try {
+    const payload=Object.fromEntries(new FormData(form));payload.consent=form.elements.consent.checked;payload.intakeAnswers=intakeAnswers;payload.intakeToken=intakeToken;payload.source=params.get('utm_source')||'website';
+    const response=await fetch('/api/leads?action=public-intake',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),data=await response.json();
+    if(!response.ok)throw new Error(data.error||'Deine Anfrage konnte nicht gespeichert werden.');
+    intakeToken=data.intakeToken;
+    setPublicLeadStep(publicLeadStep + 1);
+  } catch(error){status.textContent=error.message;status.className='form-status error';return;} finally{button.disabled=false;}
   if (publicLeadStep === 3) await loadPublicSlots();
 }));
 form.querySelectorAll('[data-public-lead-back]').forEach((button) => button.addEventListener('click', () => setPublicLeadStep(publicLeadStep - 1)));
@@ -514,6 +533,8 @@ form.addEventListener('submit', async (event) => {
   const button = form.querySelector('[type="submit"]');
   button.disabled = true; status.textContent = 'Termin wird verbindlich geprüft und eingetragen …'; status.className = 'form-status';
   const payload = Object.fromEntries(new FormData(form));
+  payload.intakeAnswers = intakeAnswers;
+  payload.intakeToken = intakeToken;
   payload.consent = Boolean(form.elements.consent.checked);
   payload.source = params.get('utm_source') || document.referrer || 'website';
   ['utm_source', 'utm_medium', 'utm_campaign'].forEach((key) => payload[key] = params.get(key));
