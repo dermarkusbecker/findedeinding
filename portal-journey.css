@@ -1088,3 +1088,15 @@ main > header .header-clarity { color: rgba(225, 240, 247, .78); font-size: 12px
 @media(max-width:600px){#documentList .library-general-grid,.insight-files-grid{grid-template-columns:1fr}.insight-reflections .week-reflections-head{display:block}.insight-reflections .week-reflections-head>strong{display:inline-block;margin-top:12px}.insight-reflections .week-reflection-card{padding:13px}.insight-reflections .week-reflection-card strong{font-size:15px}.insight-files{padding:20px}#motivatorTags .motivator-result strong{font-size:17px}}
 #motivatorTags .motivator-result { margin:0; text-transform:none; letter-spacing:0; }
 #motivatorTags .motivator-result strong { text-transform:none; }
+/* Two phases of the 4+4 journey; week states retain their existing meaning. */
+#journeyGrid .journey-phase-heading{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:24px 26px;border:1px solid #e99a6155;border-left:4px solid #ffad70;border-radius:18px;background:linear-gradient(110deg,#ff99491a,#0c293800);color:#f3f9fc;margin-bottom:4px}
+#journeyGrid .journey-phase-heading.implementation{margin-top:28px;border-color:#69d3cf55;border-left-color:#69d3cf;background:linear-gradient(110deg,#69d3cf18,#0c293800)}
+#journeyGrid .journey-phase-number{display:grid;place-items:center;flex:0 0 52px;height:52px;border-radius:15px;background:#ffad701a;color:#ffc18f;font-size:22px;font-weight:700}
+#journeyGrid .implementation .journey-phase-number{background:#69d3cf1a;color:#91ede3}
+#journeyGrid .journey-phase-heading p{margin:0 0 7px;color:#ffc18f;font-size:13px;font-weight:600;letter-spacing:.06em}
+#journeyGrid .implementation p{color:#91ede3}
+#journeyGrid .journey-phase-heading h2{color:#f4faff;font-size:clamp(23px,2.5vw,30px);line-height:1.25;margin:0 0 8px}
+#journeyGrid .journey-phase-heading div>span{display:block;color:#c4dce6;font-size:15px;line-height:1.6}
+#journeyGrid .journey-phase-discovery{border-top:2px solid #ffad7077}
+#journeyGrid .journey-phase-implementation{border-top:2px solid #69d3cf77}
+@media(max-width:700px){#journeyGrid .journey-phase-heading{padding:20px 16px;gap:12px;align-items:flex-start}#journeyGrid .journey-phase-number{flex-basis:36px;height:36px;border-radius:10px;font-size:16px}#journeyGrid .journey-phase-heading.implementation{margin-top:20px}#journeyGrid .journey-phase-heading div>span{font-size:14px}}
