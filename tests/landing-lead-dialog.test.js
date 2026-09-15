@@ -22,7 +22,7 @@ test('alle zentralen Landingpage-CTAs öffnen das Gesprächsfenster', async () =
   const triggers = html.match(/data-open-lead-dialog/g) || [];
   assert.ok(triggers.length >= 4);
   assert.match(html, /Gespräch starten/);
-  assert.match(html, /Klarheitsgespräch vereinbaren/);
+  assert.match(html, /Termin bestätigen/);
 });
 
 test('Landingpage führt Interessenten über drei Seiten bis zur echten Terminbuchung', async () => {
@@ -33,7 +33,7 @@ test('Landingpage führt Interessenten über drei Seiten bis zur echten Terminbu
   assert.match(html, /Freie Termine/);
   assert.match(html, /name="appointmentStart"/);
   assert.match(html, /id="publicAvailableSlots"/);
-  assert.match(html, /Klarheitsgespräch vereinbaren/);
+  assert.match(html, /Termin bestätigen/);
   assert.match(script, /function setPublicLeadStep/);
   assert.match(script, /function loadPublicSlots/);
   assert.match(script, /action=public-available-slots/);

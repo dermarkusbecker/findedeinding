@@ -423,6 +423,7 @@ document.querySelector('#intakeNext').addEventListener('click',()=>{if(intakeInd
 document.querySelector('#intakeBack').addEventListener('click',()=>{intakeIndex=Math.max(0,intakeIndex-1);renderIntakeQuestion();document.querySelector('#intakeQuestion h3').focus();});
 function setPublicLeadStep(step, focus = true) {
   publicLeadStep = Math.max(1, Math.min(3, Number(step) || 1));
+  leadDialog.classList.toggle('is-booking',publicLeadStep===3);
   form.querySelectorAll('[data-public-lead-step]').forEach((section) => { section.hidden = Number(section.dataset.publicLeadStep) !== publicLeadStep; });
   form.querySelectorAll('[data-public-progress]').forEach((item) => {
     const number = Number(item.dataset.publicProgress);
@@ -473,42 +474,31 @@ function validatePublicLeadStep(step) {
   }
   return true;
 }
-async function loadPublicSlots({ advance = false } = {}) {
-  const container = document.querySelector('#publicAvailableSlots'), rangeLabel = document.querySelector('#publicSlotRange'), more = document.querySelector('#publicNextSlotRange');
-  if (advance) publicSlotRangeStart = addLandingDays(publicSlotRangeStart || landingDateKey(), 14);
-  else publicSlotRangeStart = publicSlotRangeStart || landingDateKey();
-  const rangeEnd = addLandingDays(publicSlotRangeStart, 13);
-  rangeLabel.textContent = `${new Date(`${publicSlotRangeStart}T12:00:00`).toLocaleDateString('de-DE',{day:'2-digit',month:'short'})} – ${new Date(`${rangeEnd}T12:00:00`).toLocaleDateString('de-DE',{day:'2-digit',month:'short',year:'numeric'})}`;
-  container.innerHTML = '<p>Google Calendar wird auf freie Zeiten geprüft …</p>';
-  more.disabled = true;
-  try {
-    const response = await fetch(`/api/leads?action=public-available-slots&from=${encodeURIComponent(publicSlotRangeStart)}&to=${encodeURIComponent(rangeEnd)}`), data = await response.json();
-    if (!response.ok) throw new Error(data.error);
-    const notice = document.querySelector('#publicBookingNotice');
-    const connected = data.calendarConnected === true;
-    notice.textContent = connected
-      ? 'Live mit dem Kalender abgeglichen – belegte Zeiten sind bereits herausgefiltert.'
-      : 'Die gewählte Zeit wird direkt im CRM reserviert. Die persönliche Bestätigung mit Meet-Link folgt durch das Finde-dein-Ding-Team.';
-    notice.className = `public-booking-notice ${connected ? 'connected' : 'reservation'}`;
-    document.querySelector('#publicBookingMail').textContent = connected ? '✓ Kalendertermin wird direkt erstellt' : '✓ Termin wird direkt im CRM reserviert';
-    document.querySelector('#publicBookingMeet').textContent = connected ? '✓ Google-Meet-Link inklusive' : '✓ Meet-Link folgt mit der Bestätigung';
-    if (!data.slots.length) container.innerHTML = '<div class="public-slot-empty"><strong>In diesem Zeitraum ist gerade nichts frei.</strong><span>Prüfe einfach die nächsten Tage.</span></div>';
-    else {
-      const groups = data.slots.reduce((result, slot) => { (result[slot.date] ||= []).push(slot); return result; }, {});
-      container.innerHTML = Object.entries(groups).map(([date, slots]) => `<article><header><strong>${new Date(`${date}T12:00:00`).toLocaleDateString('de-DE',{weekday:'long'})}</strong><span>${new Date(`${date}T12:00:00`).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})}</span></header><div>${slots.map((slot) => `<button type="button" data-public-slot="${escapeLanding(slot.start)}">${escapeLanding(slot.time)} Uhr</button>`).join('')}</div></article>`).join('');
-      container.querySelectorAll('[data-public-slot]').forEach((button) => button.addEventListener('click', () => {
-        form.elements.appointmentStart.value = button.dataset.publicSlot;
-        container.querySelectorAll('[data-public-slot]').forEach((item) => item.classList.toggle('selected', item === button));
-        const date = new Date(button.dataset.publicSlot);
-        const selected = document.querySelector('#publicSelectedSlot');
-        selected.textContent = `Ausgewählt: ${date.toLocaleString('de-DE',{weekday:'long',day:'2-digit',month:'long',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'})} Uhr`;
-        selected.classList.add('chosen');
-      }));
-    }
-    more.hidden = addLandingDays(publicSlotRangeStart, 14) > addLandingDays(landingDateKey(), Number(data.bookingHorizonDays || 60));
-  } catch (error) {
-    container.innerHTML = `<div class="public-slot-empty error"><strong>Termine konnten gerade nicht geladen werden.</strong><span>${escapeLanding(error.message || 'Bitte versuche es gleich noch einmal.')}</span></div>`;
-  } finally { more.disabled = false; }
+let publicCalendarMonth='', publicCalendarDay='', publicCalendarData=null, publicCalendarRequest=0;
+const monthKey=(date)=>date.slice(0,7)+'-01';
+function moveMonth(key,offset){const date=new Date(key+'T12:00:00Z');date.setUTCMonth(date.getUTCMonth()+offset);return date.toISOString().slice(0,10);}
+function clearPublicSlot(){form.elements.appointmentStart.value='';document.querySelector('#publicSelectedSlot').textContent='Wähle einen Tag und eine Uhrzeit.';document.querySelector('#publicSelectedSlot').classList.remove('chosen');form.querySelector('[type="submit"]').disabled=true;}
+function renderPublicCalendar(){
+ const container=document.querySelector('#publicAvailableSlots'),groups={};
+ for(const slot of publicCalendarData.slots||[])(groups[slot.date]||=[]).push(slot);
+ if(!groups[publicCalendarDay])publicCalendarDay=Object.keys(groups).sort()[0]||'';
+ const first=new Date(publicCalendarMonth+'T12:00:00Z'),offset=(first.getUTCDay()+6)%7,days=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();
+ container.innerHTML=`<div class="booking-calendar"><p class="booking-stage-label">1 · Tag auswählen</p><div class="booking-calendar-grid">${['Mo','Di','Mi','Do','Fr','Sa','So'].map(d=>`<span class="booking-weekday">${d}</span>`).join('')}${'<span aria-hidden="true"></span>'.repeat(offset)}${Array.from({length:days},(_,i)=>{const key=publicCalendarMonth.slice(0,8)+String(i+1).padStart(2,'0'),available=Boolean(groups[key]?.length);return `<button type="button" data-calendar-day="${key}" ${available?'':'disabled'} aria-pressed="${key===publicCalendarDay}" aria-label="${new Date(key+'T12:00:00Z').toLocaleDateString('de-DE',{day:'numeric',month:'long',timeZone:'Europe/Berlin'})}${available?' · Termine verfügbar':' · Keine Termine'}">${i+1}${available?'<i aria-hidden="true"></i>':''}</button>`;}).join('')}</div><p class="booking-calendar-legend">● Termine verfügbar <span>Alle Zeiten: Europe/Berlin</span></p></div><section class="booking-times"><p class="booking-stage-label">2 · Uhrzeit auswählen</p><h4>${publicCalendarDay?new Date(publicCalendarDay+'T12:00:00Z').toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',timeZone:'Europe/Berlin'}):'Keine freien Termine in diesem Monat'}</h4><p class="booking-duration">${Number(publicCalendarData.durationMinutes)||45} Minuten · Kostenloses Klarheitsgespräch</p><div class="booking-time-grid">${(groups[publicCalendarDay]||[]).map(slot=>`<button type="button" data-public-slot="${escapeLanding(slot.start)}" aria-pressed="${form.elements.appointmentStart.value===slot.start}">${escapeLanding(slot.time)}</button>`).join('')}</div>${publicCalendarDay?'':'<p>Über den Pfeil oben kannst du den nächsten Monat prüfen.</p>'}</section>`;
+ container.querySelectorAll('[data-calendar-day]').forEach(button=>button.onclick=()=>{publicCalendarDay=button.dataset.calendarDay;clearPublicSlot();renderPublicCalendar();container.querySelector(`[data-calendar-day="${publicCalendarDay}"]`).focus();});
+ container.querySelectorAll('[data-public-slot]').forEach(button=>button.onclick=()=>{form.elements.appointmentStart.value=button.dataset.publicSlot;container.querySelectorAll('[data-public-slot]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));const selected=document.querySelector('#publicSelectedSlot');selected.innerHTML=`<span>Dein ausgewählter Termin</span><strong>${new Date(button.dataset.publicSlot).toLocaleString('de-DE',{weekday:'long',day:'2-digit',month:'long',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'})} Uhr</strong><small>${Number(publicCalendarData.durationMinutes)||45} Minuten · Europe/Berlin</small>`;selected.classList.add('chosen');form.querySelector('[type="submit"]').disabled=false;});
+}
+async function loadPublicSlots({ advance = false, previous = false } = {}) {
+ const requestId=++publicCalendarRequest,container=document.querySelector('#publicAvailableSlots'),rangeLabel=document.querySelector('#publicSlotRange'),more=document.querySelector('#publicNextSlotRange'),back=document.querySelector('#publicPreviousSlotRange');
+ publicCalendarMonth=advance?moveMonth(publicCalendarMonth,1):previous?moveMonth(publicCalendarMonth,-1):monthKey(publicSlotRangeStart||landingDateKey());
+ const rangeEnd=addLandingDays(moveMonth(publicCalendarMonth,1),-1);
+ rangeLabel.textContent=new Date(publicCalendarMonth+'T12:00:00Z').toLocaleDateString('de-DE',{month:'long',year:'numeric',timeZone:'Europe/Berlin'});
+ clearPublicSlot();container.setAttribute('aria-busy','true');container.innerHTML='<p class="booking-loading">Freie Termine werden geprüft …</p>';more.disabled=true;back.disabled=true;
+ try {
+ const response=await fetch(`/api/leads?action=public-available-slots&from=${encodeURIComponent(publicCalendarMonth)}&to=${encodeURIComponent(rangeEnd)}`),data=await response.json();if(requestId!==publicCalendarRequest)return;if(!response.ok)throw Error(data.error||'Bitte versuche es erneut.');publicCalendarData=data;
+ const connected=data.calendarConnected===true,notice=document.querySelector('#publicBookingNotice');notice.textContent=connected?'Freie Zeiten sind mit dem Kalender abgeglichen.':'Wir reservieren deine Auswahl. Die persönliche Bestätigung mit Gesprächslink folgt per E-Mail.';notice.className=`public-booking-notice ${connected?'connected':'reservation'}`;
+ document.querySelector('#publicBookingMail').textContent='✓ Persönliches Gespräch';document.querySelector('#publicBookingMeet').textContent=connected?'✓ Kalendertermin inklusive':'✓ Bestätigung per E-Mail';
+ renderPublicCalendar();more.hidden=false;more.disabled=moveMonth(publicCalendarMonth,1)>addLandingDays(landingDateKey(),Number(data.bookingHorizonDays||60));back.disabled=publicCalendarMonth<=monthKey(landingDateKey());
+ }catch(error){if(requestId!==publicCalendarRequest)return;container.innerHTML=`<div class="public-slot-empty error"><strong>Termine konnten nicht geladen werden.</strong><p>${escapeLanding(error.message)}</p><button type="button" data-retry-calendar>Erneut versuchen</button></div>`;container.querySelector('[data-retry-calendar]').onclick=()=>{publicSlotRangeStart=publicCalendarMonth;loadPublicSlots();};more.disabled=false;back.disabled=publicCalendarMonth<=monthKey(landingDateKey());}finally{if(requestId===publicCalendarRequest)container.setAttribute('aria-busy','false');}
 }
 form.querySelectorAll('[data-public-lead-next]').forEach((button) => button.addEventListener('click', async () => {
   if (!validatePublicLeadStep(publicLeadStep)) return;
@@ -523,6 +513,7 @@ form.querySelectorAll('[data-public-lead-next]').forEach((button) => button.addE
   if (publicLeadStep === 3) await loadPublicSlots();
 }));
 form.querySelectorAll('[data-public-lead-back]').forEach((button) => button.addEventListener('click', () => setPublicLeadStep(publicLeadStep - 1)));
+document.querySelector('#publicPreviousSlotRange')?.addEventListener('click', () => loadPublicSlots({ previous: true }));
 document.querySelector('#publicNextSlotRange')?.addEventListener('click', () => loadPublicSlots({ advance: true }));
 form.addEventListener('input', savePublicLeadDraft);
 form.addEventListener('change', savePublicLeadDraft);
@@ -530,6 +521,7 @@ form.addEventListener('change', savePublicLeadDraft);
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (publicLeadStep !== 3 || !validatePublicLeadStep(3)) return;
+  if(!form.elements.appointmentStart.value){status.textContent='Bitte wähle zuerst eine Uhrzeit.';return;}
   const button = form.querySelector('[type="submit"]');
   button.disabled = true; status.textContent = 'Termin wird verbindlich geprüft und eingetragen …'; status.className = 'form-status';
   const payload = Object.fromEntries(new FormData(form));

@@ -767,3 +767,43 @@ footer .footer-links .footer-instagram{display:inline-flex;align-items:center;ju
 #leadDialog #leadForm .consent a{color:#a1e5ff;font-size:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px}
 #leadDialog #leadForm .consent:focus-within{outline:2px solid #8fdfff;outline-offset:3px}
 #leadDialog #leadForm .intake-contact-note{color:#c8dde8;font-size:14px;line-height:1.65}
+/* Booking system: month → day → time → confirmation. */
+#leadDialog #publicAvailableSlots{border:0;padding:0;max-height:none;overflow:visible}
+#leadDialog .public-slot-range{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;gap:12px;margin:22px 0 18px}
+#leadDialog #publicSlotRange{text-align:center;color:#f0f8fc;font-size:20px;font-weight:700}
+#leadDialog .public-slot-range button{width:44px;height:44px;border:1px solid #476e84;background:#143449;color:#e8f7ff;font-size:28px;border-radius:12px;padding:0;cursor:pointer}
+#leadDialog .public-slot-range button:disabled{opacity:.35;cursor:default}
+#leadDialog .booking-calendar{padding:18px;border:1px solid #41697e;border-radius:16px;background:#0b2637}
+#leadDialog .booking-stage-label{font-size:14px;font-weight:700;color:#b1e8f6;margin:0 0 16px}
+#leadDialog .booking-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+#leadDialog .booking-weekday{font-size:13px;color:#bfd3df;text-align:center;padding-bottom:8px}
+#leadDialog .booking-calendar-grid button{position:relative;width:100%;min-width:0;min-height:44px;padding:8px 0 12px;border:1px solid #477c91;border-radius:10px;background:#153e52;color:#f4fbff;font:600 16px/1.3 Manrope,sans-serif;cursor:pointer}
+#leadDialog .booking-calendar-grid button:disabled{background:transparent;color:#728999;border-color:transparent;cursor:default}
+#leadDialog .booking-calendar-grid button i{position:absolute;bottom:5px;left:calc(50% - 2px);width:4px;height:4px;border-radius:50%;background:#8fe6d1}
+#leadDialog .booking-calendar-grid button[aria-pressed=true]{background:#ffad77;color:#182c37;border-color:#ffd4b4}
+#leadDialog .booking-calendar-grid button[aria-pressed=true] i{background:#284d49}
+#leadDialog .booking-calendar-legend{font-size:12px;line-height:1.6;color:#97ded2;margin:14px 0 0}
+#leadDialog .booking-calendar-legend span{display:block;color:#b9d0dd}
+#leadDialog .booking-times{padding:22px 0 8px}
+#leadDialog .booking-times h4{font-size:19px;color:#f6fbff;margin:0 0 6px;line-height:1.4}
+#leadDialog .booking-duration{font-size:14px;color:#c2d9e4;line-height:1.5;margin:0 0 16px}
+#leadDialog .booking-time-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;max-height:250px;overflow-y:auto;padding:4px;scrollbar-color:#467b91 transparent}
+#leadDialog .booking-time-grid button{min-height:48px;padding:10px 4px;border:1px solid #5a8da3;border-radius:10px;background:#16394d;color:#f6fbff;font:600 16px/1.4 Manrope,sans-serif;cursor:pointer}
+#leadDialog .booking-time-grid button:hover{background:#244f64}
+#leadDialog .booking-time-grid button[aria-pressed=true]{background:#ffad77;color:#142d38;border-color:#ffdbbf}
+#leadDialog #publicSelectedSlot{font-size:15px;line-height:1.6;padding:16px;border:1px dashed #668b9f;border-radius:12px;color:#cfdee7;margin-top:16px}
+#leadDialog #publicSelectedSlot.chosen{background:#153e40;border:1px solid #6bcebc;color:#e5fff7}
+#leadDialog #publicSelectedSlot span,#leadDialog #publicSelectedSlot small{display:block;font-size:13px}
+#leadDialog #publicSelectedSlot strong{display:block;font-size:17px;margin:6px 0}
+#leadDialog #publicBookingNotice{font-size:14px;line-height:1.65;padding:14px;color:#e3d5c9}
+#leadDialog .public-booking-trust{font-size:13px;gap:12px;margin:14px 0}
+#leadDialog .public-booking-trust span{font-size:13px;color:#c4dbe7}
+#leadDialog .booking-loading,#leadDialog .public-slot-empty strong,#leadDialog .public-slot-empty p{font-size:16px;color:#d9ebf4;line-height:1.6}
+#leadDialog [data-public-lead-step="3"] .form-head small{font-size:14px;line-height:1.5;color:#bfd5e2}
+@media(max-width:420px){#leadDialog .booking-calendar{padding:12px 8px}#leadDialog .booking-calendar-grid{gap:3px}#leadDialog .booking-calendar-grid button{font-size:14px;min-height:42px}#leadDialog .booking-time-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+#leadDialog.is-booking .lead-copy{display:none}
+#leadDialog.is-booking .lead-dialog-shell{display:block;padding:48px 28px 28px}
+#leadDialog.is-booking #leadForm{width:100%;max-width:100%;padding:24px;box-sizing:border-box}
+#leadDialog.is-booking .form-head b{font-size:22px}
+@media(min-width:800px){#leadDialog.is-booking #publicAvailableSlots{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start}#leadDialog.is-booking .booking-times{padding:18px 0}#leadDialog.is-booking .booking-time-grid{max-height:320px}#leadDialog.is-booking .public-lead-actions{max-width:520px;margin-left:auto;margin-right:auto}}
+@media(max-width:600px){#leadDialog.is-booking .lead-dialog-shell{padding:48px 12px 16px}#leadDialog.is-booking #leadForm{padding:16px 12px}}
