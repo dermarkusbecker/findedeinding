@@ -93,3 +93,9 @@ main label,dialog label { line-height:1.5; }
 .customer-guidance-grid article small { color:#4f6979; font-size:14px; line-height:1.7; }
 .customer-clarity-focus>p:last-child,.customer-clarity-section-head p:not(.eyebrow) { color:#4d6879; font-size:14px; line-height:1.7; }
 @media(max-width:620px) { .customer-clarity-columns>.card { padding:18px; }.customer-clarity-findings>article { padding:18px; }.customer-clarity-findings strong { flex-basis:100%; }.customer-clarity-section-head h3 { font-size:22px; }.customer-clarity-questions>div { padding:14px; gap:10px; } }
+/* Equal overview cards; content determines the shared row height. */
+.customer-dashboard-summary { grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:1fr; align-items:stretch; }
+.customer-dashboard-summary>.lead-dashboard-card { grid-column:auto; min-height:260px; min-width:0; height:100%; }
+#customerSummaryContact .customer-contact-data.compact { grid-auto-rows:1fr; }
+#customerSummaryContact .customer-contact-data.compact>div { min-height:96px; }
+@media(max-width:700px) { .customer-dashboard-summary { grid-template-columns:minmax(0,1fr); } }
