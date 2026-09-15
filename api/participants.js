@@ -1,3 +1,4 @@
+import {readCurriculumIndex,curriculumAccess} from '../lib/curriculum-progress.js';
 import { authHeaders, profileById, provisionProgramUser, randomTemporaryPassword, requireCurrentAdmin, sendPasswordReset, supabaseAuthConfig } from '../lib/user-auth.js';
 import { handleCustomerRecords } from '../lib/customer-records-service.js';
 import { calculateProgramAccess } from '../lib/program-access.js';
@@ -93,10 +94,10 @@ async function createManualCustomer(service, body = {}) {
   return { participant: profiles[0], oneTimePassword: participant.oneTimePassword, invitationSent: body.sendInvitation === true };
 }
 
-export function summarizeCustomerProgress(gates = [], progress = {}, entries = [], now = new Date(), fullProgramAccess = false) {
+export function summarizeCustomerProgress(gates = [], progress = {}, entries = [], now = new Date(), fullProgramAccess = false, curriculum = null) {
   const storedProgress = typeof progress === 'object' && progress !== null ? progress : { current_week: Number(progress) || 0 };
   const scheduled = calculateProgramAccess({ progress: storedProgress, gates, now, fullProgramAccess });
-  const canonical = reconcileAccessFromEntries({ access: scheduled, progress: storedProgress, entries: Array.isArray(entries) ? entries : [] });
+  const canonical = curriculum ? curriculumAccess(scheduled,curriculum,storedProgress) : reconcileAccessFromEntries({ access: scheduled, progress: storedProgress, entries: Array.isArray(entries) ? entries : [] });
   return {
     completed_weeks: canonical.completedWeeks,
     process_week: canonical.processWeek,
@@ -125,6 +126,7 @@ export default async function handler(request, response) {
     if (!linksResult.ok) return response.status(linksResult.status).json({ error: links.message });
     if (!gatesResult.ok) return response.status(gatesResult.status).json({ error: gates.message });
     if (!entriesResult.ok) return response.status(entriesResult.status).json({ error: entries.message });
+    const curriculumIndex=await readCurriculumIndex(service);
     const leadByCustomer = new Map(links.map((lead) => [lead.converted_user_profile_id, lead]));
     const gatesByCustomer = new Map();
     gates.forEach((gate) => {
@@ -154,7 +156,7 @@ export default async function handler(request, response) {
         is_demo: participant.permissions?.includes('demo_full_access') === true,
         linked_lead_id: participant.source_lead_id || lead?.id || null,
         customer_since: lead?.converted_at || lead?.created_at || participant.created_at,
-        ...summarizeCustomerProgress(gatesByCustomer.get(participant.id) || [], progress, entriesByCustomer.get(participant.id) || [], new Date(), participant.permissions?.includes('demo_full_access')),
+        ...summarizeCustomerProgress(gatesByCustomer.get(participant.id) || [], progress, entriesByCustomer.get(participant.id) || [], new Date(), participant.permissions?.includes('demo_full_access'),curriculumIndex.get(participant.id)),
       };
     });
     return response.status(200).json({ participants: customers });

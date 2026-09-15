@@ -1,3 +1,5 @@
+import { curriculumReflection } from '../lib/curriculum-results.js';
+import { handleCurriculum } from '../lib/curriculum-api.js';
 import { mergeClarity, readLoginClarity, clarityRecordedAt } from '../lib/current-clarity.js';
 import { configuredWeekState, processQuestionOverrides } from '../lib/program-builder-service.js';
 import { definitionForWeek } from '../lib/program-builder.js';
@@ -257,6 +259,7 @@ export default async function handler(request, response) {
       return response.status(200).send(pdf);
     }
     const result = await getParticipantProgramAccess(session.participantId);
+    if(request.query?.feature==='curriculum')return await handleCurriculum(request,response,session,result);
     if (request.query?.feature === 'login-clarity') {
       const headers = { apikey: result.service.key, Authorization: `Bearer ${result.service.key}`, 'Content-Type': 'application/json' };
       const sessionKey = String(session.expires);
@@ -317,7 +320,7 @@ export default async function handler(request, response) {
       if (requestedWeek !== null && !rawAccess.weekStates.some((state) => state.week === requestedWeek && state.accessible)) return response.status(403).json({ error: 'Diese Woche ist noch nicht freigeschaltet.', access: rawAccess });
       const guidedStates = await readGuidedWeekStates(result, session.participantId);
       const access = rawAccess;
-      if(request.query?.fast !== '1') weekOneState = await backfillCompletedWeekReflections({ result, participantId: session.participantId, access, weekOneState, guidedStates });
+      if(request.query?.fast !== '1' && !result.curriculum) weekOneState = await backfillCompletedWeekReflections({ result, participantId: session.participantId, access, weekOneState, guidedStates });
       const progressRepair = canonicalProgressPatch(access, result.progress);
       if (progressRepair) await patchParticipantProgress(result.service, session.participantId, progressRepair);
       const accessibleWeeks = (onboardingComplete ? access.unlockedWeeks : []).map((week) => {
@@ -337,7 +340,7 @@ export default async function handler(request, response) {
       const {current:currentClarity,timeline:clarityTimeline}=mergeClarity(clarityHistory,loginClarityHistory,access.processWeek);
       const questionOverrides = processQuestionOverrides(result.processVersion, selectedWeek ? await readClarityQuestionOverrides(result.service, selectedWeek) : []);
       const weekDraft = selectedWeek && selectedWeek === Number(access.processWeek) && !access.completedWeeks.includes(selectedWeek) ? await readWeekDraft(result, session.participantId, selectedWeek) : {};
-      const weekReflections = [reflectionFromState(1, weekOneState), ...Array.from({ length: 7 }, (_, index) => reflectionFromState(index + 2, guidedStates.get(index + 2)))].filter((item) => item && access.completedWeeks.includes(Number(item.week)));
+      const weekReflections = result.curriculum ? Array.from({length:8},(_,i)=>curriculumReflection(result.processVersion.definition,result.curriculum,i+1)).filter(Boolean) : [reflectionFromState(1, weekOneState), ...Array.from({ length: 7 }, (_, index) => reflectionFromState(index + 2, guidedStates.get(index + 2)))].filter((item) => item && access.completedWeeks.includes(Number(item.week)));
       const profile = {
         id: result.profile.id,
         name: result.profile.name,
@@ -358,10 +361,16 @@ export default async function handler(request, response) {
       const motivatorNumber = motivatorWeek >= 0 ? motivatorWeek + 1 : 3;
       const motivatorState = guidedStates.get(motivatorNumber);
       profile.programInsights = { motivators: releasedWeeks.has(motivatorNumber) && motivatorState?.completed_steps?.includes('motivators') ? (motivatorState.answers?.motivators?.items || []) : [] };
-      return response.status(200).json({ profile, onboarding: { privacyConfirmed: Boolean(result.progress.privacy_consent_at), privacyConfirmedAt: result.progress.privacy_consent_at || privacyDocument?.participant_confirmed_at || null, privacyDocumentId: privacyDocument?.id || null, privacyDetails: privacyDocument?.extracted_data?.consent || null, commitmentConfirmed: Boolean(commitmentDocument), commitmentConfirmedAt: commitmentDocument?.participant_confirmed_at || null, commitmentDetails: commitmentDocument?.extracted_data?.commitment || null, commitmentUploaded: Boolean(commitmentDocument), commitmentDocumentId: commitmentDocument?.id || null, commitmentFileName: commitmentDocument?.original_file_name || null, formDrafts: onboardingFormDrafts, profileComplete: missingProfileFields.length === 0, missingProfileFields, resetAt: result.progress.onboarding_reset_at || null }, access, onboardingComplete, adminPreview: session.adminPreview === true, processVersion: result.processVersion, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => { const configured = definitionForWeek(result.processVersion?.definition, week); return configured ? { week, title: configured.title, mode: configured.mode, description: configured.intro, topics: configured.steps.map((step) => step.title) } : { week, title, mode, description, topics }; }), accessibleWeeks, selectedWeek, week: selectedWeek ? ({ ...weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides), ...(result.processVersion ? { title: result.processVersion.definition.weeks[selectedWeek - 1].title, mode: result.processVersion.definition.weeks[selectedWeek - 1].mode } : {}) }) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null, weekDraft, weekReflections, clarityHistory, currentClarity, clarityTimeline });
+      return response.status(200).json({ profile, onboarding: { privacyConfirmed: Boolean(result.progress.privacy_consent_at), privacyConfirmedAt: result.progress.privacy_consent_at || privacyDocument?.participant_confirmed_at || null, privacyDocumentId: privacyDocument?.id || null, privacyDetails: privacyDocument?.extracted_data?.consent || null, commitmentConfirmed: Boolean(commitmentDocument), commitmentConfirmedAt: commitmentDocument?.participant_confirmed_at || null, commitmentDetails: commitmentDocument?.extracted_data?.commitment || null, commitmentUploaded: Boolean(commitmentDocument), commitmentDocumentId: commitmentDocument?.id || null, commitmentFileName: commitmentDocument?.original_file_name || null, formDrafts: onboardingFormDrafts, profileComplete: missingProfileFields.length === 0, missingProfileFields, resetAt: result.progress.onboarding_reset_at || null }, access, onboardingComplete, adminPreview: session.adminPreview === true, processVersion: result.processVersion, curriculum: result.curriculum, programWeeks: programWeeks.map(({ week, title, mode, description, topics }) => { const configured = definitionForWeek(result.processVersion?.definition, week); return configured ? { week, title: configured.title, mode: configured.mode, description: configured.intro, topics: configured.steps.map((step) => step.title) } : { week, title, mode, description, topics }; }), accessibleWeeks, selectedWeek, week: selectedWeek ? ({ ...weekContent(selectedWeek, result.gates, selectedWeek === 1 ? weekOneState : null, guidedState, questionOverrides), ...(result.processVersion ? { title: result.processVersion.definition.weeks[selectedWeek - 1].title, mode: result.processVersion.definition.weeks[selectedWeek - 1].mode } : {}) }) : null, weekOne: weekOneState, weekOneGate: { complete: weekOneGateComplete, missingRequirements: missingWeekOneRequirements(weekOneState, preconditions) }, weekState: guidedState, weekGate: guidedState ? { complete: guidedWeekComplete(guidedState), missingRequirements: missingGuidedRequirements(guidedState) } : null, weekDraft, weekReflections, clarityHistory, currentClarity, clarityTimeline });
     }
     if (request.method !== 'PATCH') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
     const action = request.body?.action;
+    if(result.curriculum){
+      const legacyWrite=['set_gate','save_answer','save_week_draft','reopen_week','complete_week'].includes(action)
+        ||(action==='week_1_update'&&request.body?.stepAction?.type!=='save_clarity')
+        ||(action==='guided_week_update'&&request.body?.stepAction?.type!=='save_clarity_checkin');
+      if(legacyWrite)return response.status(409).json({error:'Bitte die Lektion im neuen 4+4-Prozess bearbeiten. Frühere Antworten bleiben archiviert.'});
+    }
     let actionReflection = null;
     if (action === 'admin_reset_onboarding') {
       const previewAdmin = await assertActivePreviewAdmin(result.service, session);

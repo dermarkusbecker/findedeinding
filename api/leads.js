@@ -1,3 +1,4 @@
+import {readCurriculumIndex,curriculumAccess,curriculumGates} from '../lib/curriculum-progress.js';
 import {categoryBookingSettings,normalizeAppointmentCategories} from '../lib/appointment-categories.js';
 import { handleCrmTasks } from '../lib/crm-tasks.js';
 import { dashboardClarity } from '../lib/dashboard-clarity.js';
@@ -233,6 +234,8 @@ async function commandDashboard(service, admin) {
   ];
   const results = await Promise.all(requests);
   const [profiles, progressRows, gateRows, stateEntries, questions, tasks, leads, unreadMessages] = await Promise.all(results.map((result) => readJson(result, 'Dashboard-Daten konnten nicht geladen werden.')));
+  const curriculumIndex=await readCurriculumIndex(service);
+  for(const [id,context] of curriculumIndex){for(let i=gateRows.length-1;i>=0;i--)if(gateRows[i].user_profile_id===id&&gateRows[i].week>0)gateRows.splice(i,1);gateRows.push(...curriculumGates(id,context));}
   const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
   const leadMap = new Map(leads.map((lead) => [lead.id, lead]));
   const customerIds = new Set(leads.filter(lead=>lead.status==='customer'&&lead.converted_user_profile_id).map(lead=>lead.converted_user_profile_id));
@@ -242,7 +245,7 @@ async function commandDashboard(service, admin) {
     const participantId = progress.user_profile_id;
     const profile = profileMap.get(participantId);
     const scheduled = calculateProgramAccess({ profileStatus: profile?.status, progress, gates: gateRows.filter((gate) => gate.user_profile_id === participantId), fullProgramAccess: profile?.permissions?.includes('demo_full_access') });
-    return [participantId, reconcileAccessFromEntries({ access: scheduled, progress, entries: stateEntries.filter((entry) => entry.user_profile_id === participantId) })];
+    return [participantId, curriculumIndex.has(participantId)?curriculumAccess(scheduled,curriculumIndex.get(participantId),progress):reconcileAccessFromEntries({ access: scheduled, progress, entries: stateEntries.filter((entry) => entry.user_profile_id === participantId) })];
   }));
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -252,7 +255,7 @@ async function commandDashboard(service, admin) {
 
   const relevantOpenGates = gateRows.filter((gate) => !gate.completed_at).filter((gate) => { const access = accessMap.get(gate.user_profile_id); return access && Number(gate.week) === Number(access.processWeek) && access.weekStates.some((state) => Number(state.week) === Number(gate.week) && state.accessible); });
   const staleThreshold = now.getTime() - 48 * 60 * 60 * 1000;
-  const overdueGates = relevantOpenGates.filter((gate) => new Date(progressMap.get(gate.user_profile_id)?.last_activity_at || progressMap.get(gate.user_profile_id)?.updated_at || now).getTime() < staleThreshold);
+  const overdueGates = relevantOpenGates.filter((gate) => new Date(curriculumIndex.get(gate.user_profile_id)?.records.map(r=>r.updated_at).sort().at(-1)||progressMap.get(gate.user_profile_id)?.last_activity_at || progressMap.get(gate.user_profile_id)?.updated_at || now).getTime() < staleThreshold);
   const attention = [];
   questions.filter((item) => accessMap.get(item.user_profile_id)?.canAccessWeek(item.week)).forEach((item) => { const profile = profileMap.get(item.user_profile_id); attention.push({ id: `question-${item.id}`, priority: 1, tone: 'orange', icon: '?', title: `${profile?.name || 'Teilnehmer'} · ${item.question.startsWith('[Klarheits-Nachgespräch für Markus]') ? 'Klarheits-Nachgespräch' : 'Kundenfrage'}`, subtitle: `Woche ${item.week} · ${item.question}`, actionLabel: 'Antworten', entityType: 'participant', entityId: item.user_profile_id, createdAt: item.created_at }); });
   const gatesByParticipant = new Map();

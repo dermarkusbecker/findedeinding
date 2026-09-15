@@ -1,3 +1,5 @@
+import {curriculumQuery} from '../lib/curriculum-runtime.js';
+import { curriculumProcessWeeks, curriculumTechnicalResults } from '../lib/curriculum-results.js';
 import { readLoginClarity, mergeClarity, clarityRecordedAt } from '../lib/current-clarity.js';
 import { configuredWeekState } from '../lib/program-builder-service.js';
 import crypto from 'node:crypto';
@@ -167,6 +169,7 @@ export function processWeekResult(result) {
 }
 
 async function backfillCompletedWeekReflections(result, participantId) {
+  if(result.curriculum)return false;
   const latest = new Map();
   for (const entry of [...(result.stateEntries || [])].sort((left, right) => new Date(right.created_at || 0) - new Date(left.created_at || 0))) {
     const week = Number(entry.week);
@@ -202,7 +205,7 @@ async function backfillCompletedWeekReflections(result, participantId) {
 async function publicResult(result, participantId) {
   if (await backfillCompletedWeekReflections(result, participantId)) result = await getParticipantProgramAccess(participantId);
   const states = await readGuidedStates(result, participantId);
-  const processWeeks = processWeekResult(result);
+  let processWeeks = processWeekResult(result);
   const loginScores=await readLoginClarity(result.service,participantId);
   const weekly=processWeeks.flatMap(w=>(w.answers||[]).filter(a=>a.key==='clarity'||a.key==='clarity_checkin').map(a=>({week:w.week,score:Number(a.value.match(/\b(10|[1-9])\b/)?.[1]),recordedAt:w.updatedAt})));
   weekly.forEach(p=>{p.recordedAt=clarityRecordedAt(result.stateEntries||[],p.week,p.score)||p.recordedAt;});
@@ -212,7 +215,9 @@ async function publicResult(result, participantId) {
     if(target)target.answers.push({key:'login_clarity',label:'Aktuelle Klarheit · Login-Check-in',value:`${currentClarity.score} von 10 · ${currentClarity.recordedAt}`,status:'completed'});
   }
   const clarityAnalysis = await ensureCustomerClarityAnalysis({ service: result.service, participantId, participantName: result.profile.name, processWeeks });
-  return { profile: result.profile, progress: result.progress, gates: result.gates, access: result.serializedAccess, technicalConfirmations: technicalResult(states), processWeeks, clarityAnalysis, currentClarity };
+  const legacyProcessWeeks=result.curriculum?processWeeks:undefined;
+  if(result.curriculum)processWeeks=curriculumProcessWeeks(result);
+  return { profile: result.profile, progress: result.progress, gates: result.gates, access: result.serializedAccess, technicalConfirmations: result.curriculum ? curriculumTechnicalResults(result) : technicalResult(states), processWeeks, clarityAnalysis, currentClarity, legacyProcessWeeks };
 }
 
 async function confirmTechnicalResult(current, participantId, admin, confirmation) {
@@ -220,6 +225,13 @@ async function confirmTechnicalResult(current, participantId, admin, confirmatio
   const stepId = String(confirmation?.stepId || '');
   const note = String(confirmation?.note || '').trim().slice(0, 2000);
   const resultReference = String(confirmation?.resultReference || '').trim().slice(0, 500);
+  if(current.curriculum){
+    const item=curriculumTechnicalResults(current).find(s=>s.week===week&&s.stepId===stepId);
+    if(!item||item.status!=='pending'||note.length<5||!current.access.canAccessWeek(week))throw Object.assign(new Error('Nur ein offenes, erreichbares Ergebnis kann mit Prüfvermerk bestätigt werden.'),{status:409});
+    const existing=current.curriculum.find(r=>r.step_id===stepId);
+    await curriculumQuery(current.service,'rpc/save_curriculum_lesson','POST',{p_user:participantId,p_version:current.processVersion.version,p_week:week,p_step:stepId,p_revision:existing?.revision||0,p_payload:{status:'completed',ready:true,messages:existing?.messages||[],summary:note,structured_data:{note,resultReference,confirmedBy:admin.profile.id,confirmedAt:new Date().toISOString()},signals:[]}});
+    return;
+  }
   if (!Number.isInteger(week) || week < 2 || week > 8 || !stepId || note.length < 5) throw Object.assign(new Error('Woche, technischer Schritt und ein nachvollziehbarer Prüfvermerk sind erforderlich.'), { status: 400 });
   if (!current.access.canAccessWeek(week)) throw Object.assign(new Error(`Woche ${week} ist zeitlich noch nicht freigeschaltet.`), { status: 409 });
   if (Number(current.access.processWeek) !== week) throw Object.assign(new Error(`Der aktuelle Arbeitsstand liegt in Woche ${current.access.processWeek}. Technische Ergebnisse dürfen nur dort bestätigt werden.`), { status: 409 });

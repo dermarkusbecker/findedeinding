@@ -1,3 +1,4 @@
+import { mountCurriculum, openCurriculumArtifact, openCurriculumWeek } from './portal-curriculum.js';
 import { openLoginClarity } from './portal-login-clarity.js';
 import { buildDemoWeekPreview } from './lib/demo-week-preview.js';
 import { buildDocumentLibrary, renderDocumentLibrary, renderInsightDocuments } from './lib/document-library.js';
@@ -941,6 +942,7 @@ function safeSelectedWeek(payload = program) {
 
 function currentWeekStepProgress(week) {
   if (!program?.onboardingComplete) return { completed: 0, total: 0 };
+  if(program.curriculum){const steps=program.processVersion.definition.weeks[Number(week)-1]?.steps||[];return {completed:steps.filter(s=>program.curriculum.some(r=>r.step_id===s.id&&r.status==='completed')).length,total:steps.length};}
   let statuses = [];
   if (Number(week) === 1 && program.weekOne) statuses = journeyStepStatuses(program.weekOne);
   else if (Number(program.selectedWeek) === Number(week) && program.weekState) statuses = guidedStepStatuses(program.weekState);
@@ -1018,7 +1020,7 @@ async function loadProgram(week = null) {
   journeyMessages=[];claraCurrentPrompt='';
   if(initial){initialViewResolved=true;showView(initialView, { openMobileProcess: initialView === 'today' });}else render();
   if(workspacePromise)workspacePromise.then(workspace=>{if(version!==programLoadVersion)return;customerWorkspace=workspace;render();});
-  if(program.onboardingComplete&&currentWeek>=1){
+  if(program.onboardingComplete&&currentWeek>=1&&!program.curriculum){
     const selected=currentWeek;
     request(`/api/participant-program?feature=clara-message&week=${selected}`).then(data=>{if(version!==programLoadVersion||currentWeek!==selected)return;journeyMessages=data.messages||[];claraCurrentPrompt=data.currentPrompt||'';renderClaraJourney();}).catch(()=>{});
   }
@@ -1273,6 +1275,7 @@ async function saveWeeklyClarityCheckin() {
 }
 
 async function openWeek(week) {
+  if(program?.processVersion?.definition?.engine==='curriculum_4plus4'){todayMode='week';await loadProgram(week);showView('today');openCurriculumWeek(week);if(Number(week)===Number(program.access.processWeek)&&!program.adminPreview&&weekNeedsClarityCheckin(Number(week)))openClarityCheckin(Number(week));return;}
   if (program?.access?.fullProgramAccess && Number(week) !== Number(program.access.processWeek)) { openDemoWeek(week); return; }
   try {
     claraEntranceLoading = false;
@@ -1338,6 +1341,7 @@ function openDemoWeek(week) {
 }
 
 function openWeekPreview(week) {
+  if(program?.processVersion?.definition?.engine==='curriculum_4plus4'){void openWeek(week);return;}
   if (buildDemoWeekPreview(program, week)) { openDemoWeek(week); return; }
   const journeyWeek = buildJourneyWeeks(program).find((item) => item.week === Number(week));
   const summary = journeyWeek?.summary;
@@ -1399,6 +1403,7 @@ function openWeekActionDialog(action) {
 }
 
 function openWeekReflection(week) {
+  if(program?.processVersion?.definition?.engine==='curriculum_4plus4'){openCurriculumArtifact(Number(week));return;}
   ensureWeekDialogs();
   const reflection = (program?.weekReflections || []).find((item) => Number(item.week) === Number(week));
   if (!reflection) return;
@@ -2146,6 +2151,7 @@ function render() {
   renderLockedViewNotice();
   wireSpeechControls();
   restoreWeekDraft();
+  mountCurriculum(program, {visible: !showOnboarding && !showDashboard});
 }
 
 function renderJourney() {
@@ -2197,6 +2203,14 @@ function renderInsights() {
   $('#motivatorTags').innerHTML = motivators.length ? motivators.map((item, index) => `<span class="motivator-result"><b aria-label="Platz ${index + 1}">${String(index + 1).padStart(2, '0')}</b><strong>${escapeHtml(item)}</strong></span>`).join('') : '<i>Entwickelt sich in Woche 3</i>';
   const values = program.access.completedWeeks.includes(5) ? ['Eigenverantwortung', 'Ehrlichkeit', 'Entwicklung'] : [];
   $('#valueTags').innerHTML = values.length ? values.map((item) => `<span class="tag">${item}</span>`).join('') : '<i>Öffnet sich in Woche 5</i>';
+  if(program.curriculum){
+    const motivatorCard=$('#motivatorTags').closest('article');motivatorCard.hidden=!motivators.length;if(motivators.length)motivatorCard.querySelector('span').textContent='Bisherige Top 5 Motivatoren';
+    const valuesRecord=program.curriculum.find(r=>r.step_id==='c44_w2_l1'&&r.status==='completed');
+    $('#valueTags').innerHTML=valuesRecord?`<p>${escapeHtml(valuesRecord.summary)}</p><button type="button" data-new-result="2">Persönlichen Bauplan öffnen ↗</button>`:'<i>Entwickelt sich in Woche 2</i>';
+    $('#assignmentTags').closest('article').querySelector('span').textContent='Dein-Ding-Profil';
+    $('#assignmentTags').innerHTML=program.access.completedWeeks.includes(4)?'<button type="button" data-new-result="4">Dein-Ding-Profil öffnen ↗</button>':'<i>Entsteht aus deinen Angaben bis zum Ende von Woche 4</i>';
+    $$('[data-new-result]').forEach(button=>button.onclick=()=>openCurriculumArtifact(Number(button.dataset.newResult)));
+  }
   const measurements = (program?.clarityHistory || []).filter((item) => Number.isInteger(Number(item.score)) && Number(item.score) >= 1 && Number(item.score) <= 10);
   const first = measurements[0];
   const latest = currentClarityMeasurement();
@@ -2721,3 +2735,7 @@ $('#customerLogout').addEventListener('click', async () => {
 loadProgram().then(() => openLoginClarity()).catch((error) => { if (error.status === 401) location.replace('/kunden-login'); else toast(error.message); });
 
 window.addEventListener("fdd:clarity-saved",()=>loadProgram().catch(error=>toast(error.message)));
+
+window.addEventListener('curriculum:initial-clarity',()=>openClarityCheckin(1));
+window.addEventListener('curriculum:saved',()=>loadProgram());
+window.addEventListener('curriculum:week',event=>void openWeek(Number(event.detail.week)));

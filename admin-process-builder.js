@@ -1,3 +1,4 @@
+import {CURRICULUM_METHODS} from './lib/curriculum-methods.js';
 import {
   TASK_METHODS,
   moveProgramTask,
@@ -44,31 +45,34 @@ function markDirty() {
   );
 }
 function methodFields(step, index) {
+  const meta=definition?.engine==='curriculum_4plus4'?`<label class="builder-wide">Lektionsmethode<select data-step="${index}" data-field="method">${['evidence_dialog','matrix','timeline','research','hypothesis','proof','action_plan','synthesis'].map(m=>`<option value="${m}" ${step.method===m?'selected':''}>${esc({evidence_dialog:'Beleggestützter Dialog',matrix:'Matrix',timeline:'Entscheidungs-Timeline',research:'Recherche mit Quellen',hypothesis:'Hypothesenprüfung',proof:'Proof Sprint',action_plan:'Aktionsplan',synthesis:'Synthese mit Bestätigung'}[m])}</option>`).join('')}</select></label>${[['learningGoal','Lernziel'],['opening','Clara-Einstieg'],['adaptiveLogic','Adaptive Logik'],['storageLogic','Speicherlogik'],['evaluation','Mini-Auswertung'],['note','Hinweise']].map(([key,label])=>`<label class="builder-wide">${label}<textarea data-step="${index}" data-field="${key}" maxlength="4000">${esc(step[key]||'')}</textarea></label>`).join('')}<label>Optional<input type="checkbox" data-step="${index}" data-field="optional" ${step.optional?'checked':''}></label>`:'';
+
+
   if (["priority_selection", "selection"].includes(step.kind))
-    return `<label class="builder-wide">Auswahlbegriffe · eine Zeile pro Begriff<textarea data-step="${index}" data-field="options" rows="5">${esc((step.options || []).join("\n"))}</textarea></label><label>Mindestauswahl<input type="number" min="1" max="60" data-step="${index}" data-field="minItems" value="${step.minItems || 1}"></label><label>Höchstauswahl<input type="number" min="1" max="60" data-step="${index}" data-field="maxItems" value="${step.maxItems || 1}"></label>`;
+    return meta + `<label class="builder-wide">Auswahlbegriffe · eine Zeile pro Begriff<textarea data-step="${index}" data-field="options" rows="5">${esc((step.options || []).join("\n"))}</textarea></label><label>Mindestauswahl<input type="number" min="1" max="60" data-step="${index}" data-field="minItems" value="${step.minItems || 1}"></label><label>Höchstauswahl<input type="number" min="1" max="60" data-step="${index}" data-field="maxItems" value="${step.maxItems || 1}"></label>`;
   if (step.kind === "scale")
-    return `<label>Skala von<input type="number" min="0" max="9" data-step="${index}" data-field="min" value="${step.min ?? 1}"></label><label>Skala bis<input type="number" min="1" max="10" data-step="${index}" data-field="max" value="${step.max ?? 10}"></label>`;
+    return meta + `<label>Skala von<input type="number" min="0" max="9" data-step="${index}" data-field="min" value="${step.min ?? 1}"></label><label>Skala bis<input type="number" min="1" max="10" data-step="${index}" data-field="max" value="${step.max ?? 10}"></label>`;
   if (step.kind === "confirmation")
-    return `<label class="builder-wide">Beschriftung der Bestätigung<input maxlength="100" data-step="${index}" data-field="expected" value="${esc(step.expected || "Bestätigen")}"></label>`;
+    return meta + `<label class="builder-wide">Beschriftung der Bestätigung<input maxlength="100" data-step="${index}" data-field="expected" value="${esc(step.expected || "Bestätigen")}"></label>`;
   if (step.kind === "external")
-    return '<p class="builder-wide builder-help">Die bestehende technische Prüfung bleibt erhalten. Kunden können dieses Ergebnis nicht selbst als erledigt markieren.</p>';
+    return meta + '<p class="builder-wide builder-help">Die bestehende technische Prüfung bleibt erhalten. Kunden können dieses Ergebnis nicht selbst als erledigt markieren.</p>';
   if (["dialog", "structured"].includes(step.kind))
-    return `<label>Mindestanzahl an Punkten (optional)<input type="number" min="1" max="30" data-step="${index}" data-field="minItems" value="${step.minItems || ""}"></label><label>Höchstanzahl an Punkten (optional)<input type="number" min="1" max="30" data-step="${index}" data-field="maxItems" value="${step.maxItems || ""}"></label>`;
-  return "";
+    return meta + `<label>Mindestanzahl an Punkten (optional)<input type="number" min="1" max="30" data-step="${index}" data-field="minItems" value="${step.minItems || ""}"></label><label>Höchstanzahl an Punkten (optional)<input type="number" min="1" max="30" data-step="${index}" data-field="maxItems" value="${step.maxItems || ""}"></label>`;
+  return meta;
 }
 function render() {
   if (!definition) return;
   const week = definition.weeks[selectedWeek];
-  root.innerHTML = `<div class="builder-toolbar"><div><p class="eyebrow">VERSIONIERTER PROZESSBAUKASTEN</p><h2>Deinen Prozess gestalten</h2><p>Acht Wochen, frei gestaltbare Aufgaben. Entwurf bearbeiten, Vorschau prüfen, dann veröffentlichen.</p></div><div><button type="button" class="secondary" data-builder-action="reset">Gespeicherten Entwurf laden</button><button type="button" class="secondary" data-builder-action="preview">Kundenvorschau</button><button type="button" class="secondary" data-builder-action="save">Entwurf speichern</button><button type="button" class="primary" data-builder-action="publish">Veröffentlichen…</button></div></div><p role="status" data-builder-status>${dirty ? "Ungespeicherte Änderungen" : "Entwurf geladen · Revision " + revision}</p><label class="builder-process-name">Prozessname<input data-process-name maxlength="160" value="${esc(definition.name)}"></label><nav class="builder-week-tabs" aria-label="Woche bearbeiten">${definition.weeks.map((w, i) => `<button type="button" data-builder-week="${i}" aria-pressed="${i === selectedWeek}"><small>Woche ${i + 1}</small><strong>${esc(w.title)}</strong><span>${w.steps.length} Aufgaben</span></button>`).join("")}</nav><section class="builder-week-editor"><div class="builder-week-heading"><h3>Woche ${selectedWeek + 1}</h3>${selectedWeek > 0 ? `<div><button type="button" class="secondary" data-builder-action="week-up" ${selectedWeek === 1 ? "disabled" : ""}>← Woche vorziehen</button><button type="button" class="secondary" data-builder-action="week-down" ${selectedWeek === 7 ? "disabled" : ""}>Woche nach hinten →</button></div>` : "<small>Die verknüpfte Bestandsaufnahme bleibt als Startwoche erhalten. Alle Texte sind editierbar.</small>"}</div><div class="builder-fields"><label>Wochenüberschrift<input data-week-field="title" maxlength="160" value="${esc(week.title)}"></label><label>Phase / Untertitel<input data-week-field="mode" maxlength="160" value="${esc(week.mode)}"></label><label class="builder-wide">Einleitung<textarea data-week-field="intro" rows="2" maxlength="4000">${esc(week.intro)}</textarea></label></div><div class="builder-tasks">${week.steps
+  root.innerHTML = `<div class="builder-toolbar"><div><p class="eyebrow">VERSIONIERTER PROZESSBAUKASTEN</p><h2>Deinen Prozess gestalten</h2><p>Acht Wochen, frei gestaltbare Aufgaben. Entwurf bearbeiten, Vorschau prüfen, dann veröffentlichen.</p></div><div><button type="button" class="secondary" data-builder-action="reset">Gespeicherten Entwurf laden</button><button type="button" class="secondary" data-builder-action="preview">Kundenvorschau</button><button type="button" class="secondary" data-builder-action="save">Entwurf speichern</button><button type="button" class="primary" data-builder-action="publish">Veröffentlichen…</button></div></div><p role="status" data-builder-status>${dirty ? "Ungespeicherte Änderungen" : "Entwurf geladen · Revision " + revision}</p><label class="builder-process-name">Prozessname<input data-process-name maxlength="160" value="${esc(definition.name)}"></label><nav class="builder-week-tabs" aria-label="Woche bearbeiten">${definition.weeks.map((w, i) => `<button type="button" data-builder-week="${i}" aria-pressed="${i === selectedWeek}"><small>Woche ${i + 1}</small><strong>${esc(w.title)}</strong><span>${w.steps.length} Aufgaben</span></button>`).join("")}</nav><section class="builder-week-editor"><div class="builder-week-heading"><h3>Woche ${selectedWeek + 1}</h3>${(selectedWeek > 0 || definition.engine === "curriculum_4plus4") ? `<div><button type="button" class="secondary" data-builder-action="week-up" ${selectedWeek === (definition.engine === "curriculum_4plus4" ? 0 : 1) ? "disabled" : ""}>← Woche vorziehen</button><button type="button" class="secondary" data-builder-action="week-down" ${selectedWeek === 7 ? "disabled" : ""}>Woche nach hinten →</button></div>` : "<small>Die verknüpfte Bestandsaufnahme bleibt als Startwoche erhalten. Alle Texte sind editierbar.</small>"}</div><div class="builder-fields"><label>Wochenüberschrift<input data-week-field="title" maxlength="160" value="${esc(week.title)}"></label><label>Phase / Untertitel<input data-week-field="mode" maxlength="160" value="${esc(week.mode)}"></label><label class="builder-wide">Einleitung<textarea data-week-field="intro" rows="2" maxlength="4000">${esc(week.intro)}</textarea></label></div>${definition.engine === "curriculum_4plus4" ? `<label class="builder-wide">Wochen-Ergebnis<input data-week-field="output" maxlength="4000" value="${esc(week.output||'')}"></label>` : ""}<div class="builder-tasks">${week.steps
     .map(
       (step, index) =>
-        `<details class="builder-task" data-drag-task="${index}"><summary>${selectedWeek > 0 ? `<button type="button" class="builder-drag-handle" data-drag-handle="${index}" aria-label="${esc(step.title)} verschieben. Mit Pfeiltasten nach oben oder unten." title="Ziehen zum Verschieben · Pfeiltasten zum Sortieren">⠿</button>` : ""}<span>${String(index + 1).padStart(2, "0")}</span><strong>${esc(step.title)}</strong><i>${esc(TASK_METHODS[step.kind] || "Verknüpfter Startschritt")}</i></summary><div class="builder-fields"><label>Titel<input data-step="${index}" data-field="title" maxlength="160" value="${esc(step.title)}"></label><label>Methode<select data-step="${index}" data-field="kind" ${["external", "system"].includes(step.kind) ? "disabled" : ""}>${(step.kind === "system" ? ["system"] : step.kind === "external" ? ["external"] : Object.keys(TASK_METHODS).filter((k) => k !== "external")).map((kind) => `<option value="${kind}" ${step.kind === kind ? "selected" : ""}>${esc(TASK_METHODS[kind] || "Verknüpfter Startschritt")}</option>`).join("")}</select></label><label class="builder-wide">Frage / Aufgabenbeschreibung<textarea data-step="${index}" data-field="question" rows="3" maxlength="4000">${esc(step.question)}</textarea></label>${methodFields(step, index)}<label>Hinweise für Clara<textarea data-step="${index}" data-field="guidance" rows="3" maxlength="4000">${esc(step.guidance || "")}</textarea></label><label>Abschlusskriterien<textarea data-step="${index}" data-field="completionCriteria" rows="3" maxlength="4000">${esc(step.completionCriteria || "")}</textarea></label></div>${
-          selectedWeek > 0
+        `<details class="builder-task" data-drag-task="${index}"><summary>${(selectedWeek > 0 || definition.engine === "curriculum_4plus4") ? `<button type="button" class="builder-drag-handle" data-drag-handle="${index}" aria-label="${esc(step.title)} verschieben. Mit Pfeiltasten nach oben oder unten." title="Ziehen zum Verschieben · Pfeiltasten zum Sortieren">⠿</button>` : ""}<span>${String(index + 1).padStart(2, "0")}</span><strong>${esc(step.title)}</strong><i>${esc(TASK_METHODS[step.kind] || "Verknüpfter Startschritt")}</i></summary><div class="builder-fields"><label>Titel<input data-step="${index}" data-field="title" maxlength="160" value="${esc(step.title)}"></label><label>Methode<select data-step="${index}" data-field="kind" ${["external", "system"].includes(step.kind) ? "disabled" : ""}>${(step.kind === "system" ? ["system"] : step.kind === "external" ? ["external"] : Object.keys(TASK_METHODS).filter((k) => k !== "external")).map((kind) => `<option value="${kind}" ${step.kind === kind ? "selected" : ""}>${esc(TASK_METHODS[kind] || "Verknüpfter Startschritt")}</option>`).join("")}</select></label><label class="builder-wide">Frage / Aufgabenbeschreibung<textarea data-step="${index}" data-field="question" rows="3" maxlength="4000">${esc(step.question)}</textarea></label>${methodFields(step, index)}<label>Hinweise für Clara<textarea data-step="${index}" data-field="guidance" rows="3" maxlength="4000">${esc(step.guidance || "")}</textarea></label><label>Abschlusskriterien<textarea data-step="${index}" data-field="completionCriteria" rows="3" maxlength="4000">${esc(step.completionCriteria || "")}</textarea></label></div>${
+          (selectedWeek > 0 || definition.engine === "curriculum_4plus4")
             ? `<div class="builder-task-actions"><button type="button" class="secondary" data-task-up="${index}" ${index === 0 ? "disabled" : ""}>↑ Nach oben</button><button type="button" class="secondary" data-task-down="${index}" ${index === week.steps.length - 1 ? "disabled" : ""}>↓ Nach unten</button><label>In Woche verschieben<select data-task-move="${index}">${definition.weeks
-                .slice(1)
+                .slice(definition.engine === "curriculum_4plus4" ? 0 : 1)
                 .map(
                   (w, i) =>
-                    `<option value="${i + 1}" ${selectedWeek === i + 1 ? "selected" : ""}>${i + 2} · ${esc(w.title)}</option>`,
+                    `<option value="${i + (definition.engine === "curriculum_4plus4" ? 0 : 1)}" ${selectedWeek === i + (definition.engine === "curriculum_4plus4" ? 0 : 1) ? "selected" : ""}>${i + (definition.engine === "curriculum_4plus4" ? 1 : 2)} · ${esc(w.title)}</option>`,
                 )
                 .join(
                   "",
@@ -77,7 +81,7 @@ function render() {
         }</details>`,
     )
     .join("")}</div>${
-    selectedWeek > 0
+    (selectedWeek > 0 || definition.engine === "curriculum_4plus4")
       ? `<div class="builder-add"><label>Neue Aufgabe<select id="builderNewMethod">${Object.entries(
           TASK_METHODS,
         )
@@ -87,7 +91,7 @@ function render() {
             "",
           )}</select></label><button type="button" class="primary" data-builder-action="add">+ Aufgabe hinzufügen</button></div>`
       : ""
-  }</section><p class="builder-release-note">Veröffentlichte Versionen bleiben für zugeordnete Kunden unverändert. Neue Kunden erhalten die zuletzt veröffentlichte Version. Bestehende Kunden behalten ihren bisherigen Prozess.</p>`;
+  }</section><details class="builder-module-library"><summary>Modulbibliothek <span>${(definition.modules||[]).length} Module & Vorlagen</span></summary><p>Neue Methoden und bisherige Inhalte lassen sich in die ausgewählte Woche einsetzen und dort bearbeiten.</p><label>Modul suchen<input type="search" data-module-search placeholder="z. B. Motivatoren, Proof Sprint oder Matrix"></label><div class="builder-module-grid">${(definition.modules||[]).map((m,i)=>`<button type="button" class="secondary" data-module-add="${i}" ${m.kind==='external'&&definition.weeks.some(w=>w.steps.some(s=>s.id===m.id))?'disabled':''}><strong>+ ${esc(m.title)}</strong><small>${esc(m.origin||(m.legacyWeek?`Bisherige Woche ${m.legacyWeek}`:'Erhaltenes Modul'))} · ${esc(TASK_METHODS[m.kind]||'Dialog')}</small></button>`).join("")}</div></details><p class="builder-release-note">Veröffentlichte Versionen bleiben für zugeordnete Kunden unverändert. Neue Kunden erhalten die zuletzt veröffentlichte Version. Bestehende Kunden behalten ihren bisherigen Prozess.</p>`;
 }
 function setMethod(step, kind) {
   step.kind = kind;
@@ -153,6 +157,7 @@ function preview() {
 }
 root?.addEventListener("input", (event) => {
   const el = event.target;
+  if(el.hasAttribute('data-module-search')){root.querySelectorAll('[data-module-add]').forEach(button=>button.hidden=!button.textContent.toLocaleLowerCase('de').includes(el.value.toLocaleLowerCase('de')));return;}
   const week = definition?.weeks[selectedWeek];
   if (!week) return;
   if (el.hasAttribute("data-process-name")) definition.name = el.value;
@@ -169,8 +174,13 @@ root?.addEventListener("input", (event) => {
           ? el.value === ""
             ? undefined
             : Number(el.value)
-          : el.value;
+          : el.type === "checkbox" ? el.checked : el.value;
   } else return;
+  if(el.dataset.field==='method'){
+    const step=week.steps[Number(el.dataset.step)],preset=CURRICULUM_METHODS[el.value];
+    if(preset)for(const key of ['learningGoal','opening','adaptiveLogic','storageLogic','evaluation'])if(!step[key])step[key]=preset[key];
+    render();
+  }
   markDirty();
 });
 root?.addEventListener("change", (event) => {
@@ -222,11 +232,12 @@ root?.addEventListener("click", async (event) => {
       return;
     }
   if (el.dataset.taskRemove !== undefined) {
-    week.steps.splice(Number(el.dataset.taskRemove), 1);
+    const [removed]=week.steps.splice(Number(el.dataset.taskRemove), 1);(definition.modules ||= []).push(structuredClone(removed));
     markDirty();
     render();
     return;
   }
+  if(el.dataset.moduleAdd!==undefined){const module=structuredClone(definition.modules[Number(el.dataset.moduleAdd)]);if(module.kind!=='external')module.id=`module_${crypto.randomUUID().replaceAll('-','')}`;module.gateKey=module.id;if(module.kind==='system')module.kind='dialog';week.steps.push(module);markDirty();render();return;}
   const action = el.dataset.builderAction;
   if (action === "reset") { await showDraftLibrary(); return; }
   if (action === "preview") {
@@ -258,7 +269,7 @@ root?.addEventListener("click", async (event) => {
   }
   if (["week-up", "week-down"].includes(action)) {
     const target = selectedWeek + (action === "week-up" ? -1 : 1);
-    if (target < 1 || target > 7) return;
+    if (target < (definition.engine === "curriculum_4plus4" ? 0 : 1) || target > 7) return;
     [definition.weeks[selectedWeek], definition.weeks[target]] = [
       definition.weeks[target],
       definition.weeks[selectedWeek],
@@ -311,9 +322,9 @@ if (root) {
 // Pointer dragging supports mouse, pen and touch without making form inputs draggable.
 let taskDrag=null;
 function clearTaskDrag(){root.querySelectorAll('.dragging,.drop-before,.drop-after,.drop-week').forEach(el=>el.classList.remove('dragging','drop-before','drop-after','drop-week'));taskDrag=null;}
-function commitTaskMove(fromWeek,fromIndex,toWeek,toIndex){if(busy||fromWeek<1||toWeek<1)return;if(fromWeek===toWeek&&fromIndex===toIndex)return;definition=moveProgramTask(definition,fromWeek,fromIndex,toWeek,toIndex);markDirty();render();root.querySelector(`[data-drag-handle="${Math.min(toIndex,definition.weeks[selectedWeek].steps.length-1)}"]`)?.focus();message('Aufgabe verschoben · Entwurf speichern, um die neue Reihenfolge zu sichern.');}
+function commitTaskMove(fromWeek,fromIndex,toWeek,toIndex){if(busy||fromWeek<(definition.engine==='curriculum_4plus4'?0:1)||toWeek<(definition.engine==='curriculum_4plus4'?0:1))return;if(fromWeek===toWeek&&fromIndex===toIndex)return;definition=moveProgramTask(definition,fromWeek,fromIndex,toWeek,toIndex);markDirty();render();root.querySelector(`[data-drag-handle="${Math.min(toIndex,definition.weeks[selectedWeek].steps.length-1)}"]`)?.focus();message('Aufgabe verschoben · Entwurf speichern, um die neue Reihenfolge zu sichern.');}
 root?.addEventListener('pointerdown',event=>{const handle=event.target.closest('[data-drag-handle]');if(!handle||busy||event.button!==0)return;event.preventDefault();handle.focus();taskDrag={pointer:event.pointerId,week:selectedWeek,index:Number(handle.dataset.dragHandle),startX:event.clientX,startY:event.clientY,active:false,target:null};handle.setPointerCapture(event.pointerId);});
-root?.addEventListener('pointermove',event=>{if(!taskDrag||event.pointerId!==taskDrag.pointer)return;const drag=taskDrag;if(!drag.active&&Math.hypot(event.clientX-drag.startX,event.clientY-drag.startY)<6)return;drag.active=true;event.preventDefault();root.querySelectorAll('.drop-before,.drop-after,.drop-week').forEach(el=>el.classList.remove('drop-before','drop-after','drop-week'));root.querySelector(`[data-drag-task="${drag.index}"]`)?.classList.add('dragging');const target=document.elementFromPoint(event.clientX,event.clientY),tab=target?.closest('[data-builder-week]'),row=target?.closest('[data-drag-task]');drag.target=null;if(tab&&Number(tab.dataset.builderWeek)>0&&Number(tab.dataset.builderWeek)!==drag.week){const week=Number(tab.dataset.builderWeek);drag.target={week,index:definition.weeks[week].steps.length};tab.classList.add('drop-week');}else if(row){const rect=row.getBoundingClientRect(),after=event.clientY>rect.top+rect.height/2;let index=Number(row.dataset.dragTask)+(after?1:0);if(index>drag.index)index--;drag.target={week:drag.week,index};row.classList.add(after?'drop-after':'drop-before');}if(event.clientY<80)window.scrollBy(0,-18);else if(event.clientY>window.innerHeight-80)window.scrollBy(0,18);});
+root?.addEventListener('pointermove',event=>{if(!taskDrag||event.pointerId!==taskDrag.pointer)return;const drag=taskDrag;if(!drag.active&&Math.hypot(event.clientX-drag.startX,event.clientY-drag.startY)<6)return;drag.active=true;event.preventDefault();root.querySelectorAll('.drop-before,.drop-after,.drop-week').forEach(el=>el.classList.remove('drop-before','drop-after','drop-week'));root.querySelector(`[data-drag-task="${drag.index}"]`)?.classList.add('dragging');const target=document.elementFromPoint(event.clientX,event.clientY),tab=target?.closest('[data-builder-week]'),row=target?.closest('[data-drag-task]');drag.target=null;if(tab&&Number(tab.dataset.builderWeek)>=(definition.engine==='curriculum_4plus4'?0:1)&&Number(tab.dataset.builderWeek)!==drag.week){const week=Number(tab.dataset.builderWeek);drag.target={week,index:definition.weeks[week].steps.length};tab.classList.add('drop-week');}else if(row){const rect=row.getBoundingClientRect(),after=event.clientY>rect.top+rect.height/2;let index=Number(row.dataset.dragTask)+(after?1:0);if(index>drag.index)index--;drag.target={week:drag.week,index};row.classList.add(after?'drop-after':'drop-before');}if(event.clientY<80)window.scrollBy(0,-18);else if(event.clientY>window.innerHeight-80)window.scrollBy(0,18);});
 root?.addEventListener('pointerup',event=>{if(!taskDrag||event.pointerId!==taskDrag.pointer)return;const drag=taskDrag;clearTaskDrag();if(drag.active&&drag.target)commitTaskMove(drag.week,drag.index,drag.target.week,drag.target.index);});
 root?.addEventListener('pointercancel',clearTaskDrag);
 root?.addEventListener('click',event=>{if(event.target.closest('[data-drag-handle]')){event.preventDefault();event.stopPropagation();}},true);
