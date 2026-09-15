@@ -244,3 +244,5 @@
     margin-top: 16px;
   }
 }
+.builder-drag-handle { touch-action:none; user-select:none; cursor:grab; display:inline-grid; place-items:center; width:40px; min-width:40px; height:40px; padding:0; border:1px solid #abc6d6; border-radius:9px; background:#fff; color:#35647c; font-size:26px; line-height:1; }
+.builder-drag-handle:active { cursor:grabbing; }.builder-task.dragging { opacity:.55; }.builder-task.drop-before { box-shadow:0 -4px #e68742; }.builder-task.drop-after { box-shadow:0 4px #e68742; }.builder-week-tabs button.drop-week { outline:3px solid #e68742; outline-offset:3px; background:#fff1e6; }.builder-drag-handle:focus-visible { outline:3px solid #397e9f; outline-offset:3px; }
