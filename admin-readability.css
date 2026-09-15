@@ -147,3 +147,19 @@ dialog .permission-options-grid label { display:flex; flex-direction:row; align-
 dialog .permission-options-grid input { width:18px; height:18px; min-height:18px; flex:0 0 18px; margin:0; accent-color:#128574; }
 #userDialog select,#editUserDialog select { appearance:none; min-height:48px; width:100%; box-sizing:border-box; border:1px solid #b9cdd8; border-radius:12px; padding:12px 40px 12px 14px; background-color:#f9fbfc; color:#173c4f; font-family:inherit; font-size:16px; }
 @media(max-width:480px) { .permission-options-grid { grid-template-columns:1fr; } }
+
+/* Customer overview: six consistently sized cards in priority order. */
+.customer-dashboard-summary { grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:1fr; gap:20px; }
+.customer-dashboard-summary>.customer-notes { margin:0; padding:22px; min-width:0; }
+.customer-dashboard-summary>.customer-notes .eyebrow { display:none; }
+.customer-dashboard-summary>.customer-notes h2 { font-size:18px; margin:0; }
+.customer-dashboard-summary .customer-notes-toolbar { margin:14px 0; gap:10px; flex-wrap:wrap; }
+.customer-dashboard-summary #customerNotesList,.customer-dashboard-summary #customerSummaryReflections { max-height:240px; overflow:auto; }
+.customer-dashboard-summary .customer-note { padding:14px; }
+.customer-dashboard-summary .customer-note p { margin:8px 0; }
+#customerSummaryReflections { display:grid; gap:10px; }
+#customerSummaryReflections button { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:12px; align-items:center; text-align:left; padding:15px; border:1px solid #cbdfe7; border-radius:12px; background:#f3f8fa; color:#193f54; cursor:pointer; }
+#customerSummaryReflections button>span { font-size:13px; color:#286b79; }
+#customerSummaryReflections button strong { font-size:16px; line-height:1.45; }
+#customerSummaryReflections button:hover { border-color:#368d9c; background:#e9f5f5; }
+@media(max-width:760px){.customer-dashboard-summary{grid-template-columns:1fr;}}
