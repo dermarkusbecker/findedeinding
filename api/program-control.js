@@ -113,7 +113,7 @@ function weekOneAnswers(state = {}) {
   }
   const career = state.career_history || {};
   const careerValue = readableValue(career.stations) || readableValue(career.cv_file_name);
-  if (careerValue) answers.push({ key: 'career', label: career.stations?.length ? 'Berufliche Stationen' : 'Lebenslauf', value: careerValue, status: career.completed ? 'completed' : 'in_progress' });
+  if (careerValue) answers.push({ key: 'career', documentId: career.cv_file_id || null, fileName: career.cv_file_name || null, label: career.stations?.length ? 'Berufliche Stationen' : 'Lebenslauf', value: careerValue, status: career.completed ? 'completed' : 'in_progress' });
   return answers;
 }
 
@@ -130,7 +130,7 @@ function guidedAnswers(week, state = {}) {
     const external = state.external_results?.[step.id];
     const value = readableValue(answer?.raw_answer) || readableValue(answer?.items) || readableValue(document?.fileName) || (external ? 'Technisches Ergebnis bestätigt' : '');
     if (!value) continue;
-    answers.push({ key: step.id, label: step.title, question: step.question, value, status: state.completed_steps?.includes(step.id) ? 'completed' : 'in_progress' });
+    answers.push({ key: step.id, documentId: document?.id || null, fileName: document?.fileName || null, label: step.title, question: step.question, value, status: state.completed_steps?.includes(step.id) ? 'completed' : 'in_progress' });
   }
   return answers;
 }

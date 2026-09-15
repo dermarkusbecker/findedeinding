@@ -169,3 +169,5 @@ button.customer-week-item:hover { box-shadow:0 0 0 2px #77b7c5; }
 button.customer-week-item:focus-visible { outline:3px solid #288299; outline-offset:3px; }
 #savedCustomerWeekDialog .customer-process-answers { grid-template-columns:1fr; gap:14px; }
 #savedCustomerWeekDialog .customer-process-answers p { font-size:16px; line-height:1.65; color:#315363; }
+
+.saved-week-file{display:block;width:100%;padding:14px;border:1px solid #98c4d2;border-radius:10px;background:#eaf5f8;color:#194b61;font-family:inherit;font-size:16px;font-weight:600;line-height:1.5;text-align:left;cursor:pointer;overflow-wrap:anywhere}
