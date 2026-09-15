@@ -1,0 +1,24 @@
+/* Shared recording surface for Clara conversations and reflection forms. */
+.speech-capture {
+  box-sizing: border-box; flex: 1 0 100%; grid-column: 1 / -1;
+  width: 100%; min-width: 0; margin: 14px 0; padding: 20px;
+  color: #f1f8fc; background: #0b2433; border: 1px solid #508497;
+  border-radius: 18px; box-shadow: 0 12px 32px #00131d33;
+}
+.speech-capture-head { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+.speech-capture-head strong { color: #f1f8fc; }
+.speech-capture-head time { margin-left: auto; color: #bce7ed; font-variant-numeric: tabular-nums; }
+.speech-record-dot { width: 10px; height: 10px; flex-shrink: 0; background: #ff9453; border-radius: 50%; box-shadow: 0 0 0 5px #ff945320; animation: speech-pulse 1.4s ease-in-out infinite; }
+.speech-wave { height: 64px; display: flex; align-items: center; justify-content: center; gap: 5px; overflow: hidden; }
+.speech-wave i { display: block; width: 5px; height: 4px; flex-shrink: 1; border-radius: 5px; background: #8ee5e8; transition: height 70ms linear; }
+.speech-capture .speech-capture-hint { font-size: 15px; line-height: 1.5; color: #c4dce6; margin: 0 0 16px; }
+.speech-capture-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+body .speech-capture .speech-capture-actions button { flex: 1 1 140px; min-width: 0; width: auto; min-height: 48px; padding: 12px 16px; border-radius: 12px; font-size: 15px; font-weight: 700; line-height: 1.4; white-space: normal; }
+body .speech-capture button[data-speech-cancel] { color: #e5f3fa; background: #173a4c; border: 1px solid #598496; }
+body .speech-capture button[data-speech-stop] { color: #162a33; background: #ffab75; border: 1px solid #ffccab; flex-grow: 2; }
+.speech-capture button:disabled { opacity: .6; cursor: wait; }
+.speech-capture.transcribing .speech-record-dot { background: #8ee5e8; }
+.speech-capture.transcribing .speech-wave { opacity: .45; }
+@keyframes speech-pulse { 50% { opacity: .45; } }
+@media (max-width: 480px) { .speech-capture { padding: 16px; } .speech-capture-head { font-size: 15px; } }
+@media (prefers-reduced-motion: reduce) { .speech-record-dot { animation: none; } .speech-wave i { transition: none; } }

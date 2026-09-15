@@ -1,3 +1,4 @@
+import { startVoiceCapture } from './portal-speech.js';
 import { mountCurriculum, openCurriculumArtifact, openCurriculumWeek } from './portal-curriculum.js';
 import { openLoginClarity } from './portal-login-clarity.js';
 import { buildDemoWeekPreview } from './lib/demo-week-preview.js';
@@ -19,11 +20,6 @@ if (suppliedAdminPreviewToken) {
 }
 document.body.classList.toggle('admin-preview-active', adminPreviewMode);
 document.querySelector('#adminPreviewBar')?.classList.toggle('hidden', !adminPreviewMode);
-
-const resolveSpeechRecognition = (windowObject = window) => {
-  if (!windowObject) return null;
-  return windowObject.SpeechRecognition || windowObject.webkitSpeechRecognition || null;
-};
 
 const applySpeechTranscript = (existingValue = '', newText = '') => {
   const text = String(newText || '').trim();
@@ -69,7 +65,6 @@ let commitmentPreviewObjectUrl = '';
 const onboardingFormDraftTimers = new Map();
 const onboardingFormDraftQueues = new Map();
 const onboardingFormsFinalizing = new Set();
-const speechState = { recognition: null, activeButton: null };
 
 function nowMs() {
   return typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
@@ -157,13 +152,6 @@ function closeMobileProcessDialog() {
   if (dialog?.open) dialog.close();
 }
 
-function setSpeechButtonState(button, isListening) {
-  if (!button) return;
-  button.classList.toggle('listening', isListening);
-  button.setAttribute('aria-pressed', String(isListening));
-  button.textContent = isListening ? '⏹ Spracheingabe stoppen' : button.dataset.defaultLabel || '⌁ Spracheingabe';
-}
-
 function wireSpeechControls() {
   document.querySelectorAll('.voice').forEach((button) => {
     if (!button.dataset.boundSpeech) {
@@ -175,83 +163,9 @@ function wireSpeechControls() {
 }
 
 function attachSpeechButton(button) {
-  if (!button) return;
-  button.dataset.defaultLabel = button.dataset.defaultLabel || button.textContent.trim();
-  const target = button.dataset.target ? document.getElementById(button.dataset.target) : button.closest('form')?.querySelector('textarea, input');
-  if (!target) return;
-
-  button.addEventListener('click', () => {
-    const Recognition = resolveSpeechRecognition(window);
-    if (!Recognition) {
-      toast('Dein Browser unterstützt Spracheingabe leider nicht.');
-      return;
-    }
-
-    if (speechState.recognition && speechState.activeButton === button) {
-      speechState.recognition.stop();
-      speechState.recognition = null;
-      speechState.activeButton = null;
-      setSpeechButtonState(button, false);
-      return;
-    }
-
-    if (speechState.recognition) {
-      speechState.recognition.stop();
-      speechState.recognition = null;
-      if (speechState.activeButton) setSpeechButtonState(speechState.activeButton, false);
-      speechState.activeButton = null;
-    }
-
-    const recognition = new Recognition();
-    recognition.lang = 'de-DE';
-    recognition.continuous = false;
-    recognition.interimResults = true;
-
-    recognition.onstart = () => {
-      setSpeechButtonState(button, true);
-      speechState.activeButton = button;
-      speechState.recognition = recognition;
-    };
-
-    recognition.onresult = (event) => {
-      let finalText = '';
-      for (let i = 0; i < event.results.length; i += 1) {
-        const result = event.results[i];
-        if (result.isFinal) finalText += result[0].transcript;
-      }
-      if (!finalText) return;
-      target.value = applySpeechTranscript(target.value, finalText);
-      target.focus();
-      target.dispatchEvent(new Event('input', { bubbles: true }));
-    };
-
-    recognition.onerror = (event) => {
-      const message = event.error === 'not-allowed' ? 'Microfonzugriff wurde verweigert. Bitte erlauben.' : 'Spracheingabe konnte nicht gestartet werden.';
-      toast(message);
-      setSpeechButtonState(button, false);
-      speechState.activeButton = null;
-      speechState.recognition = null;
-    };
-
-    recognition.onend = () => {
-      setSpeechButtonState(button, false);
-      if (speechState.activeButton === button) {
-        speechState.activeButton = null;
-      }
-      if (speechState.recognition === recognition) {
-        speechState.recognition = null;
-      }
-    };
-
-    try {
-      recognition.start();
-    } catch (error) {
-      toast('Spracheingabe ist bereits aktiv. Bitte warte kurz und versuche es erneut.');
-      setSpeechButtonState(button, false);
-      speechState.activeButton = null;
-      speechState.recognition = null;
-    }
-  });
+ const target=button.dataset.target?document.getElementById(button.dataset.target):button.closest('form')?.querySelector('textarea, input');
+ if(!target)return;
+ button.addEventListener('click',()=>startVoiceCapture({button,onError:toast,onTranscript:text=>{if(!target.isConnected)return;target.value=applySpeechTranscript(target.value,text);target.focus();target.dispatchEvent(new Event('input',{bubbles:true}));}}));
 }
 
 $$('[data-view]').forEach((button) => button.addEventListener('click', () => {
@@ -1727,22 +1641,11 @@ function weekOneTextarea(id, placeholder = 'Schreib, was dir spontan in den Kopf
 }
 
 function startThreeWishesSpeech(button) {
-  const Recognition = resolveSpeechRecognition(window);
-  if (!Recognition) { toast('Spracheingabe wird von diesem Browser nicht unterstützt.'); return; }
-  const recognition = new Recognition();
-  recognition.lang = 'de-DE';
-  recognition.interimResults = false;
-  button.disabled = true;
-  button.textContent = '● Ich höre zu …';
-  recognition.onresult = (event) => {
-    const transcript = Array.from(event.results).map((result) => result[0]?.transcript || '').join(' ').trim();
-    const match = transcript.match(/wunsch\s*(?:1|eins)\s*[:.,-]?\s*(.*?)\s+wunsch\s*(?:2|zwei)\s*[:.,-]?\s*(.*?)\s+wunsch\s*(?:3|drei)\s*[:.,-]?\s*(.*)$/i);
-    if (match) [1, 2, 3].forEach((number) => { $(`#wish${number}`).value = match[number].trim(); });
-    else $('#weekOneError').textContent = 'Ich habe daraus noch nicht sicher drei einzelne Wünsche erkannt. Nenne mir bitte Wunsch 1, Wunsch 2 und Wunsch 3 getrennt.';
-  };
-  recognition.onerror = () => { $('#weekOneError').textContent = 'Die Spracheingabe konnte nicht verarbeitet werden. Bitte versuche es erneut oder tippe deine Wünsche ein.'; };
-  recognition.onend = () => { button.disabled = false; button.textContent = '⌁ Spracheingabe'; };
-  recognition.start();
+ startVoiceCapture({button,onError:message=>{$('#weekOneError').textContent=message;},onTranscript:transcript=>{
+ const match=transcript.match(/wunsch\s*(?:1|eins)\s*[:.,-]?\s*(.*?)\s+wunsch\s*(?:2|zwei)\s*[:.,-]?\s*(.*?)\s+wunsch\s*(?:3|drei)\s*[:.,-]?\s*(.*)$/i);
+ if(match)[1,2,3].forEach(number=>{const target=$(`#wish${number}`);target.value=match[number].trim();target.dispatchEvent(new Event('input',{bubbles:true}));});
+ else $('#weekOneError').textContent='Nenne bitte Wunsch 1, Wunsch 2 und Wunsch 3 getrennt oder ergänze deine Wünsche schriftlich.';
+ }});
 }
 
 function renderWeekOne() {

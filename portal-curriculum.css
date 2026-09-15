@@ -22,3 +22,12 @@
 #curriculumWorkspace .curriculum-cv{margin:16px 28px;font-size:14px}
 #curriculumWorkspace #curriculumStatus:empty{display:none}
 @media(max-width:760px){#curriculumWorkspace .clara-chat-header{padding:18px}#curriculumWorkspace .curriculum-columns{padding:16px}#curriculumWorkspace .curriculum-chat article{max-width:92%;padding:14px}#curriculumWorkspace .curriculum-cv{margin:14px 16px}#curriculumWorkspace .curriculum-outputs{padding:14px 16px}#curriculumAnswer button{max-width:100%;font-size:14px}}
+
+/* Clara prepares her reply inside the conversation. */
+#curriculumWorkspace .curriculum-typing { width: fit-content; min-width: 100px; }
+.curriculum-typing-dots { display: flex; align-items: center; gap: 7px; height: 30px; margin-top: 8px; }
+.curriculum-typing-dots i { display: block; width: 8px; height: 8px; border-radius: 50%; background: #9be4e5; animation: curriculum-typing-bounce 1.2s ease-in-out infinite; }
+.curriculum-typing-dots i:nth-child(2) { animation-delay: .16s; }
+.curriculum-typing-dots i:nth-child(3) { animation-delay: .32s; }
+@keyframes curriculum-typing-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-5px); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .curriculum-typing-dots i { animation: none; opacity: 1; } }

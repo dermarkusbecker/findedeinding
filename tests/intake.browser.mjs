@@ -21,7 +21,7 @@ for(const width of [1440,1024,768,390,320]){
  await page.locator('#leadForm [name=name]').fill('Intake Test');await page.locator('#leadForm [name=email]').fill('intake@example.test');await page.locator('#leadForm [name=consent]').check();await page.locator('[data-public-lead-next]').click();await page.locator('[data-public-slot]').first().click();await checkActions();assert.equal(await page.locator('.booking-calendar-grid').count(),1);assert.equal(await page.locator('[data-calendar-day]').count()>27,true);await page.screenshot({path:`/tmp/booking-calendar-${width}.png`});
  await page.locator('[data-calendar-day]:not([disabled])').last().click();assert.equal(await page.locator('#leadForm [type=submit]').isDisabled(),true);await page.locator('[data-public-slot]').first().click();
  assert.equal(requests.length,1);assert.equal(requests[0].intakeAnswers.main_concern,0);
- await page.locator('#leadForm [type=submit]').click();await page.locator('#publicBookingSuccess').waitFor({state:'visible'});assert.equal(requests[1].intakeToken,'receipt');assert.deepEqual(errors,[]);
+ await page.locator('#leadForm [type=submit]').click();await page.locator('#publicBookingSuccess').waitFor({state:'visible'});assert.equal(requests[1].intakeToken,'receipt');assert.ok(await page.locator('#publicBookingSuccessText').evaluate(e=>parseFloat(getComputedStyle(e).fontSize))>=17);await page.screenshot({path:`/tmp/intake-success-${width}.png`});assert.deepEqual(errors,[]);
  assert.equal(await page.evaluate(()=>document.querySelector('#leadDialog').scrollWidth>document.querySelector('#leadDialog').clientWidth+1),false);
  await page.close();
 }

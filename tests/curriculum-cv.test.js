@@ -1,0 +1,12 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {handleCurriculum} from '../lib/curriculum-api.js';
+const definition=JSON.parse(readFileSync(new URL('../curriculum/fdd-4plus4.json',import.meta.url)));
+test('missing CV prevents conversation step, confirmation, subsequent step and week finalization',async()=>{
+ const original=globalThis.fetch;globalThis.fetch=async()=>new Response('[]',{status:200});
+ const result={service:{url:'https://test.invalid',key:'test'},processVersion:{version:1,definition},curriculum:definition.weeks[0].steps.map(s=>({step_id:s.id,status:'completed',ready:true,messages:[],signals:[]})),stateEntries:[{week:1,structured_data:{week_1:{clarity_baseline:{score:5}}}}],progress:{privacy_consent_at:'yes',start_commitment_at:'yes'},access:{canAccessWeek:()=>true,processWeek:1,status:'active'}};
+ try{for(const [action,stepId] of [['message','c44_w1_l4'],['confirm','c44_w1_l4'],['message','c44_w1_l5'],['finalize',null]]){const response={status(n){this.code=n;return this;},json(value){this.value=value;return this;}};await handleCurriculum({method:'POST',body:{week:1,action,stepId}},response,{participantId:'demo'},result);assert.equal(response.code,409);assert.equal(response.value.code,'CV_REQUIRED');}}finally{globalThis.fetch=original;}
+});
+test('existing owned CV allows confirmation after previous steps',async()=>{
+ const original=globalThis.fetch;let saved=false;globalThis.fetch=async url=>{if(url.includes('participant_documents')){assert.match(url,/user_profile_id=eq.demo/);return new Response('[{"id":"cv"}]');}saved=true;return new Response('{"status":"completed"}');};
+ const result={service:{url:'https://test.invalid',key:'test'},processVersion:{version:1,definition},curriculum:definition.weeks[0].steps.map(s=>({step_id:s.id,status:'completed',ready:true,messages:[],signals:[]})),stateEntries:[{week:1,structured_data:{week_1:{clarity_baseline:{score:5}}}}],progress:{privacy_consent_at:'yes',start_commitment_at:'yes'},access:{canAccessWeek:()=>true,processWeek:1,status:'active'}};
+ try{const response={status(n){this.code=n;return this;},json(value){this.value=value;return this;}};await handleCurriculum({method:'POST',body:{week:1,action:'confirm',stepId:'c44_w1_l4'}},response,{participantId:'demo'},result);assert.equal(response.code,200);assert.equal(saved,true);}finally{globalThis.fetch=original;}
+});

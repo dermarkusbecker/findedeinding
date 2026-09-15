@@ -807,3 +807,22 @@ footer .footer-links .footer-instagram{display:inline-flex;align-items:center;ju
 #leadDialog.is-booking .form-head b{font-size:22px}
 @media(min-width:800px){#leadDialog.is-booking #publicAvailableSlots{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start}#leadDialog.is-booking .booking-times{padding:18px 0}#leadDialog.is-booking .booking-time-grid{max-height:320px}#leadDialog.is-booking .public-lead-actions{max-width:520px;margin-left:auto;margin-right:auto}}
 @media(max-width:600px){#leadDialog.is-booking .lead-dialog-shell{padding:48px 12px 16px}#leadDialog.is-booking #leadForm{padding:16px 12px}}
+/* Spacious intake shell with readable typography through completion. */
+#leadDialog{width:calc(100vw - 32px);max-width:1480px;max-height:calc(100dvh - 32px);box-sizing:border-box}
+#leadDialog .lead-dialog-shell{min-height:min(780px,calc(100dvh - 32px));grid-template-columns:minmax(280px,.75fr) minmax(0,1.25fr);gap:40px;padding:60px 40px 36px;align-items:center}
+#leadDialog #leadForm{padding:32px;width:100%;box-sizing:border-box}
+#leadDialog #leadForm label{font-size:14px;line-height:1.5}
+#leadDialog #leadForm input:not([type=checkbox]),#leadDialog #leadForm textarea{font-size:16px;line-height:1.5;min-height:50px}
+#leadDialog #leadForm input::placeholder,#leadDialog #leadForm textarea::placeholder{color:#acc6d6}
+#leadDialog .form-head b{font-size:22px;line-height:1.35}
+#leadDialog .form-head small,#leadDialog .form-status{font-size:15px;line-height:1.6;color:#c5dce8}
+#leadDialog .public-lead-progress small{font-size:11px}
+#leadDialog .public-booking-success{max-width:850px;margin:auto;padding:48px 20px;min-height:460px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box}
+#leadDialog .public-booking-success h3{font-size:clamp(28px,3vw,40px);line-height:1.2;margin:14px 0 22px}
+#leadDialog #publicBookingSuccessText{font-size:18px;line-height:1.8;color:#e0edf5;max-width:720px;margin:0 auto 30px;overflow-wrap:anywhere}
+#leadDialog .public-booking-success .kicker{font-size:13px;line-height:1.5}
+#leadDialog .public-booking-success .button{font-size:16px;min-height:56px;padding:16px 30px;max-width:100%;box-sizing:border-box}
+#leadDialog .lead-dialog-close{width:44px;height:44px;right:12px;top:12px}
+@media(max-width:1000px){#leadDialog .lead-copy{display:none}#leadDialog .lead-dialog-shell{display:block;padding:60px 24px 24px}#leadDialog #leadForm{padding:26px}}
+@media(max-width:600px){#leadDialog{width:calc(100vw - 16px);max-height:calc(100dvh - 16px)}#leadDialog .lead-dialog-shell,#leadDialog.is-booking .lead-dialog-shell{padding:60px 10px 16px;min-height:0}#leadDialog #leadForm,#leadDialog.is-booking #leadForm{padding:20px 14px}#leadDialog .public-booking-success{padding:28px 0;min-height:400px}#leadDialog #publicBookingSuccessText{font-size:17px;line-height:1.7}#leadDialog .public-lead-progress small{font-size:9px}#leadDialog .form-head b{font-size:20px}}
+#leadDialog.is-booking .lead-dialog-shell{display:grid;grid-template-columns:minmax(0,1fr)}
