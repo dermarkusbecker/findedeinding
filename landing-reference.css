@@ -749,12 +749,17 @@ footer .footer-links .footer-instagram{display:inline-flex;align-items:center;ju
 #leadDialog [hidden]{display:none!important}
 #leadDialog .lead-dialog-shell,#leadDialog #leadForm{min-width:0;max-width:100%;box-sizing:border-box}
 #leadDialog #intakeQuestion h3:focus{outline:none}
-/* Intake navigation: reserve space for the primary action at every width. */
-#leadDialog .public-lead-actions.split{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:stretch;gap:12px}
-#leadDialog .public-lead-actions.split .public-lead-back{flex:0 0 auto;width:auto;min-width:100px;padding:14px 18px;white-space:nowrap}
-#leadDialog .public-lead-actions.split .button-orange{flex:1 1 auto;width:auto;min-width:0;min-height:54px;padding:14px 22px;font-size:16px;line-height:1.4;text-align:center;justify-content:center;gap:12px}
-#leadDialog #intakeNext{min-width:160px;white-space:nowrap}
-@media(max-width:600px){#leadDialog .public-lead-actions.split{flex-direction:column-reverse}#leadDialog .public-lead-actions.split .button{flex:none;width:100%;box-sizing:border-box}#leadDialog .public-lead-actions.split .public-lead-back{min-height:46px}#leadDialog #intakeNext{min-width:0}}
+/* Intake actions use their own full-width rows, independent of label length. */
+#leadDialog #leadForm .public-lead-actions,
+#leadDialog #leadForm .public-lead-actions.split{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:stretch;margin-top:20px}
+#leadDialog #leadForm .public-lead-actions .button{box-sizing:border-box;width:100%;min-width:0;max-width:100%;min-height:54px;height:auto;padding:16px 20px;display:flex;justify-content:center;align-items:center;gap:12px;font-size:16px;line-height:1.5;white-space:normal;overflow-wrap:normal;word-break:normal}
+#leadDialog #leadForm .public-lead-actions .button-orange{grid-column:1;grid-row:1}
+#leadDialog #leadForm .public-lead-actions .public-lead-back{grid-column:1;grid-row:2;min-height:46px;padding:12px 18px;font-size:14px;background:transparent}
+#leadDialog #leadForm .public-lead-actions .button span{flex-shrink:0}
+#leadDialog #leadForm .public-lead-actions #intakeNext{white-space:nowrap}
+#leadDialog #leadForm .form-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+#leadDialog #leadForm label,#leadDialog #leadForm input,#leadDialog #leadForm textarea{min-width:0;box-sizing:border-box}
+@media(max-width:600px){#leadDialog #leadForm .form-row{grid-template-columns:minmax(0,1fr)}#leadDialog #leadForm .public-lead-actions .button{padding:14px 16px}}
 /* Readable consent copy and accessible touch target in the intake. */
 #leadDialog #leadForm .consent{display:flex;align-items:flex-start;gap:12px;padding:16px;margin:20px 0 12px;border:1px solid #52788f;border-radius:12px;background:#143448;cursor:pointer}
 #leadDialog #leadForm .consent input[type=checkbox]{flex:0 0 22px;width:22px;height:22px;min-height:22px;margin:2px 0 0;accent-color:#ff9453;cursor:pointer}
