@@ -106,7 +106,7 @@ export function summarizeCustomerProgress(gates = [], progress = {}, entries = [
 }
 
 export default async function handler(request, response) {
-  if (['overview', 'document-download', 'document-upload', 'avatar-upload', 'whatsapp-send'].includes(request.query?.action || request.body?.action)) return handleCustomerRecords(request, response);
+  if (['overview', 'document-download', 'document-upload', 'avatar-upload', 'whatsapp-send', 'communication-save', 'communication-attachment'].includes(request.query?.action || request.body?.action)) return handleCustomerRecords(request, response);
   const requiredPermission = request.method === 'GET' ? ['customers', 'program', 'sales_calls'] : request.method === 'POST' ? 'customers' : ['customers', 'program'];
   const admin = await requireCurrentAdmin(request, response, requiredPermission);
   if (!admin) return;
