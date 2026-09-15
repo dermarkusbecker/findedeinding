@@ -755,3 +755,10 @@ footer .footer-links .footer-instagram{display:inline-flex;align-items:center;ju
 #leadDialog .public-lead-actions.split .button-orange{flex:1 1 auto;width:auto;min-width:0;min-height:54px;padding:14px 22px;font-size:16px;line-height:1.4;text-align:center;justify-content:center;gap:12px}
 #leadDialog #intakeNext{min-width:160px;white-space:nowrap}
 @media(max-width:600px){#leadDialog .public-lead-actions.split{flex-direction:column-reverse}#leadDialog .public-lead-actions.split .button{flex:none;width:100%;box-sizing:border-box}#leadDialog .public-lead-actions.split .public-lead-back{min-height:46px}#leadDialog #intakeNext{min-width:0}}
+/* Readable consent copy and accessible touch target in the intake. */
+#leadDialog #leadForm .consent{display:flex;align-items:flex-start;gap:12px;padding:16px;margin:20px 0 12px;border:1px solid #52788f;border-radius:12px;background:#143448;cursor:pointer}
+#leadDialog #leadForm .consent input[type=checkbox]{flex:0 0 22px;width:22px;height:22px;min-height:22px;margin:2px 0 0;accent-color:#ff9453;cursor:pointer}
+#leadDialog #leadForm .consent span{display:block;color:#eaf3f8;font-size:15px;font-weight:500;line-height:1.65;letter-spacing:normal;text-transform:none}
+#leadDialog #leadForm .consent a{color:#a1e5ff;font-size:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+#leadDialog #leadForm .consent:focus-within{outline:2px solid #8fdfff;outline-offset:3px}
+#leadDialog #leadForm .intake-contact-note{color:#c8dde8;font-size:14px;line-height:1.65}
