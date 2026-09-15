@@ -1003,30 +1003,29 @@ function openProgressCelebration() {
   }
 }
 
+let programLoadVersion=0;
 async function loadProgram(week = null) {
+  const version=++programLoadVersion;
   clearClaraStepTransition();
-  const suffix = week ? `?week=${week}` : '';
-  program = await request(`/api/participant-program${suffix}`);
-  if (!customerWorkspace) {
-    try { customerWorkspace = await request('/api/customer-records?action=overview'); }
-    catch { customerWorkspace = null; }
-  }
   const initialView = !initialViewResolved ? 'today' : null;
-  currentWeek = safeSelectedWeek(program);
-  currentContent = program.week;
-  if (program.onboardingComplete && currentWeek >= 1) {
-    try {
-      const claraData = await request(`/api/participant-program?feature=clara-message&week=${currentWeek}`);
-      journeyMessages = claraData.messages || [];
-      claraCurrentPrompt = claraData.currentPrompt || '';
-    } catch { journeyMessages = []; claraCurrentPrompt = ''; }
+  const initial=Boolean(initialView);
+  const workspacePromise=!customerWorkspace?request('/api/customer-records?action=overview').catch(()=>null):null;
+  const suffix = week ? `?week=${week}` : initial ? '?fast=1' : '';
+  const loaded=await request(`/api/participant-program${suffix}`);
+  if(version!==programLoadVersion)return;
+  program=loaded;
+  currentWeek = safeSelectedWeek(program);currentContent=program.week;
+  journeyMessages=[];claraCurrentPrompt='';
+  if(initial){initialViewResolved=true;showView(initialView, { openMobileProcess: initialView === 'today' });}else render();
+  if(workspacePromise)workspacePromise.then(workspace=>{if(version!==programLoadVersion)return;customerWorkspace=workspace;render();});
+  if(program.onboardingComplete&&currentWeek>=1){
+    const selected=currentWeek;
+    request(`/api/participant-program?feature=clara-message&week=${selected}`).then(data=>{if(version!==programLoadVersion||currentWeek!==selected)return;journeyMessages=data.messages||[];claraCurrentPrompt=data.currentPrompt||'';renderClaraJourney();}).catch(()=>{});
   }
-  if (initialView) {
-    initialViewResolved = true;
-    showView(initialView, { openMobileProcess: initialView === 'today' });
-    return;
+  if(initial){
+    // Backfill missing reflections independently of first paint and the login check-in.
+    request('/api/participant-program').then(data=>{if(version!==programLoadVersion)return;program=data;render();}).catch(()=>{});
   }
-  render();
 }
 
 function renderClaraJourney() {

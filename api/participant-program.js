@@ -46,6 +46,7 @@ const weekContent = (week, gates, weekOneState = null, guidedState = null, quest
 };
 
 async function readWeekOneState(result, participantId) {
+  if(Array.isArray(result.stateEntries)){const entry=result.stateEntries.filter(e=>e.data_block==='week_1_state').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0];return entry?.structured_data?.week_1||createWeekOneState();}
   const stateResponse = await fetch(`${result.service.url}/rest/v1/process_entries?user_profile_id=eq.${encodeURIComponent(participantId)}&week=eq.1&data_block=eq.week_1_state&select=structured_data&order=created_at.desc&limit=1`, { headers: serviceHeaders(result.service.key) });
   const rows = await stateResponse.json();
   if (!stateResponse.ok) throw new Error(rows.message || 'Woche 1 konnte nicht geladen werden.');
@@ -53,6 +54,7 @@ async function readWeekOneState(result, participantId) {
 }
 
 async function readGuidedWeekState(result, participantId, week) {
+  if(Array.isArray(result.stateEntries)){const entry=result.stateEntries.filter(e=>e.data_block===`week_${week}_state`).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0];return normalizeGuidedWeekState(week,configuredWeekState(week,entry?.structured_data?.[`week_${week}`]||createGuidedWeekState(week),result.processVersion));}
   const response = await fetch(`${result.service.url}/rest/v1/process_entries?user_profile_id=eq.${encodeURIComponent(participantId)}&week=eq.${week}&data_block=eq.week_${week}_state&select=structured_data&order=created_at.desc&limit=1`, { headers: serviceHeaders(result.service.key) });
   const rows = await response.json();
   if (!response.ok) throw new Error(rows.message || `Woche ${week} konnte nicht geladen werden.`);
@@ -315,7 +317,7 @@ export default async function handler(request, response) {
       if (requestedWeek !== null && !rawAccess.weekStates.some((state) => state.week === requestedWeek && state.accessible)) return response.status(403).json({ error: 'Diese Woche ist noch nicht freigeschaltet.', access: rawAccess });
       const guidedStates = await readGuidedWeekStates(result, session.participantId);
       const access = rawAccess;
-      weekOneState = await backfillCompletedWeekReflections({ result, participantId: session.participantId, access, weekOneState, guidedStates });
+      if(request.query?.fast !== '1') weekOneState = await backfillCompletedWeekReflections({ result, participantId: session.participantId, access, weekOneState, guidedStates });
       const progressRepair = canonicalProgressPatch(access, result.progress);
       if (progressRepair) await patchParticipantProgress(result.service, session.participantId, progressRepair);
       const accessibleWeeks = (onboardingComplete ? access.unlockedWeeks : []).map((week) => {
