@@ -1,0 +1,24 @@
+/* Reading and interaction standards for every week and exercise. */
+body { font-size:16px; line-height:1.65; }
+button,input,select,textarea { font-family:inherit; }
+input,select,textarea { font-size:16px; line-height:1.6; }
+button { line-height:1.45; }
+button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible { outline:3px solid #ffbc86; outline-offset:4px; }
+.screen p,dialog p { line-height:1.75; }
+.screen :is(.primary,.secondary),dialog :is(.primary,.secondary) { min-height:46px; }
+.screen :is(input,textarea,select),dialog :is(input,textarea,select) { max-width:100%; }
+#activeWeek .question-help { font-size:16px; line-height:1.75; }
+#questionText { font-size:clamp(24px,3vw,34px); line-height:1.35; }
+#activeWeek :is(.task-card,.clara-card) { min-width:0; }
+.demo-week-step summary { gap:14px; min-height:60px; }
+.demo-week-step summary strong { font-size:16px; line-height:1.5; }
+.demo-week-step summary small { font-size:13px; color:#bedce7; }
+.demo-week-step>div { font-size:16px; line-height:1.8; color:#e3f1f7; }
+#documentList .library-file strong,.insight-files .library-file strong { font-size:16px; line-height:1.55; }
+#documentList .library-file small,.insight-files .library-file small { font-size:13px; color:#c4dce6; }
+.insight-reflections .week-reflection-card p { color:#d3e7f0; font-size:15px; }
+#motivatorTags .motivator-result { font-size:17px; min-height:64px; }
+@media(max-width:650px) { .screen,dialog { overflow-wrap:anywhere; }.demo-week-step summary { flex-wrap:wrap; }.demo-week-step summary small { flex-basis:100%; } }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; } }
+.screen .clarity-chart b { color:#d9edf5; font-size:14px; }
+.screen .insight-grid article>div>i { color:#bcd5e1; font-size:15px; }

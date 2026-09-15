@@ -5,58 +5,58 @@
 .mail-transport-banner>div { flex: 1; }
 .mail-transport-banner strong, .mail-transport-banner small { display: block; }
 .mail-transport-banner strong { color: #574317; font-size: 12px; }
-.mail-transport-banner small { color: #806d43; font-size: 10px; line-height: 1.5; margin-top: 3px; }
+.mail-transport-banner small { color: #806d43; font-size: 12px; line-height: 1.5; margin-top: 3px; }
 .communication-metrics { display: grid; gap: 12px; grid-template-columns: repeat(4,1fr); margin-bottom: 15px; }
 .communication-metrics article { background: #fff; border: 1px solid var(--line); border-radius: 13px; padding: 17px 19px; }
 .communication-metrics small, .communication-metrics strong { display: block; }
-.communication-metrics small { color: #7b8985; font: 600 9px DM Mono; letter-spacing: .06em; text-transform: uppercase; }
+.communication-metrics small { color: #7b8985; font: 600 12px DM Mono; letter-spacing: .06em; text-transform: uppercase; }
 .communication-metrics strong { color: #173f38; font-size: 25px; margin-top: 8px; }
 .communication-mailbox { background: #fff; border: 1px solid var(--line); border-radius: 17px; box-shadow: 0 15px 40px rgba(24,60,55,.07); display: grid; grid-template-columns: 190px 350px minmax(360px,1fr); min-height: 650px; overflow: hidden; }
 .mail-folders { background: #f3f7f6; border-right: 1px solid var(--line); padding: 20px 13px; }
-.mail-folders>p { color: #8a9692; font: 600 9px DM Mono; letter-spacing: .08em; margin: 0 9px 12px; text-transform: uppercase; }
-.mail-folders>button { align-items: center; background: transparent; border: 0; border-radius: 9px; color: #52635e; cursor: pointer; display: grid; font-size: 11px; font-weight: 700; gap: 8px; grid-template-columns: 22px 1fr auto; margin-bottom: 3px; min-height: 43px; padding: 8px 9px; text-align: left; width: 100%; }
+.mail-folders>p { color: #8a9692; font: 600 12px DM Mono; letter-spacing: .08em; margin: 0 9px 12px; text-transform: uppercase; }
+.mail-folders>button { align-items: center; background: transparent; border: 0; border-radius: 9px; color: #52635e; cursor: pointer; display: grid; font-size: 12px; font-weight: 700; gap: 8px; grid-template-columns: 22px 1fr auto; margin-bottom: 3px; min-height: 43px; padding: 8px 9px; text-align: left; width: 100%; }
 .mail-folders>button:hover, .mail-folders>button.active { background: #fff; color: #0f7664; box-shadow: 0 3px 12px rgba(24,60,55,.06); }
 .mail-folders>button>span { font-size: 14px; text-align: center; }
-.mail-folders>button>i { background: #dfe9e6; border-radius: 20px; font-size: 9px; font-style: normal; min-width: 22px; padding: 3px 6px; text-align: center; }
+.mail-folders>button>i { background: #dfe9e6; border-radius: 20px; font-size: 12px; font-style: normal; min-width: 22px; padding: 3px 6px; text-align: center; }
 .mail-folders>button.active>i { background: #d9f1eb; color: #0a715d; }
 .mail-folder-note { border-top: 1px solid #dce5e2; margin: 22px 8px 0; padding-top: 17px; }
 .mail-folder-note b, .mail-folder-note small { display: block; }
-.mail-folder-note b { color: #36534d; font-size: 10px; }
-.mail-folder-note small { color: #768680; font-size: 9px; line-height: 1.55; margin-top: 5px; }
+.mail-folder-note b { color: #36534d; font-size: 12px; }
+.mail-folder-note small { color: #768680; font-size: 12px; line-height: 1.55; margin-top: 5px; }
 .mail-list-panel { border-right: 1px solid var(--line); min-width: 0; }
 .mail-list-toolbar { align-items: center; border-bottom: 1px solid var(--line); display: flex; gap: 8px; height: 67px; padding: 12px; }
 .mail-list-toolbar label { align-items: center; background: #f5f8f7; border: 1px solid #dce5e2; border-radius: 9px; color: #82908c; display: flex; flex: 1; gap: 7px; min-width: 0; padding: 9px 10px; }
-.mail-list-toolbar input { background: transparent; border: 0; color: var(--ink); font-size: 10px; min-width: 0; outline: 0; width: 100%; }
+.mail-list-toolbar input { background: transparent; border: 0; color: var(--ink); font-size: 12px; min-width: 0; outline: 0; width: 100%; }
 .mail-list-toolbar button { background: #f5f8f7; border: 1px solid #dce5e2; border-radius: 9px; color: #3e5a54; cursor: pointer; font-size: 17px; height: 38px; width: 40px; }
 .mail-list { max-height: 650px; overflow-y: auto; }
 .mail-list-item { background: #fff; border: 0; border-bottom: 1px solid #e7ecea; cursor: pointer; display: block; padding: 16px; text-align: left; transition: .15s ease; width: 100%; }
 .mail-list-item:hover, .mail-list-item.active { background: #f0f8f6; }
 .mail-list-item.unread { border-left: 4px solid #149b82; padding-left: 12px; }
 .mail-item-top { align-items: center; display: flex; gap: 9px; }
-.mail-contact-avatar { align-items: center; background: #e5f1ee; border-radius: 9px; color: #137662; display: flex; font-size: 10px; font-weight: 850; height: 34px; justify-content: center; min-width: 34px; }
+.mail-contact-avatar { align-items: center; background: #e5f1ee; border-radius: 9px; color: #137662; display: flex; font-size: 12px; font-weight: 850; height: 34px; justify-content: center; min-width: 34px; }
 .mail-item-contact { flex: 1; min-width: 0; }
 .mail-item-contact strong, .mail-item-contact small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mail-item-contact strong { color: #253d38; font-size: 11px; }
-.mail-item-contact small { color: #7a8884; font-size: 9px; margin-top: 2px; }
-.mail-item-top>time { color: #86928f; font-size: 8px; white-space: nowrap; }
-.mail-list-item h3 { color: #263d38; font-size: 11px; margin: 12px 0 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mail-list-item>p { color: #71807b; font-size: 9px; line-height: 1.5; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-item-contact strong { color: #253d38; font-size: 12px; }
+.mail-item-contact small { color: #7a8884; font-size: 12px; margin-top: 2px; }
+.mail-item-top>time { color: #86928f; font-size: 12px; white-space: nowrap; }
+.mail-list-item h3 { color: #263d38; font-size: 12px; margin: 12px 0 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-list-item>p { color: #71807b; font-size: 12px; line-height: 1.5; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mail-item-meta { align-items: center; display: flex; gap: 7px; margin-top: 11px; }
-.mail-direction, .mail-contact-type { border-radius: 20px; font: 600 8px DM Mono; padding: 5px 7px; }
+.mail-direction, .mail-contact-type { border-radius: 20px; font: 600 12px DM Mono; padding: 5px 7px; }
 .mail-direction.inbound { background: #dff3ed; color: #0b7561; }.mail-direction.outbound { background: #e8effa; color: #3d6594; }.mail-direction.system { background: #ecebea; color: #68716e; }
 .mail-contact-type { background: #f7eadf; color: #9a5a2d; }
 .mail-reading-pane { min-width: 0; padding: 27px 30px; }
 .mail-reading-empty { color: #7c8985; margin: 135px auto 0; max-width: 340px; text-align: center; }
 .mail-reading-empty>span { align-items: center; background: #eaf3f1; border-radius: 50%; color: #21806f; display: flex; font-size: 28px; height: 78px; justify-content: center; margin: auto; width: 78px; }
 .mail-reading-empty h2 { color: #2c4640; font-size: 18px; margin: 19px 0 8px; }
-.mail-reading-empty p { font-size: 11px; line-height: 1.65; }
+.mail-reading-empty p { font-size: 12px; line-height: 1.65; }
 .mail-reading-head { border-bottom: 1px solid var(--line); padding-bottom: 22px; }
 .mail-reading-labels { align-items: center; display: flex; gap: 7px; }
 .mail-reading-head h2 { color: #1c3933; font-size: 22px; line-height: 1.3; margin: 15px 0; }
 .mail-sender { align-items: center; display: flex; gap: 11px; }
 .mail-sender>div { flex: 1; }
 .mail-sender strong, .mail-sender small { display: block; }
-.mail-sender strong { color: #29443e; font-size: 12px; }.mail-sender small { color: #7a8884; font-size: 9px; margin-top: 3px; }.mail-sender time { color: #7e8b87; font-size: 9px; }
+.mail-sender strong { color: #29443e; font-size: 12px; }.mail-sender small { color: #7a8884; font-size: 12px; margin-top: 3px; }.mail-sender time { color: #7e8b87; font-size: 12px; }
 .mail-reading-body { color: #394d48; font-size: 12px; line-height: 1.8; min-height: 230px; padding: 26px 2px; white-space: pre-wrap; }
 .mail-reading-actions { align-items: center; border-top: 1px solid var(--line); display: flex; gap: 9px; padding-top: 19px; }
 .mail-reading-actions .mail-open-record { margin-left: auto; }
@@ -106,15 +106,15 @@
 .template-library, .template-preview, .communication-list-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 14px 35px rgba(24,60,55,.06); min-width: 0; overflow: hidden; }
 .workspace-title { align-items: center; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; min-height: 63px; padding: 14px 17px; }
 .workspace-title span { color: #2d4943; font-size: 13px; font-weight: 850; }
-.workspace-title small { color: #82908c; font-size: 10px; }
+.workspace-title small { color: #82908c; font-size: 12px; }
 .template-list { max-height: 660px; overflow-y: auto; }
 .template-list-item { background: #fff; border: 0; border-bottom: 1px solid #e7ecea; cursor: pointer; display: block; padding: 18px 19px; text-align: left; transition: .18s ease; width: 100%; }
 .template-list-item:hover, .template-list-item.active { background: #edf7f5; box-shadow: inset 3px 0 #149b82; }
 .template-list-item>div:first-child { align-items: center; display: flex; gap: 8px; justify-content: space-between; }
 .template-list-item h3 { color: #24433c; font-size: 14px; line-height: 1.35; margin: 0; }
-.template-list-item>p { color: #71817c; font-size: 11px; line-height: 1.55; margin: 7px 0 12px; }
+.template-list-item>p { color: #71817c; font-size: 12px; line-height: 1.55; margin: 7px 0 12px; }
 .template-tags { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; }
-.communication-badge { background: #edf1f0; border-radius: 20px; color: #61736e; display: inline-flex; font: 700 9px DM Mono; padding: 5px 8px; }
+.communication-badge { background: #edf1f0; border-radius: 20px; color: #61736e; display: inline-flex; font: 700 12px DM Mono; padding: 5px 8px; }
 .communication-badge.active, .communication-badge.scheduled { background: #dbf4ec; color: #08725e; }
 .communication-badge.draft { background: #fff0df; color: #9b622a; }
 .communication-badge.paused, .communication-badge.cancelled { background: #f2e8e5; color: #8a5950; }
@@ -125,20 +125,20 @@
 .template-preview-empty p { font-size: 12px; line-height: 1.7; }
 .template-preview-head { align-items: flex-start; border-bottom: 1px solid var(--line); display: flex; gap: 16px; justify-content: space-between; padding-bottom: 20px; }
 .template-preview-head h3 { color: #193a33; font-size: 22px; margin: 8px 0 5px; }
-.template-preview-head p { color: #75847f; font-size: 11px; line-height: 1.55; margin: 0; }
+.template-preview-head p { color: #75847f; font-size: 12px; line-height: 1.55; margin: 0; }
 .template-preview-head>button { flex: 0 0 auto; }
 .template-mail-preview { background: #f7faf9; border: 1px solid #dce7e4; border-radius: 13px; margin-top: 22px; min-height: 330px; padding: 22px; }
-.template-mail-preview>small { color: #80908b; display: block; font: 700 9px DM Mono; letter-spacing: .08em; text-transform: uppercase; }
+.template-mail-preview>small { color: #80908b; display: block; font: 700 12px DM Mono; letter-spacing: .08em; text-transform: uppercase; }
 .template-mail-preview>h4 { color: #25433c; font-size: 17px; margin: 8px 0 20px; }
 .template-mail-body { background: #fff; border: 1px solid #e0e8e6; border-radius: 10px; color: #415550; font-size: 13px; line-height: 1.8; min-height: 220px; padding: 20px; white-space: pre-wrap; }
 .template-placeholders { align-items: center; display: flex; flex-wrap: wrap; gap: 7px; margin-top: 18px; }
-.template-placeholders small { color: #758680; font-size: 10px; margin-right: 4px; }
-.template-placeholders code { background: #e9f1fa; border: 1px solid #cbdbea; border-radius: 6px; color: #496a91; font: 700 9px DM Mono; padding: 5px 7px; }
+.template-placeholders small { color: #758680; font-size: 12px; margin-right: 4px; }
+.template-placeholders code { background: #e9f1fa; border: 1px solid #cbdbea; border-radius: 6px; color: #496a91; font: 700 12px DM Mono; padding: 5px 7px; }
 .audience-overview { display: grid; gap: 13px; grid-template-columns: repeat(4,1fr); margin-bottom: 16px; }
 .audience-overview article { align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 14px; display: flex; gap: 13px; padding: 18px; }
 .audience-overview article>span { align-items: center; background: #e4f3ef; border-radius: 10px; color: #14806d; display: flex; font-size: 17px; height: 42px; justify-content: center; width: 42px; }
 .audience-overview small, .audience-overview strong { display: block; }
-.audience-overview small { color: #82908c; font: 700 9px DM Mono; text-transform: uppercase; }
+.audience-overview small { color: #82908c; font: 700 12px DM Mono; text-transform: uppercase; }
 .audience-overview strong { color: #213f39; font-size: 23px; margin-top: 4px; }
 .communication-list-card .workspace-title { gap: 18px; }
 .communication-list-card .workspace-title>div small { display: block; margin-top: 4px; }
@@ -147,10 +147,10 @@
 .campaign-row { align-items: center; border-bottom: 1px solid #e6ecea; display: grid; gap: 16px; grid-template-columns: minmax(210px, 1.4fr) .65fr .8fr .8fr auto; padding: 18px 20px; }
 .campaign-row:last-child { border-bottom: 0; }
 .campaign-row h3 { color: #26443d; font-size: 14px; margin: 0; }
-.campaign-row p { color: #788782; font-size: 10px; margin: 5px 0 0; }
+.campaign-row p { color: #788782; font-size: 12px; margin: 5px 0 0; }
 .campaign-row dl { margin: 0; }
-.campaign-row dt { color: #8a9692; font: 700 8px DM Mono; text-transform: uppercase; }
-.campaign-row dd { color: #38534d; font-size: 11px; font-weight: 750; margin: 4px 0 0; }
+.campaign-row dt { color: #8a9692; font: 700 12px DM Mono; text-transform: uppercase; }
+.campaign-row dd { color: #38534d; font-size: 12px; font-weight: 750; margin: 4px 0 0; }
 .campaign-actions { display: flex; gap: 7px; }
 .campaign-actions button { min-height: 38px; }
 .automation-explainer { align-items: center; background: #173c35; border-radius: 15px; color: #fff; display: flex; gap: 14px; margin-bottom: 16px; padding: 19px 21px; }
@@ -158,20 +158,20 @@
 .automation-explainer>div { flex: 1; }
 .automation-explainer strong, .automation-explainer small { display: block; }
 .automation-explainer strong { font-size: 14px; }
-.automation-explainer small { color: #b8cac5; font-size: 11px; line-height: 1.55; margin-top: 4px; }
-.automation-explainer>b { background: #28554d; border-radius: 20px; color: #a9e2d2; font-size: 10px; padding: 8px 11px; }
+.automation-explainer small { color: #b8cac5; font-size: 12px; line-height: 1.55; margin-top: 4px; }
+.automation-explainer>b { background: #28554d; border-radius: 20px; color: #a9e2d2; font-size: 12px; padding: 8px 11px; }
 .automation-grid { display: grid; gap: 14px; grid-template-columns: repeat(2,minmax(0,1fr)); }
 .automation-card { background: #fff; border: 1px solid var(--line); border-radius: 15px; box-shadow: 0 10px 28px rgba(24,60,55,.05); padding: 20px; }
 .automation-card-head { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; }
 .automation-card-icon { align-items: center; background: #e5f3ef; border-radius: 10px; color: #0f7b68; display: flex; font-size: 17px; height: 40px; justify-content: center; width: 40px; }
 .automation-card-title { flex: 1; }
 .automation-card-title h3 { color: #24423b; font-size: 15px; margin: 0; }
-.automation-card-title small { color: #82908b; display: block; font-size: 10px; margin-top: 5px; }
+.automation-card-title small { color: #82908b; display: block; font-size: 12px; margin-top: 5px; }
 .automation-card-flow { align-items: center; background: #f5f9f8; border-radius: 11px; display: grid; gap: 7px; grid-template-columns: 1fr auto 1fr auto 1fr; margin: 17px 0; padding: 13px; }
 .automation-card-flow div { min-width: 0; text-align: center; }
 .automation-card-flow small, .automation-card-flow b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.automation-card-flow small { color: #899792; font: 700 8px DM Mono; text-transform: uppercase; }
-.automation-card-flow b { color: #36534c; font-size: 10px; margin-top: 4px; }
+.automation-card-flow small { color: #899792; font: 700 12px DM Mono; text-transform: uppercase; }
+.automation-card-flow b { color: #36534c; font-size: 12px; margin-top: 4px; }
 .automation-card-flow>span { color: #a5b2ae; }
 .automation-card-foot { align-items: center; display: flex; gap: 8px; justify-content: space-between; }
 .automation-card-foot>div { display: flex; gap: 7px; }
@@ -179,15 +179,15 @@
 .communication-center-dialog form { display: flex; flex-direction: column; gap: 18px; }
 .communication-center-dialog .dialog-head { border-bottom: 1px solid var(--line); padding-bottom: 18px; }
 .communication-form-grid { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
-.communication-form-grid>label { color: #687a75; display: flex; flex-direction: column; font-size: 11px; font-weight: 800; gap: 7px; }
+.communication-form-grid>label { color: #687a75; display: flex; flex-direction: column; font-size: 12px; font-weight: 800; gap: 7px; }
 .communication-form-grid .wide { grid-column: 1/-1; }
 .communication-center-dialog input, .communication-center-dialog select, .communication-center-dialog textarea { background: #f9fbfb; border: 1px solid #cfddda; border-radius: 10px; color: #253f39; font: 500 13px/1.55 Manrope; padding: 11px 12px; width: 100%; }
 .communication-center-dialog textarea { min-height: 160px; resize: vertical; }
 .communication-center-dialog input:focus, .communication-center-dialog select:focus, .communication-center-dialog textarea:focus { background: #fff; border-color: #149b82; box-shadow: 0 0 0 3px rgba(20,155,130,.1); outline: 0; }
 .placeholder-picker { background: #edf5f3; border-radius: 11px; padding: 12px 14px; }
-.placeholder-picker>small { color: #667a75; display: block; font-size: 10px; font-weight: 800; margin-bottom: 8px; }
+.placeholder-picker>small { color: #667a75; display: block; font-size: 12px; font-weight: 800; margin-bottom: 8px; }
 .placeholder-picker>div { display: flex; flex-wrap: wrap; gap: 6px; }
-.placeholder-picker button { background: #fff; border: 1px solid #c9dcd7; border-radius: 6px; color: #24695c; cursor: pointer; font: 700 9px DM Mono; padding: 6px 8px; }
+.placeholder-picker button { background: #fff; border: 1px solid #c9dcd7; border-radius: 6px; color: #24695c; cursor: pointer; font: 700 12px DM Mono; padding: 6px 8px; }
 .campaign-contact-selector { background: #f5f8f7; border: 1px solid #dce5e2; border-radius: 11px; padding: 12px; }
 .campaign-contact-selector .workspace-title { border: 0; min-height: auto; padding: 0 0 9px; }
 .campaign-contact-selector>label { align-items: center; background: #fff; border: 1px solid #d7e2df; border-radius: 8px; display: flex; gap: 7px; padding: 8px 10px; }
@@ -196,20 +196,20 @@
 #campaignContactOptions label { align-items: center; background: #fff; border: 1px solid #e0e8e6; border-radius: 8px; cursor: pointer; display: grid; gap: 8px; grid-template-columns: auto 1fr; padding: 9px; }
 #campaignContactOptions input { height: 16px; min-height: 0; width: 16px; }
 #campaignContactOptions b, #campaignContactOptions small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#campaignContactOptions b { color: #34514a; font-size: 10px; }
-#campaignContactOptions small { color: #82908c; font-size: 8px; margin-top: 2px; }
+#campaignContactOptions b { color: #34514a; font-size: 12px; }
+#campaignContactOptions small { color: #82908c; font-size: 12px; margin-top: 2px; }
 .campaign-recipient-preview { align-self: end; background: #eaf4f1; border-radius: 10px; min-height: 72px; padding: 12px 14px; width: 100%; }
 .campaign-recipient-preview small, .campaign-recipient-preview strong, .campaign-recipient-preview span { display: block; }
-.campaign-recipient-preview small { color: #71827d; font-size: 9px; }
+.campaign-recipient-preview small { color: #71827d; font-size: 12px; }
 .campaign-recipient-preview strong { color: #176c5d; font-size: 16px; margin-top: 4px; }
-.campaign-recipient-preview span { color: #84918d; font-size: 8px; margin-top: 3px; }
+.campaign-recipient-preview span { color: #84918d; font-size: 12px; margin-top: 3px; }
 .split-actions { justify-content: space-between; }
 .split-actions>div { display: flex; gap: 8px; }
 .communication-switch { align-items: center!important; background: #edf5f3; border-radius: 11px; flex-direction: row!important; padding: 13px 15px; }
 .communication-switch input { height: 19px; min-height: 0; width: 19px; }
 .communication-switch b, .communication-switch small { display: block; }
 .communication-switch b { color: #2f5048; font-size: 12px; }
-.communication-switch small { color: #74857f; font-size: 9px; margin-top: 3px; }
+.communication-switch small { color: #74857f; font-size: 12px; margin-top: 3px; }
 
 @media(max-width:1100px){
   .template-workspace { grid-template-columns: 1fr; }

@@ -10,8 +10,8 @@
   padding: 13px 18px;
   text-align: center;
 }
-.program-paused strong { font-size: 10px; }
-.program-paused span { color: #747a74; font-size: 9px; }
+.program-paused strong { font-size: 12px; }
+.program-paused span { color: #747a74; font-size: 12px; }
 .program-paused.hidden { display: none; }
 .week-card.available { cursor: pointer; transition: border-color .2s, transform .2s; }
 .week-card.available:hover { border-color: #45ad6b; transform: translateY(-2px); }

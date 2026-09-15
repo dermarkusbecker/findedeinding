@@ -88,7 +88,7 @@
   color: #d27b43;
 }
 .builder-week-tabs span {
-  font-size: 10px;
+  font-size: 12px;
   opacity: 0.7;
 }
 .builder-fields {
@@ -116,13 +116,13 @@
 }
 .builder-task summary > span {
   color: #cc814c;
-  font-size: 11px;
+  font-size: 12px;
 }
 .builder-task summary strong {
   flex: 1;
 }
 .builder-task summary i {
-  font-size: 10px;
+  font-size: 12px;
   color: #507884;
   font-style: normal;
 }

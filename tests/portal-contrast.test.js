@@ -36,9 +36,9 @@ test('Kontrastaudit deckt alle dunklen Bereiche des Kundenportals ab', () => {
 });
 
 test('Hinweise in dunklen Karten verwenden keine Kleinstschrift mehr', () => {
-  assert.match(css, /\.gate-header small \{[^}]*font-size: 11px/s);
+  assert.match(css, /\.gate-header small \{[^}]*font-size: 12px/s);
   assert.match(css, /#activeWeek \.clara-step-control span \{[^}]*font-size: 12px/s);
-  assert.match(css, /\.clarity-dialog-hint \{[^}]*font-size: 11px/s);
+  assert.match(css, /\.clarity-dialog-hint \{[^}]*font-size: 12px/s);
 });
 
 test('Portal-Kopf besitzt eine lesbare Clara-Hierarchie und große Aktionen', () => {
