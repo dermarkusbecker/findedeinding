@@ -56,3 +56,10 @@ body .sidebar nav button:not(.active):hover { color:#163d51!important; }
 .settings-card p,.settings-card label,.settings-row,.communication-view p { font-size:14px; line-height:1.65; }
 main :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),select,textarea),dialog :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),select,textarea) { font-size:16px; color:#1c4053; background-color:#fff; border-color:#9db8c8; }
 main label,dialog label { line-height:1.5; }
+[data-customer-page="documents"] { display:grid; gap:24px; }
+[data-customer-page="documents"][hidden] { display:none; }
+[data-customer-page="documents"] .lead-card-heading>div { display:block; }
+[data-customer-page="documents"] .lead-card-heading h2 { margin:8px 0; font-size:24px; }
+[data-customer-page="documents"] .lead-card-heading p:not(.eyebrow) { font-size:14px; line-height:1.7; }
+[data-customer-page="documents"] .customer-document-list strong { font-size:16px; }
+[data-customer-page="documents"] .customer-document-list small { font-size:13px; line-height:1.6; }
