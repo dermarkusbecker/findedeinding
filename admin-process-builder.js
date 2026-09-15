@@ -19,8 +19,8 @@ const esc = (value = "") =>
         c
       ],
   );
-const api = async (options = {}) => {
-  const r = await fetch("/api/clarity?action=builder", {
+const api = async (options = {}, draftId = null) => {
+  const r = await fetch("/api/clarity?action=builder"+(draftId?`&draftId=${encodeURIComponent(draftId)}`:""), {
     cache: "no-store",
     ...options,
     headers: { "Content-Type": "application/json" },
@@ -110,7 +110,7 @@ function setMethod(step, kind) {
   if (kind === "scale") Object.assign(step, { min: 1, max: 10 });
   if (kind === "confirmation") step.expected = "Bestätigen";
 }
-async function save(publish = false) {
+async function save(publish = false, name = "") {
   const errors = validateProgramDefinition(definition);
   if (errors.length) {
     message(errors.join("\n"), true);
@@ -123,6 +123,7 @@ async function save(publish = false) {
       method: "PATCH",
       body: JSON.stringify({
         definition,
+        name,
         revision,
         action: publish ? "publish" : "save",
       }),
@@ -135,8 +136,10 @@ async function save(publish = false) {
         ? `Version ${result.version} veröffentlicht. Neue Kunden erhalten diesen Prozess.`
         : "Entwurf gespeichert.",
     );
+    return true;
   } catch (error) {
     message(error.message, true);
+    return false;
   } finally {
     busy = false;
     root.inert = false;
@@ -225,18 +228,13 @@ root?.addEventListener("click", async (event) => {
     return;
   }
   const action = el.dataset.builderAction;
-  if (action === "reset") {
-    definition = structuredClone(savedDefinition);
-    dirty = false;
-    render();
-    return;
-  }
+  if (action === "reset") { await showDraftLibrary(); return; }
   if (action === "preview") {
     preview();
     return;
   }
   if (action === "save") {
-    await save();
+    document.querySelector("#builderDraftNameForm").reset();document.querySelector("#builderDraftSaveStatus").textContent="";document.querySelector("#builderDraftNameDialog").showModal();
     return;
   }
   if (action === "publish") {
@@ -320,3 +318,8 @@ root?.addEventListener('pointerup',event=>{if(!taskDrag||event.pointerId!==taskD
 root?.addEventListener('pointercancel',clearTaskDrag);
 root?.addEventListener('click',event=>{if(event.target.closest('[data-drag-handle]')){event.preventDefault();event.stopPropagation();}},true);
 root?.addEventListener('keydown',event=>{if(event.key==='Escape'&&taskDrag){event.preventDefault();clearTaskDrag();return;}const handle=event.target.closest('[data-drag-handle]');if(!handle||!['ArrowUp','ArrowDown'].includes(event.key)||busy)return;event.preventDefault();const from=Number(handle.dataset.dragHandle),to=from+(event.key==='ArrowUp'?-1:1);if(to>=0&&to<definition.weeks[selectedWeek].steps.length)commitTaskMove(selectedWeek,from,selectedWeek,to);});
+
+async function showDraftLibrary(){const dialog=document.querySelector('#builderDraftLibrary'),list=dialog.querySelector('[data-draft-list]');list.textContent='Entwürfe werden geladen …';dialog.showModal();try{const data=await api();list.innerHTML=data.snapshots?.length?data.snapshots.map(item=>`<button type="button" class="builder-saved-draft" data-load-draft="${esc(item.id)}"><strong>${esc(item.name)}</strong><small>${esc(new Date(item.created_at).toLocaleString('de-DE'))} · Revision ${item.revision}</small><span>Laden →</span></button>`).join(''):'Noch keine benannten Entwürfe gespeichert.';list.querySelectorAll('[data-load-draft]').forEach(button=>button.onclick=async()=>{if(busy)return;busy=true;list.inert=true;try{const chosen=await api({},button.dataset.loadDraft);definition=structuredClone(chosen.definition);revision=chosen.revision;selectedWeek=0;dirty=true;render();message(`„${chosen.selectedName}“ geladen · Änderungen als neuen Entwurf speichern.`);dialog.close();}catch(error){dialog.querySelector('[data-draft-load-status]').textContent=error.message;}finally{busy=false;list.inert=false;}});}catch(error){list.textContent=error.message;}}
+document.querySelector('#builderDraftNameForm')?.addEventListener('submit',async event=>{event.preventDefault();if(busy)return;const form=event.currentTarget,button=form.querySelector('[type=submit]');button.disabled=true;const success=await save(false,form.elements.draftName.value);button.disabled=false;if(success)document.querySelector('#builderDraftNameDialog').close();else document.querySelector('#builderDraftSaveStatus').textContent=root.querySelector('[data-builder-status]').textContent;});
+document.querySelectorAll('[data-close-draft-dialog]').forEach(button=>button.onclick=()=>{if(!busy)button.closest('dialog').close();});
+for(const id of ['builderDraftLibrary','builderDraftNameDialog'])document.querySelector('#'+id)?.addEventListener('cancel',event=>{if(busy)event.preventDefault();});
