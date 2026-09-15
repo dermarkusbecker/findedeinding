@@ -526,6 +526,8 @@
               <div>
                 <b>Termine</b><small>Verfügbarkeit & Regeln</small>
               </div></button
+            ><button data-settings-tab="intake">
+              <span>≡</span><div><b>Intake Verfahren</b><small>Erstkontakt &amp; Frageablauf</small></div></button
             ><button data-settings-tab="integrations">
               <span>↔</span>
               <div>
@@ -658,10 +660,16 @@
                   </button>
                 </div>
               </section>
+            </section>
+            <section class="settings-panel" data-settings-panel="intake">
+              <div class="card settings-hero">
+                <span class="settings-icon sage">≡</span>
+                <div><p class="eyebrow">Erstkontakt &amp; Vorbereitung</p><h2>Intake Verfahren</h2><p>Kontaktdaten, Anliegen und Terminwahl in einem eigenen Arbeitsbereich.</p></div>
+              </div>
               <section class="card settings-card booking-landing-settings">
                 <div class="settings-card-head">
                   <div>
-                    <h3>Landingpage-Buchungsstrecke</h3>
+                    <h3>Aktueller Intake-Ablauf</h3>
                     <p>So gelangen neue Interessenten vom ersten Klick bis zum fest vereinbarten Klarheitsgespräch.</p>
                   </div>
                   <span class="settings-state" id="bookingLandingStatus">Wird geprüft …</span>
@@ -677,8 +685,8 @@
                   <span>✓ Nur freigegebene Zeitfenster</span><span>✓ Belegte Zeiten automatisch gesperrt</span><span>✓ Meet-Einladung per E-Mail</span><span>✓ Direkt im Admin-Dashboard</span>
                 </div>
                 <div class="settings-action-row">
-                  <div><b>Buchungsablauf aus Kundensicht prüfen</b><small>Öffnet die produktive Landingpage direkt beim ersten Schritt.</small></div>
-                  <a class="primary booking-preview-link" href="/#start" target="_blank" rel="noopener">Landingpage öffnen ↗</a>
+                  <div><b>Intake aus Kundensicht prüfen</b><small>Öffnet die produktive Landingpage direkt beim ersten Schritt.</small></div>
+                  <a class="primary booking-preview-link" href="/#start" target="_blank" rel="noopener">Intake öffnen ↗</a>
                 </div>
               </section>
             </section>
@@ -818,7 +826,7 @@
                   <label class="wide communication-switch"><input name="useSystemLogo" type="checkbox" checked /><span><b>Globales Logo verwenden</b><small>Logoänderungen gelten dadurch automatisch für diese Signatur.</small></span></label>
                   <label class="communication-switch"><input name="active" type="checkbox" checked /><span><b>Signatur aktiv</b></span></label>
                   <label class="communication-switch"><input name="isDefault" type="checkbox" checked /><span><b>Als Standard verwenden</b></span></label>
-                  <button class="primary wide" type="submit">Signatur speichern</button>
+                  <div class="signature-form-actions wide"><span>Absender und Darstellung deiner Nachrichten</span><button class="primary" type="submit">Signatur speichern</button></div>
                 </form>
               </section>
               <section class="card signature-settings-card">
@@ -826,7 +834,7 @@
                 <form id="communicationBrandingForm" class="communication-form-grid">
                   <label>Markenname<input name="brandName" value="Finde dein Ding" required /></label>
                   <label>Logo-Pfad oder URL<input name="logoUrl" value="/assets/fdd-logo.svg" required /></label>
-                  <button class="primary wide" type="submit">Marke global speichern</button>
+                  <div class="signature-form-actions wide"><span>Gilt für alle Signaturen mit globalem Logo</span><button class="primary" type="submit">Marke speichern</button></div>
                 </form>
               </section>
             </section>
@@ -1276,7 +1284,7 @@
           </select></label
         >
         <fieldset class="permission-options">
-          <legend>Individuelle Zugänge</legend>
+          <legend>Individuelle Zugänge</legend><div class="permission-options-grid">
           <label
             ><input
               type="checkbox"
@@ -1291,7 +1299,7 @@
             ><input type="checkbox" name="permissions" value="community" />
             Community</label
           >
-        </fieldset>
+        </div></fieldset>
         <p>
           Mit Startpasswort ist der Zugang sofort nutzbar. Ohne Startpasswort
           erhält der Benutzer eine sichere E-Mail zur eigenen Passwortvergabe.
@@ -1340,7 +1348,7 @@
           >
         </div>
         <fieldset class="permission-options">
-          <legend>Individuelle Zugänge</legend>
+          <legend>Individuelle Zugänge</legend><div class="permission-options-grid">
           <label
             ><input
               type="checkbox"
@@ -1358,7 +1366,7 @@
             ><input type="checkbox" name="permissions" value="community" />
             Community</label
           >
-        </fieldset>
+        </div></fieldset>
         <div class="user-security">
           <div>
             <strong>Passwort vergessen?</strong

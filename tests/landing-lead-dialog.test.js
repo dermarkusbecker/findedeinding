@@ -51,14 +51,14 @@ test('Landingpage führt Interessenten über drei Seiten bis zur echten Terminbu
   assert.match(api, /status: 'scheduled'/);
 });
 
-test('Termin-Einstellungen erklären und verlinken die Landingpage-Buchungsstrecke', async () => {
+test('Intake-Einstellungen erklären und verlinken die Buchungsstrecke', async () => {
   const [html, script, styles, api] = await Promise.all([file('admin.html'), file('admin.js'), file('admin-crm-refresh.css'), file('api/leads.js')]);
-  assert.match(html, /Landingpage-Buchungsstrecke/);
+  assert.match(html, /data-settings-panel="intake"/);
   assert.match(html, /id="bookingLandingStatus"/);
   assert.match(html, /id="bookingAvailabilityPreview"/);
   assert.match(html, /href="\/#start"/);
   assert.match(script, /Buchung aktiv/);
-  assert.match(script, /name==='appointments'\)loadBookingSettings/);
+  assert.match(script, /name==='appointments'\|\|name==='intake'\)loadBookingSettings/);
   assert.match(script, /renderBookingSettings\(data\.settings\);bookingSettingsDialog\.close/);
   assert.match(styles, /\.booking-landing-flow/);
   assert.match(styles, /\.booking-availability-preview/);

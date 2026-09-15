@@ -121,3 +121,29 @@ main label,dialog label { line-height:1.5; }
 .booking-category-settings { padding:22px; background:#f3f8fb; border:1px solid #bed4e2; border-radius:14px; margin:24px 0; }.booking-category-settings h3,#bookingSettingsForm>h3 { color:#1c475d; font-size:20px; }.booking-category-settings p { color:#4d6b7e; font-size:14px; line-height:1.7; }.booking-category-row { display:grid; grid-template-columns:minmax(0,1fr) 150px 90px; gap:14px; align-items:end; padding:16px 0; border-top:1px solid #d1e0e9; }.booking-category-row label { display:grid;gap:8px; font-size:14px; }.booking-category-row .category-active { display:flex;align-items:center;min-height:46px; }.booking-category-row input[type=checkbox] { width:20px;height:20px; }.availability-toolbar { flex-wrap:wrap; }.availability-toolbar>label { min-width:160px;flex:1; }@media(max-width:600px){.booking-category-row {grid-template-columns:1fr}.booking-category-settings{padding:16px}}
 #bookingSettingsForm .booking-duration-options,#bookingSettingsForm label:has(>select[name=defaultDurationMinutes]) { display:none; }
 #bookingDurationSummary { white-space:normal; line-height:1.6; overflow-wrap:anywhere; }
+
+/* Signature workspace: consistent, accessible controls and quiet action rows. */
+[data-settings-panel="signatures"] .signature-settings-card { padding:clamp(20px,3vw,36px); border:1px solid #d5e3e9; border-radius:22px; box-shadow:0 8px 28px #163a4a08; }
+[data-settings-panel="signatures"] .settings-card-head { padding-bottom:22px; border-bottom:1px solid #e2ebef; gap:20px; }
+[data-settings-panel="signatures"] .settings-card-head h3 { font-size:22px; line-height:1.35; color:#153b4c; }
+[data-settings-panel="signatures"] .settings-card-head p { font-size:15px!important; color:#536c78; line-height:1.6; }
+[data-settings-panel="signatures"] .communication-form-grid { gap:22px 24px; grid-template-columns:repeat(2,minmax(0,1fr)); margin-top:26px; }
+[data-settings-panel="signatures"] .communication-form-grid>label { font-size:14px!important; font-weight:600; color:#354f5c; gap:9px; min-width:0; }
+[data-settings-panel="signatures"] input:not([type="checkbox"]):not([type="hidden"]) { appearance:none; box-sizing:border-box; width:100%; min-width:0; min-height:52px; padding:13px 16px; border:1px solid #b9cdd8; border-radius:12px; background:#f9fbfc; color:#173c4f; font-family:inherit; line-height:1.5; font-size:16px; font-weight:500; box-shadow:0 1px 2px #173c4f04; transition:border-color .16s,box-shadow .16s; }
+[data-settings-panel="signatures"] input:not([type="checkbox"]):focus { outline:3px solid #42a6bd26; outline-offset:2px; border-color:#287b96; background:white; }
+[data-settings-panel="signatures"] .communication-form-grid .communication-switch { flex-direction:row; align-items:center; gap:12px; padding:16px 18px; border:1px solid #d2e6e1; border-radius:12px; background:#f2f8f6; min-height:60px; }
+[data-settings-panel="signatures"] .communication-switch input { width:19px; height:19px; flex:0 0 19px; accent-color:#128574; }
+[data-settings-panel="signatures"] .communication-switch small { display:block; font-size:13px!important; font-weight:400; line-height:1.5; color:#516d67; margin-top:4px; }
+.signature-form-actions { display:flex; align-items:center; justify-content:space-between; gap:20px; border-top:1px solid #e2ebef; padding-top:22px; margin-top:4px; }
+.signature-form-actions>span { font-size:14px; color:#536c78; }
+.signature-form-actions .primary { width:auto; min-height:48px; padding:12px 24px; flex-shrink:0; }
+@media(max-width:700px) { [data-settings-panel="signatures"] .communication-form-grid { grid-template-columns:1fr; } .signature-form-actions { align-items:stretch; flex-direction:column; } [data-settings-panel="signatures"] .settings-card-head { flex-wrap:wrap; } }
+
+/* Keep fieldset legends out of grid track sizing (including Safari). */
+dialog .permission-options { display:block; min-inline-size:0; width:100%; box-sizing:border-box; padding:18px; border:1px solid #cddfe5; background:#f7fafb; }
+dialog .permission-options legend { display:block; float:none; width:auto; max-width:100%; height:auto; writing-mode:horizontal-tb; white-space:normal; word-break:normal; overflow-wrap:normal; letter-spacing:.03em; padding:0 8px; font-size:14px!important; line-height:1.5; color:#345464; }
+.permission-options-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+dialog .permission-options-grid label { display:flex; flex-direction:row; align-items:center; gap:10px; margin:0; padding:12px; min-width:0; border:1px solid #deeaee; border-radius:10px; background:white; font-size:14px!important; color:#244657; }
+dialog .permission-options-grid input { width:18px; height:18px; min-height:18px; flex:0 0 18px; margin:0; accent-color:#128574; }
+#userDialog select,#editUserDialog select { appearance:none; min-height:48px; width:100%; box-sizing:border-box; border:1px solid #b9cdd8; border-radius:12px; padding:12px 40px 12px 14px; background-color:#f9fbfc; color:#173c4f; font-family:inherit; font-size:16px; }
+@media(max-width:480px) { .permission-options-grid { grid-template-columns:1fr; } }
