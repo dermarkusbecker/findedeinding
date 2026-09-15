@@ -1,3 +1,4 @@
+import {categoryBookingSettings,normalizeAppointmentCategories} from '../lib/appointment-categories.js';
 import { handleCrmTasks } from '../lib/crm-tasks.js';
 import { dashboardClarity } from '../lib/dashboard-clarity.js';
 import { checkIntegrationHealth, applyIntegrationHealth } from '../lib/integration-health.js';
@@ -456,19 +457,20 @@ async function saveServiceTariff(service, body = {}) {
   return result[0];
 }
 
-async function scheduledLeadIntervals(service, start, end) {
+async function scheduledLeadIntervals(service, start, end, excludeId=null) {
   const query = new URLSearchParams({
     appointment_start: `lt.${end}`,
     appointment_end: `gt.${start}`,
     status: 'neq.lost',
     select: 'appointment_start,appointment_end',
   });
+  if(excludeId)query.set('id',`neq.${excludeId}`);
   const rows = await readJson(await fetch(`${service.url}/rest/v1/leads?${query}`, { headers: headers(service.key) }), 'Bereits vereinbarte Termine konnten nicht geprüft werden.');
   return rows.map((lead) => ({ start: lead.appointment_start, end: lead.appointment_end })).filter((item) => item.start && item.end);
 }
 
 async function availableBookingSlots(service, query = {}) {
-  const settings = await bookingSettings(service);
+  const settings = categoryBookingSettings(await bookingSettings(service),query.categoryId);
   const duration = Number(query.duration || settings.defaultDurationMinutes);
   const candidates = generateAvailableSlots({ settings, from: clean(query.from, 10), to: clean(query.to, 10), duration, now: new Date() });
   if (!candidates.length) return { settings, slots: [], calendarConnected: false };
@@ -482,6 +484,7 @@ async function availableBookingSlots(service, query = {}) {
 function bookingSettingsPayload(settings) {
   return {
     id: 'default',
+    categories:normalizeAppointmentCategories(settings.categories),
     timezone: settings.timezone,
     weekly_availability: settings.weeklyAvailability,
     slot_interval_minutes: settings.slotIntervalMinutes,
@@ -505,7 +508,8 @@ async function publicLead(request, response, service) {
   const publicPhone = clean(request.body?.phone, 40) || null;
   const payload = { name, email, phone: publicPhone, mobile_phone: publicPhone, whatsapp_phone: publicPhone, whatsapp_same_as_mobile: true, challenge: clean(request.body?.challenge, 500) || null, source: clean(request.body?.source, 80) || 'website', utm_source: clean(request.body?.utm_source, 100) || null, utm_medium: clean(request.body?.utm_medium, 100) || null, utm_campaign: clean(request.body?.utm_campaign, 150) || null, consent_at: request.body?.consent ? new Date().toISOString() : null };
   if (!payload.consent_at) return response.status(400).json({ error: 'Bitte bestätige die Datenschutzhinweise.' });
-  const settings = await bookingSettings(service);
+  const settings = categoryBookingSettings(await bookingSettings(service));
+  payload.appointment_title=settings.category.name;payload.appointment_category_id=settings.category.id;
   const startDate = new Date(request.body?.appointmentStart), duration = settings.defaultDurationMinutes;
   if (Number.isNaN(startDate.getTime())) return response.status(400).json({ error: 'Bitte wähle einen freien Termin für dein Klarheitsgespräch.' });
   if (!isWithinBookingAvailability(startDate, duration, settings, new Date())) return response.status(409).json({ error: 'Dieser Termin ist nicht mehr verfügbar. Bitte wähle einen anderen freien Termin.' });
@@ -548,7 +552,7 @@ export default async function handler(request, response) {
   if (action === 'public-contract-sign') return handlePublicContractSign(request, response);
   if (request.method === 'GET' && action === 'public-available-slots') {
     try {
-      const result = await availableBookingSlots(service, request.query || {});
+      const result = await availableBookingSlots(service, {from:request.query?.from,to:request.query?.to});
       return response.status(200).json({ slots: result.slots, timezone: result.settings.timezone, durationMinutes: result.settings.defaultDurationMinutes, bookingHorizonDays: result.settings.bookingHorizonDays, calendarConnected: result.calendarConnected });
     } catch (error) {
       return response.status(error.status || 503).json({ error: error.message });
@@ -658,7 +662,8 @@ export default async function handler(request, response) {
       return response.status(200).json({ record: await saveServiceTariff(service, request.body), message: 'Tarif wurde gespeichert und steht im Vertragsabschluss bereit.' });
     }
     if (request.method === 'PATCH' && action === 'booking-settings') {
-      const settings = normalizeBookingSettings(request.body || {});
+      const incoming=request.body||{},categories=normalizeAppointmentCategories(incoming.categories),activeCategories=categories.filter(c=>c.active);
+      const settings = normalizeBookingSettings({...incoming,categories,offeredDurations:[...new Set(activeCategories.map(c=>c.duration))],defaultDurationMinutes:activeCategories[0].duration});
       const savedRows = await readJson(await fetch(`${service.url}/rest/v1/booking_settings?on_conflict=id`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify(bookingSettingsPayload(settings)) }), 'Termin-Einstellungen konnten nicht gespeichert werden.');
       if (!savedRows[0]) throw Object.assign(new Error('Die gespeicherte Termin-Verfügbarkeit konnte nicht bestätigt werden.'), { status: 500 });
       return response.status(200).json({ settings: normalizeBookingSettings(savedRows[0]) });
@@ -815,15 +820,18 @@ export default async function handler(request, response) {
       const startDate = new Date(request.body?.start), duration = Number(request.body?.duration || 45);
       if (Number.isNaN(startDate.getTime()) || ![30, 45, 60, 90].includes(duration)) return response.status(400).json({ error: 'Gültiger Termin und Dauer erforderlich.' });
       if (startDate.getTime() < Date.now() - 60000) return response.status(400).json({ error: 'Der Termin muss in der Zukunft liegen.' });
-      const settings = await bookingSettings(service);
+      const settings = categoryBookingSettings(await bookingSettings(service),request.body?.categoryId);
+      const appointmentTitle=clean(request.body?.appointmentTitle,160)||settings.category.name;
+      if(duration!==settings.category.duration)return response.status(400).json({error:'Die Dauer passt nicht zur Terminkategorie.'});
       if (!isWithinBookingAvailability(startDate, duration, settings)) return response.status(409).json({ error: 'Dieser Termin liegt außerhalb deiner freigegebenen Buchungszeiten.' });
       const endDate = new Date(startDate.getTime() + duration * 60000), accessToken = await optionalGoogleAccessToken(service);
+      if((await scheduledLeadIntervals(service,startDate.toISOString(),endDate.toISOString(),lead.id)).length)return response.status(409).json({error:'Dieser Zeitraum ist bereits durch einen anderen Termin belegt.'});
       const unchangedAppointment = lead.calendar_event_id && lead.appointment_start === startDate.toISOString() && lead.appointment_end === endDate.toISOString();
       if (accessToken && !unchangedAppointment) await assertCalendarAvailable(accessToken, startDate.toISOString(), endDate.toISOString());
-      const event = accessToken ? await saveCalendarEvent(accessToken, lead, startDate.toISOString(), endDate.toISOString(), { notifyAttendees: false }) : null;
+      const event = accessToken ? await saveCalendarEvent(accessToken, {...lead,appointment_title:appointmentTitle}, startDate.toISOString(), endDate.toISOString(), { notifyAttendees: false }) : null;
       const meetUrl = event?.hangoutLink || event?.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || lead.meet_url || null;
-      const updated = await patchLead(service, lead.id, { appointment_start: startDate.toISOString(), appointment_end: endDate.toISOString(), appointment_timezone: 'Europe/Berlin', calendar_event_id: event?.id || null, calendar_event_url: event?.htmlLink || null, meet_url: meetUrl, appointment_confirmation_prepared_at: null, status: lead.converted_user_profile_id ? 'customer' : 'scheduled' });
-      if (lead.converted_user_profile_id && event?.id) await readJson(await fetch(`${service.url}/rest/v1/customer_appointments?on_conflict=google_event_id`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify({ user_profile_id: lead.converted_user_profile_id, lead_id: lead.id, title: 'Kundengespräch', starts_at: startDate.toISOString(), ends_at: endDate.toISOString(), timezone: 'Europe/Berlin', google_event_id: event.id, google_event_url: event.htmlLink || null, meet_url: meetUrl, status: 'scheduled', source: 'google_calendar', updated_at: new Date().toISOString() }) }), 'Der Kundentermin konnte nicht synchronisiert werden.');
+      const updated = await patchLead(service, lead.id, { appointment_title:appointmentTitle,appointment_category_id:settings.category.id, appointment_start: startDate.toISOString(), appointment_end: endDate.toISOString(), appointment_timezone: 'Europe/Berlin', calendar_event_id: event?.id || null, calendar_event_url: event?.htmlLink || null, meet_url: meetUrl, appointment_confirmation_prepared_at: null, status: lead.converted_user_profile_id ? 'customer' : 'scheduled' });
+      if (lead.converted_user_profile_id && event?.id) await readJson(await fetch(`${service.url}/rest/v1/customer_appointments?on_conflict=google_event_id`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify({ user_profile_id: lead.converted_user_profile_id, lead_id: lead.id, title: appointmentTitle, starts_at: startDate.toISOString(), ends_at: endDate.toISOString(), timezone: 'Europe/Berlin', google_event_id: event.id, google_event_url: event.htmlLink || null, meet_url: meetUrl, status: 'scheduled', source: 'google_calendar', updated_at: new Date().toISOString() }) }), 'Der Kundentermin konnte nicht synchronisiert werden.');
       return response.status(200).json({ lead: updated, event: event ? { id: event.id, htmlLink: event.htmlLink, meetUrl } : null, calendarConnected: Boolean(accessToken) });
     }
     if (request.method === 'POST' && action === 'complete-sales-conversation') {
@@ -856,7 +864,7 @@ export default async function handler(request, response) {
       const lead = await leadById(service, request.body?.id);
       if (lead.calendar_event_id) await deleteCalendarEvent(await googleAccessToken(service), lead.calendar_event_id);
       if (lead.converted_user_profile_id && lead.calendar_event_id) await fetch(`${service.url}/rest/v1/customer_appointments?google_event_id=eq.${encodeURIComponent(lead.calendar_event_id)}`, { method: 'PATCH', headers: headers(service.key), body: JSON.stringify({ status: 'cancelled', updated_at: new Date().toISOString() }) });
-      const updated = await patchLead(service, lead.id, { appointment_start: null, appointment_end: null, calendar_event_id: null, calendar_event_url: null, meet_url: null, status: lead.status === 'customer' ? 'customer' : 'contacted' });
+      const updated = await patchLead(service, lead.id, { appointment_title:appointmentTitle,appointment_category_id:settings.category.id, appointment_start: null, appointment_end: null, calendar_event_id: null, calendar_event_url: null, meet_url: null, status: lead.status === 'customer' ? 'customer' : 'contacted' });
       return response.status(200).json({ lead: updated });
     }
     if (request.method === 'POST' && action === 'convert') {

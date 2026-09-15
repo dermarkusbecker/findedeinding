@@ -998,7 +998,7 @@
           <input name="appointmentStart" type="hidden" />
           <div class="availability-toolbar">
             <label
-              >Freie Termine ab<input id="slotRangeStart" type="date" /></label
+              >Terminkategorie<select id="leadAppointmentCategory"></select></label><label>Terminname<input name="appointmentTitle" maxlength="160" placeholder="z. B. Halbzeitgespräch"></label><label>Freie Termine ab<input id="slotRangeStart" type="date" /></label
             ><label
               >Angebotene Dauer<select name="appointmentDuration"></select></label
             ><button type="button" class="secondary" id="refreshSlots">
@@ -1183,7 +1183,7 @@
         <div class="dialog-head">
           <div>
             <p class="eyebrow">Admin-Einstellungen</p>
-            <h2>Verfügbarkeit für Erstgespräche</h2>
+            <h2>Termine &amp; Verfügbarkeit</h2>
             <small
               >Nur Zeiten in diesen Fenstern werden beim Interessenten angezeigt und
               serverseitig akzeptiert.</small
@@ -1195,8 +1195,8 @@
           Google-Kalendertermine innerhalb deiner Zeitfenster werden automatisch
           als belegt herausgefiltert.
         </div>
-        <div class="weekly-availability" id="weeklyAvailabilityRows"></div>
-        <div class="booking-rule-grid">
+        <section class="booking-category-settings"><h3>1 · Terminkategorien</h3><p>Namen und Dauer festlegen. Die erste aktive Kategorie wird für Website-Buchungen verwendet. Alle Kategorien nutzen die gemeinsamen Wochenzeiten.</p><div id="bookingCategoryRows"></div><button class="secondary" id="addBookingCategory" type="button">+ Kategorie hinzufügen</button></section><h3>2 · Gemeinsame Wochenzeiten</h3><div class="weekly-availability" id="weeklyAvailabilityRows"></div>
+        <h3>3 · Vorlauf &amp; Buchungsregeln</h3><div class="booking-rule-grid">
           <fieldset class="booking-duration-options">
             <legend>Angebotene Termindauern</legend>
             <p>Nur aktivierte Dauern stehen im Verkaufsgespräch und auf der Buchungsstrecke zur Auswahl.</p>
