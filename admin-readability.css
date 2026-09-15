@@ -163,3 +163,9 @@ dialog .permission-options-grid input { width:18px; height:18px; min-height:18px
 #customerSummaryReflections button strong { font-size:16px; line-height:1.45; }
 #customerSummaryReflections button:hover { border-color:#368d9c; background:#e9f5f5; }
 @media(max-width:760px){.customer-dashboard-summary{grid-template-columns:1fr;}}
+
+button.customer-week-item { font-family:inherit; text-align:left; cursor:pointer; width:100%; }
+button.customer-week-item:hover { box-shadow:0 0 0 2px #77b7c5; }
+button.customer-week-item:focus-visible { outline:3px solid #288299; outline-offset:3px; }
+#savedCustomerWeekDialog .customer-process-answers { grid-template-columns:1fr; gap:14px; }
+#savedCustomerWeekDialog .customer-process-answers p { font-size:16px; line-height:1.65; color:#315363; }
