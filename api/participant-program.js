@@ -254,6 +254,27 @@ export default async function handler(request, response) {
       return response.status(200).send(pdf);
     }
     const result = await getParticipantProgramAccess(session.participantId);
+    if (request.query?.feature === 'login-clarity') {
+      const headers = { apikey: result.service.key, Authorization: `Bearer ${result.service.key}`, 'Content-Type': 'application/json' };
+      const sessionKey = String(session.expires);
+      if (session.adminPreview || session.role === 'admin') return response.status(200).json({ required: false, history: [] });
+      if (request.method === 'GET') {
+        const r = await fetch(`${result.service.url}/rest/v1/login_clarity_checkins?user_profile_id=eq.${encodeURIComponent(session.participantId)}&order=created_at.desc&limit=100`, { headers });
+        const history = await r.json();
+        if (!r.ok) throw new Error('Klarheitsverlauf konnte nicht geladen werden.');
+        return response.status(200).json({ required: !history.some(item => item.session_key === sessionKey), history });
+      }
+      if (request.method === 'POST') {
+        const score = request.body?.score;
+        if (!Number.isInteger(score) || score < 1 || score > 10) return response.status(400).json({ error: 'Bitte wähle einen Wert von 1 bis 10.' });
+        const r = await fetch(`${result.service.url}/rest/v1/rpc/save_login_clarity`, { method: 'POST', headers, body: JSON.stringify({p_user:session.participantId,p_session:sessionKey,p_score:score,p_note:String(request.body?.note || '').slice(0,3000)}) });
+        const saved = await r.json();
+        if (!r.ok) return response.status(400).json({ error: saved.message || 'Speichern fehlgeschlagen.' });
+        return response.status(200).json({ saved });
+      }
+      return response.status(405).json({error:'Methode nicht erlaubt.'});
+    }
+
     if (request.method === 'POST' && request.query?.feature === 'privacy-preview') {
       if (isOnboardingComplete(result.progress) || result.progress.privacy_consent_at) return response.status(409).json({ error: 'Die Datenschutzeinwilligung ist bereits bestätigt und schreibgeschützt.' });
       const normalized = normalizePrivacyConsent(request.body?.consent, result.profile);

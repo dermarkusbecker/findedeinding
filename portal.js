@@ -1,3 +1,4 @@
+import { openLoginClarity } from './portal-login-clarity.js';
 import { buildDemoWeekPreview } from './lib/demo-week-preview.js';
 import { buildDocumentLibrary, renderDocumentLibrary, renderInsightDocuments } from './lib/document-library.js';
 import { journeyStepStatuses, weekOnePrompt } from './lib/week-one.js';
@@ -2717,4 +2718,4 @@ $('#customerLogout').addEventListener('click', async () => {
   location.replace('/login');
 });
 
-loadProgram().catch((error) => { if (error.status === 401) location.replace('/kunden-login'); else toast(error.message); });
+loadProgram().then(() => openLoginClarity()).catch((error) => { if (error.status === 401) location.replace('/kunden-login'); else toast(error.message); });
