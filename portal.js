@@ -1,3 +1,4 @@
+import { curriculumWeekProgress } from './lib/curriculum-week-progress.js';
 import { startVoiceCapture } from './portal-speech.js';
 import { mountCurriculum, openCurriculumArtifact, openCurriculumWeek } from './portal-curriculum.js';
 import { openLoginClarity } from './portal-login-clarity.js';
@@ -1567,7 +1568,9 @@ function renderProgramDashboard() {
     const className = state.completed ? 'completed' : isCurrent && state.accessible ? 'current' : state.accessible ? 'available' : 'locked';
     const status = state.completed ? 'Abgeschlossen' : isCurrent && state.accessible ? 'Aktuell' : state.accessible ? 'Verfügbar' : `Ab ${formatProgramDate(state.unlocksAt)}`;
     const icon = state.completed ? '✓' : isCurrent && state.accessible ? '●' : state.accessible ? '→' : '○';
-    return `<button type="button" class="dashboard-week-tile ${className}" data-preview-week="${state.week}"><span>${icon}</span><small>Woche ${state.week}</small><b>${escapeHtml(summary?.title || `Woche ${state.week}`)}</b><i>${escapeHtml(status)}</i></button>`;
+    const percent = curriculumWeekProgress(program.processVersion?.definition, program.curriculum, state.week, state.completed);
+    const progress = percent ? `<div class="week-progress"><strong>${percent} %</strong><div role="progressbar" aria-label="Fortschritt Woche ${state.week}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}" class="week-progress-track"><div style="width:${percent}%"></div></div></div>` : '';
+    return `<button type="button" class="dashboard-week-tile ${className}" data-preview-week="${state.week}"><span>${icon}</span><small>Woche ${state.week}</small><b>${escapeHtml(summary?.title || `Woche ${state.week}`)}</b><i>${escapeHtml(status)}</i>${progress}</button>`;
   }).join('');
   $$('#dashboardWeekGrid [data-preview-week]').forEach((button) => button.addEventListener('click', () => openWeekPreview(Number(button.dataset.previewWeek))));
   renderDashboardClarityChart();
@@ -2643,5 +2646,11 @@ loadProgram().then(() => openLoginClarity()).catch((error) => { if (error.status
 window.addEventListener("fdd:clarity-saved",()=>loadProgram().catch(error=>toast(error.message)));
 
 window.addEventListener('curriculum:initial-clarity',()=>openClarityCheckin(1));
-window.addEventListener('curriculum:saved',()=>loadProgram());
+window.addEventListener('curriculum:saved',async event=>{
+ if(event.detail?.finalized)todayMode='dashboard';
+ await loadProgram();
+ if(event.detail?.finalized){showView('today');window.scrollTo({top:0,behavior:'smooth'});toast('Woche abgeschlossen. Dein Fortschritt ist gespeichert.');}
+});
 window.addEventListener('curriculum:week',event=>void openWeek(Number(event.detail.week)));
+
+$('#updateClarity').addEventListener('click',async event=>{const button=event.currentTarget;if(program?.adminPreview)return;button.disabled=true;try{await openLoginClarity({manual:true});}catch(error){toast(error.message);}finally{button.disabled=false;}});

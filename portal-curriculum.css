@@ -31,3 +31,33 @@
 .curriculum-typing-dots i:nth-child(3) { animation-delay: .32s; }
 @keyframes curriculum-typing-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-5px); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .curriculum-typing-dots i { animation: none; opacity: 1; } }
+
+/* Same frame width as the week heading, with conversation progress alongside. */
+#curriculumWorkspace { width: 100%; max-width: none; box-sizing: border-box; margin: 24px 0; }
+#curriculumWorkspace .clara-chat-header { justify-content: flex-start; text-align: left; }
+#curriculumWorkspace .clara-chat-header > div { min-width: 0; display: block; }
+#curriculumWorkspace .curriculum-columns { display: grid; grid-template-columns: 250px minmax(0,1fr); gap: 28px; align-items: start; }
+.curriculum-conversation { min-width: 0; }
+#curriculumWorkspace .curriculum-progress { border-right: 1px solid #72bdcc33; padding-right: 22px; }
+#curriculumWorkspace .curriculum-progress h3 { font-size: 18px; margin: 0 0 8px; }
+#curriculumWorkspace .curriculum-progress p { font-size: 14px; margin: 0 0 20px; }
+.curriculum-progress ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.curriculum-progress li { display: flex; gap: 12px; padding: 12px; border: 1px solid transparent; border-radius: 12px; color: #d5e7ef; font-size: 15px; line-height: 1.5; }
+.curriculum-progress li[aria-current] { border-color: #ffab75; background: #ffab7512; color: #fff; }
+.curriculum-progress-number { display: grid; place-items: center; align-self: flex-start; flex: 0 0 28px; height: 28px; border-radius: 50%; background: #214657; color: #dceff6; }
+.curriculum-progress li[aria-current] .curriculum-progress-number { background: #ffab75; color: #102d3d; }
+.curriculum-progress .is-complete .curriculum-progress-number { background: #20594f; color: #a0eed3; }
+.curriculum-progress small { display: block; margin-top: 4px; font-size: 12px; color: #b2d0de; }
+@media(max-width:900px) {
+ #curriculumWorkspace .curriculum-columns { grid-template-columns: minmax(0,1fr); gap: 20px; }
+ #curriculumWorkspace .curriculum-progress { border-right: 0; border-bottom: 1px solid #72bdcc33; padding: 0 0 16px; }
+ .curriculum-progress ol { display: flex; overflow-x: auto; padding-bottom: 8px; }
+ .curriculum-progress li { flex: 0 0 190px; }
+}
+
+.dashboard-week-tile .week-progress { width: 100%; margin-top: 12px; }
+.dashboard-week-tile .week-progress strong { display: block; font-size: 14px; line-height: 1.4; color: #edf8fc; margin-bottom: 7px; }
+.dashboard-week-tile .week-progress-track { height: 6px; overflow: hidden; border-radius: 20px; background: #ffffff30; }
+.dashboard-week-tile .week-progress-track > div { height: 100%; background: #ffbd88; border-radius: inherit; }
+.dashboard-week-tile.current .week-progress-track > div { background: #fff; }
+.dashboard-week-tile.completed .week-progress-track > div { background: #88efd0; }

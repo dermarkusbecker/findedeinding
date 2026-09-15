@@ -826,3 +826,27 @@ footer .footer-links .footer-instagram{display:inline-flex;align-items:center;ju
 @media(max-width:1000px){#leadDialog .lead-copy{display:none}#leadDialog .lead-dialog-shell{display:block;padding:60px 24px 24px}#leadDialog #leadForm{padding:26px}}
 @media(max-width:600px){#leadDialog{width:calc(100vw - 16px);max-height:calc(100dvh - 16px)}#leadDialog .lead-dialog-shell,#leadDialog.is-booking .lead-dialog-shell{padding:60px 10px 16px;min-height:0}#leadDialog #leadForm,#leadDialog.is-booking #leadForm{padding:20px 14px}#leadDialog .public-booking-success{padding:28px 0;min-height:400px}#leadDialog #publicBookingSuccessText{font-size:17px;line-height:1.7}#leadDialog .public-lead-progress small{font-size:9px}#leadDialog .form-head b{font-size:20px}}
 #leadDialog.is-booking .lead-dialog-shell{display:grid;grid-template-columns:minmax(0,1fr)}
+
+/* Clear, readable consent choices on desktop and mobile. */
+.cookie-consent .cookie-consent-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}
+.cookie-consent .cookie-consent-actions button{flex:1 1 180px;min-height:48px;white-space:normal;line-height:1.4;font-size:15px;padding:13px 18px}
+.cookie-consent .cookie-consent-copy p,.cookie-consent .cookie-category small{font-size:14px;line-height:1.6}
+.cookie-consent .cookie-button-primary{background:#ff9453;color:#102b3a;border:1px solid #ffbb8d;font-weight:750}
+.cookie-consent .cookie-button-secondary,.cookie-consent .cookie-settings-toggle{background:#163749;color:#edf8fc;border:1px solid #65899a}
+.cookie-consent[hidden],.cookie-consent-settings[hidden]{display:none!important}
+
+.markus-support{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:clamp(32px,6vw,88px);align-items:center;padding-top:90px;padding-bottom:90px}
+.markus-support-visual{position:relative;min-width:0;overflow:hidden;isolation:isolate;border:1px solid #56869870;border-radius:28px;background:radial-gradient(ellipse at 50% 40%,#225369,#092332 70%)}
+.markus-support-visual>img{display:block;position:relative;z-index:1;width:100%;height:680px;max-height:75vh;object-fit:cover;object-position:center top;animation:markus-support-float 7s ease-in-out infinite}
+.markus-support-orbit{position:absolute;inset:12% -15%;border:1px solid #ff945370;border-radius:50%;box-shadow:0 0 70px #ff945318;animation:markus-support-orbit 16s linear infinite}
+.markus-support-orbit:after{content:"";position:absolute;top:12%;left:12%;width:10px;height:10px;border-radius:50%;background:#ff9453;box-shadow:0 0 24px #ff9453}
+.markus-support-caption{position:absolute;z-index:2;bottom:0;left:0;right:0;padding:90px 28px 28px;background:linear-gradient(transparent,#061b2bf5 55%)}
+.markus-support-caption span,.markus-support-formats article>span{font-size:12px;letter-spacing:.13em;font-weight:700;color:#ffb47e}
+.markus-support-caption strong{display:block;font-size:30px;color:#fff;margin-top:10px}
+.markus-support-caption p{color:#d0e4ec;font-size:15px;line-height:1.6}
+.markus-support-copy{min-width:0}.markus-support-copy h2{font-size:clamp(36px,4.3vw,62px);line-height:1.1;margin:20px 0;color:#f1f8fc;letter-spacing:-.045em}.markus-support-copy h2 em{font-style:normal;color:#ff9453}
+.markus-support-lead{font-size:18px;line-height:1.8;color:#d1e4ed}
+.markus-support-formats{margin:28px 0;display:grid;gap:20px}.markus-support-formats article{padding-left:20px;border-left:2px solid #ff945370}.markus-support-formats h3{font-size:21px;color:#f1f8fc;margin:7px 0}.markus-support-formats p,.markus-support-connection{font-size:16px;line-height:1.75;color:#c1d8e3;margin:0}.markus-support-connection{padding-top:20px;border-top:1px solid #56869850;margin-bottom:24px}
+@keyframes markus-support-float{50%{transform:translateY(-6px)}}@keyframes markus-support-orbit{to{transform:rotate(360deg)}}
+@media(max-width:800px){.markus-support{grid-template-columns:1fr;padding-top:50px;padding-bottom:50px}.markus-support-visual{max-width:480px;width:100%;margin:auto}.markus-support-visual>img{height:480px;max-height:65vh}.markus-support-copy .button{max-width:100%;white-space:normal}}
+@media(prefers-reduced-motion:reduce){.markus-support-visual>img,.markus-support-orbit{animation:none}}

@@ -273,7 +273,11 @@ export default async function handler(request, response) {
       if (request.method === 'POST') {
         const score = request.body?.score;
         if (!Number.isInteger(score) || score < 1 || score > 10) return response.status(400).json({ error: 'Bitte wähle einen Wert von 1 bis 10.' });
-        const r = await fetch(`${result.service.url}/rest/v1/rpc/save_login_clarity`, { method: 'POST', headers, body: JSON.stringify({p_user:session.participantId,p_session:sessionKey,p_score:score,p_note:String(request.body?.note || '').slice(0,3000)}) });
+        const manual = request.body?.manual === true;
+        const requestId = String(request.body?.requestId || '');
+        if (manual && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) return response.status(400).json({error:'Ungültige Aktualisierung. Bitte erneut öffnen.'});
+        const measurementKey = manual ? `${sessionKey}:manual:${requestId}` : sessionKey;
+        const r = await fetch(`${result.service.url}/rest/v1/rpc/save_login_clarity`, { method: 'POST', headers, body: JSON.stringify({p_user:session.participantId,p_session:measurementKey,p_score:score,p_note:String(request.body?.note || '').slice(0,3000)}) });
         const saved = await r.json();
         if (!r.ok) return response.status(400).json({ error: saved.message || 'Speichern fehlgeschlagen.' });
         return response.status(200).json({ saved });

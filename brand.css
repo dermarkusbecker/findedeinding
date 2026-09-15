@@ -15,3 +15,12 @@ footer .logo .fdd-brand-full{width:300px}
 .fdd-mobile-login-brand{display:none}
 .sign-brand .fdd-brand-icon{display:block;object-fit:contain}
 @media(max-width:800px){.fdd-mobile-login-brand{display:block;margin-bottom:28px}.fdd-mobile-login-brand img{display:block;width:min(270px,100%);height:auto}}
+
+/* Keep the supplied artwork solid and crisp; animate its light, not its edges. */
+img.fdd-brand-full,img.fdd-brand-icon,.fdd-login-brand img,.fdd-mobile-login-brand img,.site-loader-logo img{opacity:1;filter:none;mix-blend-mode:normal}
+.site-loader-logo>span{width:clamp(190px,28vw,280px);padding:0;border-radius:0;animation:none;background:transparent;box-shadow:none}
+.site-loader-logo img.fdd-loader-fingerprint{width:100%;height:auto;max-height:42dvh;object-fit:contain}
+.site-loader-logo:before{width:230px;height:230px;background:radial-gradient(circle,#ff873e38,transparent 70%);filter:none}
+.site-loader-logo:after{content:"";position:absolute;pointer-events:none;width:min(300px,70vw);height:2px;top:10%;background:linear-gradient(90deg,transparent,#ffb175,transparent);box-shadow:0 0 14px #ff873e80;animation:brand-fingerprint-scan 2.8s ease-in-out infinite}
+@keyframes brand-fingerprint-scan{0%,100%{top:10%;opacity:0}20%,80%{opacity:.85}90%{top:90%;opacity:0}}
+@media(prefers-reduced-motion:reduce){.site-loader-logo:after{animation:none;display:none}}

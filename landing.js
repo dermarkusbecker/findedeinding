@@ -23,7 +23,7 @@ function applyCookieConsent(consent) {
   const preference = normalizeCookieConsent(consent) || { version: COOKIE_CONSENT_VERSION, necessary: true, analytics: false, marketing: false, decidedAt: null };
   document.documentElement.dataset.analyticsConsent = preference.analytics ? 'granted' : 'denied';
   document.documentElement.dataset.marketingConsent = preference.marketing ? 'granted' : 'denied';
-  if (typeof window.fbq === 'function') window.fbq('consent', preference.marketing ? 'grant' : 'revoke');
+  try { if (typeof window.fbq === 'function') window.fbq('consent', preference.marketing ? 'grant' : 'revoke'); } catch (error) { console.warn('Cookie-Auswahl gespeichert; Tracking-Schnittstelle nicht erreichbar.'); }
   window.dispatchEvent(new CustomEvent('fdd:cookie-consent', { detail: { ...preference } }));
 }
 
@@ -66,6 +66,8 @@ function hideCookieConsent() {
 function saveCookieConsent({ analytics = false, marketing = false } = {}) {
   activeCookieConsent = { version: COOKIE_CONSENT_VERSION, necessary: true, analytics: Boolean(analytics), marketing: Boolean(marketing), decidedAt: new Date().toISOString() };
   try { localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(activeCookieConsent)); } catch {}
+  if (cookieAnalytics) cookieAnalytics.checked = activeCookieConsent.analytics;
+  if (cookieMarketing) cookieMarketing.checked = activeCookieConsent.marketing;
   applyCookieConsent(activeCookieConsent);
   hideCookieConsent();
 }

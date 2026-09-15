@@ -9,3 +9,12 @@
 @keyframes holo-network{to{stroke-dashoffset:0}}@keyframes holo-node{from{opacity:0}to{opacity:1}}@keyframes holo-project{from{opacity:0;transform:perspective(1000px) rotateX(15deg) scale(.78);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}
 @media(max-width:600px){.holo-checkin{padding:12px}.holo-console{padding:22px 16px;margin-top:8px}.holo-scale{grid-template-columns:repeat(5,minmax(0,1fr))}.holo-save{width:100%}.holo-console h2{font-size:36px}}
 @media(prefers-reduced-motion:reduce){.holo-checkin *{animation:none!important;stroke-dashoffset:0!important}}
+.clarity-update-actions{position:relative;z-index:1;display:flex;justify-content:flex-end;margin:0 0 20px}
+.clarity-update-actions button{min-height:48px;padding:12px 22px;font:inherit;font-weight:700;border-radius:12px}
+.holo-network path.holo-current{stroke:#c0fbff;stroke-width:2.5;stroke-dasharray:28 380;stroke-dashoffset:0;filter:drop-shadow(0 0 5px #4ce7ff);animation:holo-electric 2.8s linear infinite;opacity:.9}
+.holo-network circle{animation:holo-node 1.3s both,holo-charge 2.8s 1.3s ease-in-out infinite}
+.holo-network circle:nth-child(3n){animation-delay:0s,.8s}
+@keyframes holo-electric{to{stroke-dashoffset:-816}}
+@keyframes holo-charge{0%,100%{opacity:.45}50%{opacity:1;filter:drop-shadow(0 0 12px #6af3ff)}}
+@media(prefers-reduced-motion:reduce){.holo-network path.holo-current,.holo-network circle{animation:none;stroke-dashoffset:0}}
+@media(max-width:600px){.clarity-update-actions button{width:100%}}
