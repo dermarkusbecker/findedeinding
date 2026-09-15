@@ -99,7 +99,7 @@ const finishSiteLoader = () => {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const startedAt = Number(window.__fddLoaderStartedAt) || performance.now();
   const elapsed = performance.now() - startedAt;
-  const finishDelay = reducedMotion ? 0 : Math.max(0, 300 - elapsed);
+  const finishDelay = reducedMotion ? 0 : Math.max(0, 3000 - elapsed);
   window.setTimeout(() => {
     siteLoader.classList.add('is-finishing');
     const message = document.querySelector('#siteLoaderStatus');

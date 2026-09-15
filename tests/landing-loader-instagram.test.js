@@ -10,7 +10,7 @@ test('Landingpage startet mit einem gebrandeten und zugänglichen Ladebildschirm
   assert.match(html, /<body class="site-loading">/);
   assert.match(html, /id="siteLoader"[^>]+role="status"[^>]+aria-live="polite"/);
   assert.match(html, /site-loader-logo[\s\S]*?assets\/fdd-logo\.svg/);
-  assert.match(html, /setTimeout\(\(\)=>\{[\s\S]*?classList\.add\('is-slow'\)[\s\S]*?\},300\)/);
+  assert.match(html, /setTimeout\(\(\)=>\{[\s\S]*?classList\.add\('is-slow'\)[\s\S]*?\},4500\)/);
   assert.match(html, /__fddLoaderFailSafe/);
 });
 
@@ -18,7 +18,7 @@ test('Loader wartet auf die Seite, schließt weich und gibt die Bedienung sicher
   const script = await file('landing.js');
 
   assert.match(script, /window\.addEventListener\('load', finishSiteLoader, \{ once: true \}\)/);
-  assert.match(script, /Math\.max\(0, 300 - elapsed\)/);
+  assert.match(script, /Math\.max\(0, 3000 - elapsed\)/);
   assert.match(script, /siteLoader\.classList\.add\('is-finishing'\)/);
   assert.match(script, /document\.body\.classList\.remove\('site-loading'\)/);
   assert.match(script, /siteLoader\.remove\(\)/);
