@@ -7,6 +7,9 @@ async function login(request, response) {
   if (request.method !== 'POST') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
   try {
     const profile = await authenticateUser(request.body?.identifier || request.body?.email, request.body?.password);
+    const audience = request.body?.audience;
+    if (audience && !['customer', 'staff'].includes(audience)) return response.status(400).json({error:'Bitte einen gültigen Login-Bereich wählen.'});
+    if ((audience === 'staff' && profile.role !== 'admin') || (audience === 'customer' && profile.role === 'admin')) return response.status(403).json({error:profile.role === 'admin' ? 'Bitte nutze den Mitarbeiter-Login für dieses Konto.' : 'Bitte nutze den Kunden-Login für dieses Konto.'});
     const mustChangePassword = profile.role === 'user' && profile.must_change_password === true;
     const token = createSession(profile.email, profile.role, { userId: profile.auth_user_id, profileId: profile.id, participantId: profile.id, name: profile.name, email: profile.email, permissions: profile.permissions || [], staffRole: profile.staff_role || null, staffPermissions: profile.staff_permissions || [], mustChangePassword });
     response.setHeader('Set-Cookie', sessionCookie(token));

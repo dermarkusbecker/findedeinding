@@ -3,6 +3,19 @@ const status = document.querySelector('#loginStatus');
 const recovery = new URLSearchParams(location.hash.slice(1));
 const recoveryToken = recovery.get('type') === 'recovery' ? recovery.get('access_token') : '';
 const initialPasswordChange = new URLSearchParams(location.search).get('change') === 'required';
+const loginChoices = document.querySelector('.login-choices');
+if (recoveryToken || initialPasswordChange) loginChoices.hidden = true;
+function setLoginAudience(audience) {
+  const staff = audience === 'staff';
+  form.elements.audience.value = staff ? 'staff' : 'customer';
+  loginChoices.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.loginAudience === form.elements.audience.value)));
+  form.querySelector('h2').textContent = staff ? 'Mitarbeiter-Login' : 'Kunden-Login';
+  form.querySelector('h2 + p').textContent = staff ? 'Melde dich mit deinem Mitarbeiterkonto für die interne Verwaltung an.' : 'Melde dich an und setze deinen persönlichen Weg fort.';
+  form.elements.password.value = '';
+  status.textContent = '';
+}
+loginChoices.querySelectorAll('button').forEach(button => button.addEventListener('click', () => setLoginAudience(button.dataset.loginAudience)));
+if (!recoveryToken && !initialPasswordChange) setLoginAudience(new URLSearchParams(location.search).get('bereich') === 'mitarbeiter' ? 'staff' : 'customer');
 if (recoveryToken) {
   form.querySelector('h2').textContent = 'Neues Passwort vergeben.';
   form.querySelector('h2 + p').textContent = 'Wähle ein neues Passwort mit mindestens acht Zeichen.';
