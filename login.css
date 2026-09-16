@@ -38,3 +38,11 @@ body{background:var(--deep);color:var(--ink)}
 .forgot{font-size:13px}.login-panel small{color:#acc8d5;font-size:12px;line-height:1.6}.status{color:#ffb395;font-size:14px}
 @media(max-width:760px){.login-panel{border-left:0;background:radial-gradient(ellipse at 10% 10%,#194b6066,transparent 65%),#071e2b}.back{color:#cde4ee}}
 .login-panel form{max-width:480px}.login-choices{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-bottom:26px;margin-bottom:28px;border-bottom:1px solid #56889b40}.login-choices[hidden]{display:none}.login-choices button{display:flex;flex-direction:column;gap:12px;align-items:flex-start;text-align:left;padding:20px 16px;min-height:102px;border:1px solid #52788a66;border-radius:16px;background:#153243;color:#b9d2df;font:700 14px Manrope;cursor:pointer}.login-choices button span{font-size:24px;line-height:1;color:#90bdce}.login-choices button[aria-pressed=true]{background:#ff945316;border-color:#ffad76;color:#fff}.login-choices button[aria-pressed=true] span{color:#ffad76}.login-choices button:focus-visible{outline:2px solid #88e4eb;outline-offset:3px}@media(max-width:400px){.login-panel{padding:70px 20px 30px}.login-choices{gap:8px}.login-choices button{padding:16px 10px;font-size:13px}}
+
+/* Browser autofill follows the same dark input surface. */
+.login-panel input:autofill{background:#061c29;color:#f1f8fc;caret-color:#f1f8fc;box-shadow:0 0 0 1000px #061c29 inset;border-color:#547f92}
+.login-panel input:-webkit-autofill,
+.login-panel input:-webkit-autofill:hover,
+.login-panel input:-webkit-autofill:focus,
+.login-panel input:-webkit-autofill:active{-webkit-text-fill-color:#f1f8fc;caret-color:#f1f8fc;-webkit-box-shadow:0 0 0 1000px #061c29 inset;box-shadow:0 0 0 1000px #061c29 inset;border-color:#547f92}
+.login-panel input:-webkit-autofill:focus{border-color:#ffad76;outline:2px solid #ff945330}
