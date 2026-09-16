@@ -61,3 +61,31 @@
 .dashboard-week-tile .week-progress-track > div { height: 100%; background: #ffbd88; border-radius: inherit; }
 .dashboard-week-tile.current .week-progress-track > div { background: #fff; }
 .dashboard-week-tile.completed .week-progress-track > div { background: #88efd0; }
+
+/* Contain the conversation like a messenger; isolate its sidebar from app navigation. */
+#curriculumWorkspace{height:calc(100dvh - 28px);display:flex;flex-direction:column;scroll-margin-top:14px}
+#curriculumWorkspace[hidden]{display:none}
+#curriculumWorkspace .clara-chat-header{flex:none;padding:16px 24px}
+#curriculumWorkspace .curriculum-columns{flex:1;min-height:0;overflow:hidden;padding:18px 24px;grid-template-columns:230px minmax(0,1fr)}
+#curriculumWorkspace aside.curriculum-progress{position:static;inset:auto;width:auto;height:auto;min-height:0;max-height:100%;overflow:auto;background:none;box-shadow:none;transform:none;display:block;z-index:auto;margin:0;border-radius:0}
+#curriculumWorkspace .curriculum-conversation{display:flex;flex-direction:column;min-width:0;min-height:0;height:100%;overflow:hidden}
+#curriculumWorkspace .curriculum-chat{flex:1;min-height:80px;max-height:none;width:100%;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+#curriculumWorkspace .curriculum-chat article{flex-shrink:0;max-width:88%}
+#curriculumWorkspace #curriculumAnswer{flex:none;max-height:45%;overflow-y:auto;margin-top:10px;padding-top:10px}
+#curriculumWorkspace #curriculumAnswer textarea{min-height:64px;max-height:120px;margin:6px 0;resize:none}
+#curriculumWorkspace #curriculumAnswer button{padding:10px 16px;min-height:44px;margin-top:4px}
+#curriculumWorkspace .curriculum-hint{font-size:12px;margin:8px 0 0;line-height:1.4}
+#curriculumWorkspace .curriculum-outputs{flex:none;max-height:100px;overflow:auto;padding:8px 24px}
+#curriculumWorkspace .curriculum-outputs:empty{display:none}
+#curriculumWorkspace .curriculum-cv{max-height:40%;overflow:auto;flex-shrink:0;margin:10px 0}
+@media(max-width:900px){
+ #curriculumWorkspace .curriculum-columns{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:10px;padding:12px}
+ #curriculumWorkspace aside.curriculum-progress{max-height:105px;padding:0 0 8px}
+ #curriculumWorkspace .curriculum-progress h3{display:none}
+ #curriculumWorkspace .curriculum-progress p{margin:0 0 6px;font-size:12px}
+ #curriculumWorkspace .curriculum-progress li{padding:6px 10px;font-size:12px;flex-basis:170px}
+ #curriculumWorkspace .curriculum-progress small{display:none}
+ #curriculumWorkspace .clara-chat-header{padding:12px}
+ #curriculumWorkspace .clara-chat-header h2{font-size:20px}
+ #curriculumWorkspace .clara-chat-header p:not(.eyebrow),#curriculumWorkspace .curriculum-hint{display:none}
+}
