@@ -1,3 +1,4 @@
+import { handleSpeechTranscription } from '../lib/speech-transcription.js';
 import { curriculumReflection } from '../lib/curriculum-results.js';
 import { handleCurriculum } from '../lib/curriculum-api.js';
 import { mergeClarity, readLoginClarity, clarityRecordedAt } from '../lib/current-clarity.js';
@@ -244,6 +245,7 @@ export default async function handler(request, response) {
   if (!session) return;
   response.setHeader('Cache-Control', 'private, no-store');
   try {
+    if(request.query?.feature==='speech-transcription')return await handleSpeechTranscription(request,response,session);
     if (request.method === 'GET' && request.query?.feature === 'privacy-template') {
       const pdf = await buildReadonlyPrivacyPreviewPdf();
       response.setHeader('Content-Type', 'application/pdf');
