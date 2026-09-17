@@ -89,3 +89,5 @@
  #curriculumWorkspace .clara-chat-header h2{font-size:20px}
  #curriculumWorkspace .clara-chat-header p:not(.eyebrow),#curriculumWorkspace .curriculum-hint{display:none}
 }
+#curriculumWorkspace .curriculum-pause{margin-left:auto;flex-shrink:0;padding:12px 16px;min-height:44px;border:1px solid #658d9f;border-radius:12px;background:#173c50;color:#e9f7fe;font:600 14px Manrope,sans-serif;cursor:pointer}
+@media(max-width:600px){#curriculumWorkspace .clara-chat-header{flex-wrap:wrap}#curriculumWorkspace .curriculum-pause{width:100%;margin:0;padding:8px 12px}}

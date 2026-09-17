@@ -2654,3 +2654,5 @@ window.addEventListener('curriculum:saved',async event=>{
 window.addEventListener('curriculum:week',event=>void openWeek(Number(event.detail.week)));
 
 $('#updateClarity').addEventListener('click',async event=>{const button=event.currentTarget;if(program?.adminPreview)return;button.disabled=true;try{await openLoginClarity({manual:true});}catch(error){toast(error.message);}finally{button.disabled=false;}});
+
+window.addEventListener('curriculum:pause',()=>{todayMode='dashboard';showView('today');closeMobileProcessDialog();window.scrollTo({top:0,behavior:'smooth'});toast('Du kannst später hier weitermachen. Ungesendeter Text bleibt in diesem Browser erhalten.');});
