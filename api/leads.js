@@ -1,4 +1,5 @@
 import { archiveLeadInvoices } from '../lib/finance-archive.js';
+import { stratoMailConfig, verifyStratoMailbox } from '../lib/strato-mail.js';
 import { handleFinance } from '../lib/finance-api.js';
 import { renderBrandedEmail } from '../lib/branded-email.js';
 import { normalizeIntake } from '../lib/intake.js';
@@ -576,7 +577,7 @@ function permissionForAction(action) {
   if (action === 'command-dashboard') return 'dashboard';
   if (action.startsWith('communication')) return 'communications';
   if (['available-slots', 'tariffs'].includes(action)) return ['settings', 'sales_calls', 'leads'];
-  if (['google-connect', 'google-callback', 'booking-settings', 'system-status', 'tariff'].includes(action)) return 'settings';
+  if (['google-connect', 'google-callback', 'booking-settings', 'system-status', 'strato-mail-check', 'tariff'].includes(action)) return 'settings';
   if (['dashboard', 'dashboard-record'].includes(action)) return ['leads', 'customers', 'finance'];
   if (['update', 'complete-sales-conversation', 'set-interest-status'].includes(action)) return ['leads', 'sales_calls', 'customers'];
   if (['schedule', 'cancel-appointment'].includes(action)) return ['leads', 'sales_calls'];
@@ -605,6 +606,11 @@ export default async function handler(request, response) {
   const admin = await requireCurrentAdmin(request, response, permissionForAction(action));
   if (!admin) return;
   try {
+    if (action === 'strato-mail-check') {
+      response.setHeader('Cache-Control', 'private, no-store');
+      if (request.method !== 'POST') return response.status(405).json({ error: 'Bitte die Verbindungsprüfung über den Button im CRM starten.' });
+      return response.status(200).json(await verifyStratoMailbox(stratoMailConfig()));
+    }
     if(action==='tasks')return await handleCrmTasks(request,response,service);
     if (request.method === 'GET' && action === 'google-connect') {
       if (!googleConfig()) return response.status(503).json({ error: 'Google Client-ID und Secret fehlen in Vercel.' });
@@ -630,6 +636,8 @@ export default async function handler(request, response) {
       const googleConnectionRecord = googleConfigured ? await googleConnection(service).catch(() => null) : null;
       const openai = claraConfig();
       const registry = buildSystemRegistry({
+        mailConfigured: Boolean(stratoMailConfig()),
+        mailUser: stratoMailConfig()?.user || '',
         googleConfigured,
         googleConnection: googleConnectionRecord,
         googleMeetRecordingReady: googleMeetRecordingReady(googleConnectionRecord),

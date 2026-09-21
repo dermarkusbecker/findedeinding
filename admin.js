@@ -710,11 +710,35 @@ document.querySelector('#finalizeVideoContract').addEventListener('click',async(
 });
 const systemStatusLabels={active:'Aktiv',ready:'Bereit zur Verbindung',missing:'Konfiguration fehlt',planned:'Geplant'};
 function systemStatusBadge(item){const key=item.status?.key||'missing';return `<span class="system-status-badge ${escapeHtml(item.status?.tone||'danger')}"><i></i>${escapeHtml(item.status?.label||systemStatusLabels[key]||key)}</span>`;}
-function renderIntegrationRegistry(items=[]){const grid=document.querySelector('#integrationStatusGrid');if(!grid)return;grid.innerHTML=items.length?items.map(item=>`<article class="system-registry-card ${escapeHtml(item.status?.tone||'neutral')}"><div class="system-registry-head"><span class="system-tool-icon tool-${escapeHtml(item.id)}">${escapeHtml(item.icon)}</span>${systemStatusBadge(item)}</div><small>${escapeHtml(item.category)}</small><h4>${escapeHtml(item.name)}</h4><p>${escapeHtml(item.purpose)}</p><div class="system-detail">${escapeHtml(item.detail)}</div>${item.action==='google-connect'?`<button class="secondary system-connect-action" type="button" data-system-action="google-connect">${item.status?.key==='active'?'Google neu verbinden':'Google verbinden'}</button>`:''}</article>`).join(''):'<div class="empty">Keine Schnittstellen registriert.</div>';}
+function renderIntegrationRegistry(items=[]){const grid=document.querySelector('#integrationStatusGrid');if(!grid)return;grid.innerHTML=items.length?items.map(item=>`<article class="system-registry-card ${escapeHtml(item.status?.tone||'neutral')}"><div class="system-registry-head"><span class="system-tool-icon tool-${escapeHtml(item.id)}">${escapeHtml(item.icon)}</span>${systemStatusBadge(item)}</div><small>${escapeHtml(item.category)}</small><h4>${escapeHtml(item.name)}</h4><p>${escapeHtml(item.purpose)}</p><div class="system-detail">${escapeHtml(item.detail)}</div>${item.action==='strato-mail-check'?`<button class="secondary system-connect-action" type="button" data-system-action="strato-mail-check">STRATO-Verbindung prüfen</button><div data-strato-result role="status" aria-live="polite"></div>`:''}${item.action==='google-connect'?`<button class="secondary system-connect-action" type="button" data-system-action="google-connect">${item.status?.key==='active'?'Google neu verbinden':'Google verbinden'}</button>`:''}</article>`).join(''):'<div class="empty">Keine Schnittstellen registriert.</div>';}
 function renderAgentRegistry(items=[]){const grid=document.querySelector('#agentStatusGrid');if(!grid)return;grid.innerHTML=items.length?items.map(item=>`<article class="agent-registry-card ${escapeHtml(item.status?.tone||'neutral')}"><div class="agent-registry-top"><span class="agent-avatar">${escapeHtml(item.icon)}</span><div><small>${escapeHtml(item.phase)}</small><h4>${escapeHtml(item.name)}</h4></div>${systemStatusBadge(item)}</div><p>${escapeHtml(item.situation)}</p><dl><div><dt>Werkzeug</dt><dd>${escapeHtml(item.tool)}</dd></div><div><dt>Betriebshinweis</dt><dd>${escapeHtml(item.detail)}</dd></div></dl></article>`).join(''):'<div class="empty">Keine KI-Agenten registriert.</div>';}
 async function loadSystemStatus(){const refresh=document.querySelector('#systemStatusRefresh');if(refresh)refresh.disabled=true;try{const response=await fetch('/api/leads?action=system-status'),data=await response.json();if(!response.ok)throw new Error(data.error);renderIntegrationRegistry(data.integrations);renderAgentRegistry(data.agents);document.querySelector('#activeIntegrationCount').textContent=`${data.summary.activeIntegrations} / ${data.summary.totalIntegrations}`;document.querySelector('#activeAgentCount').textContent=`${data.summary.activeAgents} / ${data.summary.totalAgents}`;document.querySelector('#plannedSystemCount').textContent=String(data.summary.planned);document.querySelector('#systemCheckedAt').textContent=new Date(data.checkedAt).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});const connected=data.integrations.filter(item=>item.status.key==='active').length;document.querySelector('#integrationRegistryState').textContent=`${connected} aktiv`;document.querySelector('#integrationRegistryState').classList.toggle('active',connected>0);const activeAgents=data.agents.filter(item=>item.status.key==='active').length;document.querySelector('#agentRegistryState').textContent=`${activeAgents} aktiv`;document.querySelector('#agentRegistryState').classList.toggle('active',activeAgents>0);}catch(error){const message=escapeHtml(error.message||'Systemstatus konnte nicht geladen werden.');document.querySelector('#integrationStatusGrid').innerHTML=`<div class="empty system-error">${message}</div>`;document.querySelector('#agentStatusGrid').innerHTML=`<div class="empty system-error">${message}</div>`;document.querySelector('#integrationRegistryState').textContent='Prüfung fehlgeschlagen';document.querySelector('#agentRegistryState').textContent='Prüfung fehlgeschlagen';}finally{if(refresh)refresh.disabled=false;}}
 document.querySelector('#systemStatusRefresh')?.addEventListener('click',loadSystemStatus);
-document.querySelector('#integrationStatusGrid')?.addEventListener('click',event=>{if(event.target.closest('[data-system-action="google-connect"]'))location.href='/api/google/connect';});
+document.querySelector('#integrationStatusGrid')?.addEventListener('click', async event => {
+  if (event.target.closest('[data-system-action="google-connect"]')) location.href = '/api/google/connect';
+  const button = event.target.closest('[data-system-action="strato-mail-check"]');
+  if (!button || button.disabled) return;
+  const card = button.closest('.system-registry-card');
+  const result = card.querySelector('[data-strato-result]');
+  button.disabled = true;
+  button.textContent = 'Verbindung wird geprüft …';
+  result.textContent = 'Anmeldung bei STRATO wird geprüft. Dies kann bis zu 15 Sekunden dauern.';
+  try {
+    const response = await fetch('/api/leads?action=strato-mail-check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const data = await response.json();
+    if (!response.ok || !data.configured) throw new Error(data.error || 'Verbindung konnte nicht geprüft werden.');
+    result.innerHTML = `<p><strong>Versand · SMTP:</strong> ${escapeHtml(data.smtp.message)}</p><p><strong>Empfang · IMAP:</strong> ${escapeHtml(data.imap.message)}</p><p>${escapeHtml(data.message)}</p><small>Geprüft: ${escapeHtml(new Date(data.checkedAt).toLocaleString('de-DE'))}</small>`;
+    const badge = card.querySelector('.system-status-badge');
+    badge.className = `system-status-badge ${data.ok ? 'positive' : 'danger'}`;
+    badge.textContent = data.ok ? 'Anmeldung geprüft' : 'Zugang prüfen';
+    card.querySelector('.system-detail').textContent = `${data.mailbox} · ${data.ok ? 'SMTP und IMAP erreichbar.' : 'Mindestens eine Anmeldung ist fehlgeschlagen.'} CRM-Versand und Synchronisierung sind noch nicht aktiviert.`;
+  } catch (error) {
+    result.textContent = error.message || 'Verbindung konnte nicht geprüft werden.';
+  } finally {
+    button.disabled = false;
+    button.textContent = 'STRATO-Verbindung erneut prüfen';
+  }
+});
 
 const communicationDirectionLabels={inbound:'Posteingang',outbound:'Ausgang',system:'System'};
 const communicationDeliveryLabels={pending:'Versandanfrage offen',accepted:'Vom Versanddienst angenommen',draft:'Entwurf',logged:'Dokumentiert',sent:'Versendet',received:'Empfangen',system:'System',failed:'Fehlgeschlagen'};
