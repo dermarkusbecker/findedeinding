@@ -31,3 +31,22 @@
 .crm-ui [data-customer-page="account"]>.card>.lead-card-heading .eyebrow{white-space:nowrap;margin:0}
 .crm-ui .account-table{min-width:740px;width:100%}.crm-ui .account-table th,.crm-ui .account-table td{padding:13px 9px;font-size:11px}.crm-ui .account-table td:nth-child(2){min-width:180px;max-width:260px;white-space:normal;overflow-wrap:anywhere}.crm-ui .account-table td:nth-child(4){min-width:0;max-width:none;white-space:nowrap}.crm-ui .account-table .account-kind{margin-bottom:7px}
 @media(max-width:800px){.crm-ui .account-table th,.crm-ui .account-table td{display:table-cell!important}.crm-ui .account-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}.crm-ui .account-table-scroll::before{content:'← Wischen für alle Buchungsdetails →';display:block;font-size:11px;color:#58717f;padding:8px 0}}
+.crm-ui .account-details-trigger{min-width:40px;min-height:38px;padding:6px 12px;font-size:16px;letter-spacing:1px}
+body.account-drawer-open{overflow:hidden}
+.crm-ui dialog.account-booking-drawer{position:fixed;inset:0 0 0 auto;margin:0;width:min(430px,100vw);max-width:100vw;height:100dvh;max-height:100dvh;padding:0;border:0;border-left:1px solid #d8e5eb;border-radius:0;background:#fff;color:#193d4e;box-shadow:-20px 0 70px #102f4433;overflow:auto;overscroll-behavior:contain}
+.crm-ui .account-booking-drawer::backdrop{background:#102d4266;backdrop-filter:blur(3px)}
+.crm-ui .account-booking-drawer[open]{animation:account-drawer-enter .2s ease-out}
+.crm-ui .account-drawer-heading{position:relative;padding:28px 26px 18px;background:#fff}
+.crm-ui .account-drawer-heading>[data-close-booking]{position:absolute;right:20px;top:20px;width:36px;height:36px;min-height:36px;padding:0;font-size:22px;line-height:1}
+.crm-ui .account-drawer-heading h2{margin:18px 40px 5px 0;font-size:20px;line-height:1.5;overflow-wrap:anywhere}
+.crm-ui .account-drawer-heading p{margin:0;font-size:12px;color:#69838e;overflow-wrap:anywhere}
+.crm-ui .account-drawer-content{padding:0 26px calc(30px + env(safe-area-inset-bottom))}
+.crm-ui .account-drawer-amount{background:#103342;border-radius:15px;padding:22px;margin-bottom:14px;display:grid;gap:10px}
+.crm-ui .account-drawer-amount small{text-transform:uppercase;font-size:10px;font-weight:800;letter-spacing:.12em;color:#b7cfd9}
+.crm-ui .account-drawer-amount strong{font-size:30px;line-height:1.3;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;color:#89dfc5}.crm-ui .account-drawer-amount.debit strong{color:#ffad75}
+.crm-ui .account-drawer-data{margin:0}.crm-ui .account-drawer-data>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px;padding:15px 0;border-bottom:1px solid #e3edf1;font-size:12px;line-height:1.5}.crm-ui .account-drawer-data dt{color:#64808d}.crm-ui .account-drawer-data dd{margin:0;text-align:right;font-weight:700;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.crm-ui .account-drawer-note{padding:16px;background:#f1f6f8;border-radius:12px;font-size:12px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;margin:24px 0}
+.crm-ui .account-drawer-actions{display:grid;gap:10px}.crm-ui .account-drawer-actions .secondary{display:flex;justify-content:center;align-items:center;min-height:44px;text-align:center;text-decoration:none}.crm-ui .account-drawer-actions p{font-size:12px;color:#64808d;line-height:1.7}
+@keyframes account-drawer-enter{from{transform:translateX(35px);opacity:.5}to{transform:translateX(0);opacity:1}}
+@media(prefers-reduced-motion:reduce){.crm-ui .account-booking-drawer[open]{animation:none}}
+.crm-ui .account-booking-drawer .account-drawer-heading{display:block;position:relative;inset:auto;width:auto;height:auto;min-height:0;margin:0;padding:28px 26px 18px;border:0;box-shadow:none;backdrop-filter:none;z-index:auto}
