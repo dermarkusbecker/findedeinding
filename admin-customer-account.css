@@ -1,0 +1,33 @@
+.crm-ui .customer-balance-summary-card{display:flex;flex-direction:column;gap:0}
+.crm-ui #customerBalanceDetails{padding:0 22px}
+.crm-ui #customerBalanceDetails dl{margin:0}
+.crm-ui #customerBalanceDetails dl>div{display:flex;justify-content:space-between;gap:14px;padding:15px 0;border-bottom:1px solid #dce8ed;font-size:12px}
+.crm-ui #customerBalanceDetails dt{color:#55717f}.crm-ui #customerBalanceDetails dd{margin:0;text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
+.crm-ui .customer-balance-summary-card .lead-balance-summary{margin:20px 22px 16px;padding:20px;border:1px solid #d3e7df;border-radius:16px;background:#f0f8f5;display:grid;gap:8px}
+.crm-ui .customer-balance-summary-card .lead-balance-summary strong{font-size:clamp(24px,2.1vw,32px);line-height:1.25;overflow-wrap:anywhere;color:#107561;font-variant-numeric:tabular-nums}
+.crm-ui .customer-balance-summary-card[data-balance=open] .lead-balance-summary{background:#fff2f1;border-color:#f3d0ce}.crm-ui .customer-balance-summary-card[data-balance=open] .lead-balance-summary strong{color:#b73549}
+.crm-ui .customer-balance-summary-card .lead-balance-summary small{text-transform:uppercase;letter-spacing:.12em;font-size:10px;font-weight:800}
+.crm-ui .customer-balance-summary-card .lead-balance-summary span{font-size:11px;line-height:1.6}
+.crm-ui .customer-balance-summary-card>[data-open-customer-account]{margin:0 22px 22px;width:calc(100% - 44px)}
+.crm-ui .account-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:8px 0 24px}
+.crm-ui .account-kpis article{border:1px solid #cddfe7;border-radius:16px;background:#f7fafc;padding:22px;display:grid;gap:12px;min-width:0}
+.crm-ui .account-kpis small{text-transform:uppercase;letter-spacing:.1em;font-size:10px;font-weight:800;color:#547181}.crm-ui .account-kpis strong{font-size:clamp(22px,2vw,30px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.crm-ui .account-kpis .open{background:#fff4f3;border-color:#f2ccc9;color:#b6354a}.crm-ui .account-kpis .paid,.crm-ui .account-kpis .credit{background:#f0f8f5;color:#107561}
+.crm-ui .account-actions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding:20px 0;border-block:1px solid #dce8ed}
+.crm-ui .account-actions button{min-width:0}.crm-ui .account-writeoff{color:#b6354a;background:#fff3f3}
+.crm-ui .account-notes{display:flex;flex-wrap:wrap;gap:12px 24px;font-size:12px;padding:18px 0;color:#58717f}.crm-ui .account-notes b{margin-left:5px;color:#193d4e}
+.crm-ui .account-notice{background:#fff7ee;border:1px solid #f2d9bc;border-radius:12px;padding:14px 18px;font-size:12px;line-height:1.8}
+.crm-ui .account-filters{display:grid;grid-template-columns:minmax(160px,2fr) repeat(2,minmax(130px,1fr)) auto;align-items:end;gap:12px;margin:16px 0}.crm-ui .account-filters label{display:grid;gap:7px;font-size:12px}.crm-ui .account-filters input,.crm-ui .account-filters select{width:100%;min-width:0}
+.crm-ui .account-legend,.crm-ui .account-result-count{font-size:11px;color:#58717f;line-height:1.7}
+.crm-ui .account-table{min-width:1050px}.crm-ui .account-table td{vertical-align:top}.crm-ui .account-table td:nth-child(4){min-width:220px;max-width:340px;white-space:normal;overflow-wrap:anywhere}.crm-ui .account-table small{display:block;margin-top:6px;line-height:1.6}.crm-ui .account-money{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}.crm-ui .account-money.debit{color:#b6354a}.crm-ui .account-money.credit{color:#117865}
+.crm-ui .account-kind,.crm-ui .account-status{display:inline-block;padding:5px 8px;border-radius:8px;background:#edf4f7;color:#214b5d;font-size:10px;font-weight:800;white-space:nowrap}.crm-ui .account-status.overdue,.crm-ui .account-status.open,.crm-ui .account-kind.claim{background:#fff0ee;color:#a63447}.crm-ui .account-status.paid,.crm-ui .account-kind.payment{background:#eaf6f1;color:#107561}
+.crm-ui .account-row-actions summary{cursor:pointer;list-style:none;border:1px solid #d3e1e8;border-radius:9px;padding:8px 12px;display:inline-block}.crm-ui .account-row-actions>div{display:grid;gap:8px;min-width:155px;padding-top:10px}.crm-ui .account-row-actions button,.crm-ui .account-row-actions a{font-size:11px;white-space:normal}
+.crm-ui .account-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.crm-ui .account-confirm{display:flex;align-items:start;gap:12px}.crm-ui .account-confirm input{width:auto;flex:none}.crm-ui .account-booking-dialog form{display:grid;gap:16px}.crm-ui .account-booking-dialog label{display:grid;gap:7px}.crm-ui .account-booking-dialog textarea{width:100%}
+@media(max-width:1200px){.crm-ui .account-actions{grid-template-columns:repeat(3,minmax(0,1fr))}.crm-ui .account-filters{grid-template-columns:1fr 1fr}.crm-ui .account-filters>label:first-child{grid-column:1/-1}}
+@media(max-width:600px){.crm-ui .account-kpis{grid-template-columns:1fr}.crm-ui .account-kpis article{padding:16px}.crm-ui .account-actions{grid-template-columns:1fr 1fr}.crm-ui .account-actions button:last-child{grid-column:1/-1}.crm-ui .account-filters,.crm-ui .account-form-grid{grid-template-columns:1fr}.crm-ui .account-booking-dialog .dialog-actions{display:grid;gap:10px}}
+.crm-ui [data-customer-page="account"]>.card>.lead-card-heading{align-items:flex-start;gap:18px;flex-wrap:wrap}
+.crm-ui [data-customer-page="account"]>.card>.lead-card-heading>div{display:block;min-width:0;flex:1 1 300px}
+.crm-ui [data-customer-page="account"]>.card>.lead-card-heading h2{font-size:24px;line-height:1.3;margin:7px 0 9px;word-break:normal}
+.crm-ui [data-customer-page="account"]>.card>.lead-card-heading .eyebrow{white-space:nowrap;margin:0}
+.crm-ui .account-table{min-width:740px;width:100%}.crm-ui .account-table th,.crm-ui .account-table td{padding:13px 9px;font-size:11px}.crm-ui .account-table td:nth-child(2){min-width:180px;max-width:260px;white-space:normal;overflow-wrap:anywhere}.crm-ui .account-table td:nth-child(4){min-width:0;max-width:none;white-space:nowrap}.crm-ui .account-table .account-kind{margin-bottom:7px}
+@media(max-width:800px){.crm-ui .account-table th,.crm-ui .account-table td{display:table-cell!important}.crm-ui .account-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}.crm-ui .account-table-scroll::before{content:'← Wischen für alle Buchungsdetails →';display:block;font-size:11px;color:#58717f;padding:8px 0}}

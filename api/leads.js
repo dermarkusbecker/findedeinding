@@ -1,3 +1,4 @@
+import {customerAccount} from '../lib/customer-account.js';
 import { archiveLeadInvoices } from '../lib/finance-archive.js';
 import { handleReferences } from '../lib/references-api.js';
 import { stratoMailConfig, verifyStratoMailbox } from '../lib/strato-mail.js';
@@ -326,9 +327,12 @@ async function leadDashboard(service, id) {
   const results = await Promise.all(requests);
   const bodies = await Promise.all(results.map((result) => readJson(result, 'Lead-Dashboard konnte nicht geladen werden.')));
   const [contracts, payments, communications, tasks, bankAccounts, questions = [], progressRows = []] = bodies;
+  const readAll=async table=>{const out=[];for(let offset=0;;offset+=500){const chunk=await readJson(await fetch(`${service.url}/rest/v1/${table}?${leadFilter}&select=*&order=id&limit=500&offset=${offset}`,{headers:headers(service.key)}),'Kontodaten konnten nicht geladen werden.');out.push(...chunk);if(chunk.length<500)return out;}};
+  const [accountInvoices,accountEvents,accountPayments]=await Promise.all([readAll('finance_invoices'),readAll('finance_account_events'),readAll('lead_payments')]);
+  const account=customerAccount({invoices:accountInvoices,payments:accountPayments,events:accountEvents,today:new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Berlin'}).format(new Date())});
   const contractTotal = contracts.filter((item) => item.status === 'signed').reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const paidTotal = payments.filter((item) => item.status === 'booked').reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  return { lead, contracts, payments, communications, tasks, bankAccount: bankAccounts[0] || null, questions, progress: progressRows[0] || null, finance: { contractTotal, paidTotal, openBalance: Math.max(0, contractTotal - paidTotal) } };
+  return { lead, contracts, payments, communications, tasks, bankAccount: bankAccounts[0] || null, questions, progress: progressRows[0] || null, finance: { contractTotal, paidTotal, openBalance: account.summary.balance, accountSummary: account.summary } };
 }
 
 async function recordDashboardMutation(service, request) {
