@@ -4,6 +4,7 @@
     "api/*.js": { "maxDuration": 60, "includeFiles": "assets/{forms/**,fdd-logo.png}" }
   },
   "rewrites": [
+    { "source": "/referenzen", "destination": "/referenzen.html" },
     { "source": "/login", "destination": "/login.html" },
     { "source": "/zugang", "destination": "/login.html" },
     { "source": "/kunden-login", "destination": "/login.html" },

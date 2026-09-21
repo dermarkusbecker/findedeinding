@@ -1,0 +1,22 @@
+#referencesForm fieldset { min-width: 0; padding: 0; margin: 0; border: 0; }
+.reference-activation { display: flex; align-items: start; gap: 14px; background: #eef8f6; border: 1px solid #c7e4dd; padding: 20px; border-radius: 14px; margin-bottom: 24px; }
+.reference-activation input { flex: 0 0 auto; margin-top: 4px; }
+.reference-activation span { display: grid; gap: 5px; }
+.reference-activation small { color: #496772; font-size: 14px; line-height: 1.6; }
+.reference-add { display: flex; gap: 12px; align-items: end; margin-block: 24px; }
+.reference-add label { flex: 1; min-width: 0; }
+.reference-add button { flex-shrink: 0; }
+.reference-editor-list { display: grid; gap: 18px; margin-block: 24px; }
+.reference-editor-row { display: grid; grid-template-columns: 200px minmax(0,1fr) auto; gap: 24px; align-items: center; padding: 22px; border: 1px solid #d4e3ea; border-radius: 16px; background: #f9fbfc; }
+.reference-editor-preview { min-width: 0; }
+.reference-editor-preview img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 10px; }
+.reference-editor-preview span { display: block; margin-top: 8px; font-size: 12px; color: #546e7a; }
+.reference-editor-fields { display: grid; gap: 14px; min-width: 0; }
+.reference-editor-fields label,.reference-add label { display: grid; gap: 8px; }
+.reference-editor-fields input { width: 100%; }
+.reference-editor-actions { display: flex; flex-direction: column; gap: 8px; }
+.reference-settings-footer { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; border-top: 1px solid #d4e3ea; padding-top: 24px; }
+#referencesStatus { line-height: 1.7; color: #196455; margin-top: 18px; }
+#referencesStatus[data-error="true"] { color: #a52a27; }
+@media(max-width:1200px) { .reference-editor-row { grid-template-columns: 150px minmax(0,1fr); } .reference-editor-actions { grid-column: 1/-1; flex-direction: row; } }
+@media(max-width:650px) { .reference-editor-row { grid-template-columns: minmax(0,1fr); padding: 16px; } .reference-editor-preview { max-width: 260px; } .reference-add { align-items: stretch; flex-direction: column; } }

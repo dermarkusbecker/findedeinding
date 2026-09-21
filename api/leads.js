@@ -1,4 +1,5 @@
 import { archiveLeadInvoices } from '../lib/finance-archive.js';
+import { handleReferences } from '../lib/references-api.js';
 import { stratoMailConfig, verifyStratoMailbox } from '../lib/strato-mail.js';
 import { handleFinance } from '../lib/finance-api.js';
 import { renderBrandedEmail } from '../lib/branded-email.js';
@@ -588,6 +589,7 @@ function permissionForAction(action) {
 export default async function handler(request, response) {
   const service = serviceConfig();
   const action = request.query?.action || request.body?.action || '';
+  if (action.startsWith('references-')) return handleReferences(request, response);
   if(action.startsWith('finance-')) return handleFinance(request,response);
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
   if (action === 'public-contract-sign') return handlePublicContractSign(request, response);

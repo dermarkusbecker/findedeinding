@@ -1,0 +1,30 @@
+[data-references-section][hidden], [data-references-nav][hidden], [data-references-more][hidden], [data-references-empty][hidden] { display: none !important; }
+.references-section { padding-block: clamp(64px,8vw,112px); scroll-margin-top: 120px; }
+.references-section .split-head { align-items: end; margin-bottom: 36px; }
+.references-section .split-head p { max-width: 450px; }
+.references-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; }
+.reference-card { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: linear-gradient(145deg,#102d3c,#091b29); box-shadow: 0 16px 38px #0002; transition: border-color .2s,transform .2s; }
+.reference-card:hover { border-color: #ff9a5188; transform: translateY(-3px); }
+.reference-media { position: relative; aspect-ratio: 16/9; background: radial-gradient(ellipse at center,#205364,#102534); overflow: hidden; }
+.reference-play { position: absolute; inset: 0; padding: 0; width: 100%; height: 100%; border: 0; color: white; cursor: pointer; background: transparent; }
+.reference-play img { width: 100%; height: 100%; object-fit: cover; transition: transform .4s; }
+.reference-play:hover img { transform: scale(1.04); }
+.reference-play:after { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 45%,#0009); pointer-events: none; }
+.reference-play-icon { position: absolute; z-index: 1; top: 50%; left: 50%; transform: translate(-50%,-50%); display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; color: #102534; background: linear-gradient(135deg,#ffba80,#ff7a2f); box-shadow: 0 4px 25px #0005; font-size: 23px; padding-left: 3px; }
+.reference-play-label { position: absolute; z-index: 1; bottom: 14px; left: 18px; font-size: 13px; font-weight: 750; }
+.reference-media iframe { width: 100%; height: 100%; border: 0; position: absolute; inset: 0; }
+.reference-copy { padding: 22px; }
+.reference-copy small { color: #ffab71; font-size: 11px; letter-spacing: .14em; font-weight: 750; }
+.reference-copy h3 { font-size: 18px; line-height: 1.5; margin: 10px 0 18px; overflow-wrap: anywhere; }
+.reference-copy a { color: #b9d0dc; font-size: 13px; text-decoration: underline; text-underline-offset: 4px; }
+.references-footer { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 30px; }
+.references-footer p { max-width: 600px; color: #b4c4d0; font-size: 13px; line-height: 1.7; }
+.reference-play:focus-visible, .reference-copy a:focus-visible { outline: 3px solid #63d2ed; outline-offset: -4px; }
+.references-page main { padding-top: 110px; min-height: 75vh; }
+.references-page h1 { font-size: clamp(36px,5vw,64px); line-height: 1.12; margin: 18px 0; letter-spacing: -.04em; }
+.references-page .references-intro { max-width: 760px; margin-bottom: 44px; }
+.references-page .references-intro>p:last-child { color: #b4c4d0; line-height: 1.8; }
+.references-empty { padding: 40px; border: 1px solid var(--line); border-radius: 20px; color: #b4c4d0; }
+@media(max-width:1000px) { .references-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { .references-grid { grid-template-columns: minmax(0,1fr); gap: 20px; } .references-footer { align-items: start; flex-direction: column; } .reference-copy { padding: 18px; } .references-page main { padding-top: 80px; } }
+@media(prefers-reduced-motion:reduce) { .reference-card,.reference-play img { transition: none; } .reference-card:hover,.reference-play:hover img { transform: none; } }
