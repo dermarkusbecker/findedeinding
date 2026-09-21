@@ -1,0 +1,112 @@
+/* Canonical CRM typography, navigation and form controls.
+   Keep this sheet after component styles; it deliberately owns these primitives. */
+body.crm-ui {
+  --crm-font: Manrope, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --crm-text: #183e50;
+  --crm-secondary: #526e7c;
+  --crm-border: #bdcfda;
+  --crm-surface: #fff;
+  --crm-hover: #edf4f8;
+  --crm-active: #153f54;
+  --crm-accent: #ff9453;
+  --crm-radius: 12px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--crm-text);
+}
+body.crm-ui, body.crm-ui * { font-family: var(--crm-font) !important; }
+body.crm-ui :is(input,select,textarea,button) { letter-spacing: normal; }
+body.crm-ui :is(h1,h2,h3,h4) { font-style: normal; line-height: 1.3; }
+body.crm-ui :is(button,.primary,.secondary) { font-weight: 700; }
+body.crm-ui :is(.primary,.secondary) { min-height: 44px; border-radius: var(--crm-radius); font-size: 14px; line-height: 1.45; }
+body.crm-ui .primary:not(.danger) { background: linear-gradient(110deg,#ffb474,var(--crm-accent)); border: 1px solid var(--crm-accent); color: #15394b; box-shadow: 0 3px 12px #e7772914; }
+body.crm-ui .secondary:not(.danger) { background: var(--crm-surface); border: 1px solid var(--crm-border); color: var(--crm-text); box-shadow: none; }
+body.crm-ui :is(button,a):focus-visible { outline: 3px solid #2483a4; outline-offset: 3px; }
+body.crm-ui :is(.eyebrow,.workspace small,.brand i) { font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .12em; }
+
+/* Primary and secondary navigation share the same type scale and states. */
+body.crm-ui .sidebar nav > p, body.crm-ui .crm-nav-heading {
+  display: block; margin: 20px 10px 10px; padding: 0;
+  color: var(--crm-secondary); font-size: 11px; line-height: 1.5;
+  font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
+}
+body.crm-ui .sidebar nav button { font-size: 14px; line-height: 1.5; min-height: 48px; padding: 12px; border-radius: var(--crm-radius); gap: 12px; }
+body.crm-ui .sidebar nav button > span { width: 24px; flex: 0 0 24px; text-align: center; font-size: 18px; }
+body.crm-ui .sidebar nav button.active { background: var(--crm-active); border-color: var(--crm-active); box-shadow: none; }
+body.crm-ui .context-head { gap: 12px; }
+body.crm-ui .context-head strong { font-size: 16px; font-weight: 800; line-height: 1.4; }
+body.crm-ui .context-head small { font-size: 11px; font-weight: 700; letter-spacing: .08em; }
+body.crm-ui #contextNav { display: block; padding: 16px 12px; }
+body.crm-ui .crm-nav-group { margin: 0; padding: 0 0 18px; border: 0; border-bottom: 1px solid #dce6ec; border-radius: 0; }
+body.crm-ui .crm-nav-group + .crm-nav-group { padding-top: 4px; }
+body.crm-ui .crm-nav-group:last-child { border-bottom: 0; }
+body.crm-ui .crm-nav-group:first-child .crm-nav-heading { margin-top: 4px; }
+body.crm-ui .crm-nav-group nav { display: flex; flex-direction: column; gap: 6px; }
+body.crm-ui #contextNav nav > button {
+  position: relative; display: flex; align-items: flex-start; gap: 12px;
+  width: 100%; min-width: 0; min-height: 72px; margin: 0; padding: 12px;
+  border: 1px solid transparent; border-radius: var(--crm-radius);
+  background: transparent; color: var(--crm-text); text-align: left;
+  box-shadow: none; transform: none; cursor: pointer;
+}
+body.crm-ui #contextNav nav > button > div { flex: 1; min-width: 0; }
+body.crm-ui #contextNav nav > button > span {
+  display: flex; align-items: center; justify-content: center; flex: 0 0 30px;
+  width: 30px; min-width: 30px; height: 30px; margin: 0; padding: 0;
+  background: #e3edf3; color: #345969; border-radius: 9px;
+  font-size: 12px; font-weight: 800; letter-spacing: 0; font-variant-numeric: tabular-nums;
+}
+body.crm-ui #contextNav nav > button b { display: block; color: inherit; font-size: 14px; line-height: 1.45; font-weight: 700; overflow-wrap: anywhere; }
+body.crm-ui #contextNav nav > button small { display: block; margin: 4px 0 0; color: var(--crm-secondary); font-size: 12px; line-height: 1.5; font-weight: 500; overflow-wrap: anywhere; }
+body.crm-ui #contextNav nav > button:hover { background: var(--crm-hover); border-color: var(--crm-border); }
+body.crm-ui #contextNav nav > button.active { background: var(--crm-active); color: #fff; border-color: var(--crm-active); }
+body.crm-ui #contextNav nav > button.active small { color: #dce9f0; }
+body.crm-ui #contextNav nav > button.active > span { background: #ffb37e; color: #173d50; }
+body.crm-ui #contextNav nav > button.active::before { display: none; }
+body.crm-ui .crm-nav-count { font-style: normal; font-size: 11px; font-weight: 700; background: #e6eff4; border-radius: 6px; padding: 2px 6px; color: #345969; }
+body.crm-ui .crm-nav-heading .lead-context-group-toggle { display: flex; align-items: center; justify-content: space-between; min-height: 28px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: inherit; font-size: inherit; font-weight: inherit; letter-spacing: inherit; box-shadow: none; }
+body.crm-ui .crm-nav-heading .lead-context-group-toggle > span { display: block; background: transparent; color: inherit; width: auto; height: auto; font-size: inherit; letter-spacing: inherit; }
+body.crm-ui .lead-context-group.collapsed > nav { display: none; }
+body.crm-ui #contextNav nav > button.context-package-locked { border: 1px dashed #acbec9; background: #f2f5f7; color: #536b78; }
+body.crm-ui #contextNav .package-lock-badge { font-size: 10px; line-height: 1.5; }
+
+/* All editable fields use one height, type scale, border and focus treatment. */
+body.crm-ui :is(main,dialog) label { font-size: 14px; font-weight: 600; line-height: 1.5; }
+body.crm-ui :is(main,dialog) :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]):not([type=hidden]):not([type=button]):not([type=submit]),select,textarea) {
+  box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%;
+  min-height: 48px !important; padding: 12px 14px !important;
+  border: 1px solid var(--crm-border) !important; border-radius: var(--crm-radius) !important;
+  background-color: var(--crm-surface) !important; color: var(--crm-text) !important;
+  font-size: 16px !important; font-weight: 500 !important; line-height: 1.5 !important;
+  box-shadow: 0 1px 2px #153e5005 !important;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+body.crm-ui :is(main,dialog) select:not([multiple]):not([size]) { padding-right: 44px !important; }
+body.crm-ui :is(main,dialog) textarea { min-height: 112px !important; resize: vertical; }
+body.crm-ui :is(main,dialog) :is(input,textarea)::placeholder { color: #667f8d; opacity: 1; font-weight: 400; }
+body.crm-ui :is(main,dialog) :is(input,select,textarea):focus-visible { outline: 0 !important; border-color: #287c9b !important; box-shadow: 0 0 0 3px #287c9b26 !important; }
+body.crm-ui :is(main,dialog) :is(input,select,textarea):disabled { background-color: #edf2f5 !important; color: #607786 !important; opacity: 1; cursor: not-allowed; box-shadow: none !important; }
+body.crm-ui :is(main,dialog) :is(input,textarea)[readonly] { background-color: #f3f7f9 !important; color: #476776 !important; }
+body.crm-ui :is(main,dialog) :is(input,select,textarea)[aria-invalid=true],body.crm-ui :is(main,dialog) :is(input,select,textarea):user-invalid { border-color: #bd3f50 !important; }
+body.crm-ui input:is([type=checkbox],[type=radio]) { width: 19px !important; min-width: 19px !important; height: 19px !important; min-height: 19px !important; padding: 0 !important; flex: 0 0 19px; accent-color: #23627c; box-shadow: none !important; vertical-align: middle; }
+body.crm-ui input[type=file] { max-width: 100%; font-size: 14px; color: var(--crm-secondary); }
+body.crm-ui input[type=file]::file-selector-button { border: 1px solid var(--crm-border); border-radius: 9px; background: #f0f6f9; color: var(--crm-text); padding: 10px 14px; margin-right: 12px; font: 600 14px var(--crm-font); cursor: pointer; }
+body.crm-ui .global-crm-search-box { border: 1px solid var(--crm-border); border-radius: var(--crm-radius); background: #fff; min-height: 48px; }
+body.crm-ui #globalCrmSearchInput { border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; padding: 10px 0 !important; }
+body.crm-ui .global-crm-search-box:focus-within { outline: 3px solid #287c9b26; border-color: #287c9b; box-shadow: none; }
+body.crm-ui dialog { color: var(--crm-text); }
+body.crm-ui dialog form > p { font-size: 14px; line-height: 1.65; }
+body.crm-ui dialog .dialog-head h2 { font-size: 24px; font-weight: 800; }
+body.crm-ui :is(.finance-table,.lead-balance-summary,.customer-finance-cards) { font-variant-numeric: tabular-nums; }
+@media(max-width:1050px) {
+  body.crm-ui #contextNav { max-height: 360px; overflow: auto; }
+  body.crm-ui .crm-nav-group nav { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:600px) {
+  body.crm-ui .sidebar nav button { font-size: 13px; padding: 10px 8px; }
+  body.crm-ui .sidebar nav > p { grid-column: 1/-1; text-align: left; margin: 14px 6px 6px; }
+  body.crm-ui .crm-nav-group nav { grid-template-columns: 1fr; }
+  body.crm-ui #contextNav nav > button { min-height: 68px; }
+  body.crm-ui dialog .dialog-head h2 { font-size: 22px; }
+}
+@media(prefers-reduced-motion:reduce) { body.crm-ui :is(input,select,textarea) { transition: none; } }

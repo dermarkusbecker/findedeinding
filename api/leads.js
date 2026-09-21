@@ -109,7 +109,6 @@ async function activateContractedLead(service, lead, programStartDate) {
   if (lead.converted_user_profile_id) return { profileId: lead.converted_user_profile_id, alreadyActive: true };
   const profile = await provisionProgramUser(service, { name: lead.name, email: lead.email, phone: lead.mobile_phone || lead.phone, startDate: programStartDate, sourceLeadId: lead.id, permissions: ['customer_portal', 'clara_program', 'documents'] });
   await patchLead(service, lead.id, { status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
-  await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Teilnehmer-Login automatisch erstellt', preview: `Login ${profile.portal_username || 'wird vergeben'} wurde angelegt. Ein sicherer Einmal-Link zur Passwortvergabe wurde per System-E-Mail versendet.` }).catch(() => null);
   return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, oneTimePassword: profile.oneTimePassword, alreadyActive: false };
 }
 
@@ -893,6 +892,8 @@ export default async function handler(request, response) {
         const meetUrl = event?.hangoutLink || event?.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || lead.meet_url || null;
         lead = await patchLead(service, lead.id, { calendar_event_id: event?.id || lead.calendar_event_id, calendar_event_url: event?.htmlLink || lead.calendar_event_url, meet_url: meetUrl });
         calendarNotified = true;
+        await insertLeadRecord(service,'lead_communications',{lead_id:lead.id,direction:'outbound',channel:'email',subject:'Google-Kalendereinladung angefordert',body:'Google Calendar hat die Aktualisierung mit Benachrichtigung der Teilnehmer angenommen. Diese Einladung verwendet die Google-Darstellung; eine Zustellbestätigung liegt nicht vor.',delivery_status:'accepted',automation_source:'google_calendar'});
+
       }
       if (!lead.appointment_confirmation_prepared_at) {
         const appointmentLabel = new Date(lead.appointment_start).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short', timeZone: lead.appointment_timezone || 'Europe/Berlin' });
@@ -901,12 +902,12 @@ export default async function handler(request, response) {
           lead_id: lead.id, direction: 'outbound', channel: 'email', subject: 'Dein Klarheitsgespräch ist bestätigt',
           preview: `Dein Klarheitsgespräch am ${appointmentLabel} ist bestätigt.`,
           body: `Hallo ${lead.first_name || lead.name},\n\ndein Klarheitsgespräch findet am ${appointmentLabel} statt.${meetLine}\n\nHerzliche Grüße\nMarkus Becker`,
-          delivery_status: calendarNotified ? 'sent' : 'draft',
+          delivery_status: 'draft', automation_source:'appointment_confirmation',
         });
       }
       const completedStatus = lead.converted_user_profile_id ? 'customer' : ['offer', 'later', 'lost'].includes(lead.status) ? lead.status : 'consultation';
       const completed = await patchLead(service, lead.id, { sales_conversation_completed_at: now, appointment_confirmation_prepared_at: lead.appointment_confirmation_prepared_at || now, status: completedStatus });
-      return response.status(200).json({ lead: completed, calendarNotified, mailStatus: calendarNotified ? 'sent' : 'draft', message: calendarNotified ? 'Verkaufsgespräch abgeschlossen. Google-Einladung und Terminbestätigung wurden versendet.' : 'Verkaufsgespräch abgeschlossen. Die Terminbestätigung ist als E-Mail-Entwurf vorbereitet; Google Calendar ist noch nicht verbunden.' });
+      return response.status(200).json({ lead: completed, calendarNotified, mailStatus: 'draft', message: calendarNotified ? 'Verkaufsgespräch abgeschlossen. Die Google-Einladung wurde angefordert; die Markenmail liegt als Entwurf vor.' : 'Verkaufsgespräch abgeschlossen. Die Terminbestätigung ist als E-Mail-Entwurf vorbereitet; Google Calendar ist noch nicht verbunden.' });
     }
     if (request.method === 'POST' && action === 'cancel-appointment') {
       const lead = await leadById(service, request.body?.id);

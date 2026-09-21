@@ -52,7 +52,7 @@ test('Dashboard nutzt die volle Fläche ohne zweite Navigation', async () => {
     readFile(scriptUrl, 'utf8'),
     readFile(stylesUrl, 'utf8'),
   ]);
-  assert.match(html, /<body class="dashboard-view">/);
+  assert.match(html, /<body class="[^"]*\bdashboard-view\b[^"]*">/);
   assert.match(html, /data-view="command">[\s\S]*?<span>⌂<\/span>Dashboard/);
   assert.match(html, /class="context-nav" aria-label="Unterkategorien" hidden/);
   assert.match(script, /const isDashboard=name==='command'/);

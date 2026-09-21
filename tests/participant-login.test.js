@@ -15,7 +15,9 @@ test('Vertragsabschluss erzeugt automatisch Kundennummer, Teilnehmer-Login und E
   assert.match(migration, /must_change_password/);
   assert.match(auth, /oneTimePassword = randomTemporaryPassword\(\)/);
   assert.match(auth, /must_change_password: true/);
-  assert.match(leads, /Teilnehmer-Login automatisch erstellt/);
+  assert.match(leads, /provisionProgramUser/);
+  assert.match(auth, /sendLoggedRecovery/);
+  assert.match(auth, /purpose:'invitation'/);
 });
 
 test('Teilnehmer können sich mit Teilnehmer-Login anmelden und müssen das Einmalpasswort ändern', async () => {

@@ -1,7 +1,7 @@
 {
   "cleanUrls": false,
   "functions": {
-    "api/*.js": { "maxDuration": 60, "includeFiles": "assets/forms/**" }
+    "api/*.js": { "maxDuration": 60, "includeFiles": "assets/{forms/**,fdd-logo.png}" }
   },
   "rewrites": [
     { "source": "/login", "destination": "/login.html" },
