@@ -1,3 +1,4 @@
+import {handleCustomerDeletion} from '../lib/customer-deletion.js';
 import {readCurriculumIndex,curriculumAccess} from '../lib/curriculum-progress.js';
 import { USER_PERMISSIONS } from '../lib/auth.js';
 import { authHeaders, createManagedAuthUser, profileById, requireCurrentAdmin, sendPasswordReset, supabaseAuthConfig } from '../lib/user-auth.js';
@@ -25,6 +26,7 @@ async function hasParticipantProgram(service, profileId) {
 }
 
 export default async function handler(request, response) {
+  if(request.query?.action==='delete-customer')return handleCustomerDeletion(request,response);
   const admin = await requireCurrentAdmin(request, response, 'users');
   if (!admin) return;
   const service = supabaseAuthConfig();
