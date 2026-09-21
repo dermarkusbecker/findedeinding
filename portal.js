@@ -118,6 +118,7 @@ function showView(name, { openMobileProcess = false } = {}) {
   }
   if (program) render();
   syncPortalMobileMenuLabel();
+  if (name === 'invoices') window.loadPortalInvoices?.();
   if (name === 'appointments') renderPortalAppointments();
   if (name === 'documents') void refreshDocumentLibrary();
   window.scrollTo({ top: 0, behavior: 'smooth' });

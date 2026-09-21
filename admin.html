@@ -40,7 +40,7 @@
         ><button data-view="communications"><span>✉</span>Kommunikation <i id="communicationNavCount">0</i></button
         >
         <p>Konfiguration</p>
-        <button data-view="settings"><span>⚙</span>Einstellungen</button>
+        <button data-view="finance"><span>€</span>Finanzen</button><button data-view="settings"><span>⚙</span>Einstellungen</button>
       </nav>
       <div class="sidebar-foot">
         <button id="logout">↪ <span>Abmelden</span></button>
@@ -170,7 +170,7 @@
         </div>
       </section>
 
-      <section class="view" data-panel="participants">
+      <section class="view" data-panel="finance"><div class="card"><p class="eyebrow">Buchhaltung</p><h1 id="financeHeading">Finanzübersicht</h1><p>Rechnungsumsatz und Zahlungseingänge getrennt. Beträge in Euro.</p><div id="financeStatus" role="status"></div><div id="financeContent"></div></div></section><section class="view" data-panel="participants">
         <section id="participantOverview" class="participant-overview">
         <div class="intro">
           <div>
@@ -312,7 +312,7 @@
             <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Finanzen</p><h2>Konto</h2><p>Saldo, Zahlungseingänge und Bankverbindung des Kunden.</p></div><span class="customer-page-state" id="customerAccountState">Wird geladen …</span></div><div class="customer-finance-overview" id="customerAccountPage"></div></section>
           </div>
           <div class="customer-dashboard-page" data-customer-page="billing" hidden>
-            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Finanzen</p><h2>Rechnungen &amp; Ratenpläne</h2><p>Verträge, Forderungen, Zahlungen und der aktuelle Abgleich.</p></div><span class="customer-page-state" id="customerBillingState">Wird geladen …</span></div><div class="customer-billing-list" id="customerBillingPage"></div></section>
+            <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Finanzen</p><h2>Rechnungen</h2><p>Verträge, Forderungen, Zahlungen und der aktuelle Abgleich.</p></div><span class="customer-page-state" id="customerBillingState">Wird geladen …</span></div><div class="customer-billing-list" id="customerBillingPage"></div></section>
           </div>
           <div class="customer-dashboard-page" data-customer-page="messages" hidden>
             <section class="card customer-page-card"><div class="lead-card-heading"><div><p class="eyebrow">Kommunikation</p><h2>Kommunikationshistorie</h2><p>Telefonate, E-Mails, Briefe und weitere Kontakte dokumentieren und bearbeiten.</p><button type="button" class="primary" data-new-communication>+ Kommunikation erfassen</button></div><span class="customer-page-state" id="customerMessageCount">0 Nachrichten</span></div><div class="customer-message-list" id="customerMessagePage"></div></section>
@@ -621,7 +621,7 @@
                   <div>
                     <h3>Freigegebene Gesprächszeiten</h3>
                     <p>
-                      Belegte Google-Termine werden automatisch herausgefiltert.
+                      Bei verbundenem Google-Kalender werden belegte Zeiten automatisch herausgefiltert.
                     </p>
                   </div>
                   <span class="settings-state" id="bookingConfigStatus"
@@ -649,6 +649,14 @@
                 <div class="booking-availability-preview" id="bookingAvailabilityPreview" aria-live="polite">
                   <div class="booking-availability-empty">Gespeicherte Zeitfenster werden geladen …</div>
                 </div>
+                <section class="booking-offers" aria-labelledby="bookingOffersTitle">
+                  <div class="settings-card-head"><div><h3 id="bookingOffersTitle">Angebotene Termine</h3><p>Konkrete freie Zeiten aus deinen gespeicherten Regeln · Europe/Berlin</p></div><button type="button" class="secondary" id="refreshBookingOffers">Aktualisieren</button></div>
+                  <div class="booking-offer-toolbar"><label>Gesprächsart<select id="bookingOfferCategory"></select></label><nav aria-label="Terminwochen"><button type="button" id="bookingOffersPrevious" aria-label="Vorherige Woche">←</button><strong id="bookingOffersRange"></strong><button type="button" id="bookingOffersNext" aria-label="Nächste Woche">→</button></nav></div>
+                  <p id="bookingOffersStatus" role="status"></p>
+                  <div id="bookingOffersDays" class="booking-offer-days"></div>
+                  <div id="bookingOffersTimes" class="booking-offer-times"></div>
+                  <p class="booking-offer-note">Vorschau ohne Buchung. Die erste aktive Gesprächsart wird auf der Website angeboten. Freie Zeiten können sich durch neue Buchungen ändern.</p>
+                </section>
                 <div class="settings-action-row">
                   <div>
                     <b>Wöchentliche Verfügbarkeit bearbeiten</b
@@ -808,7 +816,7 @@
                 </div>
               </section></details>
             </section>
-            <section class="settings-panel" data-settings-panel="signatures">
+            <section class="settings-panel" data-settings-panel="finance"><div class="card"><h2>Rechnungssteller &amp; Umsatzsteuer</h2><p>Änderungen gelten für neue Rechnungen. Ausgestellte Belege behalten ihre ursprünglichen Angaben.</p><form id="financeSettingsForm" class="communication-form-grid"><label>Name<input name="issuer_name" required></label><label>Steuernummer / USt-ID<input name="tax_id" required></label><label class="wide">Anschrift<textarea name="issuer_address" required></textarea></label><label>Mehrwertsteuer (%)<input name="vat_rate" type="number" min="0" max="100" step="0.01" required></label><label>Zahlungsziel (Tage; 0 = sofort)<input name="payment_days" type="number" min="0" max="365" required></label><label class="wide">IBAN<input name="iban"></label><button class="primary" type="submit">Rechnungsdaten speichern</button><p id="financeSettingsStatus" role="status"></p></form></div></section><section class="settings-panel" data-settings-panel="signatures">
               <div class="card settings-hero">
                 <span class="settings-icon peach">✎</span>
                 <div><p class="eyebrow">Kommunikation</p><h2>Signaturen &amp; Marke</h2><p>Pflege Absender und Logo einmal zentral. Jede neue Nachricht kann anschließend die passende Signatur übernehmen.</p></div>
@@ -830,6 +838,12 @@
                   <label class="communication-switch"><input name="isDefault" type="checkbox" checked /><span><b>Als Standard verwenden</b></span></label>
                   <div class="signature-form-actions wide"><span>Absender und Darstellung deiner Nachrichten</span><button class="primary" type="submit">Signatur speichern</button></div>
                 </form>
+              </section>
+              <section class="card signature-mail-preview" aria-labelledby="signaturePreviewTitle">
+                <div class="settings-card-head"><div><h3 id="signaturePreviewTitle">So wirkt deine E-Mail</h3><p>Gestaltungsvorschau mit Beispieltext und deinen aktuellen Eingaben – es wird keine E-Mail versendet.</p></div><div class="signature-preview-switch" aria-label="Vorschaugröße"><button type="button" data-signature-preview-size="desktop" aria-pressed="true">Desktop</button><button type="button" data-signature-preview-size="mobile" aria-pressed="false">Mobil</button></div></div>
+                <p id="signaturePreviewState" role="status">Vorschau wird geladen …</p>
+                <div class="signature-preview-stage"><iframe id="signatureMailPreview" title="E-Mail-Gestaltung mit Logo und Signatur" sandbox="" referrerpolicy="no-referrer"></iframe></div>
+                <p class="signature-preview-note">Die Vorschau verwendet dieselbe HTML-Vorlage wie neue CRM-Mailentwürfe. Der automatische Versand setzt die aktive Mail-Schnittstelle voraus. Je nach E-Mail-Programm sind kleine Darstellungsabweichungen möglich.</p>
               </section>
               <section class="card signature-settings-card">
                 <div class="settings-card-head"><div><h3>Globale Marke</h3><p>Eine Änderung wird systemweit in allen Signaturen übernommen.</p></div><img id="brandingLogoPreview" src="/assets/fdd-logo.svg" alt="Aktuelles Finde-dein-Ding-Logo" /></div>
@@ -1134,7 +1148,7 @@
               <p class="recording-upload-note">MP4, WebM oder MOV · maximal 50 MB. Nach dem Stoppen wird automatisch hochgeladen. Lass diese Seite bis zur Speicherbestätigung geöffnet; bei einem Verbindungsabbruch kannst du den Upload erneut versuchen.</p>
               <div class="recording-state" id="videoRecordingState" role="status" aria-live="polite"><i></i><span>Noch keine Aufnahme gespeichert.</span><time id="videoRecordingTimer" aria-hidden="true"></time></div>
               <video id="contractRecordingPreview" controls playsinline preload="metadata" hidden></video>
-              <div class="recording-controls"><button type="button" class="secondary" id="retryContractRecording" hidden>Upload erneut versuchen</button><a class="secondary" id="downloadContractRecording" hidden>Videodatei herunterladen</a><button type="button" class="secondary" id="discardContractRecording" hidden>Lokale Aufnahme verwerfen</button></div>
+              <div class="recording-controls"><button type="button" class="secondary" id="retryContractRecording" hidden>Video speichern</button><a class="secondary" id="downloadContractRecording" hidden>Videodatei herunterladen</a><button type="button" class="secondary" id="discardContractRecording" hidden>Lokale Aufnahme verwerfen</button></div>
               <label class="recording-review"><input type="checkbox" name="recordingReviewed" id="recordingReviewed">Ich habe die gespeicherte Aufnahme geprüft: Bild und beide Gesprächsstimmen sind vollständig vorhanden.</label>
               <button class="primary finalize-video-contract" id="finalizeVideoContract" type="button" disabled>Videovertrag verbindlich speichern →</button><p class="video-contract-legal-note">Die Videodatei wird privat in der Kunden- und Vertragsakte gespeichert. Der Vertragsabschluss erfolgt anschließend über die bestehenden Einwilligungen und Einzelbestätigungen.</p>
             </section>
@@ -1686,6 +1700,6 @@
     </dialog>
     <div id="toast"></div>
     <script src="admin.js"></script><script type="module" src="admin-tasks.js"></script>
-    <script src="admin-communication-center.js"></script>
+    <script src="admin-communication-center.js"></script><script src="admin-finance.js"></script>
   <dialog id="builderPreview" class="builder-preview-dialog" aria-label="Kundenvorschau des Prozessentwurfs"></dialog><dialog id="builderPublish" class="builder-publish-dialog" aria-labelledby="builderPublishTitle"><h2 id="builderPublishTitle">Prozess veröffentlichen?</h2><p>Der aktuelle Entwurf wird als neue Version gespeichert. Neue Kunden erhalten diese Version. Laufende Kunden und ihre Antworten bleiben unverändert.</p><button type="button" class="secondary" id="builderPublishCancel">Zurück zum Entwurf</button><button type="button" class="primary" id="builderPublishConfirm">Version veröffentlichen</button></dialog><dialog id="builderDraftNameDialog" class="crm-task-editor"><form id="builderDraftNameForm"><div class="dialog-head"><h2>Entwurf speichern</h2><button type="button" data-close-draft-dialog aria-label="Schließen">×</button></div><label>Name des Entwurfs<input name="draftName" maxlength="160" placeholder="z. B. Prozess mit neuer Motivatoren-Auswahl"></label><p>Ohne Namen verwenden wir automatisch Datum und Uhrzeit. Jeder Speichervorgang legt einen eigenen Stand an.</p><p id="builderDraftSaveStatus" role="status"></p><button type="submit" class="primary">Entwurf speichern</button></form></dialog><dialog id="builderDraftLibrary" class="crm-task-editor"><div class="dialog-head"><h2>Gespeicherte Entwürfe</h2><button type="button" data-close-draft-dialog aria-label="Schließen">×</button></div><p>Entwurf zum Laden anklicken. Ungespeicherte Änderungen im Editor werden dabei ersetzt. Veröffentlichte Kundenprozesse bleiben unverändert.</p><p data-draft-load-status role="status"></p><div data-draft-list></div></dialog><script type="module" src="admin-process-builder.js"></script><dialog id="communicationEditor" class="crm-task-editor"><form id="communicationEditorForm"><div class="dialog-head"><h2>Kommunikation erfassen</h2><button type="button" data-close-communication aria-label="Schließen">×</button></div><p>Dokumentiert den Kontakt in der Kundenakte. Es wird keine Nachricht versendet.</p><label>Kontaktart<select name="channel"><option value="phone">Telefon</option><option value="email">E-Mail</option><option value="letter">Brief</option><option value="whatsapp">WhatsApp</option><option value="meeting">Persönliches Gespräch</option><option value="other">Sonstiges</option></select></label><label>Richtung<select name="direction"><option value="outbound">Ausgehend</option><option value="inbound">Eingehend</option><option value="system">Interne Notiz</option></select></label><label>Datum und Uhrzeit<input type="datetime-local" name="occurredAt" required></label><label>Betreff<input name="subject" maxlength="220" required></label><label>Gesprächsnotiz / Inhalt<textarea name="body" rows="6" maxlength="20000"></textarea></label><div id="communicationExistingFiles"></div><label>Anhänge hinzufügen<input name="files" type="file" multiple accept=".pdf,.docx,.png,.jpg,.jpeg,.webp"></label><small>PDF, DOCX oder Bilder · zusammen maximal 2 MB pro Speichern. Anhänge bleiben ausschließlich bei dieser Kommunikation.</small><p id="communicationSaveStatus" role="status"></p><button class="primary" type="submit">Eintrag speichern</button></form></dialog><script type="module" src="admin-communication-log.js"></script><dialog class="crm-task-editor" id="customerNoteEditor"><form id="customerNoteForm"><div class="dialog-head"><h2>Notiz</h2><button type="button" id="closeCustomerNote" aria-label="Schließen">×</button></div><label>Titel<input name="title" maxlength="220" required></label><label>Priorität<select name="priority"><option value="low">↓ Niedrig</option><option value="normal" selected>● Normal</option><option value="high">↑ Hoch</option><option value="urgent">! Dringend</option></select></label><label>Notiz<textarea name="body" rows="7" maxlength="20000"></textarea></label><label><input type="checkbox" name="archived"> Archivieren</label><p id="customerNoteSaveStatus" role="status"></p><button type="submit" class="primary">Notiz speichern</button></form></dialog><script type="module" src="admin-customer-notes.js"></script></body>
 </html>

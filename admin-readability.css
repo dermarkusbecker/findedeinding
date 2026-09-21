@@ -171,3 +171,42 @@ button.customer-week-item:focus-visible { outline:3px solid #288299; outline-off
 #savedCustomerWeekDialog .customer-process-answers p { font-size:16px; line-height:1.65; color:#315363; }
 
 .saved-week-file{display:block;width:100%;padding:14px;border:1px solid #98c4d2;border-radius:10px;background:#eaf5f8;color:#194b61;font-family:inherit;font-size:16px;font-weight:600;line-height:1.5;text-align:left;cursor:pointer;overflow-wrap:anywhere}
+
+/* Saved booking rules and concrete availability share one readable overview. */
+.booking-offers{margin-top:26px;padding-top:24px;border-top:1px solid #c9dce0}
+.booking-offer-toolbar{display:flex;gap:18px;justify-content:space-between;align-items:end;flex-wrap:wrap}
+.booking-offer-toolbar label{display:grid;gap:8px;flex:1;min-width:220px;font-size:14px;font-weight:700}
+.booking-offer-toolbar select{width:100%;min-height:46px}
+.booking-offer-toolbar nav{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.booking-offer-toolbar nav button{min-width:44px;min-height:44px;border:1px solid #98b8c1;border-radius:10px;background:#edf6f8;color:#164958;cursor:pointer}
+.booking-offer-toolbar button:disabled{opacity:.4;cursor:default}
+#bookingOffersStatus{font-size:14px;line-height:1.6;margin:18px 0;color:#315563}
+.booking-offer-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.booking-offer-days button{display:grid;gap:8px;padding:16px 8px;min-width:0;border:1px solid #bdd1d7;border-radius:12px;background:#f1f7f8;color:#194452;cursor:pointer;font-family:inherit}
+.booking-offer-days button strong{font-size:14px}.booking-offer-days button small{font-size:12px}
+.booking-offer-days button.selected{background:#173f50;color:#fff;border-color:#ff9453;box-shadow:0 0 0 1px #ff9453}
+.booking-offer-days button.no-slots:not(.selected){background:#f5f6f6;color:#62767d}
+.booking-offer-times{display:flex;flex-wrap:wrap;gap:10px;max-height:330px;overflow:auto;margin-top:20px;padding:2px}
+.booking-offer-times h4,.booking-offer-times p{flex-basis:100%;margin:0 0 8px;font-size:16px;line-height:1.6}
+.booking-offer-times span{padding:10px 14px;border-radius:8px;background:#eaf5f1;border:1px solid #b9d8cc;color:#195a49;font-size:14px;font-weight:600}
+.booking-offer-note{font-size:13px;line-height:1.6;color:#526b74;margin-top:18px}
+.booking-offers button:focus-visible{outline:3px solid #d87533;outline-offset:3px}
+@media(max-width:900px){.booking-offer-days{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:540px){.booking-offer-days{grid-template-columns:repeat(2,minmax(0,1fr))}.booking-offer-toolbar nav{width:100%;justify-content:space-between}.booking-offer-toolbar nav strong{font-size:12px}.booking-offers .settings-card-head{flex-wrap:wrap;gap:12px}}
+
+.signature-mail-preview{margin-block:24px}
+.signature-preview-switch{display:flex;gap:6px;flex-wrap:wrap}
+.signature-preview-switch button{padding:11px 16px;border-radius:9px;border:1px solid #b8ccd4;background:#fff;color:#244a5a;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.signature-preview-switch button[aria-pressed=true]{background:#153e50;color:#fff;border-color:#153e50}
+.signature-preview-switch button:focus-visible{outline:3px solid #ff9453;outline-offset:3px}
+.signature-preview-stage{padding:22px;background:#eaf0f3;border:1px solid #d2e0e7;border-radius:14px;overflow:hidden}
+#signatureMailPreview{display:block;width:100%;max-width:760px;height:760px;border:0;margin:auto;background:#edf3f5;border-radius:12px}
+#signatureMailPreview.mobile{max-width:390px}
+#signaturePreviewState,.signature-preview-note{font-size:14px;line-height:1.65;color:#526e7b}
+@media(max-width:600px){.signature-preview-stage{padding:8px}.signature-mail-preview .settings-card-head{flex-wrap:wrap;gap:14px}}
+
+.finance-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:24px 0}
+.finance-kpis article{padding:22px;border:1px solid #bed6df;border-radius:16px;background:#f2f8fa}.finance-kpis strong{display:block;font-size:27px;margin:12px 0;color:#173f50}.finance-kpis p{font-size:13px;line-height:1.6}
+.finance-toolbar{display:flex;flex-wrap:wrap;gap:18px;align-items:end;margin:20px 0}.finance-toolbar label{display:grid;gap:8px;min-width:180px}.finance-toolbar input,.finance-toolbar select{min-height:44px;max-width:100%}.finance-toolbar input[type=checkbox]{min-height:20px}
+.finance-table-scroll{overflow:auto;max-width:100%}.finance-table{width:100%;border-collapse:collapse;font-size:14px;text-align:left}.finance-table th{background:#edf4f7;padding:14px;color:#294f5e;white-space:nowrap}.finance-table td{padding:14px;vertical-align:top;border-bottom:1px solid #dce6eb;line-height:1.6}.finance-table small,.finance-table a,.finance-table button{display:block;margin-top:6px}.finance-table small{min-width:130px;color:#55727e}.finance-table a{color:#18596b;text-decoration:underline}
+@media(max-width:1000px){.finance-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.finance-kpis{grid-template-columns:1fr}.finance-toolbar label{width:100%}}

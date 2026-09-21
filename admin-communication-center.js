@@ -1,3 +1,4 @@
+const brandedEmailRenderer=import('/lib/branded-email.js');
 let communicationTemplates=[];
 let communicationCampaigns=[];
 let communicationAutomations=[];
@@ -31,6 +32,12 @@ function renderTemplatePreview(){
   if(!item){pane.innerHTML='<div class="template-preview-empty"><span>▧</span><h3>Vorlage auswählen</h3><p>Wähle links eine Vorlage aus, um Inhalt, Platzhalter und Freigabestatus zu prüfen.</p></div>';return;}
   const placeholders=communicationPlaceholderList(`${item.subject} ${item.body}`);
   pane.innerHTML=`<div class="template-preview-head"><div><div class="template-tags"><span class="communication-badge ${escapeHtml(item.status)}">${item.status==='active'?'Freigegeben':'Entwurf'}</span><span class="communication-badge">${escapeHtml(item.channel==='email'?'E-Mail':'WhatsApp')}</span><span class="communication-badge">${escapeHtml(templateCategoryLabels[item.category]||item.category)}</span></div><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.description||'Keine Kurzbeschreibung hinterlegt.')}</p></div><button type="button" class="secondary" data-edit-template="${escapeHtml(item.id)}">Bearbeiten ···</button></div><div class="template-mail-preview"><small>Live-Vorschau · Betreff</small><h4>${escapeHtml(item.subject)}</h4><div class="template-mail-body">${escapeHtml(item.body)}</div></div><div class="template-placeholders"><small>Verwendete Platzhalter</small>${placeholders.length?placeholders.map(value=>`<code>${escapeHtml(value)}</code>`).join(''):'<span class="communication-badge">Keine</span>'}</div>`;
+  if(item.channel==='email'){
+    const preview=pane.querySelector('.template-mail-preview');
+    preview.innerHTML='<small>HTML-Vorschau · Platzhalter werden beim Vorbereiten der Nachricht ersetzt</small><iframe title="Mailvorlage mit Logo und Standardsignatur" sandbox="" referrerpolicy="no-referrer" style="width:100%;height:720px;border:0;margin-top:12px"></iframe>';
+    const frame=preview.querySelector('iframe');
+    brandedEmailRenderer.then(({renderBrandedEmail})=>{if(frame.isConnected)frame.srcdoc=renderBrandedEmail({subject:item.subject,body:item.body,signature:communicationSignatures.find(signature=>signature.is_default&&signature.active),branding:communicationBranding||{}}).html;}).catch(()=>{preview.textContent='Die Mailvorschau konnte nicht geladen werden. Bitte lade die Seite erneut.';});
+  }
   pane.querySelector('[data-edit-template]')?.addEventListener('click',()=>openTemplateDialog(item.id));
 }
 
@@ -65,7 +72,29 @@ function fillSignatureControls(){
   if(form&&signature){form.elements.id.value=signature.id;form.elements.name.value=signature.name||'';form.elements.closingText.value=signature.closing_text||'';form.elements.signerName.value=signature.signer_name||'';form.elements.roleTitle.value=signature.role_title||'';form.elements.companyName.value=signature.company_name||'';form.elements.email.value=signature.email||'';form.elements.phone.value=signature.phone||'';form.elements.website.value=signature.website||'';form.elements.useSystemLogo.checked=signature.use_system_logo!==false;form.elements.active.checked=signature.active!==false;form.elements.isDefault.checked=signature.is_default===true;}
   const brandingForm=document.querySelector('#communicationBrandingForm');
   if(brandingForm&&communicationBranding){brandingForm.elements.brandName.value=communicationBranding.brand_name||'Finde dein Ding';brandingForm.elements.logoUrl.value=communicationBranding.logo_url||'/assets/fdd-logo.svg';const preview=document.querySelector('#brandingLogoPreview');if(preview)preview.src=brandingForm.elements.logoUrl.value;}
+  renderSignatureMailPreview();
 }
+
+let signaturePreviewRevision=0;
+async function renderSignatureMailPreview(){
+  const revision=++signaturePreviewRevision,form=document.querySelector('#communicationSignatureForm'),brand=document.querySelector('#communicationBrandingForm'),frame=document.querySelector('#signatureMailPreview');
+  if(!form||!brand||!frame)return;
+  const signature={};
+  for(const [field,key] of Object.entries({closingText:'closing_text',signerName:'signer_name',roleTitle:'role_title',companyName:'company_name',email:'email',phone:'phone',website:'website'}))signature[key]=form.elements[field].value.trim();
+  signature.active=form.elements.active.checked;signature.use_system_logo=form.elements.useSystemLogo.checked;
+  try{
+    const {renderBrandedEmail}=await brandedEmailRenderer;
+    if(revision!==signaturePreviewRevision)return;
+    frame.srcdoc=renderBrandedEmail({subject:'Dein nächster Schritt',body:'Hallo Alex,\n\nschön, dass du dir Zeit für deinen nächsten Schritt nimmst. Gemeinsam schauen wir darauf, was dir wichtig ist und wie es für dich weitergeht.\n\nIch freue mich auf unser Gespräch.',signature,branding:{brand_name:brand.elements.brandName.value,logo_url:brand.elements.logoUrl.value}}).html;
+    document.querySelector('#signaturePreviewState').textContent=signature.active?'Aktuelle Eingaben · Änderungen vor dem Verlassen speichern.':'Signatur deaktiviert · Die Vorschau zeigt keine Signatur.';
+  }catch{document.querySelector('#signaturePreviewState').textContent='Die Mailvorschau konnte nicht geladen werden. Bitte lade die Seite erneut.';}
+}
+['communicationSignatureForm','communicationBrandingForm'].forEach(id=>document.querySelector(`#${id}`)?.addEventListener('input',renderSignatureMailPreview));
+document.querySelectorAll('[data-signature-preview-size]').forEach(button=>button.addEventListener('click',()=>{
+  document.querySelector('#signatureMailPreview').classList.toggle('mobile',button.dataset.signaturePreviewSize==='mobile');
+  document.querySelectorAll('[data-signature-preview-size]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+}));
+renderSignatureMailPreview();
 
 function campaignDate(value){
   if(!value)return'Noch offen';

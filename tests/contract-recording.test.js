@@ -177,3 +177,16 @@ test('only a verified upload is promoted, with draft and pending-path concurrenc
   global.fetch=async()=>new Response(null,{status:404});
   await assert.rejects(completeRecordingUpload(service,{id:'owner'},contract,{storagePath:pending.storagePath}),/nicht vollständig/);
 });
+
+test('imported video stays local for review until Save is clicked', async()=>{
+ const {ContractRecorder}=await import('../lib/browser-contract-recorder.js');
+ const recorder=Object.create(ContractRecorder.prototype);
+ let previews=0,saves=0;
+ Object.assign(recorder,{check:()=>({record:{video_recording_consent_at:'2026-09-21'},contractId:'contract'}),file:{files:[{name:'call.mp4',type:'video/mp4',size:100}],value:'file'},setLocalPreview:()=>previews++,save:()=>saves++,status:()=>{},controls:()=>{},notify:message=>{throw Error(message)}});
+ await recorder.importFile();
+ assert.equal(previews,1);assert.equal(saves,0);assert.equal(recorder.blob.name,'call.mp4');
+});
+test('duplicate Save while upload is running does not start another upload',async()=>{
+ const {ContractRecorder}=await import('../lib/browser-contract-recorder.js');
+ const recorder=Object.create(ContractRecorder.prototype);recorder.blob={size:100};recorder.busy=true;recorder.controls=()=>{throw Error('Upload started twice');};await recorder.save();
+});

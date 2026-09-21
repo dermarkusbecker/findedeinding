@@ -1,3 +1,6 @@
+import { archiveLeadInvoices } from '../lib/finance-archive.js';
+import { handleFinance } from '../lib/finance-api.js';
+import { renderBrandedEmail } from '../lib/branded-email.js';
 import { normalizeIntake } from '../lib/intake.js';
 import {readCurriculumIndex,curriculumAccess,curriculumGates} from '../lib/curriculum-progress.js';
 import {categoryBookingSettings,normalizeAppointmentCategories} from '../lib/appointment-categories.js';
@@ -77,6 +80,15 @@ async function patchLead(service, id, changes) {
 }
 
 async function insertLeadRecord(service, table, payload) {
+  if (table === 'lead_communications' && payload.direction === 'outbound' && payload.channel === 'email' && payload.body && !payload.body_html) {
+    const [signatures, brands] = await Promise.all([
+      readJson(await fetch(`${service.url}/rest/v1/communication_signatures?active=eq.true&is_default=eq.true&select=*&limit=1`, { headers: headers(service.key) })),
+      readJson(await fetch(`${service.url}/rest/v1/system_branding?id=eq.default&select=*&limit=1`, { headers: headers(service.key) })),
+    ]);
+    const content = payload.body.replace(/\n\nHerzliche Grüße\nMarkus Becker$/, '');
+    const mail = renderBrandedEmail({ subject: payload.subject, body: content, signature: signatures[0], branding: brands[0] });
+    payload = { ...payload, body: mail.text, body_html: mail.html, signature_id: signatures[0]?.id || null };
+  }
   const rows = await readJson(await fetch(`${service.url}/rest/v1/${table}`, { method: 'POST', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify(payload) }), 'CRM-Eintrag konnte nicht gespeichert werden.');
   return rows[0] || null;
 }
@@ -337,6 +349,7 @@ async function recordDashboardMutation(service, request) {
     const record = await insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, tariff_id: tariff.id, title, contract_number: contractNumber, amount, status, signed_at: status === 'signed' ? now : null, document_confirmed_at: documentConfirmed ? now : null, video_contract_confirmed_at: videoContractConfirmed ? now : null, program_start_date: programStartDate });
     const readyForParticipant = status === 'signed' && documentConfirmed && videoContractConfirmed;
     const participant = readyForParticipant ? await activateContractedLead(service, lead, programStartDate) : null;
+    if(status==='signed') await archiveLeadInvoices(service,lead.id).catch(()=>null);
     return { record, participantActivated: Boolean(participant && !participant.alreadyActive), participant };
   }
   if (recordType === 'payment') {
@@ -575,6 +588,7 @@ function permissionForAction(action) {
 export default async function handler(request, response) {
   const service = serviceConfig();
   const action = request.query?.action || request.body?.action || '';
+  if(action.startsWith('finance-')) return handleFinance(request,response);
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
   if (action === 'public-contract-sign') return handlePublicContractSign(request, response);
   if (request.method === 'GET' && action === 'public-available-slots') {
@@ -670,7 +684,9 @@ export default async function handler(request, response) {
       }
       const body = `${messageBody}${signature ? `\n\n${signatureText(signature)}` : ''}`.slice(0, 20000);
       if (!subject || !messageBody) return response.status(400).json({ error: 'Empfänger, Betreff und Nachricht sind erforderlich.' });
-      const record = await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', channel: 'email', subject, preview: body.slice(0, 500), body, signature_id: signature?.id || null, delivery_status: 'draft' });
+      const brands = await readJson(await fetch(`${service.url}/rest/v1/system_branding?id=eq.default&select=*&limit=1`, { headers: headers(service.key) }));
+      const mail = renderBrandedEmail({subject, body: messageBody, signature, branding: brands[0]});
+      const record = await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', channel: 'email', subject, preview: body.slice(0, 500), body: mail.text, body_html: mail.html, signature_id: signature?.id || null, delivery_status: 'draft' });
       return response.status(201).json({ record, message: 'Nachricht wurde als Entwurf gespeichert. Der Versand wird nach Anschluss der Domain-Mail-Schnittstelle aktiviert.' });
     }
     if (request.method === 'PATCH' && action === 'communication-read') {
@@ -803,6 +819,7 @@ export default async function handler(request, response) {
         body: `Hallo ${lead.name},\n\nder Video-Abschluss wurde dokumentiert. Bitte prüfe deinen Vertrag und bestätige ihn zusätzlich digital:\n${signingUrl}\n\nHerzliche Grüße\nMarkus Becker`, delivery_status: 'draft',
       }).catch(() => null);
       const participant = await activateContractedLead(service, lead, normalized.contract.serviceStart);
+      await archiveLeadInvoices(service,lead.id).catch(()=>null);
       return response.status(200).json({ record, signingPath, participantActivated: Boolean(participant && !participant.alreadyActive), participant, message: 'Video-Abschluss dokumentiert. Der Signaturlink wurde als E-Mail-Entwurf angelegt.' });
     }
     if (request.method === 'GET' && ['contract-download', 'video-recording-download'].includes(action)) {
@@ -812,6 +829,10 @@ export default async function handler(request, response) {
       const storagePath = action === 'contract-download' ? contract.document_storage_path : contract.video_recording_path;
       const url = await signedCustomerUrl(service, bucket, storagePath);
       if (!url) return response.status(404).json({ error: 'Die Datei ist noch nicht verfügbar.' });
+      if(action==='video-recording-download'&&request.query?.download==='1'){
+        const downloadUrl=new URL(url);downloadUrl.searchParams.set('download',`Vertragsaufnahme.${contract.video_recording_provider==='google_meet'?'mp4':(contract.video_recording_mime_type||'').includes('mp4')?'mp4':'webm'}`);
+        return response.redirect(302,downloadUrl.href);
+      }
       return response.redirect(302, url);
     }
     if (request.method === 'GET' && action === 'dashboard') return response.status(200).json(await leadDashboard(service, request.query?.id));
