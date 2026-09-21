@@ -5,16 +5,20 @@
  window.renderCustomerContracts=data=>{
   const contracts=(data.customer?.contracts||[]).filter(c=>c.status==='signed');
   document.querySelector('#customerActiveContractCount').textContent=String(contracts.length);
-  document.querySelector('#newCustomerContract').hidden=!canCreate();
-  document.querySelector('#customerActiveContracts').innerHTML=contracts.length?contracts.map(c=>`<article><div><strong>${escapeHtml(c.title)}</strong><b>${euro(c.amount)}</b></div><small>${escapeHtml(c.contract_number||'Vertrag')} · Beginn ${c.program_start_date?crmDate(c.program_start_date):'offen'}${c.contract_data?.duration?` · ${escapeHtml(c.contract_data.duration)}`:''}</small><nav>${c.document_storage_path?`<a href="/api/leads?action=contract-download&id=${encodeURIComponent(c.lead_id)}&contractId=${encodeURIComponent(c.id)}" target="_blank" rel="noopener">Vertragsdokument ↗</a>`:''}${c.invoice?.status==='issued'&&activeStaffPermissions.includes('finance')?`<a href="/api/leads?action=finance-pdf&id=${encodeURIComponent(c.invoice.id)}" target="_blank" rel="noopener">${escapeHtml(c.invoice.number)} ↗</a>`:`<span>${c.invoice?.status==='needs_details'?'Rechnung: Angaben fehlen':c.invoice?.status==='issued'?'Rechnung erstellt':'Noch keine Rechnung'}</span>`}</nav></article>`).join(''):'<p class="empty">Noch keine aktiven Verträge hinterlegt.</p>';
+  document.querySelectorAll('[data-new-customer-contract]').forEach(button=>{button.hidden=!canCreate();});
+  const markup=contracts.length?contracts.map(c=>`<article><div><strong>${escapeHtml(c.title)}</strong><b>${euro(c.amount)}</b></div><small>${escapeHtml(c.contract_number||'Vertrag')} · Beginn ${c.program_start_date?crmDate(c.program_start_date):'offen'}${c.contract_data?.duration?` · ${escapeHtml(c.contract_data.duration)}`:''}</small><nav>${c.document_storage_path?`<a href="/api/leads?action=contract-download&id=${encodeURIComponent(c.lead_id)}&contractId=${encodeURIComponent(c.id)}" target="_blank" rel="noopener">Vertragsdokument ↗</a>`:''}${c.invoice?.status==='issued'&&activeStaffPermissions.includes('finance')?`<a href="/api/leads?action=finance-pdf&id=${encodeURIComponent(c.invoice.id)}" target="_blank" rel="noopener">${escapeHtml(c.invoice.number)} ↗</a>`:`<span>${c.invoice?.status==='needs_details'?'Rechnung: Angaben fehlen':c.invoice?.status==='issued'?'Rechnung erstellt':'Noch keine Rechnung'}</span>`}</nav></article>`).join(''):'<p class="empty">Noch keine aktiven Verträge hinterlegt.</p>';
+  document.querySelector('#customerActiveContracts').innerHTML=markup;
+  document.querySelector('#customerContractsPageList').innerHTML=markup;
   if(data.customer?.finance?.pendingInvoices)document.querySelector('#customerBalanceState').textContent+=` · ${data.customer.finance.pendingInvoices} Rechnung(en) benötigen Angaben`;
  };
  const tariffInfo=()=>{const t=tariffs.find(item=>item.id===form.elements.tariffId.value);document.querySelector('#customerContractTariffInfo').innerHTML=t?`<strong>${escapeHtml(t.product_label)}</strong><p>${escapeHtml(t.duration_label)} · ${escapeHtml(t.payment_model)}</p><b>${euro(t.gross_price)} brutto</b>`:'';};
- document.querySelector('#newCustomerContract').addEventListener('click',async()=>{
+ const openContractForm=async()=>{
   if(!canCreate()||!activeCustomerDashboard)return;
   customerId=activeCustomerDashboard.person.id;requestKey=crypto.randomUUID();form.reset();status.textContent='Tarife werden geladen …';document.querySelector('#customerContractFor').textContent=activeCustomerDashboard.customer?.profile?.name||activeCustomerDashboard.person.name;form.elements.serviceStart.value=browserDateKey();form.querySelector('[type=submit]').disabled=true;form.elements.tariffId.innerHTML='';document.querySelector('#customerContractTariffInfo').innerHTML='';dialog.showModal();
   try{const result=await fetch(`/api/customer-records?action=customer-contracts&participantId=${encodeURIComponent(customerId)}`),data=await result.json();if(!result.ok)throw new Error(data.error);tariffs=data.tariffs||[];form.elements.tariffId.innerHTML=tariffs.map(t=>`<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`).join('');tariffInfo();status.textContent=tariffs.length?'':'Bitte zuerst unter Einstellungen → Tarife einen aktiven Tarif anlegen.';form.querySelector('[type=submit]').disabled=!tariffs.length;}catch(error){status.textContent=error.message;}
- });
+ };
+ document.querySelectorAll('[data-new-customer-contract]').forEach(button=>button.addEventListener('click',openContractForm));
+ document.querySelectorAll('[data-open-customer-contracts]').forEach(button=>button.addEventListener('click',()=>setCustomerDashboardPage('contracts')));
  form.elements.tariffId.addEventListener('change',tariffInfo);
  form.querySelectorAll('[data-close-customer-contract]').forEach(b=>b.addEventListener('click',()=>{if(!saving)dialog.close();}));
  dialog.addEventListener('cancel',event=>{if(saving)event.preventDefault();});

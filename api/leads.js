@@ -574,6 +574,7 @@ async function publicLead(request, response, service) {
 }
 
 function permissionForAction(action) {
+  if (action === 'contract-download') return ['customers', 'finance', 'leads', 'sales_calls'];
   if (action === 'tasks') return ['leads','sales_calls','customers','program'];
   if (action === 'command-dashboard') return 'dashboard';
   if (action.startsWith('communication')) return 'communications';
