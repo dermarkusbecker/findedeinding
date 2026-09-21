@@ -1,3 +1,4 @@
+import {handleDunningCron} from '../lib/dunning-api.js';
 import {customerAccount} from '../lib/customer-account.js';
 import { archiveLeadInvoices } from '../lib/finance-archive.js';
 import { handleReferences } from '../lib/references-api.js';
@@ -594,6 +595,7 @@ function permissionForAction(action) {
 export default async function handler(request, response) {
   const service = serviceConfig();
   const action = request.query?.action || request.body?.action || '';
+  if(action==='dunning-cron')return handleDunningCron(request,response);
   if (action.startsWith('references-')) return handleReferences(request, response);
   if(action.startsWith('finance-')) return handleFinance(request,response);
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });

@@ -3,6 +3,7 @@
   "functions": {
     "api/*.js": { "maxDuration": 60, "includeFiles": "assets/{forms/**,fdd-logo.png}" }
   },
+  "crons": [{ "path": "/api/leads?action=dunning-cron", "schedule": "0 7 * * *" }],
   "rewrites": [
     { "source": "/referenzen", "destination": "/referenzen.html" },
     { "source": "/login", "destination": "/login.html" },
