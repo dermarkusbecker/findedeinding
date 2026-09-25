@@ -1,0 +1,34 @@
+Datenschutz in der Finde-dein-Ding-App
+Stand: 25. September 2026
+
+1. Verantwortlicher
+Markus Becker, Einzelunternehmer
+Amorbacher Str. 39, 74177 Bad Friedrichshall, Deutschland
+Datenschutz und Kontakt: markus@dermarkusbecker.de
+
+2. Registrierung und Intake
+Wir verarbeiten deinen Namen, deine E-Mail-Adresse, optional deine Telefonnummer und deine Antworten auf die Intake-Fragen, um deine Anfrage einzuschätzen und dich zu kontaktieren. Die E-Mail-Adresse wird durch einen zeitlich begrenzten Code bestätigt. Die Registrierung allein schließt keinen Coachingvertrag ab. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO für vorvertragliche Schritte und die spätere Vertragsdurchführung. Wir protokollieren die Kenntnisnahme dieser Hinweise. Eine solche Kenntnisnahme ersetzt keine gesondert erforderliche Einwilligung.
+
+3. Dein Coachingkonto
+Nach der Freischaltung werden deine Kontakt- und Profildaten, dein Coachingfortschritt, Klarheitswerte, Antworten und Reflexionen, Dokumente, Termine, Verträge, Rechnungen und Zahlungsstände verarbeitet, damit du das vereinbarte Coaching auf dem iPhone oder iPad durchführen kannst. Inhalte werden mit deinem bestehenden Kundenkonto und dem CRM synchronisiert. Markus und berechtigte Mitarbeiter erhalten Zugriff im Rahmen ihrer Aufgaben. Rechtsgrundlagen sind Art. 6 Abs. 1 lit. b DSGVO und, für notwendige Abrechnung und Aufbewahrung, Art. 6 Abs. 1 lit. c DSGVO.
+
+4. Clara und künstliche Intelligenz
+Clara ist eine KI-Begleiterin. Für Antworten, Strukturierung und Reflexionen werden die eingegebenen Inhalte und der dafür erforderliche Coachingkontext serverseitig an OpenAI übermittelt. Hochgeladene Dokumente können zur Textextraktion und fachlichen Einordnung verarbeitet werden. Ergebnisse können falsch oder unvollständig sein; fachliche Entscheidungen trifft Markus. Es erfolgt keine ausschließlich automatisierte Entscheidung mit rechtlicher oder vergleichbar erheblicher Wirkung. Bitte gib nur Inhalte an, die für dein Coaching erforderlich sind. Vor Beginn erhältst du die vollständige Datenschutzvereinbarung FDD-FRM-002. Die KI-Unterstützung und die Verarbeitung freiwillig angegebener besonders sensibler Daten werden dort getrennt erklärt und bestätigt. Für besondere Kategorien personenbezogener Daten gilt Art. 9 Abs. 2 lit. a DSGVO, soweit du ausdrücklich eingewilligt hast. Einwilligungen kannst du mit Wirkung für die Zukunft über den genannten Kontakt widerrufen.
+
+5. Mikrofon und Spracheingabe
+Mikrofonzugriff erfolgt nur, wenn du die Spracheingabe startest und die iOS-Berechtigung erteilst. Die App verlangt gerätebasierte Spracherkennung. Unterstützt dein Gerät die deutsche Offline-Erkennung nicht, bleibt die Texteingabe verfügbar. Die App lädt für diese Funktion keine Audioaufzeichnung auf unsere Server. Erkanntes Diktat erscheint zuerst als bearbeitbarer Text; erst mit Senden wird es als Coachingantwort übertragen. Du kannst die Berechtigungen jederzeit in den Geräteeinstellungen ändern.
+
+6. Fotos, Dateien und Termine
+Du wählst Bilder und Dokumente über die iOS-Auswahl aus. Die App fordert keinen pauschalen Zugriff auf deine gesamte Fotomediathek an. Erst der gewählte Inhalt wird für den angezeigten Zweck übertragen. PDF-Dokumente werden zur Anzeige vorübergehend im geschützten App-Verzeichnis gespeichert. Du entscheidest selbst über Export und Weitergabe über das iOS-Teilen-Menü. Google-Meet-Termine öffnen nach deinem Tippen die zuständige Anwendung; dann gelten auch die Datenschutzhinweise von Google. Erinnerungen sind lokale Mitteilungen auf deinem Gerät und werden erst nach deiner Zustimmung eingerichtet.
+
+7. Dienstleister und internationale Übermittlung
+Vercel stellt Hosting und serverseitige Funktionen bereit. Supabase stellt Datenbank, Authentifizierung und private Dateiablage bereit. STRATO übernimmt die E-Mail-Zustellung. OpenAI unterstützt die KI-gestützte Verarbeitung. Bei vereinbarten Online-Terminen werden Google Calendar und Meet eingesetzt. Soweit erforderlich, werden Dienstleister als Auftragsverarbeiter eingebunden. Eine Übermittlung außerhalb des Europäischen Wirtschaftsraums setzt die Voraussetzungen der Art. 44 ff. DSGVO voraus, etwa einen anwendbaren Angemessenheitsbeschluss oder geeignete Garantien wie EU-Standardvertragsklauseln. Zu den konkreten für dein Konto geltenden Verarbeitungen und Garantien kannst du beim Verantwortlichen Auskunft erhalten.
+
+8. Gerätespeicher und Sicherheit
+Die native App verwendet keine Browser-Cookies, keinen eingebetteten Website-Login und keine Werbe- oder Tracking-SDKs. Daher erscheint kein Cookie-Banner. Sitzungsschlüssel und Textentwürfe werden in der geschützten iOS-Schlüsselbundablage dieses Geräts gespeichert. Entwürfe werden nicht automatisch als Nachricht versendet. Übertragungen erfolgen verschlüsselt über HTTPS. Technisch erforderliche Zugriffs- und Fehlerdaten können bei den Serverdienstleistern anfallen. Zur Begrenzung von Codeanfragen wird ein nicht rückrechenbarer, serverseitig geschützter Hash der IP-Adresse verwendet. Rechtsgrundlage für den notwendigen Missbrauchsschutz ist Art. 6 Abs. 1 lit. f DSGVO; für technisch erforderlichen Gerätespeicher gilt § 25 Abs. 2 Nr. 2 TDDDG.
+
+9. Speicherdauer und Kontolöschung
+Deine Coachingdaten bleiben für die vereinbarte Betreuung und Bereitstellung deiner Ergebnisse gespeichert, danach nur solange ein erforderlicher Zweck besteht. Du kannst unter Profil → Konto endgültig löschen die Löschung direkt in der App auslösen. Zur Absicherung bestätigst du mit deinem Passwort und einem Häkchen. Der Zugang wird gesperrt, das persönliche Coachingkonto und zugehörige Coachingdateien werden gelöscht; eine eventuell noch laufende technische Dateibereinigung wird nachgeholt. Gesetzlich aufzubewahrende Rechnungs- und Vertragsbelege bleiben für den erforderlichen Zeitraum geschützt erhalten. Offene vertragliche Forderungen werden durch die Kontolöschung nicht aufgehoben. Einfache Anfragen ohne aufbewahrungspflichtige Belege werden bei Kontolöschung entfernt. Temporäre Registrierungsdaten und abgelaufene Codes werden regelmäßig bereinigt. Sicherungskopien unterliegen den Lösch- und Sicherheitszyklen der beauftragten Infrastruktur und werden nicht für den laufenden Betrieb wiederhergestellt, um eine Löschung zu umgehen.
+
+10. Deine Rechte
+Du hast nach Maßgabe der DSGVO Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit und Widerspruch sowie auf Widerruf einer Einwilligung für die Zukunft. Wende dich dazu an markus@dermarkusbecker.de. Außerdem kannst du dich bei einer Datenschutzaufsichtsbehörde beschweren, insbesondere beim Landesbeauftragten für den Datenschutz und die Informationsfreiheit Baden-Württemberg, Heilbronner Straße 35, 70191 Stuttgart, poststelle@lfdi.bwl.de. Wesentliche Änderungen dieser Hinweise werden in geeigneter Weise mitgeteilt.

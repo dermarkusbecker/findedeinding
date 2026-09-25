@@ -1,0 +1,44 @@
+// !$*UTF8*$!
+{archiveVersion=1;classes={};objectVersion=56;objects={
+D9AA739E50356CF37D41BF92 = {isa=PBXFileReference;lastKnownFileType=sourcecode.swift;path="FindeDeinDing/Sources/Account.swift";sourceTree="<group>";};
+56A1A71709952FD99BBC0508 = {isa=PBXBuildFile;fileRef=D9AA739E50356CF37D41BF92;};
+26098D196E8AC96BB73CEA36 = {isa=PBXFileReference;lastKnownFileType=sourcecode.swift;path="FindeDeinDing/Sources/App.swift";sourceTree="<group>";};
+F7472E4264FCB0F16E509360 = {isa=PBXBuildFile;fileRef=26098D196E8AC96BB73CEA36;};
+BE492A8895288F080C4E14D0 = {isa=PBXFileReference;lastKnownFileType=sourcecode.swift;path="FindeDeinDing/Sources/Authentication.swift";sourceTree="<group>";};
+1A01248680BF0747D6AD1CE0 = {isa=PBXBuildFile;fileRef=BE492A8895288F080C4E14D0;};
+315034B2C490FA49786CA3A8 = {isa=PBXFileReference;lastKnownFileType=sourcecode.swift;path="FindeDeinDing/Sources/Coaching.swift";sourceTree="<group>";};
+E2EE5A913CFA4639D3AE824E = {isa=PBXBuildFile;fileRef=315034B2C490FA49786CA3A8;};
+8D5793B916FFA00D280AC992 = {isa=PBXFileReference;lastKnownFileType=sourcecode.swift;path="FindeDeinDing/Sources/Documents.swift";sourceTree="<group>";};
+B55F2DAACA282E6B35FEB42C = {isa=PBXBuildFile;fileRef=8D5793B916FFA00D280AC992;};
+DFBEADE6CC08964862A08ECF = {isa=PBXFileReference;lastKnownFileType=sourcecode.swift;path="FindeDeinDing/Sources/Network.swift";sourceTree="<group>";};
+F9DB924D23901C2F3C0503DB = {isa=PBXBuildFile;fileRef=DFBEADE6CC08964862A08ECF;};
+E6F0D2E588E892F20DC18A22 = {isa=PBXFileReference;lastKnownFileType=sourcecode.swift;path="FindeDeinDing/Sources/Onboarding.swift";sourceTree="<group>";};
+0C380E2711D39A7C9412F161 = {isa=PBXBuildFile;fileRef=E6F0D2E588E892F20DC18A22;};
+FD0251DCBD743D8064BFF5ED = {isa=PBXFileReference;lastKnownFileType=sourcecode.swift;path="FindeDeinDing/Sources/SpeechInput.swift";sourceTree="<group>";};
+3FEEB8068B05D8972410D156 = {isa=PBXBuildFile;fileRef=FD0251DCBD743D8064BFF5ED;};
+B59C4B678060C3DEA6496380 = {isa=PBXFileReference;lastKnownFileType=folder.assetcatalog;path="FindeDeinDing/Assets.xcassets";sourceTree="<group>";};
+FB972B07F6C48FC8819F9B9D = {isa=PBXBuildFile;fileRef=B59C4B678060C3DEA6496380;};
+AB039885A54DD2E54BF060B4 = {isa=PBXFileReference;lastKnownFileType=text;path="FindeDeinDing/Resources/AppPrivacy.txt";sourceTree="<group>";};
+58C34D91136D39AE684D3843 = {isa=PBXBuildFile;fileRef=AB039885A54DD2E54BF060B4;};
+0E71B0BD48C91354ADF251CF = {isa=PBXFileReference;lastKnownFileType=text;path="FindeDeinDing/Resources/Imprint.txt";sourceTree="<group>";};
+2BAD7EB56B5CF20DF8341164 = {isa=PBXBuildFile;fileRef=0E71B0BD48C91354ADF251CF;};
+80EDCFDC878B2F8E97CD73DE = {isa=PBXFileReference;lastKnownFileType=text.xml;path="FindeDeinDing/Resources/PrivacyInfo.xcprivacy";sourceTree="<group>";};
+FE233604195D8F471B83313E = {isa=PBXBuildFile;fileRef=80EDCFDC878B2F8E97CD73DE;};
+38A007151ABE87CC01A5B6E9 = {isa=PBXFileReference;explicitFileType=wrapper.application;includeInIndex=0;path=FindeDeinDing.app;sourceTree=BUILT_PRODUCTS_DIR;};
+FBDC4F23F93125BBEEAE800C = {isa=PBXGroup;children=(38A007151ABE87CC01A5B6E9,);name=Products;sourceTree="<group>";};
+E50290A24C49A459B43487C5 = {isa=PBXGroup;children=(D9AA739E50356CF37D41BF92,26098D196E8AC96BB73CEA36,BE492A8895288F080C4E14D0,315034B2C490FA49786CA3A8,8D5793B916FFA00D280AC992,DFBEADE6CC08964862A08ECF,E6F0D2E588E892F20DC18A22,FD0251DCBD743D8064BFF5ED,B59C4B678060C3DEA6496380,AB039885A54DD2E54BF060B4,0E71B0BD48C91354ADF251CF,80EDCFDC878B2F8E97CD73DE,FBDC4F23F93125BBEEAE800C,);sourceTree="<group>";};
+BCE16DD0260827ECF338C787 = {isa=PBXSourcesBuildPhase;buildActionMask=2147483647;files=(56A1A71709952FD99BBC0508,F7472E4264FCB0F16E509360,1A01248680BF0747D6AD1CE0,E2EE5A913CFA4639D3AE824E,B55F2DAACA282E6B35FEB42C,F9DB924D23901C2F3C0503DB,0C380E2711D39A7C9412F161,3FEEB8068B05D8972410D156,);runOnlyForDeploymentPostprocessing=0;};
+0189424A5A60FED329FA868E = {isa=PBXResourcesBuildPhase;buildActionMask=2147483647;files=(FB972B07F6C48FC8819F9B9D,58C34D91136D39AE684D3843,2BAD7EB56B5CF20DF8341164,FE233604195D8F471B83313E,);runOnlyForDeploymentPostprocessing=0;};
+FD7386993452CC667350B4BB = {isa=XCLocalSwiftPackageReference;relativePath=CoachingCore;};
+D069509556BFAFFC25586CC3 = {isa=XCSwiftPackageProductDependency;package=FD7386993452CC667350B4BB;productName=CoachingCore;};
+ABFE60E429B642B2B45ADF15 = {isa=PBXBuildFile;productRef=D069509556BFAFFC25586CC3;};
+7561BFB015D8F536760CB671 = {isa=PBXFrameworksBuildPhase;buildActionMask=2147483647;files=(ABFE60E429B642B2B45ADF15,);runOnlyForDeploymentPostprocessing=0;};
+89E1FD6268CC0F221A2BE178 = {isa=XCBuildConfiguration;name=Debug;buildSettings={CLANG_ENABLE_MODULES="YES";CLANG_ENABLE_OBJC_ARC="YES";SDKROOT="iphoneos";IPHONEOS_DEPLOYMENT_TARGET="17.0";SWIFT_VERSION="5.0";ENABLE_USER_SCRIPT_SANDBOXING="YES";SWIFT_OPTIMIZATION_LEVEL="-Onone";DEBUG_INFORMATION_FORMAT="dwarf";SWIFT_ACTIVE_COMPILATION_CONDITIONS="DEBUG";};};
+E6DE6C99132752C914FEF632 = {isa=XCBuildConfiguration;name=Release;buildSettings={CLANG_ENABLE_MODULES="YES";CLANG_ENABLE_OBJC_ARC="YES";SDKROOT="iphoneos";IPHONEOS_DEPLOYMENT_TARGET="17.0";SWIFT_VERSION="5.0";ENABLE_USER_SCRIPT_SANDBOXING="YES";SWIFT_OPTIMIZATION_LEVEL="-O";DEBUG_INFORMATION_FORMAT="dwarf-with-dsym";};};
+862894B703A6DEDF96A9DD6C = {isa=XCConfigurationList;buildConfigurations=(89E1FD6268CC0F221A2BE178,E6DE6C99132752C914FEF632,);defaultConfigurationIsVisible=0;defaultConfigurationName=Release;};
+7082CC0B6FC1282FCEABD07A = {isa=XCBuildConfiguration;name=Debug;buildSettings={PRODUCT_BUNDLE_IDENTIFIER="de.findedeinding.coaching";PRODUCT_NAME="$(TARGET_NAME)";INFOPLIST_FILE="FindeDeinDing/Info.plist";CODE_SIGN_STYLE="Automatic";DEVELOPMENT_TEAM="LCYUVY9ZZ4";TARGETED_DEVICE_FAMILY="1,2";ASSETCATALOG_COMPILER_APPICON_NAME="AppIcon";GENERATE_INFOPLIST_FILE="NO";SWIFT_EMIT_LOC_STRINGS="YES";SUPPORTED_PLATFORMS="iphoneos iphonesimulator";SUPPORTS_MACCATALYST="NO";SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD="NO";ENABLE_PREVIEWS="YES";LD_RUNPATH_SEARCH_PATHS="$(inherited) @executable_path/Frameworks";SWIFT_OPTIMIZATION_LEVEL="-Onone";DEBUG_INFORMATION_FORMAT="dwarf";SWIFT_ACTIVE_COMPILATION_CONDITIONS="DEBUG";};};
+639A7CA24D39909E713B47F7 = {isa=XCBuildConfiguration;name=Release;buildSettings={PRODUCT_BUNDLE_IDENTIFIER="de.findedeinding.coaching";PRODUCT_NAME="$(TARGET_NAME)";INFOPLIST_FILE="FindeDeinDing/Info.plist";CODE_SIGN_STYLE="Automatic";DEVELOPMENT_TEAM="LCYUVY9ZZ4";TARGETED_DEVICE_FAMILY="1,2";ASSETCATALOG_COMPILER_APPICON_NAME="AppIcon";GENERATE_INFOPLIST_FILE="NO";SWIFT_EMIT_LOC_STRINGS="YES";SUPPORTED_PLATFORMS="iphoneos iphonesimulator";SUPPORTS_MACCATALYST="NO";SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD="NO";ENABLE_PREVIEWS="YES";LD_RUNPATH_SEARCH_PATHS="$(inherited) @executable_path/Frameworks";SWIFT_OPTIMIZATION_LEVEL="-O";DEBUG_INFORMATION_FORMAT="dwarf-with-dsym";};};
+C57128001CE614BF8549D6BB = {isa=XCConfigurationList;buildConfigurations=(7082CC0B6FC1282FCEABD07A,639A7CA24D39909E713B47F7,);defaultConfigurationIsVisible=0;defaultConfigurationName=Release;};
+0E8A3AD980EC179856012B7E = {isa=PBXNativeTarget;name=FindeDeinDing;productName=FindeDeinDing;productReference=38A007151ABE87CC01A5B6E9;productType="com.apple.product-type.application";buildConfigurationList=C57128001CE614BF8549D6BB;buildPhases=(BCE16DD0260827ECF338C787,7561BFB015D8F536760CB671,0189424A5A60FED329FA868E,);buildRules=();dependencies=();packageProductDependencies=(D069509556BFAFFC25586CC3,);} ;
+98F54143AB4E86B28C3AFEE0 = {isa=PBXProject;attributes={BuildIndependentTargetsInParallel=YES;LastUpgradeCheck=1600;};buildConfigurationList=862894B703A6DEDF96A9DD6C;compatibilityVersion="Xcode 14.0";developmentRegion=de;hasScannedForEncodings=0;knownRegions=(de,en,Base);mainGroup=E50290A24C49A459B43487C5;productRefGroup=FBDC4F23F93125BBEEAE800C;projectDirPath="";projectRoot="";targets=(0E8A3AD980EC179856012B7E,);packageReferences=(FD7386993452CC667350B4BB,);};
+};rootObject=98F54143AB4E86B28C3AFEE0;}

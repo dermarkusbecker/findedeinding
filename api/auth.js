@@ -1,3 +1,4 @@
+import {handleMobile,activeMobileSession} from '../lib/mobile-api.js';
 import { clearSessionCookie, createSession, sessionCookie, sessionFromRequest } from '../lib/auth.js';
 import { authHeaders, authenticateUser, emailForLogin, profileByAuthId, profileById, requireCurrentAdmin, sendPasswordReset, supabaseAuthConfig } from '../lib/user-auth.js';
 
@@ -54,6 +55,7 @@ async function changeInitialPassword(request, response) {
   if (password.length < 8) return response.status(400).json({ error: 'Das neue Passwort muss mindestens acht Zeichen lang sein.' });
   const config = supabaseAuthConfig();
   if (!config) return response.status(503).json({ error: 'Der Login ist noch nicht vollständig konfiguriert.' });
+  if(current.mobileSessionId&&!await activeMobileSession(config,current))return response.status(401).json({error:'App-Sitzung abgelaufen.'});
   const profile = await profileById(config, current.profileId).catch(() => null);
   if (!profile?.auth_user_id || profile.must_change_password !== true) return response.status(409).json({ error: 'Für diesen Zugang ist kein Passwortwechsel offen.' });
   const changed = await fetch(`${config.url}/auth/v1/admin/users/${encodeURIComponent(profile.auth_user_id)}`, { method: 'PUT', headers: authHeaders(config.serviceKey), body: JSON.stringify({ password, email_confirm: true }) });
@@ -100,6 +102,7 @@ async function customerPreview(request, response) {
 
 export default async function handler(request, response) {
   const action = request.query?.action;
+  if(action?.startsWith('mobile-'))return handleMobile(request,response);
   if (action === 'login') return login(request, response);
   if (action === 'password-reset') return reset(request, response);
   if (action === 'update-password') return updatePassword(request, response);
