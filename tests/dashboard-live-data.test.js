@@ -6,7 +6,7 @@ const file = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('Command Center besitzt keine fest eingebauten Demo-Kennzahlen mehr', async () => {
   const html = await file('admin.html');
-  for (const id of ['dashboardDate', 'dashboardLiveSummary', 'activeCustomerCount', 'dashboardClarityGain', 'dashboardOpenGates', 'dashboardAttentionList', 'dashboardWeekCounts', 'dashboardAppointmentCount', 'dashboardAppointmentList']) assert.match(html, new RegExp(`id="${id}"`));
+  for (const id of ['dashboardDate', 'dashboardLiveSummary', 'activeCustomerCount', 'dashboardMonthRevenue', 'dashboardYearRevenue', 'dashboardOpenGates', 'dashboardAttentionList', 'dashboardWeekCounts', 'dashboardAppointmentCount', 'dashboardAppointmentList']) assert.match(html, new RegExp(`id="${id}"`));
   assert.doesNotMatch(html, /dashboardCoachNeeded|dashboardCoachCopy|Coach benötigt/);
   assert.doesNotMatch(html, /Freitag, 28\. August 2026/);
   assert.doesNotMatch(html, /Julia · Entscheidung offen|David · Gate blockiert|Leonie · Abschlusscall/);

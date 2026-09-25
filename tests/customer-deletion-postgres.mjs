@@ -27,6 +27,7 @@ alter table lead_communications add foreign key(lead_id) references leads(id) on
 alter table user_profiles add foreign key(source_lead_id) references leads(id) on delete set null;
 alter table leads add foreign key(converted_user_profile_id) references user_profiles(id) on delete set null;`);
 await db.exec(await fs.readFile(new URL('../supabase/migrations/20260922100000_admin_customer_deletion.sql',import.meta.url),'utf8'));
+await db.exec(await fs.readFile(new URL('../supabase/migrations/20260922110000_invoice_document_quality.sql',import.meta.url),'utf8'));
 const owner='00000000-0000-4000-8000-000000000010',sales='00000000-0000-4000-8000-000000000011',authId='00000000-0000-4000-8000-000000000021';
 await db.query("insert into user_profiles(id,role,name,staff_role) values($1,'admin','Owner','owner'),($2,'admin','Sales','sales')",[owner,sales]);
 await db.query('update user_profiles set auth_user_id=$1 where id=$2',[authId,customer]);
@@ -40,6 +41,7 @@ await db.query('insert into customer_notes(user_profile_id,body) values($1,$2),(
 await db.query('insert into curriculum_lessons values($1)',[customer]);await db.query('insert into curriculum_assignment_archive values($1)',[customer]);await db.query('insert into participant_documents(user_profile_id) values($1)',[customer]);
 const lead=(await db.query('select lead_id from finance_invoices where id=$1',[first.id])).rows[0].lead_id;
 await db.query("insert into storage.objects(bucket_id,name) values('participant-documents',$1),('contract-recordings',$2),('participant-documents',$3),('finance-documents',$4),('finance-documents',$5)",[customer+'/doc.pdf',lead+'/recording.webm',other+'/keep.pdf','invoices/'+first.id+'.pdf','adjustments/'+credit.id+'.pdf']);
+await db.query("insert into storage.objects(bucket_id,name) values('finance-documents',$1),('finance-documents',$2),('finance-documents',$3)",['invoices/'+first.id+'.design-v2.pdf','adjustments/'+credit.id+'.design-v2.pdf','invoices/'+foreign.id+'.design-v2.pdf']);
 const request=crypto.randomUUID();
 const purge=async({id=customer,actor=owner,confirmed=true,name='Konto Test',key=request}={})=>(await db.query('select delete_customer_confirmed($1,$2,$3,$4,$5) result',[id,key,actor,confirmed,name])).rows[0].result;
 await assert.rejects(purge({confirmed:false}),/bestätigt/);await assert.rejects(purge({actor:sales}),/Administration/);await assert.rejects(purge({id:owner,name:'Owner'}),/eigene Konto/);await assert.rejects(purge({id:sales,name:'Sales'}),/Mitarbeiterkonten/);await assert.rejects(purge({name:'Falscher Name'}),/Kundenangaben/);
@@ -50,9 +52,9 @@ const result=await purge();assert.equal(result.id,request);assert.equal(result.s
 for(const [table,where] of [['user_profiles','id'],['customer_notes','user_profile_id'],['curriculum_lessons','user_profile_id'],['participant_documents','user_profile_id'],['finance_payment_plans','customer_id'],['finance_account_requests','customer_id']])assert.equal((await db.query(`select count(*) from ${table} where ${where}=$1`,[customer])).rows[0].count,0,table);
 assert.equal((await db.query('select count(*) from leads where id=$1',[lead])).rows[0].count,0);assert.equal((await db.query('select count(*) from finance_invoices where id=$1',[first.id])).rows[0].count,0);assert.equal((await db.query('select count(*) from finance_invoices where id=$1',[foreign.id])).rows[0].count,1);
 assert.equal((await db.query('select count(*) from customer_notes where user_profile_id=$1',[other])).rows[0].count,1);
-const job=(await db.query('select * from customer_deletion_jobs where id=$1',[request])).rows[0];assert.equal(job.auth_user_id,authId);assert.equal(job.files.length,4);assert.equal(job.files.some(f=>f.path.startsWith(other)),false);
+const job=(await db.query('select * from customer_deletion_jobs where id=$1',[request])).rows[0];assert.equal(job.auth_user_id,authId);assert.equal(job.files.length,6);assert.equal(job.files.some(f=>f.path.startsWith(other)),false);
 await assert.rejects(db.query('delete from finance_account_events where id=$1',[otherCredit.id]),/unveränderlich/);
 // Object metadata stays until the Storage API physically deletes each object.
-assert.equal((await db.query('select count(*) from storage.objects')).rows[0].count,5);
+assert.equal((await db.query('select count(*) from storage.objects')).rows[0].count,8);
 await db.exec('set role authenticated');await assert.rejects(db.query('select delete_customer_confirmed($1,$2,$3,true,$4)',[other,crypto.randomUUID(),owner,'Andere Person']),/permission denied/);await assert.rejects(db.query('select * from customer_deletion_jobs'),/permission denied/);await db.exec('reset role');
 console.log('Customer deletion SQL: exact admin role + checkbox + name, protected staff/self/shared leads, ledger immutability, transactional scope, financial/program cascades, file manifest, idempotent retry and unrelated customer preservation passed.');await db.close();

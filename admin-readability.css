@@ -211,13 +211,15 @@ button.customer-week-item:focus-visible { outline:3px solid #288299; outline-off
 .finance-table-scroll{overflow:auto;max-width:100%}.finance-table{width:100%;border-collapse:collapse;font-size:14px;text-align:left}.finance-table th{background:#edf4f7;padding:14px;color:#294f5e;white-space:nowrap}.finance-table td{padding:14px;vertical-align:top;border-bottom:1px solid #dce6eb;line-height:1.6}.finance-table small,.finance-table a,.finance-table button{display:block;margin-top:6px}.finance-table small{min-width:130px;color:#55727e}.finance-table a{color:#18596b;text-decoration:underline}
 @media(max-width:1000px){.finance-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.finance-kpis{grid-template-columns:1fr}.finance-toolbar label{width:100%}}
 
-.customer-week-progress{width:100%;margin-top:12px}
-.customer-week-progress>b{display:block;font-size:11px;line-height:1.5;font-weight:700;color:#365d68}
-.customer-week-progress>[role=progressbar]{height:6px;margin-top:6px;border-radius:8px;background:#dce8e7;overflow:hidden}
-.customer-week-progress>[role=progressbar]>div{height:100%;border-radius:inherit;background:#238c78}
-.customer-week-item.current .customer-week-progress>b{color:#fff}
-.customer-week-item.current .customer-week-progress>[role=progressbar]{background:#426271}
-.customer-week-item.current .customer-week-progress>[role=progressbar]>div{background:#ff9453}
+/* Keep the compact week indicator separate from the padded overview panel. */
+.customer-week-completion{width:100%;min-width:0;padding:0;margin-top:16px;text-align:left}
+.customer-week-completion>b{display:block;font-size:11px;line-height:1.5;font-weight:700;color:#365d68;word-break:normal;overflow-wrap:normal;hyphens:none}
+.customer-week-completion>b>span{display:block;white-space:nowrap}
+.customer-week-completion>[role=progressbar]{height:6px;margin-top:6px;border-radius:8px;background:#dce8e7;overflow:hidden}
+.customer-week-completion>[role=progressbar]>div{height:100%;border-radius:inherit;background:#238c78}
+.customer-week-item.current .customer-week-completion>b{color:#fff}
+.customer-week-item.current .customer-week-completion>[role=progressbar]{background:#426271}
+.customer-week-item.current .customer-week-completion>[role=progressbar]>div{background:#ff9453}
 .context-nav button.context-package-locked{background:#f3f5f6;border:1px dashed #bccbd2;color:#5b717c}
 .context-package-locked>span{background:#dfe6ea!important;color:#60747e!important}
 .package-lock-badge{display:inline-block;font-size:10px;line-height:1.5;letter-spacing:.04em;text-transform:uppercase;font-style:normal;font-weight:800;background:#e6eaee;color:#536874;border-radius:5px;padding:4px 6px;margin:6px 0}
