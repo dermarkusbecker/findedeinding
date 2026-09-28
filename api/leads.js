@@ -710,7 +710,7 @@ export default async function handler(request, response) {
       return response.status(200).json({ record: await saveCommunicationTemplate(service, request.body), message: 'Nachrichtenvorlage wurde gespeichert.' });
     }
     if (request.method === 'POST' && action === 'communication-campaign') {
-      return response.status(200).json({ record: await saveCommunicationCampaign(service, request.body), message: request.body?.status === 'scheduled' ? 'Seriennachricht wurde geplant und wartet bis zur Mail-Anbindung auf den Versand.' : 'Seriennachricht wurde als Entwurf gespeichert.' });
+      return response.status(200).json({ record: await saveCommunicationCampaign(service, request.body), message: request.body?.status === 'scheduled' ? 'Seriennachricht wurde geplant. Der automatische Serienversand ist derzeit angehalten.' : 'Seriennachricht wurde als Entwurf gespeichert.' });
     }
     if (request.method === 'POST' && action === 'communication-automation') {
       return response.status(200).json({ record: await saveCommunicationAutomation(service, request.body), message: 'Automatisierte Nachricht wurde gespeichert.' });

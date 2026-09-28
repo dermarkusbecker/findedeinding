@@ -42,9 +42,9 @@ test('Supabase-Migration erstellt Kommunikationsvorlagen, Kampagnen, Automatione
 
 test('Kommunikations-Center zeigt STRATO-Versand und haelt ungebaute Automationen angehalten', async () => {
   const [html, api] = await Promise.all([file('admin.html'), file('api/leads.js')]);
-  assert.match(html, /Mailversand startet nach Verbindung des Domain-Anbieters/);
-  assert.match(html, /Bis zur Mail-Anbindung bleiben geplante Ausführungen sicher angehalten/);
+  assert.match(html, /automatische Serienversand ist noch angehalten/);
+  assert.match(html, /Automatische Ausführungen sind derzeit noch angehalten/);
   assert.match(api, /mailTransport: \{ configured: Boolean\(stratoMailConfig\(\)\), active: false/);
   assert.match(api, /action === 'communication-send'/);
-  assert.match(api, /wartet bis zur Mail-Anbindung auf den Versand/);
+  assert.match(api, /Der automatische Serienversand ist derzeit angehalten/);
 });
