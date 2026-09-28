@@ -1659,3 +1659,10 @@ body { -moz-osx-font-smoothing: grayscale; font-synthesis: none; text-rendering:
 .tariff-switches input { accent-color:#119b7d; flex:0 0 auto; min-height:0; width:auto; }
 .tariff-switches b,.tariff-switches small { display:block; }.tariff-switches b { font-size:12px; }.tariff-switches small { color:#72847f; font-size:12px; margin-top:3px; }
 @media(max-width:800px){.tariff-list,.tariff-form-grid{grid-template-columns:1fr}.tariff-form-grid>label.wide{grid-column:auto}.tariff-settings-hero{align-items:flex-start;flex-direction:column}.tariff-settings-hero>#openTariff{width:100%}}
+
+/* Keep the address collected in Kontakt visible as four separate values later in the conversation. */
+#leadDialog .lead-address-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:4px 0 20px}
+#leadDialog .lead-address-summary>div{background:#f3f8f6;border:1px solid #d6e6df;border-radius:11px;min-width:0;padding:11px 13px}
+#leadDialog .lead-address-summary small{color:#668078;display:block;font-size:11px;font-weight:750;margin-bottom:4px}
+#leadDialog .lead-address-summary strong{color:#24443d;display:block;font-size:13px;overflow-wrap:anywhere}
+@media(max-width:700px){#leadDialog .lead-address-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}

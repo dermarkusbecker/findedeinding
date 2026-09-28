@@ -824,6 +824,7 @@ export default async function handler(request, response) {
     }
     if (request.method === 'POST' && action === 'create-video-contract') {
       const lead = await leadById(service, request.body?.id);
+      if (!request.body?.saveDraft && ![lead.street_name,lead.house_number,lead.postal_code,lead.city].every(value=>String(value||'').trim())) return response.status(409).json({ error: 'Bitte die Anschrift zuerst in Punkt 1 Kontakt vollständig erfassen.' });
       const normalized = normalizeVideoContract(request.body?.contract, lead);
       const saveDraft = request.body?.saveDraft === true;
       if (!saveDraft && normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze zuerst: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
@@ -848,8 +849,10 @@ export default async function handler(request, response) {
         document_mime_type: 'application/pdf', signature_method: null, updated_at: now,
       };
       const record = existing ? await patchLeadContract(service, lead.id, existing.id, payload, true) : await insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, ...payload });
+      const updatedLead = !saveDraft && [normalized.contract.streetName,normalized.contract.houseNumber,normalized.contract.postalCode,normalized.contract.city].every(Boolean) && ['street_name','house_number','postal_code','city'].some((key,index)=>lead[key]!==[normalized.contract.streetName,normalized.contract.houseNumber,normalized.contract.postalCode,normalized.contract.city][index])
+        ? await patchLead(service, lead.id, { street_name: normalized.contract.streetName, house_number: normalized.contract.houseNumber, postal_code: normalized.contract.postalCode, city: normalized.contract.city }) : lead;
       if (existing?.document_bucket && existing.document_storage_path !== stored.storagePath) await deleteCustomerObject(service, existing.document_bucket, existing.document_storage_path);
-      return response.status(201).json({ record, documentUrl: `/api/leads?action=contract-download&id=${encodeURIComponent(lead.id)}&contractId=${encodeURIComponent(record.id)}`, message: saveDraft ? 'Entwurf gespeichert.' : 'Vertragsdokument vollständig erstellt und für Schritt 2 freigegeben.' });
+      return response.status(201).json({ record, lead: updatedLead, documentUrl: `/api/leads?action=contract-download&id=${encodeURIComponent(lead.id)}&contractId=${encodeURIComponent(record.id)}`, message: saveDraft ? 'Entwurf gespeichert.' : 'Vertragsdokument vollständig erstellt und für Schritt 2 freigegeben.' });
     }
     if (request.method === 'POST' && ['video-recording-upload','complete-video-recording-upload'].includes(action)) {
       const lead = await leadById(service, request.body?.id);
@@ -1005,13 +1008,17 @@ export default async function handler(request, response) {
       const mobilePhone = clean(request.body?.mobilePhone, 40);
       const whatsappSameAsMobile = request.body?.whatsappSameAsMobile !== false;
       const whatsappPhone = whatsappSameAsMobile ? mobilePhone : clean(request.body?.whatsappPhone, 40);
+      const addressProvided = ['streetName','houseNumber','postalCode','city'].some(key=>request.body?.[key]!==undefined);
+      const address = addressProvided ? {street_name:clean(request.body?.streetName,160),house_number:clean(request.body?.houseNumber,30),postal_code:clean(request.body?.postalCode,20),city:clean(request.body?.city,120)} : {};
       if (!firstName || !lastName || !mobilePhone) return response.status(400).json({ error: 'Vorname, Nachname, E-Mail-Adresse und Mobilnummer sind Pflichtfelder.' });
+      if (addressProvided && !Object.values(address).every(Boolean)) return response.status(400).json({ error: 'Straße, Hausnummer, Postleitzahl und Ort sind Pflichtfelder im Kontakt.' });
       if (!whatsappSameAsMobile && !whatsappPhone) return response.status(400).json({ error: 'Bitte die abweichende WhatsApp-Nummer ergänzen.' });
-      const lead = await patchLead(service, current.id, { first_name: firstName, last_name: lastName, name, email, mobile_phone: mobilePhone, phone: clean(request.body?.phone, 40) || null, whatsapp_phone: whatsappPhone || null, whatsapp_same_as_mobile: whatsappSameAsMobile, challenge: request.body?.challenge === undefined ? current.challenge || null : clean(request.body.challenge, 1000) || null, internal_notes: request.body?.internalNotes === undefined ? current.internal_notes || null : clean(request.body.internalNotes, 10000) || null, qualification_answers: qualificationAnswers(request.body?.qualificationAnswers), status });
+      const lead = await patchLead(service, current.id, { first_name: firstName, last_name: lastName, name, email, mobile_phone: mobilePhone, phone: clean(request.body?.phone, 40) || null, whatsapp_phone: whatsappPhone || null, whatsapp_same_as_mobile: whatsappSameAsMobile, ...address, challenge: request.body?.challenge === undefined ? current.challenge || null : clean(request.body.challenge, 1000) || null, internal_notes: request.body?.internalNotes === undefined ? current.internal_notes || null : clean(request.body.internalNotes, 10000) || null, qualification_answers: qualificationAnswers(request.body?.qualificationAnswers), status });
       return response.status(200).json({ lead });
     }
     if (request.method === 'POST' && action === 'schedule') {
       const lead = await leadById(service, request.body?.id);
+      if (![lead.street_name,lead.house_number,lead.postal_code,lead.city].every(value=>String(value||'').trim())) return response.status(409).json({ error: 'Bitte in Punkt 1 Kontakt zuerst Straße, Hausnummer, Postleitzahl und Ort ergänzen.' });
       const startDate = new Date(request.body?.start), duration = Number(request.body?.duration || 45);
       if (Number.isNaN(startDate.getTime()) || ![30, 45, 60, 90].includes(duration)) return response.status(400).json({ error: 'Gültiger Termin und Dauer erforderlich.' });
       if (startDate.getTime() < Date.now() - 60000) return response.status(400).json({ error: 'Der Termin muss in der Zukunft liegen.' });
@@ -1031,6 +1038,7 @@ export default async function handler(request, response) {
     }
     if (request.method === 'POST' && action === 'complete-sales-conversation') {
       let lead = await leadById(service, request.body?.id);
+      if (![lead.street_name,lead.house_number,lead.postal_code,lead.city].every(value=>String(value||'').trim())) return response.status(409).json({ error: 'Bitte die vier Adressfelder in Punkt 1 Kontakt vollständig erfassen.' });
       if (!lead.appointment_start || !lead.appointment_end) return response.status(409).json({ error: 'Bitte plane zuerst einen freien Termin.' });
       const now = new Date().toISOString();
       let calendarPrepared = false;
