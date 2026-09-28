@@ -198,3 +198,38 @@ test('browser recording saves on stop and uses the signed resumable upload endpo
   assert.match(service, /storage\/v1\/upload\/resumable`/);
   assert.doesNotMatch(service, /storage\/v1\/upload\/resumable\/sign/);
 });
+test('browser captures screen with microphone even without shared system audio and saves on stop', async t => {
+  const { ContractRecorder } = await import('../lib/browser-contract-recorder.js');
+  const originals = Object.fromEntries(['navigator', 'window', 'MediaStream', 'MediaRecorder'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  t.after(() => { for (const [key, descriptor] of Object.entries(originals)) descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete globalThis[key]; });
+  const video = { readyState: 'live', addEventListener() {} };
+  const microphone = { readyState: 'live', addEventListener() {} };
+  const display = { getVideoTracks: () => [video], getAudioTracks: () => [], getTracks: () => [video] };
+  const mic = { getAudioTracks: () => [microphone], getTracks: () => [microphone] };
+  const navigator = { mediaDevices: { getDisplayMedia: async () => display, getUserMedia: async () => mic } };
+  const destination = { stream: { getAudioTracks: () => [microphone] } };
+  class FakeAudio { async resume() {} createMediaStreamDestination() { return destination; } createMediaStreamSource() { return { connect() {} }; } }
+  class FakeRecorder {
+    static isTypeSupported(type) { return type === 'video/webm'; }
+    constructor() { this.mimeType = 'video/webm'; this.state = 'inactive'; }
+    start() { this.state = 'recording'; }
+    stop() { this.state = 'inactive'; this.ondataavailable({ data: new Blob(['recorded-video']) }); this.onstop(); }
+  }
+  for (const [key, value] of Object.entries({ navigator, window: { AudioContext: FakeAudio }, MediaStream: class { constructor(tracks) { this.tracks = tracks; } }, MediaRecorder: FakeRecorder })) Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
+  const recorder = Object.create(ContractRecorder.prototype);
+  let saves = 0;
+  Object.assign(recorder, {
+    streams: [], busy: false, saved: false, blob: null,
+    check: () => ({ leadId: 'lead', contractId: 'contract', record: {} }),
+    consent: async () => ({}), controls() {}, status() {}, finishCapture() {}, setLocalPreview() {},
+    save: async () => { saves++; }, notify: message => { throw new Error(message); },
+    preview: { play: async () => {}, hidden: true }, node: { querySelector: () => ({ textContent: '' }) },
+  });
+  await recorder.begin();
+  assert.equal(recorder.recorder.state, 'recording');
+  assert.equal(recorder.hasDisplayAudio, false);
+  recorder.stop();
+  assert.equal(saves, 1);
+  assert.ok(recorder.blob.size > 0);
+  clearInterval(recorder.timer);
+});
