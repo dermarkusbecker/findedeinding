@@ -1009,45 +1009,29 @@
         <div class="lead-dialog-body">
         <nav class="lead-wizard-progress" aria-label="Fortschritt im Verkaufsgespräch">
           <ol>
-            <li class="active" data-lead-progress-step="1" aria-current="step"><button type="button" data-open-lead-step="1"><span>1</span><div><b>Kontakt</b><small>Kontaktdaten</small></div></button></li>
-            <li data-lead-progress-step="2"><button type="button" data-open-lead-step="2"><span>2</span><div><b>Termin</b><small>Kalender &amp; Meet</small></div></button></li>
+            <li class="active" data-lead-progress-step="1" aria-current="step"><button type="button" data-open-lead-step="1"><span>1</span><div><b>Termin</b><small>Intake-Termin &amp; Meet</small></div></button></li>
+            <li data-lead-progress-step="2"><button type="button" data-open-lead-step="2"><span>2</span><div><b>Kontakt</b><small>Kontaktdaten &amp; Anschrift</small></div></button></li>
             <li data-lead-progress-step="3"><button type="button" data-open-lead-step="3"><span>3</span><div><b>Gespräch</b><small>Leitfaden &amp; Antworten</small></div></button></li>
             <li data-lead-progress-step="4"><button type="button" data-open-lead-step="4"><span>4</span><div><b>Abschluss</b><small>Vertrag &amp; Video</small></div></button></li>
           </ol>
         </nav>
         <input type="hidden" name="id" />
-        <section class="lead-basics lead-wizard-page" data-lead-step="1">
-          <div class="lead-section-head">
-            <div>
-              <p class="eyebrow">Stammdaten</p>
-              <h3>Kontaktdaten</h3>
-            </div>
-            <span>Alle Angaben lassen sich direkt bearbeiten</span>
-          </div>
-          <div class="lead-contact-grid">
-            <label>Vorname <em>Pflichtfeld</em><input name="firstName" autocomplete="given-name" required /></label>
-            <label>Nachname <em>Pflichtfeld</em><input name="lastName" autocomplete="family-name" required /></label>
-            <label>E-Mail-Adresse <em>Pflichtfeld</em><input name="email" type="email" autocomplete="email" required /></label>
-            <label>Mobilnummer <em>Pflichtfeld</em><input name="mobilePhone" type="tel" autocomplete="tel" required /></label>
-            <label>Telefonnummer <small>optional</small><input name="phone" type="tel" autocomplete="tel-national" /></label>
-            <label>Straße <em>Pflichtfeld</em><input name="streetName" maxlength="160" required /></label>
-            <label>Hausnummer <em>Pflichtfeld</em><input name="houseNumber" maxlength="30" required /></label>
-            <label>Postleitzahl <em>Pflichtfeld</em><input name="postalCode" autocomplete="postal-code" inputmode="numeric" maxlength="20" required /></label>
-            <label>Ort <em>Pflichtfeld</em><input name="city" autocomplete="address-level2" maxlength="120" required /></label>
-            <label class="lead-whatsapp-toggle"><span>WhatsApp</span><span class="lead-switch-copy"><input name="hasAlternateWhatsapp" type="checkbox" /> Abweichende WhatsApp-Nummer verwenden</span></label>
-            <label class="lead-whatsapp-field" id="leadWhatsappField" hidden>Abweichende WhatsApp-Nummer <em>Pflichtfeld</em><input name="whatsappPhone" type="tel" autocomplete="tel" /></label>
-          </div>
-        </section>
-        <section class="lead-appointment lead-wizard-page" data-lead-step="2" hidden>
+        <section class="lead-appointment lead-wizard-page" data-lead-step="1">
           <div class="lead-section-head">
             <div>
               <p class="eyebrow">Google Calendar & Meet</p>
-              <h3>Erstgespräch planen</h3>
+              <h3>Termin aus dem Intake-Verfahren</h3>
             </div>
             <span id="leadAppointmentState">Noch kein Termin</span>
           </div>
+          <div class="lead-booked-appointment" id="leadBookedAppointment">
+            <div><small>Gebuchtes Verkaufsgespräch</small><strong id="leadBookedAppointmentTime">Termin wird geladen …</strong><span id="leadBookedAppointmentName"></span></div>
+            <div class="lead-booked-actions"><a class="primary hidden" id="openMeet" target="_blank" rel="noopener noreferrer">Google Meet öffnen ↗</a><a class="secondary hidden" id="openCalendarEvent" target="_blank" rel="noopener noreferrer">Kalendereintrag öffnen ↗</a></div>
+            <p id="leadBookedAppointmentHint">Der Termin aus dem Intake wird hier angezeigt.</p>
+          </div>
           <div class="lead-address-summary" id="leadAppointmentAddress" aria-label="Anschrift aus Kontakt"><div><small>Straße</small><strong data-lead-address="streetName">–</strong></div><div><small>Hausnummer</small><strong data-lead-address="houseNumber">–</strong></div><div><small>Postleitzahl</small><strong data-lead-address="postalCode">–</strong></div><div><small>Ort</small><strong data-lead-address="city">–</strong></div></div>
           <input name="appointmentStart" type="hidden" />
+          <details class="lead-reschedule" id="leadAppointmentReschedule"><summary>Termin ändern oder nachtragen</summary>
           <div class="availability-toolbar">
             <label
               >Terminkategorie<select id="leadAppointmentCategory"></select></label><label>Terminname<input name="appointmentTitle" maxlength="160" placeholder="z. B. Halbzeitgespräch"></label><label>Freie Termine ab<input id="slotRangeStart" type="date" /></label
@@ -1070,18 +1054,6 @@
           <div class="lead-appointment-actions">
             <button type="button" class="primary" id="scheduleLead">
               Termin übernehmen</button
-            ><a
-              class="secondary hidden"
-              id="openMeet"
-              target="_blank"
-              rel="noopener"
-              >Meet öffnen</a
-            ><a
-              class="secondary hidden"
-              id="openCalendarEvent"
-              target="_blank"
-              rel="noopener"
-              >Kalendereintrag</a
             ><button
               type="button"
               class="secondary hidden"
@@ -1089,6 +1061,29 @@
             >
               Termin absagen
             </button>
+          </div>
+          </details>
+        </section>
+        <section class="lead-basics lead-wizard-page" data-lead-step="2" hidden>
+          <div class="lead-section-head">
+            <div>
+              <p class="eyebrow">Schritt 2 · Stammdaten</p>
+              <h3>Kontaktdaten</h3>
+            </div>
+            <span>Alle Angaben lassen sich direkt bearbeiten</span>
+          </div>
+          <div class="lead-contact-grid">
+            <label>Vorname <em>Pflichtfeld</em><input name="firstName" autocomplete="given-name" required /></label>
+            <label>Nachname <em>Pflichtfeld</em><input name="lastName" autocomplete="family-name" required /></label>
+            <label>E-Mail-Adresse <em>Pflichtfeld</em><input name="email" type="email" autocomplete="email" required /></label>
+            <label>Mobilnummer <em>Pflichtfeld</em><input name="mobilePhone" type="tel" autocomplete="tel" required /></label>
+            <label>Telefonnummer <small>optional</small><input name="phone" type="tel" autocomplete="tel-national" /></label>
+            <label>Straße <em>Pflichtfeld</em><input name="streetName" maxlength="160" required /></label>
+            <label>Hausnummer <em>Pflichtfeld</em><input name="houseNumber" maxlength="30" required /></label>
+            <label>Postleitzahl <em>Pflichtfeld</em><input name="postalCode" autocomplete="postal-code" inputmode="numeric" maxlength="20" required /></label>
+            <label>Ort <em>Pflichtfeld</em><input name="city" autocomplete="address-level2" maxlength="120" required /></label>
+            <label class="lead-whatsapp-toggle"><span>WhatsApp</span><span class="lead-switch-copy"><input name="hasAlternateWhatsapp" type="checkbox" /> Abweichende WhatsApp-Nummer verwenden</span></label>
+            <label class="lead-whatsapp-field" id="leadWhatsappField" hidden>Abweichende WhatsApp-Nummer <em>Pflichtfeld</em><input name="whatsappPhone" type="tel" autocomplete="tel" /></label>
           </div>
         </section>
         <section class="lead-questions lead-wizard-page" data-lead-step="3" hidden>
@@ -1146,7 +1141,7 @@
             <article><span>●</span><div><small>Schritt 2</small><h4>Videovertrag</h4><p>Einwilligung dokumentieren, freigegebenes Meet-Fenster aufzeichnen und Video-Abschluss speichern.</p></div><button class="primary" id="createVideoContract" type="button">Videovertrag erstellen →</button></article>
           </div>
           <div class="sales-contract-state" id="salesContractState">Noch kein Vertragsdokument für diesen Interessenten erstellt.</div><button class="secondary contract-email-action" id="sendContractEmail" type="button" aria-disabled="true">Vertrag per E-Mail versenden →</button><p id="contractEmailState" role="status" aria-live="polite">Freigabe nach vollständig gespeichertem Videovertrag.</p>
-          <div class="lead-completion-note"><span>✉</span><p><b>Terminbestätigung nach dem Abschluss</b>Erst wenn du das Verkaufsgespräch vollständig abschließt, wird die gestaltete Terminbestätigung mit Signatur über STRATO versendet.</p></div>
+          <div class="lead-completion-note"><span>✉</span><p><b>Terminbestätigung aus dem Intake</b>Die gestaltete Terminbestätigung mit Google-Meet-Link wird bei der Buchung im Intake versendet und in der Kommunikationshistorie dokumentiert.</p></div>
         </section>
         <div class="dialog-actions lead-dialog-actions">
           <button type="button" class="secondary" data-close-lead>

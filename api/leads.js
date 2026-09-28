@@ -824,7 +824,7 @@ export default async function handler(request, response) {
     }
     if (request.method === 'POST' && action === 'create-video-contract') {
       const lead = await leadById(service, request.body?.id);
-      if (!request.body?.saveDraft && ![lead.street_name,lead.house_number,lead.postal_code,lead.city].every(value=>String(value||'').trim())) return response.status(409).json({ error: 'Bitte die Anschrift zuerst in Punkt 1 Kontakt vollständig erfassen.' });
+      if (!request.body?.saveDraft && ![lead.street_name,lead.house_number,lead.postal_code,lead.city].every(value=>String(value||'').trim())) return response.status(409).json({ error: 'Bitte die Anschrift zuerst in Schritt 2 Kontakt vollständig erfassen.' });
       const normalized = normalizeVideoContract(request.body?.contract, lead);
       const saveDraft = request.body?.saveDraft === true;
       if (!saveDraft && normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze zuerst: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
@@ -1018,7 +1018,6 @@ export default async function handler(request, response) {
     }
     if (request.method === 'POST' && action === 'schedule') {
       const lead = await leadById(service, request.body?.id);
-      if (![lead.street_name,lead.house_number,lead.postal_code,lead.city].every(value=>String(value||'').trim())) return response.status(409).json({ error: 'Bitte in Punkt 1 Kontakt zuerst Straße, Hausnummer, Postleitzahl und Ort ergänzen.' });
       const startDate = new Date(request.body?.start), duration = Number(request.body?.duration || 45);
       if (Number.isNaN(startDate.getTime()) || ![30, 45, 60, 90].includes(duration)) return response.status(400).json({ error: 'Gültiger Termin und Dauer erforderlich.' });
       if (startDate.getTime() < Date.now() - 60000) return response.status(400).json({ error: 'Der Termin muss in der Zukunft liegen.' });
@@ -1038,7 +1037,7 @@ export default async function handler(request, response) {
     }
     if (request.method === 'POST' && action === 'complete-sales-conversation') {
       let lead = await leadById(service, request.body?.id);
-      if (![lead.street_name,lead.house_number,lead.postal_code,lead.city].every(value=>String(value||'').trim())) return response.status(409).json({ error: 'Bitte die vier Adressfelder in Punkt 1 Kontakt vollständig erfassen.' });
+      if (![lead.street_name,lead.house_number,lead.postal_code,lead.city].every(value=>String(value||'').trim())) return response.status(409).json({ error: 'Bitte die vier Adressfelder in Schritt 2 Kontakt vollständig erfassen.' });
       if (!lead.appointment_start || !lead.appointment_end) return response.status(409).json({ error: 'Bitte plane zuerst einen freien Termin.' });
       const now = new Date().toISOString();
       let calendarPrepared = false;

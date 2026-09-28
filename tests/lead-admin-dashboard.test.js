@@ -38,11 +38,11 @@ test('Die Zweitnavigation öffnet eigenständige Interessenten-Seiten und starte
 
 test('Verkaufsgespräch erfasst nur die klaren Kontaktdaten mit bedingter WhatsApp-Pflicht', async () => {
   const [html, script, styles] = await Promise.all([file('admin.html'), file('admin.js'), file('admin-crm-refresh.css')]);
-  assert.match(html, /<section class="lead-basics lead-wizard-page" data-lead-step="1">/);
+  assert.match(html, /<section class="lead-basics lead-wizard-page" data-lead-step="2" hidden>/);
   for (const name of ['firstName', 'lastName', 'email', 'mobilePhone']) assert.match(html, new RegExp(`name="${name}"[^>]*required`));
   assert.match(html, /name="hasAlternateWhatsapp"/);
   assert.match(html, /id="leadWhatsappField" hidden/);
-  assert.doesNotMatch(html.slice(html.indexOf('data-lead-step="1"'),html.indexOf('data-lead-step="2"')), /Anliegen des Interessenten|Interne Notizen|lead-status-field/);
+  assert.doesNotMatch(html.slice(html.indexOf('<section class="lead-basics lead-wizard-page"'),html.indexOf('<section class="lead-questions lead-wizard-page"')), /Anliegen des Interessenten|Interne Notizen|lead-status-field/);
   assert.match(styles, /#leadDialog\.lead-dialog \{[^}]*max-width: 920px;[^}]*overflow: hidden;[^}]*width: calc\(100% - 36px\);/);
   assert.match(styles, /#leadDialog \.lead-contact-grid label \{[^}]*font-size: 12px/);
   assert.match(styles, /#leadDialog \.lead-whatsapp-field \{[^}]*grid-column: 1\/-1/);
@@ -60,6 +60,10 @@ test('Verkaufsgespräch erfasst nur die klaren Kontaktdaten mit bedingter WhatsA
 
 test('Terminseite zeigt konfigurierte Dauern und führt erst über Tag, dann freie Uhrzeit', async () => {
   const [html, script, styles, api, migration] = await Promise.all([file('admin.html'), file('admin.js'), file('admin-crm-refresh.css'), file('api/leads.js'), file('supabase/migrations/20260910120000_sales_conversation_contact_and_booking.sql')]);
+  assert.match(html, /<section class="lead-appointment lead-wizard-page" data-lead-step="1">/);
+  assert.match(html, /id="leadBookedAppointmentTime"/);
+  assert.match(html, /id="openMeet"[^>]*>Google Meet öffnen/);
+  assert.match(html, /id="leadAppointmentReschedule"/);
   assert.match(html, /id="availableDays"/);
   assert.match(html, /id="availableTimes"/);
   assert.match(html, /name="offeredDuration" value="30"/);
@@ -71,10 +75,12 @@ test('Terminseite zeigt konfigurierte Dauern und führt erst über Tag, dann fre
   assert.match(migration, /offered_durations integer\[\]/);
 });
 
-test('Terminbestätigung wird erst beim vollständigen Abschluss des Verkaufsgesprächs ausgelöst', async () => {
+test('Intake bucht den Termin mit Meet-Link und der Abschluss versendet keine zweite Bestätigung', async () => {
   const [html, script, communication, api, migration] = await Promise.all([file('admin.html'), file('admin.js'), file('admin-communication-center.js'), file('api/leads.js'), file('supabase/migrations/20260910120000_sales_conversation_contact_and_booking.sql')]);
   assert.match(script, /action=complete-sales-conversation/);
   assert.match(api, /action === 'complete-sales-conversation'/);
+  assert.match(api, /appointment_start: startDate\.toISOString\(\)/);
+  assert.match(api, /meet_url: meetUrl/);
   assert.match(api, /appointment_confirmation_prepared_at/);
   assert.match(api, /notifyAttendees: false/);
   assert.match(api, /sendLeadCommunication\(service, confirmation, lead.email\)/);

@@ -26,6 +26,20 @@ test('Verkaufsgespräch hat klickbare Phasen, echte freie Termine und Ja-Nein-Au
   assert.match(js, /renderAvailableTimes/);
 });
 
+test('Verkaufsgespräch beginnt mit dem im Intake gespeicherten Termin und direktem Meet-Link', async () => {
+  const [html, js, api] = await Promise.all([read('admin.html'), read('admin.js'), read('api/leads.js')]);
+  const appointment = html.slice(html.indexOf('<section class="lead-appointment lead-wizard-page"'), html.indexOf('<section class="lead-basics lead-wizard-page"'));
+  assert.match(appointment, /data-lead-step="1"/);
+  assert.match(appointment, /id="leadBookedAppointmentTime"/);
+  assert.match(appointment, /id="openMeet"[^>]*>Google Meet öffnen/);
+  assert.match(appointment, /id="leadAppointmentReschedule"/);
+  assert.match(html, /<section class="lead-basics lead-wizard-page" data-lead-step="2" hidden>/);
+  assert.match(js, /renderIntakeAppointment\(lead\)/);
+  assert.match(js, /meet\.href=lead\.meet_url/);
+  assert.match(api, /appointment_start: startDate\.toISOString\(\)/);
+  assert.match(api, /meet_url: meetUrl/);
+});
+
 test('Videovertrag verlangt vollständige Vertragsdaten und elf einzelne Bestätigungen', () => {
   const valid = normalizeVideoContract(completeInput());
   assert.deepEqual(valid.missing, []);
