@@ -152,9 +152,10 @@ async function completedContract(service, leadId) {
 }
 
 async function communicationInbox(service) {
-  const [communicationRows, leadRows] = await Promise.all([
+  const [communicationRows, leadRows, mailboxStatus] = await Promise.all([
     readJson(await fetch(`${service.url}/rest/v1/lead_communications?select=*&order=occurred_at.desc&limit=500`, { headers: headers(service.key) }), 'Kommunikationen konnten nicht geladen werden.'),
     readJson(await fetch(`${service.url}/rest/v1/leads?select=id,name,email,status,converted_user_profile_id&order=created_at.desc&limit=500`, { headers: headers(service.key) }), 'Kontakte konnten nicht geladen werden.'),
+    stratoMailConfig() ? verifyStratoMailbox(stratoMailConfig()) : Promise.resolve({ configured: false, ok: false }),
   ]);
   const contacts = new Map(leadRows.map((lead) => [lead.id, { id: lead.id, name: lead.name, email: lead.email, type: lead.converted_user_profile_id ? 'customer' : 'lead', status: lead.status }]));
   const communications = communicationRows.map((item) => ({ ...item, contact: contacts.get(item.lead_id) || { id: item.lead_id, name: 'Unbekannter Kontakt', email: '', type: 'lead', status: 'unknown' } }));
@@ -170,7 +171,7 @@ async function communicationInbox(service) {
       customers: new Set(communications.filter((item) => item.contact.type === 'customer').map((item) => item.lead_id)).size,
       leads: new Set(communications.filter((item) => item.contact.type === 'lead').map((item) => item.lead_id)).size,
     },
-    mailTransport: { configured: Boolean(stratoMailConfig()), active: false, provider: 'strato', label: stratoMailConfig() ? 'STRATO konfiguriert · Zugang prüfen' : 'STRATO-Zugangsdaten fehlen' },
+    mailTransport: { configured: mailboxStatus.configured, active: mailboxStatus.ok, provider: 'strato', label: mailboxStatus.ok ? 'STRATO SMTP & IMAP aktiv' : mailboxStatus.configured ? 'STRATO-Anmeldung fehlgeschlagen' : 'STRATO-Zugangsdaten fehlen' },
   };
 }
 
