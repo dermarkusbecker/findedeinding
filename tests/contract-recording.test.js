@@ -190,3 +190,11 @@ test('duplicate Save while upload is running does not start another upload',asyn
  const {ContractRecorder}=await import('../lib/browser-contract-recorder.js');
  const recorder=Object.create(ContractRecorder.prototype);recorder.blob={size:100};recorder.busy=true;recorder.controls=()=>{throw Error('Upload started twice');};await recorder.save();
 });
+test('browser recording saves on stop and uses the signed resumable upload endpoint', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const browser = await readFile(new URL('../lib/browser-contract-recorder.js', import.meta.url), 'utf8');
+  const service = await readFile(new URL('../lib/contract-recording-service.js', import.meta.url), 'utf8');
+  assert.match(browser, /this\.recorder\.onstop = \(\) =>[\s\S]*?void this\.save\(\)/);
+  assert.match(service, /storage\/v1\/upload\/resumable`/);
+  assert.doesNotMatch(service, /storage\/v1\/upload\/resumable\/sign/);
+});

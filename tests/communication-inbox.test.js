@@ -42,10 +42,12 @@ test('Postfachdaten speichern vollständigen Inhalt, Versandstatus und Lesezeitp
   assert.match(migration, /lead_communications_mailbox_idx/);
 });
 
-test('ohne Domain-Mail-Anbieter werden neue Nachrichten ehrlich als Entwurf gespeichert', async () => {
+test('STRATO-Postfach zeigt Zugang und bewahrt Entwürfe bis zum Versand', async () => {
   const [html, api] = await Promise.all([file('admin.html'), file('api/leads.js')]);
-  assert.match(html, /Domain-Mail noch nicht verbunden/);
+  assert.match(html, /STRATO-Postfach/);
+  assert.match(html, /syncStratoInbox/);
   assert.match(html, /Als Entwurf speichern/);
-  assert.match(api, /mailTransport: \{ active: false/);
-  assert.match(api, /wurde als Entwurf gespeichert/);
+  assert.match(api, /action === 'communication-send'/);
+  assert.match(api, /action === 'strato-inbox-sync'/);
+  assert.match(api, /Nachricht als Entwurf gespeichert/);
 });

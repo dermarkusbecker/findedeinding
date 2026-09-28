@@ -40,10 +40,11 @@ test('Supabase-Migration erstellt Kommunikationsvorlagen, Kampagnen, Automatione
   assert.match(migration, /Domain-Mail-Schnittstelle|Mail-Schnittstelle/);
 });
 
-test('Kommunikations-Center bleibt bis zur Provider-Anbindung ehrlich im Planungsmodus', async () => {
+test('Kommunikations-Center zeigt STRATO-Versand und haelt ungebaute Automationen angehalten', async () => {
   const [html, api] = await Promise.all([file('admin.html'), file('api/leads.js')]);
   assert.match(html, /Mailversand startet nach Verbindung des Domain-Anbieters/);
   assert.match(html, /Bis zur Mail-Anbindung bleiben geplante Ausführungen sicher angehalten/);
-  assert.match(api, /mailTransport: \{ active: false/);
+  assert.match(api, /mailTransport: \{ configured: Boolean\(stratoMailConfig\(\)\), active: false/);
+  assert.match(api, /action === 'communication-send'/);
   assert.match(api, /wartet bis zur Mail-Anbindung auf den Versand/);
 });

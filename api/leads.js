@@ -3,8 +3,10 @@ import {customerAccount} from '../lib/customer-account.js';
 import { archiveLeadInvoices } from '../lib/finance-archive.js';
 import { handleReferences } from '../lib/references-api.js';
 import { stratoMailConfig, verifyStratoMailbox } from '../lib/strato-mail.js';
+import { syncStratoInbox } from '../lib/strato-inbox.js';
 import { handleFinance } from '../lib/finance-api.js';
 import { renderBrandedEmail } from '../lib/branded-email.js';
+import { sendPreparedMail } from '../lib/branded-mail-service.js';
 import { normalizeIntake } from '../lib/intake.js';
 import {readCurriculumIndex,curriculumAccess,curriculumGates} from '../lib/curriculum-progress.js';
 import {categoryBookingSettings,normalizeAppointmentCategories} from '../lib/appointment-categories.js';
@@ -97,6 +99,34 @@ async function insertLeadRecord(service, table, payload) {
   return rows[0] || null;
 }
 
+async function sendLeadCommunication(service, record, recipient) {
+  if (!record?.id || !['draft', 'failed'].includes(record.delivery_status) || !record.body_html || !record.body) {
+    throw Object.assign(new Error('Nur vollständig vorbereitete E-Mail-Entwürfe können versendet werden.'), { status: 409 });
+  }
+  const reserved = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?id=eq.${encodeURIComponent(record.id)}&delivery_status=eq.${record.delivery_status}`, {
+    method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }),
+    body: JSON.stringify({ delivery_status: 'pending', updated_at: new Date().toISOString() }),
+  }));
+  if (!reserved[0]) throw Object.assign(new Error('Der Versand wurde bereits gestartet. Bitte den Status im Postfach prüfen.'), { status: 409 });
+  let sent;
+  try {
+    sent = await sendPreparedMail({ to: recipient, subject: record.subject, text: record.body, html: record.body_html });
+  } catch (error) {
+    const certainFailure = ['EAUTH', 'EENVELOPE', 'EMESSAGE'].includes(error.code) || error.status === 400 || error.status === 503;
+    await fetch(`${service.url}/rest/v1/lead_communications?id=eq.${encodeURIComponent(record.id)}&delivery_status=eq.pending`, {
+      method: 'PATCH', headers: headers(service.key),
+      body: JSON.stringify({ delivery_status: certainFailure ? 'failed' : 'unknown', preview: certainFailure ? 'STRATO-Versand fehlgeschlagen. Zugang und Empfänger prüfen.' : 'Versandstatus unklar. Vor erneutem Versand das STRATO-Postfach prüfen.', updated_at: new Date().toISOString() }),
+    }).catch(() => null);
+    throw Object.assign(new Error(certainFailure ? 'STRATO hat die E-Mail nicht angenommen. Postfachzugang und Empfänger prüfen.' : 'Der Versandstatus ist unklar. Bitte das STRATO-Postfach vor einem erneuten Versuch prüfen.'), { status: 503 });
+  }
+  const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?id=eq.${encodeURIComponent(record.id)}&delivery_status=eq.pending`, {
+    method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }),
+    body: JSON.stringify({ delivery_status: 'accepted', provider_message_id: sent.providerMessageId, preview: 'Vom STRATO-Mailserver angenommen. Zustellung beim Empfänger nicht bestätigt.', updated_at: new Date().toISOString() }),
+  }), 'E-Mail wurde angenommen, aber der CRM-Status konnte nicht gespeichert werden. Bitte vor erneutem Versand das STRATO-Postfach prüfen.');
+  if (!rows[0]) throw Object.assign(new Error('E-Mail wurde angenommen, aber der CRM-Status ist unklar. Bitte STRATO prüfen.'), { status: 503 });
+  return rows[0];
+}
+
 async function reserveContractNumber(service, contractDate = new Date().toISOString().slice(0, 10)) {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(contractDate || '') ? contractDate : new Date().toISOString().slice(0, 10);
   const result = await readJson(await fetch(`${service.url}/rest/v1/rpc/next_contract_number`, {
@@ -140,7 +170,7 @@ async function communicationInbox(service) {
       customers: new Set(communications.filter((item) => item.contact.type === 'customer').map((item) => item.lead_id)).size,
       leads: new Set(communications.filter((item) => item.contact.type === 'lead').map((item) => item.lead_id)).size,
     },
-    mailTransport: { active: false, provider: null, label: 'Domain-Mail-Schnittstelle geplant' },
+    mailTransport: { configured: Boolean(stratoMailConfig()), active: false, provider: 'strato', label: stratoMailConfig() ? 'STRATO konfiguriert · Zugang prüfen' : 'STRATO-Zugangsdaten fehlen' },
   };
 }
 
@@ -173,7 +203,7 @@ async function communicationCenter(service) {
     templates, campaigns, automations, contacts, signatures, branding: brandingRows[0] || { id: 'default', brand_name: 'Finde dein Ding', logo_url: '/assets/fdd-logo.svg' },
     audience: { all: contacts.length, leads: contacts.filter((item) => item.type === 'lead').length, customers: contacts.filter((item) => item.type === 'customer').length },
     summary: { templates: templates.length, activeTemplates: templates.filter((item) => item.status === 'active').length, campaigns: campaigns.length, scheduledCampaigns: campaigns.filter((item) => item.status === 'scheduled').length, automations: automations.length, activeAutomations: automations.filter((item) => item.enabled).length },
-    mailTransport: { active: false, provider: null, label: 'Domain-Mail-Schnittstelle geplant' },
+    mailTransport: { configured: Boolean(stratoMailConfig()), active: false, provider: 'strato', label: stratoMailConfig() ? 'STRATO konfiguriert · Zugang prüfen' : 'STRATO-Zugangsdaten fehlen' },
   };
 }
 
@@ -585,6 +615,7 @@ function permissionForAction(action) {
   if (action.startsWith('communication')) return 'communications';
   if (['available-slots', 'tariffs'].includes(action)) return ['settings', 'sales_calls', 'leads'];
   if (['google-connect', 'google-callback', 'booking-settings', 'system-status', 'strato-mail-check', 'tariff'].includes(action)) return 'settings';
+  if (action === 'strato-inbox-sync') return 'communications';
   if (['dashboard', 'dashboard-record'].includes(action)) return ['leads', 'customers', 'finance'];
   if (['update', 'complete-sales-conversation', 'set-interest-status'].includes(action)) return ['leads', 'sales_calls', 'customers'];
   if (['schedule', 'cancel-appointment'].includes(action)) return ['leads', 'sales_calls'];
@@ -619,6 +650,11 @@ export default async function handler(request, response) {
       response.setHeader('Cache-Control', 'private, no-store');
       if (request.method !== 'POST') return response.status(405).json({ error: 'Bitte die Verbindungsprüfung über den Button im CRM starten.' });
       return response.status(200).json(await verifyStratoMailbox(stratoMailConfig()));
+    }
+    if (action === 'strato-inbox-sync') {
+      if (request.method !== 'POST') return response.status(405).json({ error: 'Bitte den Posteingang über das CRM aktualisieren.' });
+      response.setHeader('Cache-Control', 'private, no-store');
+      return response.status(200).json(await syncStratoInbox(service));
     }
     if(action==='tasks')return await handleCrmTasks(request,response,service);
     if (request.method === 'GET' && action === 'google-connect') {
@@ -655,6 +691,7 @@ export default async function handler(request, response) {
         whatsappConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
       });
       const checks=await checkIntegrationHealth({service,openaiKey:openai.apiKey,openaiModel:openai.model,googleToken:googleConnectionRecord?()=>googleAccessToken(service):null,whatsappToken:process.env.WHATSAPP_ACCESS_TOKEN,whatsappId:process.env.WHATSAPP_PHONE_NUMBER_ID,whatsappVersion:process.env.WHATSAPP_GRAPH_API_VERSION||'v23.0'});
+      if (stratoMailConfig()) checks.domain_email = await verifyStratoMailbox(stratoMailConfig());
       response.setHeader('Cache-Control','private, no-store');
       return response.status(200).json(applyIntegrationHealth(registry,checks));
     }
@@ -703,7 +740,17 @@ export default async function handler(request, response) {
       const brands = await readJson(await fetch(`${service.url}/rest/v1/system_branding?id=eq.default&select=*&limit=1`, { headers: headers(service.key) }));
       const mail = renderBrandedEmail({subject, body: messageBody, signature, branding: brands[0]});
       const record = await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', channel: 'email', subject, preview: body.slice(0, 500), body: mail.text, body_html: mail.html, signature_id: signature?.id || null, delivery_status: 'draft' });
-      return response.status(201).json({ record, message: 'Nachricht wurde als Entwurf gespeichert. Der Versand wird nach Anschluss der Domain-Mail-Schnittstelle aktiviert.' });
+      return response.status(201).json({ record, message: 'Nachricht als Entwurf gespeichert. Du kannst sie aus dem CRM-Postfach über STRATO versenden.' });
+    }
+    if (request.method === 'POST' && action === 'communication-send') {
+      const id = request.body?.id;
+      if (!uuidValid(id)) return response.status(400).json({ error: 'Gültige Nachrichten-ID fehlt.' });
+      const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?id=eq.${encodeURIComponent(id)}&direction=eq.outbound&channel=eq.email&select=*&limit=1`, { headers: headers(service.key) }));
+      const record = rows[0];
+      if (!record?.lead_id) return response.status(404).json({ error: 'E-Mail-Entwurf wurde nicht gefunden.' });
+      const lead = await leadById(service, record.lead_id);
+      const sent = await sendLeadCommunication(service, record, lead.email);
+      return response.status(200).json({ record: sent, message: 'STRATO hat die E-Mail zum Versand angenommen.' });
     }
     if (request.method === 'PATCH' && action === 'communication-read') {
       const id = clean(request.body?.id, 80);
@@ -902,29 +949,38 @@ export default async function handler(request, response) {
       let lead = await leadById(service, request.body?.id);
       if (!lead.appointment_start || !lead.appointment_end) return response.status(409).json({ error: 'Bitte plane zuerst einen freien Termin.' });
       const now = new Date().toISOString();
-      let calendarNotified = false;
+      let calendarPrepared = false;
       const accessToken = await optionalGoogleAccessToken(service);
       if (accessToken && !lead.appointment_confirmation_prepared_at) {
-        const event = await saveCalendarEvent(accessToken, lead, lead.appointment_start, lead.appointment_end, { notifyAttendees: true });
+        const event = await saveCalendarEvent(accessToken, lead, lead.appointment_start, lead.appointment_end, { notifyAttendees: false });
         const meetUrl = event?.hangoutLink || event?.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || lead.meet_url || null;
         lead = await patchLead(service, lead.id, { calendar_event_id: event?.id || lead.calendar_event_id, calendar_event_url: event?.htmlLink || lead.calendar_event_url, meet_url: meetUrl });
-        calendarNotified = true;
-        await insertLeadRecord(service,'lead_communications',{lead_id:lead.id,direction:'outbound',channel:'email',subject:'Google-Kalendereinladung angefordert',body:'Google Calendar hat die Aktualisierung mit Benachrichtigung der Teilnehmer angenommen. Diese Einladung verwendet die Google-Darstellung; eine Zustellbestätigung liegt nicht vor.',delivery_status:'accepted',automation_source:'google_calendar'});
-
+        calendarPrepared = true;
       }
-      if (!lead.appointment_confirmation_prepared_at) {
+      const eventKey = `appointment-confirmation:${lead.id}:${lead.appointment_start}`;
+      const existingMail = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?event_key=eq.${encodeURIComponent(eventKey)}&select=*&limit=1`, { headers: headers(service.key) }));
+      let confirmation = existingMail[0] || null;
+      if (!confirmation && !lead.appointment_confirmation_prepared_at) {
         const appointmentLabel = new Date(lead.appointment_start).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short', timeZone: lead.appointment_timezone || 'Europe/Berlin' });
-        const meetLine = lead.meet_url ? `\nGoogle Meet: ${lead.meet_url}` : '\nDer Google-Meet-Link wird ergänzt, sobald die Google-Schnittstelle verbunden ist.';
-        await insertLeadRecord(service, 'lead_communications', {
+        const meetLine = lead.meet_url ? `\n\nDein Link zum Online-Gespräch:\n${lead.meet_url}` : '';
+        confirmation = await insertLeadRecord(service, 'lead_communications', {
           lead_id: lead.id, direction: 'outbound', channel: 'email', subject: 'Dein Klarheitsgespräch ist bestätigt',
           preview: `Dein Klarheitsgespräch am ${appointmentLabel} ist bestätigt.`,
-          body: `Hallo ${lead.first_name || lead.name},\n\ndein Klarheitsgespräch findet am ${appointmentLabel} statt.${meetLine}\n\nHerzliche Grüße\nMarkus Becker`,
-          delivery_status: 'draft', automation_source:'appointment_confirmation',
+          body: `Hallo ${(lead.first_name || lead.name).split(/\s+/)[0]},\n\nvielen Dank für deine Terminvereinbarung. Dein Klarheitsgespräch findet am ${appointmentLabel} statt.${meetLine}\n\nBitte nimm dir für unser Gespräch einen ruhigen Ort und etwas Zeit. Falls du den Termin nicht wahrnehmen kannst, antworte einfach auf diese E-Mail.\n\nIch freue mich auf unser Gespräch.`,
+          delivery_status: 'draft', automation_source:'appointment_confirmation', event_key: eventKey,
         });
+      }
+      let mailStatus = confirmation?.delivery_status || 'draft';
+      if (confirmation && ['draft', 'failed'].includes(confirmation.delivery_status)) {
+        try { confirmation = await sendLeadCommunication(service, confirmation, lead.email); mailStatus = confirmation.delivery_status; }
+        catch {
+          const state = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?id=eq.${encodeURIComponent(confirmation.id)}&select=delivery_status&limit=1`, { headers: headers(service.key) })).catch(() => []);
+          mailStatus = state[0]?.delivery_status || 'unknown';
+        }
       }
       const completedStatus = lead.converted_user_profile_id ? 'customer' : ['offer', 'later', 'lost'].includes(lead.status) ? lead.status : 'consultation';
       const completed = await patchLead(service, lead.id, { sales_conversation_completed_at: now, appointment_confirmation_prepared_at: lead.appointment_confirmation_prepared_at || now, status: completedStatus });
-      return response.status(200).json({ lead: completed, calendarNotified, mailStatus: 'draft', message: calendarNotified ? 'Verkaufsgespräch abgeschlossen. Die Google-Einladung wurde angefordert; die Markenmail liegt als Entwurf vor.' : 'Verkaufsgespräch abgeschlossen. Die Terminbestätigung ist als E-Mail-Entwurf vorbereitet; Google Calendar ist noch nicht verbunden.' });
+      return response.status(200).json({ lead: completed, calendarPrepared, mailStatus, message: mailStatus === 'accepted' ? 'Verkaufsgespräch abgeschlossen. STRATO hat die gestaltete Terminbestätigung mit Signatur angenommen.' : 'Verkaufsgespräch abgeschlossen. Die Terminbestätigung konnte nicht versendet werden und liegt im CRM-Postfach zur Prüfung.' });
     }
     if (request.method === 'POST' && action === 'cancel-appointment') {
       const lead = await leadById(service, request.body?.id);

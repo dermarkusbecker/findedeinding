@@ -63,10 +63,10 @@ test('STRATO terminates hanging checks and closes both clients', async () => {
   assert.match(result.imap.message, /Zeitüberschreitung/);
 });
 
-test('STRATO configured credentials are not displayed as an active mail transport', () => {
+test('STRATO configured credentials require a live check before active status', () => {
   const registry = buildSystemRegistry({ mailConfigured: true, mailUser: config.user });
   const mail = registry.integrations.find(item => item.id === 'domain_email');
   assert.equal(mail.status.key, 'ready');
   assert.equal(mail.action, 'strato-mail-check');
-  assert.match(mail.detail, /noch nicht aktiviert/);
+  assert.match(mail.detail, /Anmeldung wird geprüft/);
 });

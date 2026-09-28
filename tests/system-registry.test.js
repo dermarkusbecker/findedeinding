@@ -24,11 +24,11 @@ test('Systemregister zeigt aktive Google-, Supabase- und OpenAI-Dienste getrennt
 test('Systemregister unterscheidet fehlende Konfiguration und geplanten Ausbau', () => {
   const registry = buildSystemRegistry({ googleConfigured: false, openaiConfigured: false });
   assert.equal(registry.integrations.find((item) => item.id === 'google_calendar').status.key, 'missing');
-  assert.equal(registry.integrations.find((item) => item.id === 'domain_email').status.key, 'planned');
+  assert.equal(registry.integrations.find((item) => item.id === 'domain_email').status.key, 'missing');
   assert.equal(registry.agents.find((item) => item.id === 'situation_recognition').status.key, 'missing');
   assert.equal(registry.agents.find((item) => item.id === 'week_reflection').status.key, 'missing');
   assert.equal(registry.agents.some((item) => item.id === 'decision_escalation'), false);
-  assert.ok(registry.summary.planned >= 3);
+  assert.ok(registry.summary.planned >= 2);
 });
 
 test('Systemregister listet die tatsächlich implementierten KI-Aufgaben nachvollziehbar', () => {

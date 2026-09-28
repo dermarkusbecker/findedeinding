@@ -77,7 +77,7 @@ test('Terminbestätigung wird erst beim vollständigen Abschluss des Verkaufsges
   assert.match(api, /action === 'complete-sales-conversation'/);
   assert.match(api, /appointment_confirmation_prepared_at/);
   assert.match(api, /notifyAttendees: false/);
-  assert.match(api, /notifyAttendees: true/);
+  assert.match(api, /sendLeadCommunication\(service, confirmation, lead.email\)/);
   assert.match(html, /value="sales_conversation_completed">Verkaufsgespräch abgeschlossen/);
   assert.match(communication, /sales_conversation_completed:'Verkaufsgespräch abgeschlossen'/);
   assert.match(migration, /sales_conversation_appointment_confirmation/);

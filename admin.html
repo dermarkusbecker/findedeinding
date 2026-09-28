@@ -448,10 +448,10 @@
           </div>
         </div>
         <div class="mail-transport-banner" id="mailTransportBanner">
-          <span>!</span><div><strong>Domain-Mail noch nicht verbunden</strong><small>Nachrichten werden sicher als Entwurf gespeichert. Bestehende System- und Kommunikationseinträge sind vollständig sichtbar.</small></div><button type="button" class="secondary" data-open-mail-settings>Schnittstelle ansehen →</button>
+          <span>✉</span><div><strong>STRATO-Postfach</strong><small>Der Verbindungsstatus wird geladen. Entwürfe können nach Prüfung über STRATO versendet werden.</small></div><button type="button" class="secondary" data-open-mail-settings>Schnittstelle ansehen →</button>
         </div>
         <section class="communication-center-section active" data-communication-section="mailbox" id="communicationMailboxSection">
-          <div class="communication-section-head"><div><p class="eyebrow">Postfach</p><h2>Alle Gespräche an einem Ort</h2><p>Interessenten und Teilnehmer bleiben automatisch mit ihrer CRM-Akte verbunden.</p></div><button class="primary" id="openCommunicationComposer" type="button">+ Neue Nachricht</button></div>
+          <div class="communication-section-head"><div><p class="eyebrow">Postfach</p><h2>Alle Gespräche an einem Ort</h2><p>Interessenten und Teilnehmer bleiben automatisch mit ihrer CRM-Akte verbunden.</p></div><div><button class="secondary" id="syncStratoInbox" type="button">STRATO-Posteingang abrufen</button> <button class="primary" id="openCommunicationComposer" type="button">+ Neue Nachricht</button></div></div>
           <section class="communication-metrics" aria-label="Kommunikationsübersicht">
             <article><small>Alle Nachrichten</small><strong id="communicationTotal">0</strong></article>
             <article><small>Ungelesen</small><strong id="communicationUnread">0</strong></article>
@@ -1140,7 +1140,7 @@
             <article><span>●</span><div><small>Schritt 2</small><h4>Videovertrag</h4><p>Einwilligung dokumentieren, freigegebenes Meet-Fenster aufzeichnen und Video-Abschluss speichern.</p></div><button class="primary" id="createVideoContract" type="button">Videovertrag erstellen →</button></article>
           </div>
           <div class="sales-contract-state" id="salesContractState">Noch kein Vertragsdokument für diesen Interessenten erstellt.</div>
-          <div class="lead-completion-note"><span>✉</span><p><b>Terminbestätigung nach dem Abschluss</b>Erst wenn du das Verkaufsgespräch vollständig abschließt, wird die Einladung mit Termin und vorhandenem Google-Meet-Link ausgelöst.</p></div>
+          <div class="lead-completion-note"><span>✉</span><p><b>Terminbestätigung nach dem Abschluss</b>Erst wenn du das Verkaufsgespräch vollständig abschließt, wird die gestaltete Terminbestätigung mit Signatur über STRATO versendet.</p></div>
         </section>
         <div class="dialog-actions lead-dialog-actions">
           <button type="button" class="secondary" data-close-lead>
@@ -1510,7 +1510,7 @@
         <label>Signatur<select name="signatureId" id="communicationComposerSignature"><option value="">Ohne Signatur</option></select></label>
         <label>Betreff<input name="subject" maxlength="220" required /></label>
         <label>Nachricht<textarea name="body" rows="9" maxlength="10000" required></textarea></label>
-        <p class="compose-provider-note">Bis zur Verbindung des Domain-Mail-Anbieters wird diese Nachricht als Entwurf gespeichert und nicht als versendet dargestellt.</p>
+        <p class="compose-provider-note">Die Nachricht wird als Entwurf gespeichert. Nach der Prüfung kannst du sie im CRM-Postfach über STRATO versenden.</p>
         <div class="dialog-actions"><button type="button" class="secondary" data-close-communication-composer>Abbrechen</button><button type="submit" class="primary">Als Entwurf speichern</button></div>
       </form>
     </dialog>
