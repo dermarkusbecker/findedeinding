@@ -34,12 +34,8 @@ test('Loader ist animiert, responsiv und respektiert reduzierte Bewegung', async
   assert.match(css, /@media\(prefers-reduced-motion:reduce\)[^{]*\{[^}]*\.site-loader-orbit i/s);
 });
 
-test('Instagram-Profil ist mit einem kleinen Vektorlogo in Navigation und Footer verlinkt', async () => {
-  const html = await file('index.html');
-  const links = html.match(/href="https:\/\/www\.instagram\.com\/der\.markusbecker\/"/g) || [];
-
-  assert.equal(links.length, 2);
-  assert.match(html, /class="instagram-link"[\s\S]*?<svg viewBox="0 0 24 24"/);
-  assert.match(html, /target="_blank" rel="noopener noreferrer"/);
-  assert.match(html, /aria-label="Markus Becker auf Instagram öffnen"/);
+test('Landingpage enthält kein Instagram-Logo und keinen Instagram-Link', async () => {
+  const [html, css] = await Promise.all([file('index.html'), file('landing-reference.css')]);
+  assert.doesNotMatch(html, /instagram\.com|instagram-link|footer-instagram/i);
+  assert.doesNotMatch(css, /instagram-link|footer-instagram/i);
 });
