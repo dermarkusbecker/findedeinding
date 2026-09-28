@@ -18,7 +18,7 @@ test('autosave serializes edits, reuses the new contract ID, and retains failed 
  const nodes=new Map();let value='first',release;const requests=[];let fail=false;
  const context=vm.createContext({setTimeout:()=>1,clearTimeout:()=>{},Date,encodeURIComponent,
   document:{querySelector:selector=>{if(!nodes.has(selector))nodes.set(selector,{});return nodes.get(selector);}},
-  activeLeadDashboard:{lead:{id:'lead'},contracts:[]},videoContractDialog:{open:true},videoContractForm:{elements:{contractId:{value:''}}},latestVideoContract:()=>null,
+  activeLeadDashboard:{lead:{id:'lead'},contracts:[]},videoContractDialog:{open:true,dataset:{mode:'document'}},videoContractForm:{elements:{contractId:{value:''}}},latestVideoContract:()=>null,
   videoContractPayload:()=>({customerName:value}),renderSalesContractState:()=>{},contractRecorder:null,updateVideoFinalizeState:()=>{},
   fetch:async(url,options)=>{const body=JSON.parse(options.body);requests.push(body);if(requests.length===1)await new Promise(resolve=>release=resolve);return {ok:!fail,json:async()=>fail?{error:'offline'}:{record:{id:'contract',status:'draft',contract_data:body.contract,updated_at:String(requests.length)},documentUrl:'/api/leads?action=contract-download'}};}
  });

@@ -13,7 +13,7 @@ import {categoryBookingSettings,normalizeAppointmentCategories} from '../lib/app
 import { handleCrmTasks } from '../lib/crm-tasks.js';
 import { dashboardClarity } from '../lib/dashboard-clarity.js';
 import { checkIntegrationHealth, applyIntegrationHealth } from '../lib/integration-health.js';
-import {beginRecording,prepareRecordingUpload,completeRecordingUpload} from '../lib/contract-recording-service.js';
+import {beginRecording,markRecordingStarted,prepareRecordingUpload,completeRecordingUpload,recordingConsents} from '../lib/contract-recording-service.js';
 import crypto from 'node:crypto';
 import { DEFAULT_BOOKING_SETTINGS, generateAvailableSlots, isWithinBookingAvailability, normalizeBookingSettings } from '../lib/booking-availability.js';
 import { authorizationUrl, assertCalendarAvailable, calendarBusyIntervals, calendarEvent, decryptCredential, deleteCalendarEvent, emailFromIdToken, encryptCredential, exchangeAuthorizationCode, googleConfig, refreshAccessToken, saveCalendarEvent, verifyOAuthState } from '../lib/google-calendar.js';
@@ -25,7 +25,7 @@ import { calculateProgramAccess } from '../lib/program-access.js';
 import { reconcileAccessFromEntries } from '../lib/program-position.js';
 import { syncLeadToCustomerProfile } from '../lib/contact-lifecycle.js';
 import { buildVideoContractPdf, normalizeVideoContract, VIDEO_CONFIRMATION_KEYS } from '../lib/video-contract.js';
-import { customerObjectExists, deleteCustomerObject, importCustomerObject, signedCustomerUrl, uploadCustomerObject } from '../lib/customer-storage.js';
+import { customerObjectExists, deleteCustomerObject, importCustomerObject, readCustomerObject, signedCustomerUrl, uploadCustomerObject } from '../lib/customer-storage.js';
 import { handlePublicContractSign } from '../lib/contract-sign-service.js';
 
 const VALID_STATUSES = ['new', 'contacted', 'scheduled', 'consultation', 'offer', 'later', 'customer', 'lost'];
@@ -96,7 +96,7 @@ async function insertLeadRecord(service, table, payload) {
   return rows[0] || null;
 }
 
-async function sendLeadCommunication(service, record, recipient) {
+async function sendLeadCommunication(service, record, recipient, attachments = []) {
   if (!record?.id || !['draft', 'failed'].includes(record.delivery_status) || !record.body_html || !record.body) {
     throw Object.assign(new Error('Nur vollständig vorbereitete E-Mail-Entwürfe können versendet werden.'), { status: 409 });
   }
@@ -107,7 +107,7 @@ async function sendLeadCommunication(service, record, recipient) {
   if (!reserved[0]) throw Object.assign(new Error('Der Versand wurde bereits gestartet. Bitte den Status im Postfach prüfen.'), { status: 409 });
   let sent;
   try {
-    sent = await sendPreparedMail({ to: recipient, subject: record.subject, text: record.body, html: record.body_html });
+    sent = await sendPreparedMail({ to: recipient, subject: record.subject, text: record.body, html: record.body_html, attachments });
   } catch (error) {
     const certainFailure = ['EAUTH', 'EENVELOPE', 'EMESSAGE'].includes(error.code) || error.status === 400 || error.status === 503;
     await fetch(`${service.url}/rest/v1/lead_communications?id=eq.${encodeURIComponent(record.id)}&delivery_status=eq.pending`, {
@@ -118,7 +118,7 @@ async function sendLeadCommunication(service, record, recipient) {
   }
   const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?id=eq.${encodeURIComponent(record.id)}&delivery_status=eq.pending`, {
     method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }),
-    body: JSON.stringify({ delivery_status: 'accepted', provider_message_id: sent.providerMessageId, preview: 'Vom STRATO-Mailserver angenommen. Zustellung beim Empfänger nicht bestätigt.', updated_at: new Date().toISOString() }),
+    body: JSON.stringify({ delivery_status: 'accepted', provider_message_id: sent.providerMessageId, preview: attachments.length ? 'Vertrags-PDF vom STRATO-Mailserver angenommen. Zustellung beim Empfänger nicht bestätigt.' : 'Vom STRATO-Mailserver angenommen. Zustellung beim Empfänger nicht bestätigt.', recipient_email: recipient, occurred_at: new Date().toISOString(), updated_at: new Date().toISOString() }),
   }), 'E-Mail wurde angenommen, aber der CRM-Status konnte nicht gespeichert werden. Bitte vor erneutem Versand das STRATO-Postfach prüfen.');
   if (!rows[0]) throw Object.assign(new Error('E-Mail wurde angenommen, aber der CRM-Status ist unklar. Bitte STRATO prüfen.'), { status: 503 });
   return rows[0];
@@ -352,16 +352,17 @@ async function leadDashboard(service, id) {
   if (lead.converted_user_profile_id) {
     requests.push(fetch(`${service.url}/rest/v1/customer_questions?user_profile_id=eq.${encodeURIComponent(lead.converted_user_profile_id)}&select=*&order=status.asc,created_at.desc`, { headers: headers(service.key) }));
     requests.push(fetch(`${service.url}/rest/v1/participant_progress?user_profile_id=eq.${encodeURIComponent(lead.converted_user_profile_id)}&select=current_week,process_status,program_start_date,program_status&limit=1`, { headers: headers(service.key) }));
+    requests.push(fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(lead.converted_user_profile_id)}&select=id,name,email,phone,birth_date,street,postal_code,city,country,customer_number&limit=1`, { headers: headers(service.key) }));
   }
   const results = await Promise.all(requests);
   const bodies = await Promise.all(results.map((result) => readJson(result, 'Lead-Dashboard konnte nicht geladen werden.')));
-  const [contracts, payments, communications, tasks, bankAccounts, questions = [], progressRows = []] = bodies;
+  const [contracts, payments, communications, tasks, bankAccounts, questions = [], progressRows = [], profileRows = []] = bodies;
   const readAll=async table=>{const out=[];for(let offset=0;;offset+=500){const chunk=await readJson(await fetch(`${service.url}/rest/v1/${table}?${leadFilter}&select=*&order=id&limit=500&offset=${offset}`,{headers:headers(service.key)}),'Kontodaten konnten nicht geladen werden.');out.push(...chunk);if(chunk.length<500)return out;}};
   const [accountInvoices,accountEvents,accountPayments]=await Promise.all([readAll('finance_invoices'),readAll('finance_account_events'),readAll('lead_payments')]);
   const account=customerAccount({invoices:accountInvoices,payments:accountPayments,events:accountEvents,today:new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Berlin'}).format(new Date())});
   const contractTotal = contracts.filter((item) => item.status === 'signed').reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const paidTotal = payments.filter((item) => item.status === 'booked').reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  return { lead, contracts, payments, communications, tasks, bankAccount: bankAccounts[0] || null, questions, progress: progressRows[0] || null, finance: { contractTotal, paidTotal, openBalance: account.summary.balance, accountSummary: account.summary } };
+  return { lead, contracts, payments, communications, tasks, bankAccount: bankAccounts[0] || null, questions, progress: progressRows[0] || null, customerProfile: profileRows[0] || null, finance: { contractTotal, paidTotal, openBalance: account.summary.balance, accountSummary: account.summary } };
 }
 
 async function recordDashboardMutation(service, request) {
@@ -662,7 +663,7 @@ function permissionForAction(action) {
   if (['dashboard', 'dashboard-record'].includes(action)) return ['leads', 'customers', 'finance'];
   if (['update', 'complete-sales-conversation', 'set-interest-status'].includes(action)) return ['leads', 'sales_calls', 'customers'];
   if (['schedule', 'cancel-appointment'].includes(action)) return ['leads', 'sales_calls'];
-  if (['create-video-contract', 'begin-video-recording', 'sync-google-meet-recording', 'video-recording-upload', 'complete-video-recording-upload', 'finalize-video-contract', 'contract-download', 'video-recording-download'].includes(action)) return ['leads', 'sales_calls'];
+  if (['create-video-contract', 'begin-video-recording', 'start-video-recording', 'sync-google-meet-recording', 'video-recording-upload', 'complete-video-recording-upload', 'finalize-video-contract', 'send-video-contract-email', 'contract-download', 'video-recording-download'].includes(action)) return ['leads', 'sales_calls'];
   return 'leads';
 }
 
@@ -824,26 +825,31 @@ export default async function handler(request, response) {
     if (request.method === 'POST' && action === 'create-video-contract') {
       const lead = await leadById(service, request.body?.id);
       const normalized = normalizeVideoContract(request.body?.contract, lead);
-      if (request.body?.saveDraft !== true && normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze zuerst: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
+      const saveDraft = request.body?.saveDraft === true;
+      if (!saveDraft && normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze zuerst: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
+      if (!saveDraft && VIDEO_CONFIRMATION_KEYS.some(key => !['yes','no'].includes(normalized.contract.answerChoices[key]))) return response.status(400).json({ error: 'Bitte alle Abschlussfragen in Schritt 1 beantworten.' });
+      if (!saveDraft && !recordingConsents(normalized.contract)) return response.status(400).json({ error: 'Bitte die drei Erklärungen für das Vertragsdokument bestätigen.' });
       const now = new Date().toISOString();
       const existing = uuidValid(request.body?.contractId) ? await leadContractById(service, lead.id, request.body.contractId) : null;
       if (existing && existing.status !== 'draft') {
         return response.status(409).json({ error: 'Ein bereits dokumentierter Video-Abschluss kann nicht überschrieben werden. Lege dafür einen neuen Vertrag an.' });
       }
+      if (existing?.video_recording_consent_at) return response.status(409).json({ error: 'Nach Beginn von Schritt 2 kann das vorbereitete Vertragsdokument nicht mehr verändert werden.' });
       const contractNumber = existing?.contract_number || await reserveContractNumber(service, normalized.contract.contractDate);
-      const pdf = await buildVideoContractPdf(normalized.contract, { draft: true });
-      const stored = await uploadCustomerObject(service, 'documents', lead.id, pdfUpload(pdf, `${contractNumber}-Videovertrag-Entwurf.pdf`));
+      const pdf = await buildVideoContractPdf(normalized.contract, { draft: saveDraft, prepared: !saveDraft });
+      const stored = await uploadCustomerObject(service, 'documents', lead.id, pdfUpload(pdf, `${contractNumber}-${saveDraft?'Entwurf':'Vertragsdokument'}.pdf`));
       const amount = currencyNumber(normalized.contract.totalPrice);
       const payload = {
         title: normalized.contract.product, contract_number: existing?.contract_number || contractNumber,
         tariff_id: uuidValid(normalized.contract.tariffId) ? normalized.contract.tariffId : null,
         amount, status: 'draft', program_start_date: normalized.contract.serviceStart || null,
         contract_data: normalized.contract, document_bucket: stored.bucket, document_storage_path: stored.storagePath,
+        document_prepared_at: saveDraft ? null : now,
         document_mime_type: 'application/pdf', signature_method: null, updated_at: now,
       };
       const record = existing ? await patchLeadContract(service, lead.id, existing.id, payload, true) : await insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, ...payload });
       if (existing?.document_bucket && existing.document_storage_path !== stored.storagePath) await deleteCustomerObject(service, existing.document_bucket, existing.document_storage_path);
-      return response.status(201).json({ record, documentUrl: `/api/leads?action=contract-download&id=${encodeURIComponent(lead.id)}&contractId=${encodeURIComponent(record.id)}` });
+      return response.status(201).json({ record, documentUrl: `/api/leads?action=contract-download&id=${encodeURIComponent(lead.id)}&contractId=${encodeURIComponent(record.id)}`, message: saveDraft ? 'Entwurf gespeichert.' : 'Vertragsdokument vollständig erstellt und für Schritt 2 freigegeben.' });
     }
     if (request.method === 'POST' && ['video-recording-upload','complete-video-recording-upload'].includes(action)) {
       const lead = await leadById(service, request.body?.id);
@@ -855,8 +861,13 @@ export default async function handler(request, response) {
     if (request.method === 'POST' && action === 'begin-video-recording') {
       const lead = await leadById(service, request.body?.id);
       const contract = await leadContractById(service, lead.id, request.body?.contractId);
-      const startedAt = await beginRecording(service,lead,contract,request.body);
-      return response.status(200).json({startedAt,message:'Einwilligung zur Aufnahme protokolliert.'});
+      const consent = await beginRecording(service,lead,contract,request.body,admin);
+      return response.status(200).json({...consent,message:'Einwilligung zur Aufnahme mit Datum, Uhrzeit und Mitarbeiter protokolliert.'});
+    }
+    if (request.method === 'POST' && action === 'start-video-recording') {
+      const lead = await leadById(service, request.body?.id);
+      const contract = await leadContractById(service, lead.id, request.body?.contractId);
+      return response.status(200).json(await markRecordingStarted(service,lead,contract));
     }
     if (request.method === 'POST' && action === 'sync-google-meet-recording') {
       const lead = await leadById(service, request.body?.id);
@@ -896,9 +907,11 @@ export default async function handler(request, response) {
     if (request.method === 'POST' && action === 'finalize-video-contract') {
       const lead = await leadById(service, request.body?.id);
       const existing = await leadContractById(service, lead.id, request.body?.contractId);
+      if (!existing.document_prepared_at) return response.status(409).json({ error: 'Bitte zuerst Schritt 1 abschließen und das Vertragsdokument erstellen.' });
+      if (!existing.video_recording_consent_record_id) return response.status(409).json({ error: 'Die Aufzeichnungseinwilligung wurde noch nicht protokolliert.' });
       if (!existing.video_recording_path || !await customerObjectExists(service, existing.video_recording_bucket, existing.video_recording_path)) return response.status(409).json({ error: 'Die Videoaufzeichnung wurde noch nicht vollständig hochgeladen.' });
-      if (['browser_screen','device_upload'].includes(existing.video_recording_provider) && request.body?.recordingReviewed !== true) return response.status(400).json({error:'Bitte die gespeicherte Aufnahme ansehen und Bild sowie beide Gesprächsstimmen prüfen.'});
-      const normalized = normalizeVideoContract({ ...(existing.contract_data || {}), ...(request.body?.contract || {}), answers: request.body?.answers || {} }, lead);
+      if (request.body?.recordingReviewed !== true) return response.status(400).json({error:'Bitte die gespeicherte Aufnahme ansehen und Bild sowie beide Gesprächsstimmen prüfen.'});
+      const normalized = normalizeVideoContract(existing.contract_data || {}, lead);
       if (normalized.missing.length) return response.status(400).json({ error: `Im Vertrag fehlen noch: ${normalized.missing.join(', ')}.` });
       const missingConfirmations = VIDEO_CONFIRMATION_KEYS.filter((key) => normalized.contract.answers[key] !== true);
       if (missingConfirmations.length || !normalized.contract.recordingConsent || !normalized.contract.recordingPurposeAccepted || !normalized.contract.recordingRevocationAccepted || !normalized.contract.finalContractConfirmed) return response.status(400).json({ error: 'Alle Video-Abschlussfragen und die ausdrückliche Aufzeichnungseinwilligung müssen einzeln mit Ja bestätigt sein.' });
@@ -927,6 +940,34 @@ export default async function handler(request, response) {
       const participant = await activateContractedLead(service, lead, normalized.contract.serviceStart);
       await archiveLeadInvoices(service,lead.id).catch(()=>null);
       return response.status(200).json({ record, signingPath, participantActivated: Boolean(participant && !participant.alreadyActive), participant, message: 'Video-Abschluss dokumentiert. Der Signaturlink wurde als E-Mail-Entwurf angelegt.' });
+    }
+    if (request.method === 'POST' && action === 'send-video-contract-email') {
+      const lead = await leadById(service, request.body?.id);
+      const contract = await leadContractById(service, lead.id, request.body?.contractId);
+      if (!contract.document_prepared_at || contract.status !== 'signed' || !contract.video_contract_confirmed_at || !contract.video_recording_path || !contract.video_recording_reviewed_at || !contract.document_storage_path)
+        return response.status(409).json({ error: 'Bitte erst das Vertragsdokument und den Videovertrag einschließlich geprüfter Aufnahme vollständig abschließen.' });
+      if (!await customerObjectExists(service, contract.video_recording_bucket, contract.video_recording_path) || !await customerObjectExists(service, contract.document_bucket, contract.document_storage_path))
+        return response.status(409).json({ error: 'Vertrags-PDF oder geprüfte Aufnahme fehlen im sicheren Dateispeicher.' });
+      const recipient = clean(contract.contract_data?.customerEmail || lead.email, 254);
+      if (!emailValid(recipient)) return response.status(400).json({ error: 'Die E-Mail-Adresse im Vertragsdokument ist ungültig.' });
+      const eventKey = `video-contract-email:${contract.id}`;
+      const existing = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?event_key=eq.${encodeURIComponent(eventKey)}&select=*&limit=1`, { headers: headers(service.key) }));
+      if (existing[0]?.delivery_status === 'accepted') return response.status(200).json({ communication: existing[0], message: 'Der Vertrag wurde bereits per E-Mail versendet.' });
+      if (existing[0] && !['draft','failed'].includes(existing[0].delivery_status)) return response.status(409).json({ error: 'Der Versandstatus ist noch offen. Bitte zuerst das STRATO-Postfach und den CRM-Eintrag prüfen.' });
+      const pdf = await readCustomerObject(service, contract.document_bucket, contract.document_storage_path);
+      const fileName = `${contract.contract_number || 'Finde-dein-Ding-Vertrag'}.pdf`;
+      let mail = existing[0];
+      if (!mail) mail = await insertLeadRecord(service, 'lead_communications', {
+        lead_id: lead.id, user_profile_id: lead.converted_user_profile_id || null, direction: 'outbound', channel: 'email',
+        subject: 'Dein Finde-dein-Ding-Vertrag',
+        body: `Hallo ${clean(contract.contract_data?.customerName || lead.name, 120)},\n\nvielen Dank für unser Gespräch und dein Vertrauen. Im Anhang findest du deinen finalen Finde-dein-Ding-Vertrag als PDF. Bitte bewahre diese E-Mail und das Dokument für deine Unterlagen auf.\n\nWenn du Fragen zum Vertrag hast, antworte einfach auf diese E-Mail.\n\nHerzliche Grüße\nMarkus Becker`,
+        preview: 'Finaler Finde-dein-Ding-Vertrag mit PDF-Anhang.', delivery_status: 'draft',
+        recipient_email: recipient, sent_by_profile_id: admin.profile.id, sent_by_name: admin.profile.name,
+        attachments: [{ fileName, mimeType: 'application/pdf', bucket: contract.document_bucket, storagePath: contract.document_storage_path, contractId: contract.id }],
+        automation_source: 'video_contract', event_key: eventKey,
+      });
+      const sent = await sendLeadCommunication(service, mail, recipient, [{ filename: fileName, content: pdf, contentType: 'application/pdf' }]);
+      return response.status(200).json({ communication: sent, message: 'Der finale Vertrag wurde mit PDF-Anhang im Finde-dein-Ding-Design per E-Mail versendet.' });
     }
     if (request.method === 'GET' && ['contract-download', 'video-recording-download'].includes(action)) {
       const lead = await leadById(service, request.query?.id);

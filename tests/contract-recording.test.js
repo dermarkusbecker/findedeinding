@@ -190,23 +190,25 @@ test('duplicate Save while upload is running does not start another upload',asyn
  const {ContractRecorder}=await import('../lib/browser-contract-recorder.js');
  const recorder=Object.create(ContractRecorder.prototype);recorder.blob={size:100};recorder.busy=true;recorder.controls=()=>{throw Error('Upload started twice');};await recorder.save();
 });
-test('browser recording saves on stop and uses the signed resumable upload endpoint', async () => {
+test('recording remains local after stop until the employee reviews and uploads it', async () => {
   const { readFile } = await import('node:fs/promises');
   const browser = await readFile(new URL('../lib/browser-contract-recorder.js', import.meta.url), 'utf8');
   const service = await readFile(new URL('../lib/contract-recording-service.js', import.meta.url), 'utf8');
-  assert.match(browser, /this\.recorder\.onstop = \(\) =>[\s\S]*?void this\.save\(\)/);
+  assert.match(browser, /this\.recorder\.onstop = \(\) =>[\s\S]*?this\.setLocalPreview\(\)/);
+  assert.doesNotMatch(browser, /this\.recorder\.onstop = \(\) =>[\s\S]*?void this\.save\(\)/);
   assert.match(service, /storage\/v1\/upload\/resumable`/);
-  assert.doesNotMatch(service, /storage\/v1\/upload\/resumable\/sign/);
 });
-test('browser captures screen with microphone even without shared system audio and saves on stop', async t => {
+test('browser requires recorded consent and Meet tab audio before it records screen and microphone', async t => {
   const { ContractRecorder } = await import('../lib/browser-contract-recorder.js');
   const originals = Object.fromEntries(['navigator', 'window', 'MediaStream', 'MediaRecorder'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   t.after(() => { for (const [key, descriptor] of Object.entries(originals)) descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete globalThis[key]; });
   const video = { readyState: 'live', addEventListener() {} };
   const microphone = { readyState: 'live', addEventListener() {} };
-  const display = { getVideoTracks: () => [video], getAudioTracks: () => [], getTracks: () => [video] };
+  const tabAudio = { readyState: 'live' };
+  let withAudio = false, apiCalls = 0, microphoneRequests = 0;
+  const display = { getVideoTracks: () => [video], getAudioTracks: () => withAudio ? [tabAudio] : [], getTracks: () => [video, ...(withAudio ? [tabAudio] : [])] };
   const mic = { getAudioTracks: () => [microphone], getTracks: () => [microphone] };
-  const navigator = { mediaDevices: { getDisplayMedia: async () => display, getUserMedia: async () => mic } };
+  const navigator = { mediaDevices: { getDisplayMedia: async () => display, getUserMedia: async () => { microphoneRequests++; return mic; } } };
   const destination = { stream: { getAudioTracks: () => [microphone] } };
   class FakeAudio { async resume() {} createMediaStreamDestination() { return destination; } createMediaStreamSource() { return { connect() {} }; } }
   class FakeRecorder {
@@ -217,19 +219,28 @@ test('browser captures screen with microphone even without shared system audio a
   }
   for (const [key, value] of Object.entries({ navigator, window: { AudioContext: FakeAudio }, MediaStream: class { constructor(tracks) { this.tracks = tracks; } }, MediaRecorder: FakeRecorder })) Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
   const recorder = Object.create(ContractRecorder.prototype);
-  let saves = 0;
+  const errors=[];
   Object.assign(recorder, {
-    streams: [], busy: false, saved: false, blob: null,
-    check: () => ({ leadId: 'lead', contractId: 'contract', record: {} }),
-    consent: async () => ({}), controls() {}, status() {}, finishCapture() {}, setLocalPreview() {},
-    save: async () => { saves++; }, notify: message => { throw new Error(message); },
+    streams: [], busy: false, saved: false, blob: null, confirmedThisSession: false,
+    check: () => ({ leadId: 'lead', contractId: 'contract', record: {video_recording_consent_record_id:'audit'} }),
+    api: async () => { apiCalls++; }, controls() {}, status: message => errors.push(message), finishCapture() {}, setLocalPreview() {},
+    notify: message => errors.push(message),
     preview: { play: async () => {}, hidden: true }, node: { querySelector: () => ({ textContent: '' }) },
   });
   await recorder.begin();
+  assert.match(errors.pop(), /protokollieren/);
+  assert.equal(apiCalls, 0);
+  recorder.confirmedThisSession = true;
+  await recorder.begin();
+  assert.match(errors.at(-1), /Meet-Ton/);
+  assert.equal(microphoneRequests, 0);
+  assert.equal(apiCalls, 0);
+  withAudio = true;
+  await recorder.begin();
   assert.equal(recorder.recorder.state, 'recording');
-  assert.equal(recorder.hasDisplayAudio, false);
+  assert.equal(recorder.hasDisplayAudio, true);
+  assert.equal(apiCalls, 1);
   recorder.stop();
-  assert.equal(saves, 1);
   assert.ok(recorder.blob.size > 0);
   clearInterval(recorder.timer);
 });
