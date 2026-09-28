@@ -26,7 +26,7 @@ body:before{background-image:linear-gradient(rgba(255,225,199,.025) 1px,transpar
 .hero-copy{padding-bottom:0;padding-top:22px}
 .hero .kicker{color:#8b4c29}
 .hero .kicker i{background:linear-gradient(90deg,#e66f31,#497e9d)}
-.hero h1{color:#2b201a;font-size:clamp(60px,5.65vw,88px);letter-spacing:-.068em;line-height:.96;margin:24px 0 28px;white-space:nowrap}
+.hero h1{color:#2b201a;font-size:clamp(60px,5.65vw,88px);letter-spacing:-.068em;line-height:.96;margin:24px 0 28px;white-space:normal}
 .hero h1 em{background:linear-gradient(95deg,#ffc293,#ff8b4a 52%,#7eb5d5);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero-lead{color:#5f493d;font-size:16px;line-height:1.75;max-width:620px}
 .hero-actions{margin-top:34px}
@@ -710,7 +710,6 @@ body.site-loading{overflow:hidden}
 @media(prefers-reduced-motion:reduce){.clarity-story-board.visible .clarity-trophy-icon{animation:none;opacity:1}}
 
 /* AI emphasis in the hero wordmark. */
-.hero h1 .hero-ai{color:#8ee1e6;text-shadow:0 0 24px rgba(104,218,229,.25)}
 
 /* Footer controls share one alignment and readable type scale. */
 footer.page-shell{grid-template-columns:minmax(180px,1fr) minmax(160px,.8fr) minmax(0,1.5fr);gap:24px}
