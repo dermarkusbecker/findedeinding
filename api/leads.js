@@ -6,7 +6,7 @@ import { stratoMailConfig, verifyStratoMailbox } from '../lib/strato-mail.js';
 import { syncStratoInbox } from '../lib/strato-inbox.js';
 import { handleFinance } from '../lib/finance-api.js';
 import { renderBrandedEmail } from '../lib/branded-email.js';
-import { sendPreparedMail } from '../lib/branded-mail-service.js';
+import { mailAppearance, sendPreparedMail } from '../lib/branded-mail-service.js';
 import { normalizeIntake } from '../lib/intake.js';
 import {readCurriculumIndex,curriculumAccess,curriculumGates} from '../lib/curriculum-progress.js';
 import {categoryBookingSettings,normalizeAppointmentCategories} from '../lib/appointment-categories.js';
@@ -16,7 +16,7 @@ import { checkIntegrationHealth, applyIntegrationHealth } from '../lib/integrati
 import {beginRecording,prepareRecordingUpload,completeRecordingUpload} from '../lib/contract-recording-service.js';
 import crypto from 'node:crypto';
 import { DEFAULT_BOOKING_SETTINGS, generateAvailableSlots, isWithinBookingAvailability, normalizeBookingSettings } from '../lib/booking-availability.js';
-import { authorizationUrl, assertCalendarAvailable, calendarBusyIntervals, decryptCredential, deleteCalendarEvent, emailFromIdToken, encryptCredential, exchangeAuthorizationCode, googleConfig, refreshAccessToken, saveCalendarEvent, verifyOAuthState } from '../lib/google-calendar.js';
+import { authorizationUrl, assertCalendarAvailable, calendarBusyIntervals, calendarEvent, decryptCredential, deleteCalendarEvent, emailFromIdToken, encryptCredential, exchangeAuthorizationCode, googleConfig, refreshAccessToken, saveCalendarEvent, verifyOAuthState } from '../lib/google-calendar.js';
 import { assertGoogleMeetSpace, downloadGoogleDriveFile, findGoogleMeetRecording, googleDriveFileMetadata } from '../lib/google-meet.js';
 import { provisionProgramUser, requireCurrentAdmin, supabaseAuthConfig } from '../lib/user-auth.js';
 import { claraConfig } from '../lib/clara/config.js';
@@ -87,13 +87,10 @@ async function patchLead(service, id, changes) {
 
 async function insertLeadRecord(service, table, payload) {
   if (table === 'lead_communications' && payload.direction === 'outbound' && payload.channel === 'email' && payload.body && !payload.body_html) {
-    const [signatures, brands] = await Promise.all([
-      readJson(await fetch(`${service.url}/rest/v1/communication_signatures?active=eq.true&is_default=eq.true&select=*&limit=1`, { headers: headers(service.key) })),
-      readJson(await fetch(`${service.url}/rest/v1/system_branding?id=eq.default&select=*&limit=1`, { headers: headers(service.key) })),
-    ]);
+    const appearance = await mailAppearance(service);
     const content = payload.body.replace(/\n\nHerzliche Grüße\nMarkus Becker$/, '');
-    const mail = renderBrandedEmail({ subject: payload.subject, body: content, signature: signatures[0], branding: brands[0] });
-    payload = { ...payload, body: mail.text, body_html: mail.html, signature_id: signatures[0]?.id || null };
+    const mail = renderBrandedEmail({ subject: payload.subject, body: content, ...appearance });
+    payload = { ...payload, body: mail.text, body_html: mail.html, signature_id: appearance.signature?.id || null };
   }
   const rows = await readJson(await fetch(`${service.url}/rest/v1/${table}`, { method: 'POST', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify(payload) }), 'CRM-Eintrag konnte nicht gespeichert werden.');
   return rows[0] || null;
@@ -555,6 +552,29 @@ function qualificationAnswers(value) {
   return Object.fromEntries(Array.from({ length: 6 }, (_, index) => [`q${index + 1}`, clean(source[`q${index + 1}`], 3000)]));
 }
 
+function meetLinkFromEvent(event) {
+  return event?.hangoutLink || event?.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || null;
+}
+
+async function confirmedMeetLink(accessToken, event) {
+  let link = meetLinkFromEvent(event);
+  for (let attempt = 0; !link && attempt < 4; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    link = meetLinkFromEvent(await calendarEvent(accessToken, event.id));
+  }
+  return link;
+}
+
+function appointmentConfirmationBody(lead) {
+  const appointmentLabel = new Date(lead.appointment_start).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short', timeZone: lead.appointment_timezone || 'Europe/Berlin' });
+  const firstName = (lead.first_name || lead.name).split(/\s+/)[0];
+  return {
+    subject: 'Dein Klarheitsgespräch ist bestätigt',
+    preview: `Dein Klarheitsgespräch am ${appointmentLabel} ist bestätigt.`,
+    body: `Hallo ${firstName},\n\nvielen Dank, dass du dir Zeit für dein Klarheitsgespräch nimmst. Ich freue mich darauf, dich und deine Situation kennenzulernen.\n\nDein Termin: ${appointmentLabel} Uhr\n\nÜber diesen Link kommst du direkt in unser Gespräch:\n${lead.meet_url}\n\nMach es dir für unser Gespräch an einem ruhigen Ort bequem. Du brauchst nichts vorzubereiten. Wenn du den Termin verschieben musst, antworte einfach auf diese E-Mail.\n\nIch freue mich auf unser Gespräch.`,
+  };
+}
+
 function intakeReceipt(service, id, email) {
  const data=Buffer.from(JSON.stringify({id,email,expires:Date.now()+86400000})).toString('base64url');
  return data+'.'+crypto.createHmac('sha256',service.key).update(data).digest('base64url');
@@ -593,20 +613,42 @@ async function publicLead(request, response, service) {
   const storedBusy = await scheduledLeadIntervals(service, startDate.toISOString(), endDate.toISOString());
   if (storedBusy.length) return response.status(409).json({ error: 'Dieser Termin wurde gerade vergeben. Bitte wähle einen anderen freien Termin.' });
   const accessToken = await optionalGoogleAccessToken(service);
-  if (accessToken) await assertCalendarAvailable(accessToken, startDate.toISOString(), endDate.toISOString());
-  const event = accessToken ? await saveCalendarEvent(accessToken, payload, startDate.toISOString(), endDate.toISOString()) : null;
-  const meetUrl = event?.hangoutLink || event?.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || null;
+  if (!accessToken) return response.status(503).json({ error: 'Die Terminbuchung ist gerade nicht verfügbar. Bitte versuche es später erneut oder kontaktiere uns direkt.' });
+  await assertCalendarAvailable(accessToken, startDate.toISOString(), endDate.toISOString());
+  const event = await saveCalendarEvent(accessToken, payload, startDate.toISOString(), endDate.toISOString(), { notifyAttendees: false });
+  let meetUrl;
+  try {
+    meetUrl = await confirmedMeetLink(accessToken, event);
+    if (!meetUrl) throw Object.assign(new Error('Der Gesprächslink konnte noch nicht erstellt werden. Bitte versuche die Buchung erneut.'), { status: 503 });
+  } catch (error) {
+    if (event?.id) await deleteCalendarEvent(accessToken, event.id).catch(() => null);
+    throw error;
+  }
   const leadPayload = { ...payload, status: 'scheduled', appointment_start: startDate.toISOString(), appointment_end: endDate.toISOString(), appointment_timezone: settings.timezone, calendar_event_id: event?.id || null, calendar_event_url: event?.htmlLink || null, meet_url: meetUrl };
+  let lead;
   try {
     const rows = await readJson(await fetch(`${service.url}/rest/v1/leads${intakeId?`?id=eq.${intakeId}&status=eq.new`:''}`, { method: intakeId?'PATCH':'POST', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify(leadPayload) }), 'Interessent und Termin konnten nicht gespeichert werden.');
-    const lead = rows[0];
+    lead = rows[0];
     if(!lead)throw Object.assign(new Error('Diese Anfrage wurde bereits gebucht oder weiterbearbeitet.'),{status:409});
-    if (lead?.id) await insertLeadRecord(service, 'lead_communications', { lead_id: lead.id, direction: 'outbound', subject: 'Dein Klarheitsgespräch ist vereinbart', preview: `Termin am ${startDate.toLocaleString('de-DE', { timeZone: settings.timezone })}${meetUrl ? ' mit Google Meet' : ''}.` }).catch(() => null);
-    return response.status(201).json({ ok: true, appointment: { startsAt: startDate.toISOString(), endsAt: endDate.toISOString(), timezone: settings.timezone, calendarConnected: Boolean(accessToken), meetUrl } });
   } catch (error) {
     if (event?.id && accessToken) await deleteCalendarEvent(accessToken, event.id).catch(() => null);
     throw error;
   }
+  let mailStatus = 'failed';
+  try {
+    const confirmation = await insertLeadRecord(service, 'lead_communications', {
+      lead_id: lead.id, direction: 'outbound', channel: 'email',
+      ...appointmentConfirmationBody(lead), delivery_status: 'draft',
+      automation_source: 'appointment_confirmation',
+      event_key: `appointment-confirmation:${lead.id}:${lead.appointment_start}`,
+    });
+    const sent = await sendLeadCommunication(service, confirmation, lead.email);
+    mailStatus = sent.delivery_status;
+    if (mailStatus === 'accepted') await patchLead(service, lead.id, { appointment_confirmation_prepared_at: new Date().toISOString() }).catch(() => null);
+  } catch {
+    // The appointment is booked. The CRM keeps the draft or delivery status for follow-up.
+  }
+  return response.status(201).json({ ok: true, appointment: { startsAt: startDate.toISOString(), endsAt: endDate.toISOString(), timezone: settings.timezone, calendarConnected: true, meetUrl, mailStatus } });
 }
 
 function permissionForAction(action) {
@@ -954,20 +996,17 @@ export default async function handler(request, response) {
       const accessToken = await optionalGoogleAccessToken(service);
       if (accessToken && !lead.appointment_confirmation_prepared_at) {
         const event = await saveCalendarEvent(accessToken, lead, lead.appointment_start, lead.appointment_end, { notifyAttendees: false });
-        const meetUrl = event?.hangoutLink || event?.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === 'video')?.uri || lead.meet_url || null;
+        const meetUrl = lead.meet_url || await confirmedMeetLink(accessToken, event);
         lead = await patchLead(service, lead.id, { calendar_event_id: event?.id || lead.calendar_event_id, calendar_event_url: event?.htmlLink || lead.calendar_event_url, meet_url: meetUrl });
         calendarPrepared = true;
       }
+      if (!lead.meet_url) return response.status(503).json({ error: 'Der Meet-Link fehlt noch. Die Terminbestätigung wurde nicht versendet. Bitte die Google-Verbindung prüfen.' });
       const eventKey = `appointment-confirmation:${lead.id}:${lead.appointment_start}`;
       const existingMail = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?event_key=eq.${encodeURIComponent(eventKey)}&select=*&limit=1`, { headers: headers(service.key) }));
       let confirmation = existingMail[0] || null;
       if (!confirmation && !lead.appointment_confirmation_prepared_at) {
-        const appointmentLabel = new Date(lead.appointment_start).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short', timeZone: lead.appointment_timezone || 'Europe/Berlin' });
-        const meetLine = lead.meet_url ? `\n\nDein Link zum Online-Gespräch:\n${lead.meet_url}` : '';
         confirmation = await insertLeadRecord(service, 'lead_communications', {
-          lead_id: lead.id, direction: 'outbound', channel: 'email', subject: 'Dein Klarheitsgespräch ist bestätigt',
-          preview: `Dein Klarheitsgespräch am ${appointmentLabel} ist bestätigt.`,
-          body: `Hallo ${(lead.first_name || lead.name).split(/\s+/)[0]},\n\nvielen Dank für deine Terminvereinbarung. Dein Klarheitsgespräch findet am ${appointmentLabel} statt.${meetLine}\n\nBitte nimm dir für unser Gespräch einen ruhigen Ort und etwas Zeit. Falls du den Termin nicht wahrnehmen kannst, antworte einfach auf diese E-Mail.\n\nIch freue mich auf unser Gespräch.`,
+          lead_id: lead.id, direction: 'outbound', channel: 'email', ...appointmentConfirmationBody(lead),
           delivery_status: 'draft', automation_source:'appointment_confirmation', event_key: eventKey,
         });
       }
