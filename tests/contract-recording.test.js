@@ -9,7 +9,7 @@ import {
   verifyRecordingObject,
   completeRecordingUpload,
 } from "../lib/contract-recording-service.js";
-import { uploadRecordingChunks } from "../lib/resumable-recording-upload.js";
+import { uploadSignedRecording } from "../lib/signed-recording-upload.js";
 import {
   ContractRecorder,
   recordingFileType,
@@ -138,45 +138,35 @@ test("recording confirmation verifies actual storage bytes and rejects incomplet
     /gehört nicht/,
   );
 });
-test("resumable upload uses fixed chunks and resumes without resending completed bytes", async () => {
-  const size = 6 * 1024 * 1024 + 42;
-  const file = new Blob([new Uint8Array(size)]);
-  const upload = {
-    endpoint: "https://storage.test/upload/resumable",
-    token: "signed",
-    bucket: "contract-recordings",
-    storagePath: "owner/file.webm",
-    mimeType: "video/webm",
-  };
-  let offset = 0;
-  const chunks = [];
-  let posts = 0;
-  const request = async (url, options) => {
-    assert.equal(options.headers["x-signature"], "signed");
-    if (options.method === "POST") {
-      posts++;
-      return new Response(null, {
-        status: 201,
-        headers: { location: "/upload/resumable/one" },
-      });
-    }
-    if (options.method === "HEAD")
-      return new Response(null, {
-        headers: { "upload-offset": String(offset) },
-      });
-    assert.equal(Number(options.headers["Upload-Offset"]), offset);
-    chunks.push(options.body.size);
-    offset += options.body.size;
-    return new Response(null, {
-      status: 204,
-      headers: { "upload-offset": String(offset) },
-    });
-  };
-  await uploadRecordingChunks(file, upload, () => {}, request);
-  assert.deepEqual(chunks, [6 * 1024 * 1024, 42]);
-  await uploadRecordingChunks(file, upload, () => {}, request);
-  assert.equal(posts, 1);
-  assert.equal(chunks.length, 2);
+test("signed recording upload sends the file directly to private Storage", async () => {
+  const file = new File(["recording"], "aufnahme.mov", { type: "video/quicktime" });
+  const upload = { uploadUrl: "https://storage.test/storage/v1/object/upload/sign/contract-recordings/owner/video.mov?token=secret" };
+  let progress;
+  await uploadSignedRecording(file, upload, (sent, total) => { progress = [sent, total]; }, async (url, options) => {
+    assert.equal(url, upload.uploadUrl);
+    assert.equal(options.method, "PUT");
+    assert.equal(options.headers["x-upsert"], "false");
+    assert.equal(options.body.get("cacheControl"), "3600");
+    assert.equal(options.body.get("").name, file.name);
+    assert.equal(options.body.get("").size, file.size);
+    assert.equal(options.headers["Content-Type"], undefined);
+    return new Response(JSON.stringify({ Key: "owner/video.mov" }), { status: 200 });
+  });
+  assert.deepEqual(progress, [file.size, file.size]);
+});
+
+test("signed recording upload reports Storage's 400 reason without revealing its URL", async () => {
+  const file = new Blob(["recording"], { type: "video/webm" });
+  const upload = { uploadUrl: "https://storage.test/path?token=secret" };
+  await assert.rejects(
+    uploadSignedRecording(file, upload, undefined, async () =>
+      new Response(JSON.stringify({ message: "Invalid Compact JWS" }), { status: 400 })),
+    error => {
+      assert.match(error.message, /Video-Upload fehlgeschlagen \(400\): Invalid Compact JWS/);
+      assert.doesNotMatch(error.message, /secret/);
+      return true;
+    },
+  );
 });
 
 test('only a verified upload is promoted, with draft and pending-path concurrency guards', async t => {
