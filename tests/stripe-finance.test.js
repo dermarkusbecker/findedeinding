@@ -47,7 +47,7 @@ test('Stripe webhook signature rejects tampered and old events', () => {
 
 test('portal Checkout derives its EUR amount from this customer ledger, not the browser body', async t => {
   const before = { key: process.env.STRIPE_SECRET_KEY, webhook: process.env.STRIPE_WEBHOOK_SECRET };
-  process.env.STRIPE_SECRET_KEY = 'sk_test_only_for_unit_test';
+  process.env.STRIPE_SECRET_KEY = 'sk_live_only_for_unit_test';
   process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_only_for_unit_test';
   const oldFetch = global.fetch;
   t.after(() => {
