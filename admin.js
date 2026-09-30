@@ -651,7 +651,7 @@ const videoContractDialog=document.querySelector('#videoContractDialog');
 const videoContractForm=document.querySelector('#videoContractForm');
 let contractPdfPreview=null;
 function contractPdfPreviewUrl(url){return url.startsWith('/api/leads?action=contract-download')?`${url}&preview=1`:url;}
-function showContractPdfPreview(url){document.querySelector('#videoContractPdf').src=`${url}#page=1&zoom=125`;document.querySelector('#videoContractPdfLink').href=url;if(videoContractDialog.open)contractPdfPreview?.setSource(contractPdfPreviewUrl(url));}
+function showContractPdfPreview(url){document.querySelector('#videoContractPdf').src=`${url}#page=1&zoom=100`;document.querySelector('#videoContractPdfLink').href=url;if(videoContractDialog.open)contractPdfPreview?.setSource(contractPdfPreviewUrl(url));}
 import('./lib/contract-pdf-preview.js').then(({createContractPdfPreview})=>{contractPdfPreview=createContractPdfPreview(document.querySelector('.video-contract-preview'));if(videoContractDialog.open)contractPdfPreview.setSource(contractPdfPreviewUrl(document.querySelector('#videoContractPdfLink').getAttribute('href')));}).catch(()=>{document.querySelector('[data-pdf-status]').textContent='Die vergrößerte Vorschau ist nicht verfügbar. PDF vollständig öffnen.';});
 const videoConfirmationQuestions=[
   ['v01','Stimmst du der Aufzeichnung dieser klar begrenzten Abschlusssequenz ausdrücklich zu?'],
