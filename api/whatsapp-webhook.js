@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import stripeWebhook from '../lib/stripe-webhook.js';
 import { supabaseAuthConfig } from '../lib/user-auth.js';
 
 export const config = { api: { bodyParser: false } };
@@ -43,6 +44,7 @@ async function storeIncoming(service, message) {
 }
 
 export default async function handler(request, response) {
+  if (request.method === 'POST' && request.headers['stripe-signature']) return stripeWebhook(request, response);
   if (request.method === 'GET') {
     const valid = request.query?.['hub.mode'] === 'subscribe' && request.query?.['hub.verify_token'] === process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN;
     return valid ? response.status(200).send(request.query?.['hub.challenge'] || '') : response.status(403).send('Webhook-Verifizierung fehlgeschlagen.');

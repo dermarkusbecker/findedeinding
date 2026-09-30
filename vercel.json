@@ -13,6 +13,7 @@
     { "source": "/datenschutz", "destination": "/datenschutz.html" },
     { "source": "/api/google/connect", "destination": "/api/leads?action=google-connect" },
     { "source": "/api/google/callback", "destination": "/api/leads?action=google-callback" },
+    { "source": "/api/stripe-webhook", "destination": "/api/whatsapp-webhook" },
     { "source": "/api/contract-sign", "destination": "/api/leads?action=public-contract-sign" },
     { "source": "/api/customer-records", "destination": "/api/participants" },
     { "source": "/api/health", "destination": "/api/admin?action=health" },
