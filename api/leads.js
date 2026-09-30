@@ -118,7 +118,7 @@ async function sendLeadCommunication(service, record, recipient, attachments = [
   }
   const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?id=eq.${encodeURIComponent(record.id)}&delivery_status=eq.pending`, {
     method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }),
-    body: JSON.stringify({ delivery_status: 'accepted', provider_message_id: sent.providerMessageId, preview: attachments.length ? 'Vertrags-PDF vom STRATO-Mailserver angenommen. Zustellung beim Empfänger nicht bestätigt.' : 'Vom STRATO-Mailserver angenommen. Zustellung beim Empfänger nicht bestätigt.', recipient_email: recipient, occurred_at: new Date().toISOString(), updated_at: new Date().toISOString() }),
+    body: JSON.stringify({ delivery_status: 'accepted', provider_message_id: sent.providerMessageId, preview: attachments.length ? 'Vertrags-PDF vom STRATO-Mailserver angenommen. Zustellung beim Empfänger nicht bestätigt.' : 'Vom STRATO-Mailserver angenommen. Zustellung beim Empfänger nicht bestätigt.', recipient_email: recipient, sender_email: sent.senderEmail, cc_emails: [], bcc_emails: [], occurred_at: new Date().toISOString(), updated_at: new Date().toISOString() }),
   }), 'E-Mail wurde angenommen, aber der CRM-Status konnte nicht gespeichert werden. Bitte vor erneutem Versand das STRATO-Postfach prüfen.');
   if (!rows[0]) throw Object.assign(new Error('E-Mail wurde angenommen, aber der CRM-Status ist unklar. Bitte STRATO prüfen.'), { status: 503 });
   return rows[0];

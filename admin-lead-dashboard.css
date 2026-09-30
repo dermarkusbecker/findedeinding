@@ -106,6 +106,27 @@
 .lead-timeline span,.lead-contract-list span,.lead-task-list span { border-radius: 999px; color: #617174; font-size: 12px; font-weight: 800; padding: 4px 7px; }
 .lead-timeline p,.lead-contract-list p,.lead-task-list p { color: #69787b; font-size: 12px; line-height: 1.5; margin: 7px 0 0; }
 .lead-timeline small,.lead-contract-list small,.lead-task-list small { color: #849194; display: block; font-size: 12px; margin-top: 8px; }
+.lead-timeline .lead-email-open { background: #f7f9f8; border: 1px solid #e0e8e6; border-radius: 12px; color: inherit; cursor: pointer; display: block; font: inherit; padding: 13px; text-align: left; transition: background .18s,border-color .18s,transform .18s; width: 100%; }
+.lead-timeline .lead-email-open:hover,.lead-timeline .lead-email-open:focus-visible { background: #eff9f5; border-color: #75cbb4; outline: none; transform: translateY(-1px); }
+.lead-email-open>span { align-items: center; display: flex; gap: 8px; justify-content: space-between; padding: 0; }
+.lead-email-open strong { color: #2a3b3e; font-size: 13px; }
+.lead-email-open em { color: #16846f; font-size: 12px; font-style: normal; font-weight: 800; white-space: nowrap; }
+.lead-email-open p { color: #69787b; font-size: 12px; line-height: 1.5; margin: 7px 0; }
+.lead-email-dialog { background: #f5f8f7; border: 1px solid #cbded8; border-radius: 20px; box-shadow: 0 30px 100px rgba(5,35,38,.35); color: #223c40; max-height: min(92vh,1100px); max-width: min(940px,calc(100vw - 28px)); padding: 0; width: 100%; }
+.lead-email-dialog::backdrop { background: rgba(6,34,39,.7); }
+.lead-email-header { align-items: center; background: linear-gradient(120deg,#103f4e,#145b54); color: #fff; display: flex; justify-content: space-between; padding: 22px 26px; }
+.lead-email-header .eyebrow { color: #ffae73; font-size: 11px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.lead-email-header h2 { color: #fff; font-size: clamp(19px,2vw,26px); margin: 5px 0 0; overflow-wrap: anywhere; }
+.lead-email-header button { background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.3); border-radius: 9px; color: #fff; cursor: pointer; flex: 0 0 38px; font-size: 24px; height: 38px; }
+.lead-email-metadata { background: #fff; border-bottom: 1px solid #dce8e4; display: grid; gap: 10px; margin: 0; padding: 18px 26px; }
+.lead-email-metadata>div { display: grid; gap: 14px; grid-template-columns: 96px minmax(0,1fr); }
+.lead-email-metadata dt { color: #718481; font-size: 12px; font-weight: 800; }
+.lead-email-metadata dd { color: #243d40; font-size: 13px; margin: 0; overflow-wrap: anywhere; }
+.lead-email-body { background: #fff; margin: 18px; min-height: 320px; }
+.lead-email-body iframe { background: #fff; border: 0; display: block; height: min(58vh,650px); width: 100%; }
+.lead-email-body pre { font: 14px/1.7 Manrope,sans-serif; margin: 0; overflow-wrap: anywhere; padding: 26px; white-space: pre-wrap; }
+.lead-email-body .lead-email-note { color: #697d7b; font-size: 12px; padding: 12px 26px 0; }
+@media (max-width: 600px) { .lead-email-header,.lead-email-metadata { padding-left: 16px; padding-right: 16px; } .lead-email-metadata>div { gap: 5px; grid-template-columns: 70px minmax(0,1fr); } .lead-email-body { margin: 8px; } }
 .lead-contract-list article.signed { background: #eff9f5; border-color: #c2e5d8; }
 .lead-contract-checks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .lead-contract-checks i { background: #eef1f0; border-radius: 999px; color: #7b8789; font-size: 12px; font-style: normal; font-weight: 750; padding: 5px 8px; }

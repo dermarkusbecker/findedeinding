@@ -1182,6 +1182,11 @@
       </form>
     </dialog>
     <dialog id="contractEmailLockedDialog" class="contract-email-locked-dialog"><div class="dialog-head"><div><p class="eyebrow">Versand noch gesperrt</p><h2>B2C-Videovertrag noch nicht abgeschlossen</h2><small>Bitte zuerst den B2C-Videovertrag erstellen und die zugehörige Videoaufnahme hochladen. Anschließend wird der Versand des Vertragsdokuments automatisch freigeschaltet.</small></div><button type="button" data-close-contract-email-notice aria-label="Hinweis schließen">×</button></div><div class="dialog-actions"><button type="button" class="primary" id="goToVideoContract">Zum Vertragsdokument und Videovertrag →</button></div></dialog>
+    <dialog id="leadEmailDialog" class="lead-email-dialog" aria-labelledby="leadEmailTitle">
+      <div class="lead-email-header"><div><span class="eyebrow">Interessentenakte · E-Mail-Verkehr</span><h2 id="leadEmailTitle">E-Mail ansehen</h2></div><button id="closeLeadEmail" type="button" aria-label="E-Mail schließen">×</button></div>
+      <dl id="leadEmailMetadata" class="lead-email-metadata"></dl>
+      <div id="leadEmailBody" class="lead-email-body"></div>
+    </dialog>
     <dialog id="leadRecordDialog" class="lead-record-dialog">
       <form id="leadRecordForm">
         <div class="dialog-head">

@@ -26,8 +26,9 @@ test('prepared branded mail attaches the final PDF through the configured sender
  const {sendPreparedMail}=await import('../lib/branded-mail-service.js');
  let sent,closed=false;
  const pdf=Buffer.from('%PDF-test');
- await sendPreparedMail({to:'kunde@example.test',subject:'Dein Vertrag',text:'Hallo Alex',html:'<p>Hallo Alex</p>',attachments:[{filename:'Vertrag.pdf',content:pdf,contentType:'application/pdf'}]}, {mailbox:{user:'team@findedeinding.de',pass:'secret'},transportFactory:()=>({sendMail:async mail=>{sent=mail;return {accepted:['kunde@example.test'],messageId:'message-1'};},close(){closed=true;}})});
+ const result=await sendPreparedMail({to:'kunde@example.test',subject:'Dein Vertrag',text:'Hallo Alex',html:'<p>Hallo Alex</p>',attachments:[{filename:'Vertrag.pdf',content:pdf,contentType:'application/pdf'}]}, {mailbox:{user:'team@findedeinding.de',pass:'secret'},transportFactory:()=>({sendMail:async mail=>{sent=mail;return {accepted:['kunde@example.test'],messageId:'message-1'};},close(){closed=true;}})});
  assert.equal(sent.from.address,'team@findedeinding.de');
+ assert.equal(result.senderEmail,'team@findedeinding.de');
  assert.equal(sent.attachments[0].content,pdf);
  assert.equal(sent.attachments[0].contentType,'application/pdf');
  assert.equal(closed,true);
