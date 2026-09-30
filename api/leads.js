@@ -828,14 +828,14 @@ export default async function handler(request, response) {
       const normalized = normalizeVideoContract(request.body?.contract, lead);
       const saveDraft = request.body?.saveDraft === true;
       if (!saveDraft && normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze zuerst: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
-      if (!saveDraft && VIDEO_CONFIRMATION_KEYS.some(key => !['yes','no'].includes(normalized.contract.answerChoices[key]))) return response.status(400).json({ error: 'Bitte alle Abschlussfragen in Schritt 1 beantworten.' });
-      if (!saveDraft && !recordingConsents(normalized.contract)) return response.status(400).json({ error: 'Bitte die drei Erklärungen für das Vertragsdokument bestätigen.' });
+      if (!saveDraft && VIDEO_CONFIRMATION_KEYS.some(key => !['yes','no'].includes(normalized.contract.answerChoices[key]))) return response.status(400).json({ error: 'Bitte alle Abschlussfragen beantworten.' });
       const now = new Date().toISOString();
       const existing = uuidValid(request.body?.contractId) ? await leadContractById(service, lead.id, request.body.contractId) : null;
       if (existing && existing.status !== 'draft') {
         return response.status(409).json({ error: 'Ein bereits dokumentierter Video-Abschluss kann nicht überschrieben werden. Lege dafür einen neuen Vertrag an.' });
       }
-      if (existing?.video_recording_consent_at) return response.status(409).json({ error: 'Nach Beginn von Schritt 2 kann das vorbereitete Vertragsdokument nicht mehr verändert werden.' });
+      if (!saveDraft && !existing?.video_recording_consent_record_id) return response.status(409).json({ error: 'Bitte zuerst die drei Aufzeichnungseinwilligungen protokollieren.' });
+      if (existing?.video_recording_consent_record_id) Object.assign(normalized.contract, { recordingConsent: true, recordingPurposeAccepted: true, recordingRevocationAccepted: true });
       const contractNumber = existing?.contract_number || await reserveContractNumber(service, normalized.contract.contractDate);
       const pdf = await buildVideoContractPdf(normalized.contract, { draft: saveDraft, prepared: !saveDraft });
       const stored = await uploadCustomerObject(service, 'documents', lead.id, pdfUpload(pdf, `${contractNumber}-${saveDraft?'Entwurf':'Vertragsdokument'}.pdf`));
@@ -852,7 +852,7 @@ export default async function handler(request, response) {
       const updatedLead = !saveDraft && [normalized.contract.streetName,normalized.contract.houseNumber,normalized.contract.postalCode,normalized.contract.city].every(Boolean) && ['street_name','house_number','postal_code','city'].some((key,index)=>lead[key]!==[normalized.contract.streetName,normalized.contract.houseNumber,normalized.contract.postalCode,normalized.contract.city][index])
         ? await patchLead(service, lead.id, { street_name: normalized.contract.streetName, house_number: normalized.contract.houseNumber, postal_code: normalized.contract.postalCode, city: normalized.contract.city }) : lead;
       if (existing?.document_bucket && existing.document_storage_path !== stored.storagePath) await deleteCustomerObject(service, existing.document_bucket, existing.document_storage_path);
-      return response.status(201).json({ record, lead: updatedLead, documentUrl: `/api/leads?action=contract-download&id=${encodeURIComponent(lead.id)}&contractId=${encodeURIComponent(record.id)}`, message: saveDraft ? 'Entwurf gespeichert.' : 'Vertragsdokument vollständig erstellt und für Schritt 2 freigegeben.' });
+      return response.status(201).json({ record, lead: updatedLead, documentUrl: `/api/leads?action=contract-download&id=${encodeURIComponent(lead.id)}&contractId=${encodeURIComponent(record.id)}`, message: saveDraft ? 'Entwurf gespeichert.' : 'Vertragsdokument erstellt und in der Kundenakte gespeichert.' });
     }
     if (request.method === 'POST' && ['video-recording-upload','complete-video-recording-upload'].includes(action)) {
       const lead = await leadById(service, request.body?.id);
@@ -910,7 +910,7 @@ export default async function handler(request, response) {
     if (request.method === 'POST' && action === 'finalize-video-contract') {
       const lead = await leadById(service, request.body?.id);
       const existing = await leadContractById(service, lead.id, request.body?.contractId);
-      if (!existing.document_prepared_at) return response.status(409).json({ error: 'Bitte zuerst Schritt 1 abschließen und das Vertragsdokument erstellen.' });
+      if (!existing.document_prepared_at) return response.status(409).json({ error: 'Bitte zuerst das Vertragsdokument erstellen und speichern.' });
       if (!existing.video_recording_consent_record_id) return response.status(409).json({ error: 'Die Aufzeichnungseinwilligung wurde noch nicht protokolliert.' });
       if (!existing.video_recording_path || !await customerObjectExists(service, existing.video_recording_bucket, existing.video_recording_path)) return response.status(409).json({ error: 'Die Videoaufzeichnung wurde noch nicht vollständig hochgeladen.' });
       if (request.body?.recordingReviewed !== true) return response.status(400).json({error:'Bitte die gespeicherte Aufnahme ansehen und Bild sowie beide Gesprächsstimmen prüfen.'});

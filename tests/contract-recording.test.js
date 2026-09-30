@@ -2,12 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   assertRecordingDraft,
+  beginRecording,
+  markRecordingStarted,
+  prepareRecordingUpload,
   recordingConsents,
   verifyRecordingObject,
   completeRecordingUpload,
 } from "../lib/contract-recording-service.js";
 import { uploadRecordingChunks } from "../lib/resumable-recording-upload.js";
 import {
+  ContractRecorder,
   recordingMimeType,
   recordingFileType,
 } from "../lib/browser-contract-recorder.js";
@@ -45,6 +49,49 @@ test("completed contracts and missing consent cannot enter recording workflow", 
     }),
     true,
   );
+});
+test('recording consent and screen recording can start from a draft before the PDF is prepared', async t => {
+  const original = global.fetch;
+  t.after(() => { global.fetch = original; });
+  const requests = [];
+  global.fetch = async (url, options) => {
+    requests.push({ url: String(url), body: JSON.parse(options.body) });
+    if (String(url).includes('lead_contract_recording_consents')) return Response.json([{ id: 'audit' }]);
+    return Response.json([{ id: 'contract', status: 'draft', video_recording_consent_at: '2026-09-30T12:00:00.000Z', video_recording_consent_record_id: 'audit' }]);
+  };
+  const service = { url: 'https://example.test', key: 'test' };
+  const lead = { id: 'lead' };
+  const draft = { id: 'contract', status: 'draft', document_prepared_at: null };
+  const actor = { profile: { id: 'staff', name: 'Mitarbeiterin' } };
+  const consents = { recordingConsent: true, recordingPurposeAccepted: true, recordingRevocationAccepted: true };
+  const accepted = await beginRecording(service, lead, draft, consents, actor);
+  assert.equal(accepted.record.video_recording_consent_record_id, 'audit');
+  assert.equal(requests[0].body.staff_name, 'Mitarbeiterin');
+  assert.ok(requests[0].body.consented_at);
+  await markRecordingStarted(service, lead, accepted.record);
+  assert.ok(requests.at(-1).body.video_recording_started_at);
+});
+test('recording upload can be prepared after consent while the contract PDF is still a draft', async t => {
+  const original = global.fetch;
+  t.after(() => { global.fetch = original; });
+  global.fetch = async (url, options) => {
+    const target = String(url);
+    if (target.endsWith('/storage/v1/bucket/contract-recordings')) return Response.json({ allowed_mime_types: ['video/webm', 'video/mp4', 'video/quicktime', 'audio/webm'] });
+    if (target.includes('/storage/v1/object/upload/sign/')) return Response.json({ url: '/object/upload/sign/contract-recordings/lead/video.webm?token=signed' });
+    if (options?.method === 'PATCH') return Response.json([{ id: 'contract', status: 'draft', document_prepared_at: null }]);
+    throw Error(`Unexpected request: ${target}`);
+  };
+  const draft = { id: 'contract', status: 'draft', document_prepared_at: null, video_recording_consent_at: '2026-09-30T12:00:00.000Z', video_recording_consent_record_id: 'audit' };
+  const upload = await prepareRecordingUpload({ url: 'https://example.test', key: 'test' }, { id: 'lead' }, draft, { fileName: 'video.webm', mimeType: 'video/webm', byteSize: 1024, provider: 'browser_screen', recordingConsent: true, recordingPurposeAccepted: true, recordingRevocationAccepted: true });
+  assert.equal(upload.token, 'signed');
+  assert.equal(upload.bucket, 'contract-recordings');
+});
+test('consent control can be used before the first draft exists', () => {
+  const recorder = Object.create(ContractRecorder.prototype);
+  Object.assign(recorder, { getContext: () => ({ record: null, consents: true }), supported: () => true, consentButton: {}, start: {}, file: {}, uploadArea: {}, stopButton: {}, retry: {}, discard: {} });
+  recorder.controls();
+  assert.equal(recorder.consentButton.disabled, false);
+  assert.equal(recorder.start.hidden, true);
 });
 test("recording confirmation verifies actual storage bytes and rejects incomplete files", async (t) => {
   const original = global.fetch;

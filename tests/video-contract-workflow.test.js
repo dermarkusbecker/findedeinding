@@ -41,6 +41,20 @@ test('Verkaufsgespräch beginnt mit dem im Intake gespeicherten Termin und direk
   assert.match(api, /meet_url: meetUrl/);
 });
 
+test('Abschluss hat genau einen Einstieg und beginnt im selben Fenster mit der Aufzeichnungseinwilligung', async () => {
+  const [html, js, api] = await Promise.all([read('admin.html'), read('admin.js'), read('api/leads.js')]);
+  assert.equal((html.match(/id="createContractDocument"/g) || []).length, 1);
+  assert.doesNotMatch(html, /id="createVideoContract"/);
+  assert.match(html, /Vertragsdokument und Videovertrag erstellen/);
+  const dialog = html.slice(html.indexOf('<dialog id="videoContractDialog"'), html.indexOf('<dialog id="contractEmailLockedDialog"'));
+  const order = ['video-consent-section', 'video-meet-section', 'recording-control-section', 'video-contract-fields', 'video-confirmation-list', 'finalizeVideoContract'].map(marker => dialog.indexOf(marker));
+  assert.ok(order.every((position, index) => position > -1 && (!index || position > order[index - 1])));
+  assert.equal((dialog.match(/name="captureConsent"/g) || []).length, 1);
+  assert.doesNotMatch(dialog, /name="recordingConsent"/);
+  assert.doesNotMatch(js, /setVideoContractMode|createVideoContract'/);
+  assert.doesNotMatch(api, /Nach Beginn von Schritt 2 kann das vorbereitete Vertragsdokument nicht mehr verändert werden/);
+});
+
 test('Videovertrag verlangt vollständige Vertragsdaten und elf einzelne Bestätigungen', () => {
   const valid = normalizeVideoContract(completeInput());
   assert.deepEqual(valid.missing, []);
@@ -77,8 +91,8 @@ test('PDF speichert längere CRM-Eingaben trotz 100-Zeichen-Limit der Vorlage', 
 test('Bildschirmaufnahme ersetzt Meet als Pflichtweg; bisherige Meet-Dateien bleiben lesbar', async () => {
   const [html, js, api, meet, storage, migration] = await Promise.all([read('admin.html'), read('admin.js'), read('api/leads.js'), read('lib/google-meet.js'), read('lib/customer-storage.js'), read('supabase/migrations/20260910153000_google_meet_contract_recordings.sql')]);
   assert.match(html, /id="startVideoContractRecording"/);
-  assert.match(html, /data-close-video-contract[^>]+aria-label="Videovertrag schließen und zum Abschluss zurückkehren"/);
-  assert.match(html, /Bildschirmaufnahme starten/);
+  assert.match(html, /data-close-video-contract[^>]+aria-label="Abschluss schließen und zum Verkaufsgespräch zurückkehren"/);
+  assert.match(html, /Videoaufnahme starten/);
   assert.match(html, /contractRecordingFile/);
   assert.doesNotMatch(js, /getDisplayMedia/);
   assert.doesNotMatch(js, /new MediaRecorder/);
