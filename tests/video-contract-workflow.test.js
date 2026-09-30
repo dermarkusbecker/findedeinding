@@ -94,11 +94,12 @@ test('Bildschirmaufnahme ersetzt Meet als Pflichtweg; bisherige Meet-Dateien ble
   const [html, js, api, meet, storage, migration] = await Promise.all([read('admin.html'), read('admin.js'), read('api/leads.js'), read('lib/google-meet.js'), read('lib/customer-storage.js'), read('supabase/migrations/20260910153000_google_meet_contract_recordings.sql')]);
   assert.match(html, /id="startVideoContractRecording"/);
   assert.match(html, /data-close-video-contract[^>]+aria-label="Abschluss schließen und zum Verkaufsgespräch zurückkehren"/);
-  assert.match(html, /Videoaufnahme starten/);
+  assert.match(html, /id="startVideoContractRecording"[^>]*>Aufnahme starten<\/button>/);
+  assert.doesNotMatch(html, /id="selectVideoContractSource"/);
   assert.match(html, /contractRecordingFile/);
   assert.doesNotMatch(js, /getDisplayMedia/);
   assert.doesNotMatch(js, /new MediaRecorder/);
-  assert.match(js, /browser-contract-recorder/);
+  assert.match(js, /device-contract-recorder/);
   assert.doesNotMatch(js, /action=sync-google-meet-recording/);
   assert.match(js, /closeVideoContractToConclusion/);
   assert.match(js, /setLeadWizardStep\(4\)/);

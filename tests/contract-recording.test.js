@@ -12,27 +12,12 @@ import {
 import { uploadRecordingChunks } from "../lib/resumable-recording-upload.js";
 import {
   ContractRecorder,
-  recordingMimeType,
   recordingFileType,
-} from "../lib/browser-contract-recorder.js";
-test("recording codecs and device file formats are detected without assuming WebM", () => {
-  assert.equal(
-    recordingMimeType({ isTypeSupported: (type) => type === "video/mp4" }),
-    "video/mp4",
-  );
-  assert.equal(
-    recordingMimeType({ isTypeSupported: (type) => type === "video/webm" }),
-    "video/webm",
-  );
-  assert.equal(recordingMimeType({ isTypeSupported: () => false }), "");
-  assert.equal(
-    recordingFileType({ name: "Aufnahme.MOV", type: "" }),
-    "video/quicktime",
-  );
-  assert.equal(
-    recordingFileType({ name: "x.pdf", type: "application/pdf" }),
-    "",
-  );
+} from "../lib/device-contract-recorder.js";
+test("native recording files accept MP4, WebM and Apple MOV", () => {
+  assert.equal(recordingFileType({ name: "Aufnahme.MOV", type: "" }), "video/quicktime");
+  assert.equal(recordingFileType({ name: "Aufnahme.mp4", type: "video/mp4" }), "video/mp4");
+  assert.equal(recordingFileType({ name: "x.pdf", type: "application/pdf" }), "");
 });
 test("completed contracts and missing consent cannot enter recording workflow", () => {
   assert.throws(() => assertRecordingDraft({ status: "signed" }));
@@ -88,10 +73,9 @@ test('recording upload can be prepared after consent while the contract PDF is s
 });
 test('consent control can be used before the first draft exists', () => {
   const recorder = Object.create(ContractRecorder.prototype);
-  Object.assign(recorder, { getContext: () => ({ record: null, consents: true }), supported: () => true, consentButton: {}, select: {}, start: {}, file: {}, uploadArea: {}, stopButton: {}, retry: {}, discard: {} });
+  Object.assign(recorder, { getContext: () => ({ record: null, consents: true }), consentButton: {}, start: {}, file: {}, uploadArea: {}, retry: {}, discard: {} });
   recorder.controls();
   assert.equal(recorder.consentButton.disabled, false);
-  assert.equal(recorder.select.hidden, true);
   assert.equal(recorder.start.hidden, true);
 });
 test("recording confirmation verifies actual storage bytes and rejects incomplete files", async (t) => {
@@ -227,7 +211,7 @@ test('only a verified upload is promoted, with draft and pending-path concurrenc
 });
 
 test('imported video stays local for review until Save is clicked', async()=>{
- const {ContractRecorder}=await import('../lib/browser-contract-recorder.js');
+ const {ContractRecorder}=await import('../lib/device-contract-recorder.js');
  const recorder=Object.create(ContractRecorder.prototype);
  let previews=0,saves=0;
  Object.assign(recorder,{check:()=>({record:{video_recording_consent_at:'2026-09-21'},contractId:'contract'}),file:{files:[{name:'call.mp4',type:'video/mp4',size:100}],value:'file'},setLocalPreview:()=>previews++,save:()=>saves++,status:()=>{},controls:()=>{},notify:message=>{throw Error(message)}});
@@ -235,63 +219,34 @@ test('imported video stays local for review until Save is clicked', async()=>{
  assert.equal(previews,1);assert.equal(saves,0);assert.equal(recorder.blob.name,'call.mp4');
 });
 test('duplicate Save while upload is running does not start another upload',async()=>{
- const {ContractRecorder}=await import('../lib/browser-contract-recorder.js');
+ const {ContractRecorder}=await import('../lib/device-contract-recorder.js');
  const recorder=Object.create(ContractRecorder.prototype);recorder.blob={size:100};recorder.busy=true;recorder.controls=()=>{throw Error('Upload started twice');};await recorder.save();
 });
-test('recording remains local after stop until the employee reviews and uploads it', async () => {
+test('native capture workflow never invokes browser screen sharing and keeps upload manual', async () => {
   const { readFile } = await import('node:fs/promises');
-  const browser = await readFile(new URL('../lib/browser-contract-recorder.js', import.meta.url), 'utf8');
+  const device = await readFile(new URL('../lib/device-contract-recorder.js', import.meta.url), 'utf8');
   const service = await readFile(new URL('../lib/contract-recording-service.js', import.meta.url), 'utf8');
-  assert.match(browser, /this\.recorder\.onstop = \(\) =>[\s\S]*?this\.setLocalPreview\(\)/);
-  assert.doesNotMatch(browser, /this\.recorder\.onstop = \(\) =>[\s\S]*?void this\.save\(\)/);
+  assert.doesNotMatch(device, /getDisplayMedia|MediaRecorder|start-video-recording/);
+  assert.match(device, /this\.file\.onchange = \(\) => this\.importFile\(\)/);
+  assert.match(device, /this\.retry\.onclick = \(\) => this\.save\(\)/);
   assert.match(service, /storage\/v1\/upload\/resumable`/);
 });
-test('browser requires recorded consent and Meet tab audio before it records screen and microphone', async t => {
-  const { ContractRecorder } = await import('../lib/browser-contract-recorder.js');
-  const originals = Object.fromEntries(['navigator', 'window', 'MediaStream', 'MediaRecorder'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-  t.after(() => { for (const [key, descriptor] of Object.entries(originals)) descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete globalThis[key]; });
-  const video = { readyState: 'live', addEventListener() {} };
-  const microphone = { readyState: 'live', addEventListener() {} };
-  const tabAudio = { readyState: 'live' };
-  let withAudio = false, apiCalls = 0, microphoneRequests = 0, displayRequests = 0;
-  const display = { getVideoTracks: () => [video], getAudioTracks: () => withAudio ? [tabAudio] : [], getTracks: () => [video, ...(withAudio ? [tabAudio] : [])] };
-  const mic = { getAudioTracks: () => [microphone], getTracks: () => [microphone] };
-  const navigator = { mediaDevices: { getDisplayMedia: async () => { displayRequests++; return display; }, getUserMedia: async () => { microphoneRequests++; return mic; } } };
-  const destination = { stream: { getAudioTracks: () => [microphone] } };
-  class FakeAudio { async resume() {} createMediaStreamDestination() { return destination; } createMediaStreamSource() { return { connect() {} }; } }
-  class FakeRecorder {
-    static isTypeSupported(type) { return type === 'video/webm'; }
-    constructor() { this.mimeType = 'video/webm'; this.state = 'inactive'; }
-    start() { this.state = 'recording'; }
-    stop() { this.state = 'inactive'; this.ondataavailable({ data: new Blob(['recorded-video']) }); this.onstop(); }
-  }
-  for (const [key, value] of Object.entries({ navigator, window: { AudioContext: FakeAudio }, MediaStream: class { constructor(tracks) { this.tracks = tracks; } getVideoTracks() { return this.tracks.filter(track => track === video); } }, MediaRecorder: FakeRecorder })) Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
+test('recording start shows the native shortcut and enables upload only after consent', t => {
+  const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  t.after(() => originalNavigator ? Object.defineProperty(globalThis, 'navigator', originalNavigator) : delete globalThis.navigator);
   const recorder = Object.create(ContractRecorder.prototype);
-  const errors=[];
-  Object.assign(recorder, {
-    streams: [], busy: false, saved: false, blob: null, confirmedThisSession: false,
-    check: () => ({ leadId: 'lead', contractId: 'contract', record: {video_recording_consent_record_id:'audit'} }),
-    api: async () => { apiCalls++; }, controls() {}, status: message => errors.push(message), finishCapture() {}, setLocalPreview() {},
-    notify: message => errors.push(message),
-    preview: { play: async () => {}, hidden: true }, node: { querySelector: () => ({ textContent: '' }) },
-  });
-  await recorder.selectSource();
-  assert.match(errors.pop(), /protokollieren/);
-  assert.equal(apiCalls, 0);
-  recorder.confirmedThisSession = true;
-  await recorder.selectSource();
-  assert.match(errors.at(-1), /Meet-Ton/);
-  assert.equal(microphoneRequests, 0);
-  assert.equal(apiCalls, 0);
-  withAudio = true;
-  await recorder.selectSource();
-  assert.equal(apiCalls, 0, 'source selection must not start the recording');
-  assert.equal(displayRequests, 2);
-  await recorder.begin();
-  assert.equal(recorder.recorder.state, 'recording');
-  assert.equal(displayRequests, 2, 'the recording button must not reopen the browser sharing picker');
-  assert.equal(apiCalls, 1);
-  recorder.stop();
-  assert.ok(recorder.blob.size > 0);
-  clearInterval(recorder.timer);
+  const guide = { hidden: true, innerHTML: '', scrollIntoView() {} };
+  const record = { status:'draft', video_recording_consent_at:'2026-09-30', video_recording_consent_record_id:'audit' };
+  Object.assign(recorder, { confirmedThisSession:true, busy:false, blob:null, guide, consentButton:{}, start:{}, file:{}, uploadArea:{}, retry:{}, discard:{},
+    getContext: () => ({ contractId:'contract', leadId:'lead', consents:true, record }), status() {}, notify:message=>{throw Error(message)} });
+  recorder.controls();
+  assert.equal(recorder.start.hidden, false);
+  assert.equal(recorder.file.disabled, false);
+  Object.defineProperty(globalThis, 'navigator', { value:{ platform:'MacIntel' }, configurable:true });
+  recorder.openNativeGuide();
+  assert.match(guide.innerHTML, /⇧ ⌘ 5/);
+  assert.equal(guide.hidden, false);
+  Object.defineProperty(globalThis, 'navigator', { value:{ platform:'Win32' }, configurable:true });
+  recorder.openNativeGuide();
+  assert.match(guide.innerHTML, /Win \+ Umschalt \+ R/);
 });

@@ -241,6 +241,16 @@ dialog::backdrop { background: #0a263e66; backdrop-filter: blur(6px); }
 #videoContractDialog .recording-state { background:#edf5f9; border-color:#ccdee8; }
 #videoContractDialog .recording-state span,#videoContractDialog .recording-state time { color:#28556d; font-size:12px; }
 #videoContractDialog .recording-file-label { color:#244b61; }
+#videoContractDialog .recording-capture-note,#videoContractDialog .recording-upload-note { color:#496979; }
+#videoContractDialog .recording-upload-area { background:#f5f9fb; border-color:#cddfe8; }
+#videoContractDialog .recording-upload-area h4 { color:#163545; }
+#videoContractDialog .recording-upload-area p,#videoContractDialog .recording-upload-area .recording-file-label { color:#365e72; }
+#videoContractDialog .native-recording-instructions { background:#e9f5f1; border:1px solid #a9d8ca; border-radius:12px; color:#24483f; margin-top:12px; padding:16px; }
+#videoContractDialog .native-recording-instructions[hidden] { display:none; }
+#videoContractDialog .native-recording-instructions h4 { color:#123d38; font-size:14px; margin:0 0 7px; }
+#videoContractDialog .native-recording-instructions p { font-size:12px; line-height:1.6; margin:8px 0 0; }
+#videoContractDialog .native-recording-shortcut { background:#fff; border:1px solid #b8dad0; border-radius:9px; color:#0b725e; display:inline-block; font-size:17px!important; font-weight:850; letter-spacing:.04em; padding:8px 12px; }
+
 #videoContractDialog .video-contract-legal-note { color:#5a7383; }
 #videoContractDialog .video-contract-head > button { display:inline-flex; align-items:center; justify-content:center; gap:8px; flex:0 0 auto; width:auto; min-height:36px; padding:7px 12px; border:1px solid rgba(183,218,231,.28); border-radius:10px; background:rgba(9,35,48,.22); color:#e2edf2; box-shadow:none; font:600 12px/1.2 Manrope,sans-serif; cursor:pointer; transition:background .18s,border-color .18s,color .18s; }
 #videoContractDialog .video-contract-head > button span { font:inherit; letter-spacing:0; }
