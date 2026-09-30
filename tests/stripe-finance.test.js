@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { paymentAllocations, stripeRequest, verifyStripeSignature } from '../lib/stripe-finance.js';
+import { handleStripeFinance, paymentAllocations, stripeRequest, verifyStripeSignature } from '../lib/stripe-finance.js';
 
 const first = '11111111-1111-4111-8111-111111111111';
 const second = '22222222-2222-4222-8222-222222222222';
@@ -42,4 +42,45 @@ test('Stripe webhook signature rejects tampered and old events', () => {
   assert.equal(verifyStripeSignature(body, header, 'whsec_test', timestamp * 1000), true);
   assert.equal(verifyStripeSignature(body + ' ', header, 'whsec_test', timestamp * 1000), false);
   assert.equal(verifyStripeSignature(body, header, 'whsec_test', (timestamp + 301) * 1000), false);
+});
+
+
+test('portal Checkout derives its EUR amount from this customer ledger, not the browser body', async t => {
+  const before = { key: process.env.STRIPE_SECRET_KEY, webhook: process.env.STRIPE_WEBHOOK_SECRET };
+  process.env.STRIPE_SECRET_KEY = 'sk_test_only_for_unit_test';
+  process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_only_for_unit_test';
+  const oldFetch = global.fetch;
+  t.after(() => {
+    global.fetch = oldFetch;
+    if (before.key === undefined) delete process.env.STRIPE_SECRET_KEY; else process.env.STRIPE_SECRET_KEY = before.key;
+    if (before.webhook === undefined) delete process.env.STRIPE_WEBHOOK_SECRET; else process.env.STRIPE_WEBHOOK_SECRET = before.webhook;
+  });
+  const customerId = crypto.randomUUID();
+  const leadId = crypto.randomUUID();
+  const invoice = { id: first, lead_id: leadId, status: 'issued', invoice_date: '2026-09-01', due_date: '2026-09-10', invoice_number: 'RE-1', description: 'Coaching', gross: 75, net: 63.03, vat: 11.97, created_at: '2026-09-01T00:00:00Z' };
+  let stored;
+  const query = async (path, options = {}) => {
+    if (path.startsWith('user_profiles?')) return [{ id: customerId, name: 'Kunde Test', email: 'kunde@example.test' }];
+    if (path.startsWith('leads?')) { assert.match(path, new RegExp(customerId)); return [{ id: leadId }]; }
+    if (path.startsWith('stripe_payment_sessions?')) return [];
+    if (path === 'stripe_payment_sessions' && options.method === 'POST') { stored = JSON.parse(options.body); return [stored]; }
+    throw new Error(`Unexpected query ${path}`);
+  };
+  const all = async path => {
+    if (path.startsWith('finance_invoices?')) return [invoice];
+    if (path.startsWith('lead_payments?') || path.startsWith('finance_account_events?')) return [];
+    throw new Error(`Unexpected list ${path}`);
+  };
+  global.fetch = async (url, options) => {
+    assert.equal(url, 'https://api.stripe.com/v1/checkout/sessions');
+    assert.equal(options.body.get('line_items[0][price_data][unit_amount]'), '7500');
+    assert.equal(options.body.get('payment_method_types[0]'), null);
+    return Response.json({ id: 'cs_test_scoped', url: 'https://checkout.stripe.com/c/pay/test', currency: 'eur', amount_total: 7500, expires_at: Math.floor(Date.now() / 1000) + 3600 });
+  };
+  const response = { json(value) { this.body = value; return this; } };
+  await handleStripeFinance({ method: 'POST', query: { action: 'finance-stripe-checkout' }, body: { amount: 1, customerId: crypto.randomUUID() } }, response, { query, all, user: { profile: { id: customerId } }, today: '2026-09-30', portal: true });
+  assert.equal(stored.customer_id, customerId);
+  assert.equal(stored.amount_cents, 7500);
+  assert.deepEqual(stored.allocations, [{ invoiceId: first, amountCents: 7500 }]);
+  assert.equal(response.body.url, 'https://checkout.stripe.com/c/pay/test');
 });
