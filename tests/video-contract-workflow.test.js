@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PDFDocument } from 'pdf-lib';
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { buildVideoContractPdf, normalizeVideoContract, VIDEO_CONFIRMATION_KEYS } from '../lib/video-contract.js';
 
 const read = (file) => readFile(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -56,6 +57,21 @@ test('Originalformular wird als ausgefülltes und abgeflachtes Vertrags-PDF erze
   const pdf = await PDFDocument.load(bytes);
   assert.equal(pdf.getPageCount(), 7);
   assert.equal(pdf.getForm().getFields().length, 0);
+});
+
+test('PDF speichert längere CRM-Eingaben trotz 100-Zeichen-Limit der Vorlage', async () => {
+  const additionalServices = 'Individuelle Leistung '.repeat(12);
+  const additionalAgreements = 'Besondere Vereinbarung '.repeat(12);
+  const { contract } = normalizeVideoContract({ ...completeInput(), additionalServices, additionalAgreements });
+  const bytes = await buildVideoContractPdf(contract, { draft: true });
+  const pdf = await PDFDocument.load(bytes);
+  assert.equal(pdf.getPageCount(), 7);
+  assert.equal(pdf.getForm().getFields().length, 0);
+  const rendered = await getDocument({ data: new Uint8Array(bytes), useSystemFonts: true }).promise;
+  let text = '';
+  for (let page = 1; page <= rendered.numPages; page++) text += (await (await rendered.getPage(page)).getTextContent()).items.map(item => item.str).join(' ');
+  assert.equal((text.match(/Individuelle Leistung/g) || []).length, 12);
+  assert.equal((text.match(/Besondere Vereinbarung/g) || []).length, 12);
 });
 
 test('Bildschirmaufnahme ersetzt Meet als Pflichtweg; bisherige Meet-Dateien bleiben lesbar', async () => {

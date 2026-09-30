@@ -983,6 +983,13 @@ export default async function handler(request, response) {
         const downloadUrl=new URL(url);downloadUrl.searchParams.set('download',`Vertragsaufnahme.${contract.video_recording_provider==='google_meet'?'mp4':(contract.video_recording_mime_type||'').includes('mp4')?'mp4':'webm'}`);
         return response.redirect(302,downloadUrl.href);
       }
+      if(action==='contract-download'&&request.query?.preview==='1'){
+        const file=await fetch(url);
+        if(!file.ok)return response.status(502).json({error:'Die PDF-Vorschau konnte nicht geladen werden.'});
+        response.setHeader('Content-Type','application/pdf');
+        response.setHeader('Cache-Control','private, no-store');
+        return response.status(200).send(Buffer.from(await file.arrayBuffer()));
+      }
       return response.redirect(302, url);
     }
     if (request.method === 'GET' && action === 'dashboard') return response.status(200).json(await leadDashboard(service, request.query?.id));

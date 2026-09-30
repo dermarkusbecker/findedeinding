@@ -608,6 +608,10 @@ document.querySelector('#cancelLeadAppointment').addEventListener('click',async(
 
 const videoContractDialog=document.querySelector('#videoContractDialog');
 const videoContractForm=document.querySelector('#videoContractForm');
+let contractPdfPreview=null;
+function contractPdfPreviewUrl(url){return url.startsWith('/api/leads?action=contract-download')?`${url}&preview=1`:url;}
+function showContractPdfPreview(url){document.querySelector('#videoContractPdf').src=`${url}#page=1&zoom=125`;document.querySelector('#videoContractPdfLink').href=url;if(videoContractDialog.open)contractPdfPreview?.setSource(contractPdfPreviewUrl(url));}
+import('./lib/contract-pdf-preview.js').then(({createContractPdfPreview})=>{contractPdfPreview=createContractPdfPreview(document.querySelector('.video-contract-preview'));if(videoContractDialog.open)contractPdfPreview.setSource(contractPdfPreviewUrl(document.querySelector('#videoContractPdfLink').getAttribute('href')));}).catch(()=>{document.querySelector('[data-pdf-status]').textContent='Die vergrößerte Vorschau ist nicht verfügbar. PDF vollständig öffnen.';});
 const videoConfirmationQuestions=[
   ['v01','Stimmst du der Aufzeichnung dieser klar begrenzten Abschlusssequenz ausdrücklich zu?'],
   ['v02','Schließt du den Vertrag als Privatperson und Verbraucher ab?'],
@@ -655,8 +659,7 @@ function setVideoContractValues(lead,record){
   Object.entries(values).forEach(([name,value])=>{if(videoContractForm.elements[name])videoContractForm.elements[name].value=value;});
   for(const name of ['recordingConsent','recordingPurposeAccepted','recordingRevocationAccepted'])videoContractForm.elements[name].checked=Boolean(data[name]);for(const name of ['captureConsent','capturePurposeAccepted','captureRevocationAccepted'])videoContractForm.elements[name].checked=false;
   videoConfirmationQuestions.forEach(([key])=>{const input=videoContractForm.elements[key];if(input)input.value=data.answerChoices?.[key]||(data.answers?.[key]===true?'yes':data.answers?.[key]===false?'no':'');});
-  document.querySelector('#videoContractPdf').src=record?.document_storage_path?`/api/leads?action=contract-download&id=${encodeURIComponent(lead.id)}&contractId=${encodeURIComponent(record.id)}#view=FitH`:'/assets/forms/FDD-VTR-001_B2C-Videovertrag_Finde-Dein-Ding_V1.0.pdf#view=FitH';
-  const link=document.querySelector('#videoContractPdfLink');link.href=record?.document_storage_path?`/api/leads?action=contract-download&id=${encodeURIComponent(lead.id)}&contractId=${encodeURIComponent(record.id)}`:'/assets/forms/FDD-VTR-001_B2C-Videovertrag_Finde-Dein-Ding_V1.0.pdf';
+  showContractPdfPreview(record?.document_storage_path?`/api/leads?action=contract-download&id=${encodeURIComponent(lead.id)}&contractId=${encodeURIComponent(record.id)}`:'/assets/forms/FDD-VTR-001_B2C-Videovertrag_Finde-Dein-Ding_V1.0.pdf');
   document.querySelector('#videoContractDocumentState').textContent=record?.document_storage_path?`${record.contract_number||'Vertrag'} ist vorbereitet und sicher in der Interessentenakte gespeichert.`:'Noch nicht erstellt.';
   const meet=document.querySelector('#openVideoContractMeet');meet.classList.toggle('hidden',!lead.meet_url);if(lead.meet_url)meet.href=lead.meet_url;else meet.removeAttribute('href');document.querySelector('#videoContractMeetTime').textContent=lead.appointment_start?new Date(lead.appointment_start).toLocaleString('de-DE',{dateStyle:'full',timeStyle:'short',timeZone:lead.appointment_timezone||'Europe/Berlin'})+' Uhr':'Für dieses Verkaufsgespräch ist noch kein Termin eingetragen.';document.querySelector('#videoContractMeetStatus').textContent=lead.meet_url?'Öffne den Termin vor dem Abschlussgespräch. Wähle später den Meet-Tab mit Ton als Quelle für die lokale Bildschirmaufnahme.':'Ein Google-Meet-Link fehlt. Bitte den Termin zuerst im Verkaufsgespräch planen.';
   renderPreparedContractSummary(record);
@@ -680,7 +683,7 @@ async function openVideoContract(mode='document'){
   if(activeLeadDashboard?.lead?.id!==leadId){try{await loadLeadDashboard(leadId);}catch(error){return toast(error.message);}}
   try{await loadServiceTariffs();}catch(error){return toast(error.message);}
   if(mode==='video'&&!latestVideoContract()?.document_prepared_at){toast('Bitte zuerst das Vertragsdokument in Schritt 1 erstellen.');mode='document';}
-  setVideoContractValues(activeLeadDashboard.lead,latestVideoContract());setVideoContractMode(mode);videoContractDialog.showModal();
+  setVideoContractValues(activeLeadDashboard.lead,latestVideoContract());setVideoContractMode(mode);videoContractDialog.showModal();contractPdfPreview?.setSource(contractPdfPreviewUrl(document.querySelector('#videoContractPdfLink').getAttribute('href')));
 }
 renderVideoConfirmationQuestions();
 videoContractForm.elements.tariffId.addEventListener('change',event=>applyTariffToVideoContract(event.target.value));
@@ -694,6 +697,7 @@ let videoDraftTimer, videoDraftPending=false, videoDraftSaving=null;
 function queueVideoContractDraft(){
   if(!videoContractDialog.open || videoContractDialog.dataset.mode!=='document' || latestVideoContract()?.video_recording_consent_at || (latestVideoContract() && latestVideoContract().status!=='draft'))return;
   videoDraftPending=true;
+  document.querySelector('#retryVideoContractDraft').hidden=true;
   document.querySelector('#videoContractDocumentState').textContent='Änderungen werden in die PDF übernommen …';
   clearTimeout(videoDraftTimer);
   videoDraftTimer=setTimeout(()=>flushVideoContractDraft().catch(()=>{}),800);
@@ -714,14 +718,15 @@ async function flushVideoContractDraft(){
       for(const key of ['contract_data','document_storage_path','document_bucket','document_mime_type','updated_at','title','amount','tariff_id','program_start_date'])record[key]=data.record[key];
       activeLeadDashboard.contracts=[record,...(activeLeadDashboard.contracts||[]).filter(item=>item.id!==record.id)];
       const url=`${data.documentUrl}&version=${encodeURIComponent(data.record.updated_at||Date.now())}`;
-      document.querySelector('#videoContractPdf').src=`${url}#view=FitH`;
-      document.querySelector('#videoContractPdfLink').href=url;
+      showContractPdfPreview(url);
       document.querySelector('#videoContractDocumentState').textContent=videoDraftPending?'Weitere Änderungen werden gespeichert …':`Entwurf automatisch in der PDF gespeichert · ${new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}`;
+      document.querySelector('#retryVideoContractDraft').hidden=true;
       renderSalesContractState();contractRecorder?.controls();updateVideoFinalizeState();
     }
   })();
-  try{await videoDraftSaving;}catch(error){videoDraftPending=true;document.querySelector('#videoContractDocumentState').textContent=`Nicht gespeichert: ${error.message} Bitte „Jetzt zwischenspeichern“ anklicken.`;throw error;}finally{videoDraftSaving=null;}
+  try{await videoDraftSaving;}catch(error){videoDraftPending=true;document.querySelector('#videoContractDocumentState').textContent=`Nicht gespeichert: ${error.message}`;document.querySelector('#retryVideoContractDraft').hidden=false;throw error;}finally{videoDraftSaving=null;}
 }
+document.querySelector('#retryVideoContractDraft').addEventListener('click',()=>flushVideoContractDraft().catch(error=>toast(error.message)));
 videoContractForm.addEventListener('input',event=>{if(event.target.name!=='recordingReviewed')queueVideoContractDraft();});
 videoContractForm.addEventListener('change',event=>{if(event.target.name!=='recordingReviewed')queueVideoContractDraft();});
 window.addEventListener('beforeunload',event=>{if(videoDraftPending||videoDraftSaving){event.preventDefault();event.returnValue='';}});
