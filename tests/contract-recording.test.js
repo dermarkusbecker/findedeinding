@@ -88,9 +88,10 @@ test('recording upload can be prepared after consent while the contract PDF is s
 });
 test('consent control can be used before the first draft exists', () => {
   const recorder = Object.create(ContractRecorder.prototype);
-  Object.assign(recorder, { getContext: () => ({ record: null, consents: true }), supported: () => true, consentButton: {}, start: {}, file: {}, uploadArea: {}, stopButton: {}, retry: {}, discard: {} });
+  Object.assign(recorder, { getContext: () => ({ record: null, consents: true }), supported: () => true, consentButton: {}, select: {}, start: {}, file: {}, uploadArea: {}, stopButton: {}, retry: {}, discard: {} });
   recorder.controls();
   assert.equal(recorder.consentButton.disabled, false);
+  assert.equal(recorder.select.hidden, true);
   assert.equal(recorder.start.hidden, true);
 });
 test("recording confirmation verifies actual storage bytes and rejects incomplete files", async (t) => {
@@ -252,10 +253,10 @@ test('browser requires recorded consent and Meet tab audio before it records scr
   const video = { readyState: 'live', addEventListener() {} };
   const microphone = { readyState: 'live', addEventListener() {} };
   const tabAudio = { readyState: 'live' };
-  let withAudio = false, apiCalls = 0, microphoneRequests = 0;
+  let withAudio = false, apiCalls = 0, microphoneRequests = 0, displayRequests = 0;
   const display = { getVideoTracks: () => [video], getAudioTracks: () => withAudio ? [tabAudio] : [], getTracks: () => [video, ...(withAudio ? [tabAudio] : [])] };
   const mic = { getAudioTracks: () => [microphone], getTracks: () => [microphone] };
-  const navigator = { mediaDevices: { getDisplayMedia: async () => display, getUserMedia: async () => { microphoneRequests++; return mic; } } };
+  const navigator = { mediaDevices: { getDisplayMedia: async () => { displayRequests++; return display; }, getUserMedia: async () => { microphoneRequests++; return mic; } } };
   const destination = { stream: { getAudioTracks: () => [microphone] } };
   class FakeAudio { async resume() {} createMediaStreamDestination() { return destination; } createMediaStreamSource() { return { connect() {} }; } }
   class FakeRecorder {
@@ -264,7 +265,7 @@ test('browser requires recorded consent and Meet tab audio before it records scr
     start() { this.state = 'recording'; }
     stop() { this.state = 'inactive'; this.ondataavailable({ data: new Blob(['recorded-video']) }); this.onstop(); }
   }
-  for (const [key, value] of Object.entries({ navigator, window: { AudioContext: FakeAudio }, MediaStream: class { constructor(tracks) { this.tracks = tracks; } }, MediaRecorder: FakeRecorder })) Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
+  for (const [key, value] of Object.entries({ navigator, window: { AudioContext: FakeAudio }, MediaStream: class { constructor(tracks) { this.tracks = tracks; } getVideoTracks() { return this.tracks.filter(track => track === video); } }, MediaRecorder: FakeRecorder })) Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
   const recorder = Object.create(ContractRecorder.prototype);
   const errors=[];
   Object.assign(recorder, {
@@ -274,18 +275,21 @@ test('browser requires recorded consent and Meet tab audio before it records scr
     notify: message => errors.push(message),
     preview: { play: async () => {}, hidden: true }, node: { querySelector: () => ({ textContent: '' }) },
   });
-  await recorder.begin();
+  await recorder.selectSource();
   assert.match(errors.pop(), /protokollieren/);
   assert.equal(apiCalls, 0);
   recorder.confirmedThisSession = true;
-  await recorder.begin();
+  await recorder.selectSource();
   assert.match(errors.at(-1), /Meet-Ton/);
   assert.equal(microphoneRequests, 0);
   assert.equal(apiCalls, 0);
   withAudio = true;
+  await recorder.selectSource();
+  assert.equal(apiCalls, 0, 'source selection must not start the recording');
+  assert.equal(displayRequests, 2);
   await recorder.begin();
   assert.equal(recorder.recorder.state, 'recording');
-  assert.equal(recorder.hasDisplayAudio, true);
+  assert.equal(displayRequests, 2, 'the recording button must not reopen the browser sharing picker');
   assert.equal(apiCalls, 1);
   recorder.stop();
   assert.ok(recorder.blob.size > 0);
