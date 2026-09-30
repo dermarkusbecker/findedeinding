@@ -733,8 +733,10 @@ export default async function handler(request, response) {
         openaiConfigured: Boolean(openai.apiKey),
         openaiModel: openai.model,
         whatsappConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
+        stripeConfigured: Boolean(process.env.STRIPE_SECRET_KEY),
+        stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       });
-      const checks=await checkIntegrationHealth({service,openaiKey:openai.apiKey,openaiModel:openai.model,googleToken:googleConnectionRecord?()=>googleAccessToken(service):null,whatsappToken:process.env.WHATSAPP_ACCESS_TOKEN,whatsappId:process.env.WHATSAPP_PHONE_NUMBER_ID,whatsappVersion:process.env.WHATSAPP_GRAPH_API_VERSION||'v23.0'});
+      const checks=await checkIntegrationHealth({service,openaiKey:openai.apiKey,openaiModel:openai.model,googleToken:googleConnectionRecord?()=>googleAccessToken(service):null,whatsappToken:process.env.WHATSAPP_ACCESS_TOKEN,whatsappId:process.env.WHATSAPP_PHONE_NUMBER_ID,whatsappVersion:process.env.WHATSAPP_GRAPH_API_VERSION||'v23.0',stripeKey:process.env.STRIPE_SECRET_KEY&&process.env.STRIPE_WEBHOOK_SECRET?process.env.STRIPE_SECRET_KEY:null});
       if (stratoMailConfig()) checks.domain_email = await verifyStratoMailbox(stratoMailConfig());
       response.setHeader('Cache-Control','private, no-store');
       return response.status(200).json(applyIntegrationHealth(registry,checks));

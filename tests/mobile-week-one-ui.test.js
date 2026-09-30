@@ -41,7 +41,7 @@ test('Mobile zeigt den Prozessstand beim Eintritt in Mein Bereich als schließba
   assert.match(html, /id="mobileProcessClarity"/);
   assert.match(css, /\.mobile-process-dialog::backdrop/);
   assert.match(css, /\.mobile-process-close \{/);
-  assert.match(script, /showView\(initialView, \{ openMobileProcess: initialView === 'today' \}\)/);
+  assert.match(script, /showView\(requestedView, \{ openMobileProcess: requestedView === 'today' \}\)/);
   assert.match(script, /showView\(button\.dataset\.view, \{ openMobileProcess: button\.dataset\.view === 'today' \}\)/);
   assert.match(script, /function openMobileProcessDialog\(\)[\s\S]*?mobilePortalViewport\(\)[\s\S]*?dialog\.showModal\(\)/);
   assert.match(script, /#mobileProcessProgress[\s\S]*?#mobileProcessPercent[\s\S]*?#mobileProcessPhase[\s\S]*?#mobileProcessClarity/);

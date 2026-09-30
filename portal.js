@@ -926,6 +926,7 @@ async function loadProgram(week = null) {
   const version=++programLoadVersion;
   clearClaraStepTransition();
   const initialView = !initialViewResolved ? 'today' : null;
+  const requestedView = initialView && typeof location !== 'undefined' && /(?:^|[?&])stripe=/.test(location.search) ? 'invoices' : initialView;
   const initial=Boolean(initialView);
   const workspacePromise=!customerWorkspace?request('/api/customer-records?action=overview').catch(()=>null):null;
   const suffix = week ? `?week=${week}` : initial ? '?fast=1' : '';
@@ -934,7 +935,7 @@ async function loadProgram(week = null) {
   program=loaded;
   currentWeek = safeSelectedWeek(program);currentContent=program.week;
   journeyMessages=[];claraCurrentPrompt='';
-  if(initial){initialViewResolved=true;showView(initialView, { openMobileProcess: initialView === 'today' });}else render();
+  if(initial){initialViewResolved=true;showView(requestedView, { openMobileProcess: requestedView === 'today' });}else render();
   if(workspacePromise)workspacePromise.then(workspace=>{if(version!==programLoadVersion)return;customerWorkspace=workspace;render();});
   if(program.onboardingComplete&&currentWeek>=1&&!program.curriculum){
     const selected=currentWeek;
