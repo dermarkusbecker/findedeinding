@@ -41,14 +41,16 @@ test('Verkaufsgespräch beginnt mit dem im Intake gespeicherten Termin und direk
   assert.match(api, /meet_url: meetUrl/);
 });
 
-test('Abschluss hat genau einen Einstieg und beginnt im selben Fenster mit der Aufzeichnungseinwilligung', async () => {
+test('Abschluss zeigt zuerst den Meet-Termin und danach die verpflichtende Aufzeichnungseinwilligung', async () => {
   const [html, js, api] = await Promise.all([read('admin.html'), read('admin.js'), read('api/leads.js')]);
   assert.equal((html.match(/id="createContractDocument"/g) || []).length, 1);
   assert.doesNotMatch(html, /id="createVideoContract"/);
   assert.match(html, /Vertragsdokument und Videovertrag erstellen/);
   const dialog = html.slice(html.indexOf('<dialog id="videoContractDialog"'), html.indexOf('<dialog id="contractEmailLockedDialog"'));
-  const order = ['video-consent-section', 'video-meet-section', 'recording-control-section', 'video-contract-fields', 'video-confirmation-list', 'finalizeVideoContract'].map(marker => dialog.indexOf(marker));
+  const order = ['video-meet-section', 'video-consent-section', 'recording-control-section', 'video-contract-fields', 'video-confirmation-list', 'finalizeVideoContract'].map(marker => dialog.indexOf(marker));
   assert.ok(order.every((position, index) => position > -1 && (!index || position > order[index - 1])));
+  assert.match(dialog, /video-meet-section[^]*?<header><span>1<\/span>/);
+  assert.match(dialog, /video-consent-section[^]*?<header><span>2<\/span>/);
   assert.equal((dialog.match(/name="captureConsent"/g) || []).length, 1);
   assert.doesNotMatch(dialog, /name="recordingConsent"/);
   assert.doesNotMatch(js, /setVideoContractMode|createVideoContract'/);
