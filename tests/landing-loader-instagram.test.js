@@ -9,7 +9,7 @@ test('Landingpage startet mit einem gebrandeten und zugänglichen Ladebildschirm
 
   assert.match(html, /<body class="site-loading">/);
   assert.match(html, /id="siteLoader"[^>]+role="status"[^>]+aria-live="polite"/);
-  assert.match(html, /site-loader-logo[\s\S]*?assets\/fdd-logo\.svg/);
+  assert.match(html, /site-loader-logo[\s\S]*?assets\/fdd-icon\.svg/);
   assert.match(html, /setTimeout\(\(\)=>\{[\s\S]*?classList\.add\('is-slow'\)[\s\S]*?\},4500\)/);
   assert.match(html, /__fddLoaderFailSafe/);
 });
