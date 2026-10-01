@@ -1,4 +1,5 @@
 import { curriculumWeekProgress } from './lib/curriculum-week-progress.js';
+import { mountCustomerAccount } from './portal-account.js';
 import { startVoiceCapture } from './portal-speech.js';
 import { mountCurriculum, openCurriculumArtifact, openCurriculumWeek } from './portal-curriculum.js';
 import { openLoginClarity } from './portal-login-clarity.js';
@@ -126,7 +127,7 @@ function showView(name, { openMobileProcess = false } = {}) {
 }
 
 function syncPortalMobileMenuLabel() {
-  const activeLabel = document.querySelector('#portalNavigation [data-view].active span')?.textContent;
+  const activeLabel = document.querySelector('.screen.active')?.dataset.panel === 'account' ? 'Mein Konto' : document.querySelector('#portalNavigation [data-view].active span')?.textContent;
   if ($('#portalMobileMenuLabel') && activeLabel) $('#portalMobileMenuLabel').textContent = activeLabel;
 }
 
@@ -1931,7 +1932,7 @@ function render() {
   const started = program.onboardingComplete;
   const content = currentContent;
   const paused = program.access.status === 'paused';
-  const activeView = document.querySelector('aside nav button.active')?.dataset.view || 'onboarding';
+  const activeView = document.querySelector('.screen.active')?.dataset.panel === 'account' ? 'account' : (document.querySelector('aside nav button.active')?.dataset.view || 'onboarding');
   const reviewingOnboarding = activeView === 'onboarding';
   const showOnboarding = reviewingOnboarding;
   const showPreOnboarding = !started && activeView === 'today';
@@ -1961,7 +1962,7 @@ function render() {
   const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
   $('#portalProfileAvatar').innerHTML = customerWorkspace?.profile?.photoUrl ? `<img src="${escapeHtml(customerWorkspace.profile.photoUrl)}" alt="Dein Profilbild">` : escapeHtml(initials);
   document.querySelector('.portal-profile strong').textContent = name;
-  document.querySelector('.portal-profile small').textContent = program.access.fullProgramAccess ? 'Demo-Zugang · alle Wochen offen' : 'Teilnehmer · Foto ändern';
+  document.querySelector('.portal-profile small').textContent = 'Konto verwalten';
   $('#onboarding').classList.toggle('hidden', !showOnboarding);
   $('#preOnboardingDashboard').classList.toggle('hidden', !showPreOnboarding);
   $('#programDashboard').classList.toggle('hidden', !showDashboard);
@@ -2574,7 +2575,16 @@ function fileAsBase64(file) {
   });
 }
 
-$('#portalProfilePhotoButton').addEventListener('click', () => $('#portalProfilePhotoInput').click());
+mountCustomerAccount({
+  request, showView, toast, adminPreviewMode,
+  onSaved: (result) => {
+    customerWorkspace = { ...(customerWorkspace || {}), profile: { ...(customerWorkspace?.profile || {}), ...result.profile } };
+    if (program?.profile) {
+      program.profile = { ...program.profile, name: result.profile.name, email: result.profile.email, birthDate: result.profile.birth_date, street: result.profile.street, postalCode: result.profile.postal_code, city: result.profile.city, country: result.profile.country, phone: result.profile.phone, mobilePhone: result.profile.mobile_phone, preferredChannel: result.profile.preferred_communication_channel };
+    }
+    render();
+  },
+});
 $('#portalProfilePhotoInput').addEventListener('change', async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
