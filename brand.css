@@ -1,9 +1,14 @@
 /* Original supplied brand artwork, framed without its transparent outer margin. */
 .logo .fdd-brand-full{display:block;width:248px;max-width:100%;height:auto;object-fit:contain}
 .logo .fdd-brand-raster{height:55px;object-fit:cover;object-position:center}
+.logo .logo-art{position:relative;display:block;flex:none;width:248px;height:55px;padding:0;background:none;border:0;border-radius:0;box-shadow:none;overflow:hidden}
+.logo .logo-art .fdd-brand-full{position:absolute;inset:0;display:block;width:100%;max-width:none;height:100%;object-fit:cover;object-position:center}
+.logo .logo-art .logo-art-base{filter:brightness(0) invert(1)}
+.logo .logo-art .logo-art-accent{clip-path:inset(0 79% 0 0);filter:none}
 .site-header .logo{flex-shrink:0;max-width:30%;padding:5px 0}
 footer .logo .fdd-brand-full{width:300px}
 footer .logo .fdd-brand-raster{height:67px}
+footer .logo .logo-art{width:300px;height:67px}
 .brand .fdd-brand-icon{display:block;width:36px;height:44px;object-fit:contain;flex-shrink:0}
 .brand{gap:12px}
 .brand>b{font-size:16px;letter-spacing:-.03em;white-space:nowrap}
@@ -13,6 +18,7 @@ footer .logo .fdd-brand-raster{height:67px}
 #brandingLogoPreview{object-fit:contain;width:260px;height:auto;max-height:90px}
 @media(max-width:700px){.site-header .logo{max-width:65%}.logo .fdd-brand-full{width:215px}footer .logo .fdd-brand-full{width:280px}.fdd-login-brand{max-width:280px}.brand .fdd-brand-icon{width:32px;height:40px}}
 @media(max-width:700px){.site-header .logo .fdd-brand-raster{height:48px}footer .logo .fdd-brand-raster{height:62px}}
+@media(max-width:700px){.site-header .logo .logo-art{width:215px;height:48px}footer .logo .logo-art{width:280px;height:62px}}
 .cookie-consent-copy .cookie-consent-mark{background:transparent;box-shadow:none}
 .cookie-consent-mark img{display:block;width:36px;height:44px;object-fit:contain}
 .fdd-mobile-login-brand{display:none}
