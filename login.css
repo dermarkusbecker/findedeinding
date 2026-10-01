@@ -46,3 +46,18 @@ body{background:var(--deep);color:var(--ink)}
 .login-panel input:-webkit-autofill:focus,
 .login-panel input:-webkit-autofill:active{-webkit-text-fill-color:#f1f8fc;caret-color:#f1f8fc;-webkit-box-shadow:0 0 0 1000px #061c29 inset;box-shadow:0 0 0 1000px #061c29 inset;border-color:#547f92}
 .login-panel input:-webkit-autofill:focus{border-color:#ffad76;outline:2px solid #ff945330}
+
+/* Keep the mobile brand above the form instead of beside it. */
+@media(max-width:800px){
+  main{display:block;min-height:100svh}
+  .login-story{display:none}
+  .login-panel{border-left:0;box-sizing:border-box;flex-direction:column;align-items:stretch;justify-content:center;min-height:100svh;padding:88px 24px 36px;width:100%}
+  .fdd-mobile-login-brand{align-self:center;margin:0 0 28px;max-width:270px;width:100%}
+  .login-panel form{margin:0 auto;max-width:480px;min-width:0;width:100%}
+  .login-panel input{max-width:100%;width:100%}
+  .login-choices{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .login-choices button{min-width:0;overflow-wrap:anywhere}
+}
+@media(max-width:400px){
+  .login-panel{padding:76px 18px 30px}
+}
