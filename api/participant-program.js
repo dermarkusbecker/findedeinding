@@ -617,7 +617,12 @@ export default async function handler(request, response) {
       await patchParticipantProgress(updated.service, session.participantId, progressRepair);
       updated = await getParticipantProgramAccess(session.participantId);
     }
-    return response.status(200).json({ ok: true, access: updated.serializedAccess, ...(actionReflection ? { reflection: actionReflection } : {}) });
+    let reportPending = false;
+    if (action === 'complete_week' && [4, 8].includes(Number(request.body?.week))) {
+      try { await ensureMilestoneReports({ result: updated, participantId: session.participantId }); }
+      catch { reportPending = true; }
+    }
+    return response.status(200).json({ ok: true, access: updated.serializedAccess, reportPending, ...(actionReflection ? { reflection: actionReflection } : {}) });
   } catch (error) {
     return response.status(Number(error.status) || 500).json({ error: error.message || 'Programmzugriff konnte nicht verarbeitet werden.' });
   }
