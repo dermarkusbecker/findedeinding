@@ -1,12 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {renderBrandedEmail} from '../lib/branded-email.js';
+import {normalizeSignatureContact,renderBrandedEmail} from '../lib/branded-email.js';
 const signature={active:true,signer_name:'Markus Becker',closing_text:'Herzliche Grüße',email:'markus@example.com',use_system_logo:true};
 test('mail uses absolute PNG branding and one signature in HTML and plain text',()=>{
  const mail=renderBrandedEmail({subject:'Dein nächster Schritt',body:'Hallo Alex,\n\nWillkommen.',signature,branding:{logo_url:'/assets/fdd-logo.svg'}});
- assert.match(mail.html,/https:\/\/findedeinding.vercel.app\/assets\/fdd-logo.png/);
+ assert.match(mail.html,/https:\/\/findedeinding.com\/assets\/fdd-logo.png/);
  assert.equal(mail.html.split('Herzliche Grüße').length-1,1);
  assert.match(mail.text,/Willkommen\.\n\nHerzliche Grüße/);
+});
+test('default signature shows Markus contact address and live website in HTML and text',async()=>{
+ const {mailAppearance}=await import('../lib/branded-mail-service.js');
+ for(const stored of [[],[{active:true,signer_name:'Markus Becker',email:'markus@findedeinding.de',website:'findedeinding.de'}]]){
+  const appearance=await mailAppearance({url:'https://db.example',key:'test'},async url=>Response.json(url.includes('communication_signatures')?stored:[{brand_name:'Finde dein Ding'}]));
+  const mail=renderBrandedEmail({subject:'Dein Vertrag',body:'Hallo Alex',...appearance});
+  for(const output of [mail.html,mail.text]){
+   assert.match(output,/markus@dermarkusbecker\.de/);
+   assert.match(output,/findedeinding\.com/);
+   assert.doesNotMatch(output,/markus@findedeinding\.de/);
+  }
+ }
 });
 test('mail escapes content and rejects executable logo URLs',()=>{
  const mail=renderBrandedEmail({subject:'<script>x</script>',body:'<img src=x onerror=alert(1)>',signature:{...signature,signer_name:'<iframe>'},branding:{logo_url:'javascript:alert(1)'}});
@@ -16,6 +28,10 @@ test('mail escapes content and rejects executable logo URLs',()=>{
 test('inactive signature and unchecked logo are honored',()=>{
  assert.doesNotMatch(renderBrandedEmail({signature:{...signature,active:false}}).html,/Markus Becker/);
  assert.doesNotMatch(renderBrandedEmail({signature:{...signature,use_system_logo:false}}).html,/<img/);
+});
+test('other personal signatures retain their own contact details',()=>{
+ const other={signer_name:'Clara Beispiel',email:'clara@example.test',website:'example.test'};
+ assert.equal(normalizeSignatureContact(other),other);
 });
 test('template placeholders remain visible until real recipient data is available',()=>{
  const mail=renderBrandedEmail({body:'Hallo {{vorname}}\n{{login_link}}'});

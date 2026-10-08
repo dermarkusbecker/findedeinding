@@ -5,7 +5,7 @@ import { handleReferences } from '../lib/references-api.js';
 import { stratoMailConfig, verifyStratoMailbox } from '../lib/strato-mail.js';
 import { syncStratoInbox } from '../lib/strato-inbox.js';
 import { handleFinance } from '../lib/finance-api.js';
-import { renderBrandedEmail } from '../lib/branded-email.js';
+import { normalizeSignatureContact, renderBrandedEmail } from '../lib/branded-email.js';
 import { mailAppearance, sendPreparedMail } from '../lib/branded-mail-service.js';
 import { normalizeIntake } from '../lib/intake.js';
 import {readCurriculumIndex,curriculumAccess,curriculumGates} from '../lib/curriculum-progress.js';
@@ -201,7 +201,7 @@ async function communicationCenter(service) {
     readJson(await fetch(`${service.url}/rest/v1/system_branding?id=eq.default&select=*&limit=1`, { headers: headers(service.key) })),
   ]);
   return {
-    templates, campaigns, automations, contacts, signatures, branding: brandingRows[0] || { id: 'default', brand_name: 'Finde dein Ding', logo_url: '/assets/fdd-logo.svg' },
+    templates, campaigns, automations, contacts, signatures: signatures.map(normalizeSignatureContact), branding: brandingRows[0] || { id: 'default', brand_name: 'Finde dein Ding', logo_url: '/assets/fdd-logo.svg' },
     audience: { all: contacts.length, leads: contacts.filter((item) => item.type === 'lead').length, customers: contacts.filter((item) => item.type === 'customer').length },
     summary: { templates: templates.length, activeTemplates: templates.filter((item) => item.status === 'active').length, campaigns: campaigns.length, scheduledCampaigns: campaigns.filter((item) => item.status === 'scheduled').length, automations: automations.length, activeAutomations: automations.filter((item) => item.enabled).length },
     mailTransport: { configured: Boolean(stratoMailConfig()), active: false, provider: 'strato', label: stratoMailConfig() ? 'STRATO konfiguriert · Zugang prüfen' : 'STRATO-Zugangsdaten fehlen' },
@@ -213,7 +213,8 @@ async function saveCommunicationSignature(service, body) {
   if (!name || !signerName) throw Object.assign(new Error('Bezeichnung und Name des Absenders sind erforderlich.'), { status: 400 });
   const payload = { name, closing_text: clean(body?.closingText, 240) || 'Herzliche Grüße', signer_name: signerName, role_title: clean(body?.roleTitle, 180) || null, company_name: clean(body?.companyName, 180) || null, email: clean(body?.email, 254) || null, phone: clean(body?.phone, 60) || null, website: clean(body?.website, 240) || null, use_system_logo: body?.useSystemLogo === true || body?.useSystemLogo === 'on', active: body?.active === true || body?.active === 'on', is_default: body?.isDefault === true || body?.isDefault === 'on' };
   if (payload.is_default) await readJson(await fetch(`${service.url}/rest/v1/communication_signatures?is_default=eq.true`, { method: 'PATCH', headers: headers(service.key), body: JSON.stringify({ is_default: false, updated_at: new Date().toISOString() }) }));
-  return uuidValid(body?.id) ? patchCommunicationRecord(service, 'communication_signatures', body.id, payload) : insertLeadRecord(service, 'communication_signatures', payload);
+  const corrected = normalizeSignatureContact(payload);
+  return uuidValid(body?.id) ? patchCommunicationRecord(service, 'communication_signatures', body.id, corrected) : insertLeadRecord(service, 'communication_signatures', corrected);
 }
 
 async function saveSystemBranding(service, body) {
@@ -224,6 +225,7 @@ async function saveSystemBranding(service, body) {
 
 function signatureText(signature) {
   if (!signature) return '';
+  signature = normalizeSignatureContact(signature);
   return [signature.closing_text, '', signature.signer_name, signature.role_title, signature.company_name, signature.email, signature.phone, signature.website].filter((value, index, values) => value || (index === 1 && values[0])).join('\n');
 }
 
