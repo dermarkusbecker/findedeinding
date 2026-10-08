@@ -1694,7 +1694,7 @@ body { -moz-osx-font-smoothing: grayscale; font-synthesis: none; text-rendering:
 .lead-row.is-unread{background:#e8f8f3;border-left:4px solid #0b9b81}
 .lead-row.is-unread .avatar{background:#0b9b81;color:#fff}
 .lead-unread-label{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:100px;background:#0b9b81;color:#fff;font-size:10px;font-style:normal;vertical-align:middle}
-#leadNavCount{margin-left:auto;min-width:20px;height:20px;padding:0 5px;border-radius:12px;background:#ff8c48;color:#092d35;font-size:11px;font-style:normal;font-weight:800;text-align:center;line-height:20px}
+#leadNavCount{display:inline-flex;align-items:center;justify-content:center;margin-left:auto;min-width:20px;height:20px;padding:0 5px;border-radius:12px;background:#ff8c48;color:#092d35;font-size:11px;font-style:normal;font-weight:800;text-align:center;line-height:20px}
 #leadNavCount[hidden]{display:none}
 .qa-booking-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;margin:8px 0;border:1px solid #d5e4e2;border-radius:10px;background:#f5faf9}
 .qa-booking-row label{font-weight:700;min-width:230px}

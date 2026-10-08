@@ -1172,8 +1172,15 @@ export default async function handler(request, response) {
       return response.status(200).json({ ok: true, ...result });
     }
     if (request.method === 'GET') {
-      const leads = await readJson(await fetch(`${service.url}/rest/v1/leads?select=*&order=created_at.desc&limit=200`, { headers: headers(service.key) }), 'Leads konnten nicht geladen werden.');
-      return response.status(200).json({ leads });
+      const [listResponse, countResponse] = await Promise.all([
+        fetch(`${service.url}/rest/v1/leads?select=*&order=created_at.desc&limit=200`, { headers: headers(service.key) }),
+        fetch(`${service.url}/rest/v1/leads?select=id&admin_first_viewed_at=is.null&converted_user_profile_id=is.null&limit=1`, { headers: headers(service.key, { Prefer: 'count=exact' }) }),
+      ]);
+      const leads = await readJson(listResponse, 'Leads konnten nicht geladen werden.');
+      await readJson(countResponse, 'Neue Interessenten konnten nicht gezählt werden.');
+      const total = Number(countResponse.headers.get('content-range')?.split('/')[1]);
+      response.setHeader('Cache-Control', 'private, no-store');
+      return response.status(200).json({ leads, unreadCount: Number.isSafeInteger(total) && total >= 0 ? total : leads.filter(lead => !lead.converted_user_profile_id && !lead.admin_first_viewed_at).length });
     }
     if (request.method === 'PATCH' && action === 'update') {
       const current = await leadById(service, request.body?.id);
