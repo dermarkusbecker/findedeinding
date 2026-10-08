@@ -1,8 +1,22 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {handleCustomerContracts} from '../lib/customer-contracts.js';import {customerData} from '../lib/customer-records-service.js';
+import {handleCustomerContracts} from '../lib/customer-contracts.js';import {customerData,customerVisibleContracts,customerContractDocument} from '../lib/customer-records-service.js';
 const service={url:'https://db.example',key:'test'},customer='00000000-0000-4000-8000-000000000001',lead='00000000-0000-4000-8000-000000000002',tariff='00000000-0000-4000-8000-000000000003';
 const body={tariffId:tariff,requestKey:'00000000-0000-4000-8000-000000000004',expectedGross:119,serviceStart:'2026-09-21',confirmed:true,signedDocument:{fileName:'unterschrieben.pdf',mimeType:'application/pdf',contentBase64:Buffer.from('%PDF-1.7 signed fixture').toString('base64')}};
 const response=()=>({code:200,status(n){this.code=n;return this;},json(v){this.body=v;return this;}});
+test('Kundenportal zeigt nur abgeschlossene Verträge und öffnet keine fremden oder internen PDFs',()=>{
+ const signed={id:customer,status:'signed',title:'Begleitung',contract_number:'FDD-V-1',document_bucket:'participant-documents',document_storage_path:'kunde/vertrag.pdf',signing_token_hash:'geheim',contract_data:{internalNote:'intern'}};
+ const cancelled={...signed,id:lead,status:'cancelled',contract_number:'FDD-V-2'};
+ const draft={...signed,id:tariff,status:'draft'};
+ const visible=customerVisibleContracts([signed,cancelled,draft]);
+ assert.deepEqual(visible.map(item=>item.status),['signed','cancelled']);
+ assert.equal(visible[0].hasDocument,true);
+ assert.equal(visible[0].document_storage_path,undefined);
+ assert.equal(visible[0].signing_token_hash,undefined);
+ assert.equal(visible[0].contract_data,undefined);
+ assert.equal(customerContractDocument([signed],customer),signed);
+ assert.throws(()=>customerContractDocument([draft],tariff),error=>error.status===404);
+ assert.throws(()=>customerContractDocument([signed],lead),error=>error.status===404);
+});
 test('manual contract capture rejects portal users, unconfirmed completion and impossible dates',async()=>{
  await assert.rejects(()=>handleCustomerContracts(service,{admin:false},{method:'POST',body},response()),e=>e.status===403);
  for(const patch of [{confirmed:false},{serviceStart:'2026-02-31'},{requestKey:''}])await assert.rejects(()=>handleCustomerContracts(service,{admin:true,participantId:customer},{method:'POST',body:{...body,...patch}},response()),e=>e.status===400);

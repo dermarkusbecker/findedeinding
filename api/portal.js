@@ -15,7 +15,7 @@ export default async function handler(request, response) {
   if (profile.must_change_password === true && session.adminPreview !== true) return response.redirect(302, '/login?change=required');
   if (profile.role !== 'user' || !profile.permissions?.some((permission) => ['customer_portal', 'clara_program'].includes(permission))) return response.redirect(302, '/login?error=access');
   const file = fileURLToPath(new URL('../portal.html', import.meta.url));
-  const portalVersion = '20260907-admin-onboarding-reset-v1';
+  const portalVersion = '20261008-customer-contract-dashboard-v1';
   const html = readFileSync(file, 'utf8')
     .replace('href="portal.css"', `href="portal.css?v=${portalVersion}"`)
     .replace('href="portal-access.css"', `href="portal-access.css?v=${portalVersion}"`)

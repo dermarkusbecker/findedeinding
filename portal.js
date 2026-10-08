@@ -929,7 +929,7 @@ async function loadProgram(week = null) {
   const initialView = !initialViewResolved ? 'today' : null;
   const requestedView = initialView && typeof location !== 'undefined' && /(?:^|[?&])stripe=/.test(location.search) ? 'invoices' : initialView;
   const initial=Boolean(initialView);
-  const workspacePromise=!customerWorkspace?request('/api/customer-records?action=overview').catch(()=>null):null;
+  const workspacePromise=!customerWorkspace?request('/api/customer-records?action=overview').catch(()=>({loadError:true})):null;
   const suffix = week ? `?week=${week}` : initial ? '?fast=1' : '';
   const loaded=await request(`/api/participant-program${suffix}`);
   if(version!==programLoadVersion)return;
@@ -1543,6 +1543,27 @@ function renderDashboardClarityChart() {
   target.innerHTML = `<svg viewBox="0 0 880 292" aria-hidden="true" focusable="false"><defs><linearGradient id="clarityLineGradient" x1="0" x2="1"><stop offset="0" stop-color="#ff765e"></stop><stop offset=".48" stop-color="#ffad54"></stop><stop offset="1" stop-color="#f2cf6b"></stop></linearGradient><linearGradient id="clarityAreaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb45e" stop-opacity=".32"></stop><stop offset="1" stop-color="#ff765e" stop-opacity="0"></stop></linearGradient><linearGradient id="clarityTargetGradient" x1="0" x2="1"><stop offset="0" stop-color="#a87818" stop-opacity=".13"></stop><stop offset=".55" stop-color="#f2c85b" stop-opacity=".26"></stop><stop offset="1" stop-color="#ffe6a0" stop-opacity=".16"></stop></linearGradient><filter id="clarityGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="blur"></feGaussianBlur><feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter></defs><rect class="clarity-chart-surface" x="${left}" y="${top}" width="${right - left}" height="${bottom - top}"></rect><rect class="clarity-low-band" x="${left}" y="${y(4)}" width="${right - left}" height="${bottom - y(4)}"></rect><rect class="clarity-growth-band" x="${left}" y="${y(7)}" width="${right - left}" height="${y(4) - y(7)}"></rect><rect class="clarity-target-band" x="${left}" y="${top}" width="${right - left}" height="${y(7) - top}"></rect>${verticalGrid}${horizontalGrid}${markerLines}${areaPath ? `<path class="clarity-progress-area" d="${areaPath}"></path>` : ''}${points ? `<path class="clarity-progress-line clarity-progress-glow" d="${linePath}"></path><path class="clarity-progress-line" d="${linePath}"></path>` : ''}${dots}${weekLabels}<g class="target-chip"><rect x="${right - 170}" y="${top + 10}" width="158" height="28" rx="14"></rect><text class="target-label" x="${right - 91}" y="${top + 28}">ZIELBEREICH 7–10</text></g></svg>${measurements.length ? '' : '<p>Noch kein Klarheitswert gespeichert. Deine erste Messung entsteht in Woche 1.</p>'}`;
 }
 
+function renderDashboardContracts(visible) {
+  const section = $('#portalDashboardContracts');
+  section.classList.toggle('hidden', !visible);
+  if (!visible) return;
+  const contracts = (customerWorkspace?.contracts || []).filter((contract) => ['signed', 'cancelled'].includes(contract.status));
+  $('#portalDashboardContractsCount').textContent = `${contracts.length} ${contracts.length === 1 ? 'Vertrag' : 'Verträge'}`;
+  $('#portalDashboardContractsList').innerHTML = customerWorkspace?.loadError
+    ? '<p class="portal-dashboard-contracts-empty">Deine Verträge konnten gerade nicht geladen werden. Bitte lade die Seite erneut.</p>'
+    : !customerWorkspace
+      ? '<p class="portal-dashboard-contracts-empty">Deine Verträge werden geladen …</p>'
+      : contracts.length
+        ? contracts.map((contract) => {
+          const signed = contract.signed_at && !Number.isNaN(new Date(contract.signed_at).getTime())
+            ? `Abgeschlossen am ${new Date(contract.signed_at).toLocaleDateString('de-DE')}` : 'Abgeschlossen';
+          const state = contract.status === 'cancelled' ? 'Storniert' : contract.terminated_effective_on ? `Gekündigt zum ${formatProgramDate(contract.terminated_effective_on)}` : 'Abgeschlossen';
+          const url = adminPreviewUrl(`/api/customer-records?action=contract-download&contractId=${encodeURIComponent(contract.id)}`);
+          return `<article class="portal-dashboard-contract"><span class="portal-dashboard-contract-icon" aria-hidden="true">▤</span><div><strong>${escapeHtml(contract.title || 'Vertrag')}</strong><small>${escapeHtml(contract.contract_number || signed)} · ${escapeHtml(state)}</small></div>${contract.hasDocument ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" aria-label="Vertrag ${escapeHtml(contract.contract_number || contract.title || '')} als PDF öffnen">PDF öffnen ↗</a>` : '<span class="portal-dashboard-contract-pending">PDF wird bereitgestellt</span>'}</article>`;
+        }).join('')
+        : '<p class="portal-dashboard-contracts-empty">Hier erscheinen deine abgeschlossenen Verträge.</p>';
+}
+
 function renderProgramDashboard() {
   if (!program?.access) return;
   const summaries = new Map((program.programWeeks || []).map((week) => [Number(week.week), week]));
@@ -1966,6 +1987,7 @@ function render() {
   $('#onboarding').classList.toggle('hidden', !showOnboarding);
   $('#preOnboardingDashboard').classList.toggle('hidden', !showPreOnboarding);
   $('#programDashboard').classList.toggle('hidden', !showDashboard);
+  renderDashboardContracts(showDashboard || showPreOnboarding);
   $('#activeWeek').classList.toggle('hidden', showOnboarding || showPreOnboarding || showDashboard || !started || !content);
   $('.welcome').classList.toggle('week-hero-compact', Boolean(
     started
