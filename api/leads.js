@@ -1010,13 +1010,19 @@ export default async function handler(request, response) {
         catch (error) { stripeStatus = { error: error.message }; }
       }
       if (body.contractAction === 'sign') {
-        const signedLead = await leadById(service, body.id);
-        const signedContract = await leadContractById(service, body.id, body.contractId);
-        const participant = await activateContractedLead(service, signedLead, signedContract.program_start_date);
+        let participant = null;
+        let activationError = null;
+        try {
+          const signedLead = await leadById(service, body.id);
+          const signedContract = await leadContractById(service, body.id, body.contractId);
+          participant = await activateContractedLead(service, signedLead, signedContract.program_start_date);
+        } catch (error) {
+          activationError = error.message || 'Das Kundenkonto konnte nicht aktiviert werden.';
+        }
         await archiveLeadInvoices(service, body.id).catch(() => null);
         try { mailStatus = await sendSignedContractMail(service, { leadId: body.id, contractId: body.contractId, actor }); }
         catch (error) { mailStatus = { error: error.message }; }
-        return response.status(200).json({ ok: true, ...result, participant, participantActivated: !participant.alreadyActive, mailStatus, stripeStatus });
+        return response.status(200).json({ ok: true, ...result, participant, participantActivated: Boolean(participant && !participant.alreadyActive), activationError, mailStatus, stripeStatus });
       }
       return response.status(200).json({ ok: true, ...result, mailStatus, stripeStatus });
     }
