@@ -1,0 +1,18 @@
+.crm-message-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px}
+.crm-message-search{display:flex;align-items:center;gap:9px;flex:1;max-width:420px;min-height:40px;padding:0 12px;border:1px solid #cbdedb;border-radius:10px;background:#fff;color:#3d7670}
+.crm-message-search:focus-within{border-color:#168c79;box-shadow:0 0 0 3px #168c791c}
+.crm-message-search input{width:100%;min-width:0;padding:8px 0;border:0!important;outline:0!important;background:transparent;font:inherit;color:#213d43}
+.crm-message-toolbar>span{color:#718783;font-size:12px;white-space:nowrap}
+.customer-message-list.crm-message-list,.lead-timeline.crm-message-list{display:flex;flex-direction:column;gap:5px;margin-top:12px}
+.customer-message-list .crm-message-row,.lead-timeline .lead-email-open.crm-message-row{display:grid;grid-template-columns:28px minmax(0,1.55fr) minmax(0,1fr) auto 16px;align-items:center;gap:10px;min-height:44px;width:100%;padding:7px 11px;border:1px solid #dce8e5;border-radius:9px;background:#f9fcfb;color:#244148;font:inherit;text-align:left;cursor:pointer;transition:background .15s,border-color .15s}
+.customer-message-list .crm-message-row:hover,.customer-message-list .crm-message-row:focus-visible,.lead-timeline .lead-email-open.crm-message-row:hover,.lead-timeline .lead-email-open.crm-message-row:focus-visible{background:#edf8f4;border-color:#83cbb7;outline:2px solid transparent;transform:none}
+.crm-message-row>strong,.crm-message-row>.crm-message-address{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crm-message-row>strong{font-size:13px;line-height:1.3;font-weight:750}
+.crm-message-row>.crm-message-address{display:block;border-radius:0;padding:0;background:transparent;color:#637b7a;font-size:12px;font-weight:500}
+.crm-message-row>small,.lead-timeline .crm-message-row>small{display:block;margin:0;color:#78908d;font-size:11px;white-space:nowrap}
+.crm-message-row>em{color:#16846f;font-size:13px;font-style:normal}
+.crm-message-row>.crm-message-icon,.lead-timeline .crm-message-row>.crm-message-icon{display:flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border-radius:7px;background:#e3f2ed;color:#18816d;font-size:12px;font-weight:800}
+.customer-message-list .empty,.lead-timeline .lead-empty{padding:16px;color:#6d827e;font-size:13px}
+#leadEmailBody>.communication-log-files{margin-top:20px;padding-top:16px;border-top:1px solid #dbe7e5}
+#leadEmailBody>button.secondary{margin-top:18px}
+@media(max-width:700px){.crm-message-toolbar{align-items:stretch;flex-direction:column}.crm-message-search{max-width:none}.customer-message-list .crm-message-row,.lead-timeline .lead-email-open.crm-message-row{grid-template-columns:26px minmax(0,1fr) auto;gap:3px 9px;min-height:54px;padding:8px 10px}.crm-message-row>.crm-message-icon{grid-row:1/3}.crm-message-row>strong{grid-column:2;grid-row:1}.crm-message-row>.crm-message-address{grid-column:2;grid-row:2}.crm-message-row>small,.lead-timeline .crm-message-row>small{grid-column:3;grid-row:1;font-size:10px}.crm-message-row>em{display:none}}
