@@ -38,7 +38,7 @@ test('Die Zweitnavigation öffnet eigenständige Interessenten-Seiten und starte
 
 test('Verkaufsgespräch erfasst nur die klaren Kontaktdaten mit bedingter WhatsApp-Pflicht', async () => {
   const [html, script, styles] = await Promise.all([file('admin.html'), file('admin.js'), file('admin-crm-refresh.css')]);
-  assert.match(html, /<section class="lead-basics lead-wizard-page" data-lead-step="2" hidden>/);
+  assert.match(html, /<section class="lead-basics lead-wizard-page" data-lead-step="3" hidden>/);
   for (const name of ['firstName', 'lastName', 'email', 'mobilePhone']) assert.match(html, new RegExp(`name="${name}"[^>]*required`));
   assert.match(html, /name="hasAlternateWhatsapp"/);
   assert.match(html, /id="leadWhatsappField" hidden/);
@@ -89,7 +89,7 @@ test('Intake bucht den Termin mit Meet-Link und der Abschluss versendet keine zw
   assert.match(migration, /sales_conversation_appointment_confirmation/);
 });
 
-test('Interessenten-Navigation bildet Eingang, aktive Fälle, kein und späteres Interesse mit Echtdaten ab', async () => {
+test('Interessenten-Navigation bildet Eingang, aktive Fälle, Follow-up und Disqualifikation ab', async () => {
   const [html, script, styles, api, schema, migration] = await Promise.all([
     file('admin.html'),
     file('admin.js'),
@@ -99,14 +99,14 @@ test('Interessenten-Navigation bildet Eingang, aktive Fälle, kein und späteres
     file('supabase/migrations/20260904235900_lead_interest_navigation.sql'),
   ]);
   assert.match(script, /groups:\[\{label:'Gewinnung'/);
-  for (const label of ['Eingang', 'Aktive Interessenten', 'Kein Interesse', 'Später Interesse']) assert.match(script, new RegExp(label));
+  for (const label of ['Eingang', 'Aktive Interessenten', 'Kein Interesse', 'Follow-up', 'Disqualifiziert']) assert.match(script, new RegExp(label));
   assert.match(script, /function leadNavigationCounts/);
   assert.match(script, /function setLeadListFilter/);
   assert.match(script, /function resetLeadListView/);
   assert.match(script, /if\(lead\.converted_user_profile_id\)return false/);
   assert.match(script, /renderContextNavigation\('leads'\)/);
   assert.match(html, /id="leadListSearch"/);
-  assert.match(script, /later:'Später Interesse'/);
+  assert.match(script, /later:'Follow-up'/);
   assert.match(styles, /\.lead-context-group\s*\{/);
   assert.match(styles, /\.lead-context-filter\.active/);
   assert.match(api, /'offer', 'later', 'customer'/);
@@ -125,7 +125,7 @@ test('Interessenentscheidung ordnet Listen zu und erzeugt eine zentrale Wiedervo
     file('supabase/migrations/20260910173000_lead_interest_follow_up.sql'),
   ]);
   assert.match(html, /id="markLeadLost"[^>]*>Kein Interesse/);
-  assert.match(html, /id="markLeadLater"[^>]*>Später Interesse/);
+  assert.match(html, /id="markLeadLater"[^>]*>Follow-up/);
   assert.match(html, /Wann sollen wir Dich nochmal kontaktieren\?/);
   assert.match(html, /name="followUpDate" type="date" required/);
   assert.match(styles, /\.lead-follow-up-dialog::backdrop/);

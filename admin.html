@@ -101,6 +101,7 @@
           </div>
           <button type="button" class="secondary" id="refreshDashboardData">Daten aktualisieren ↻</button><span class="dashboard-live-state"><i></i><span id="dashboardLiveSummary">Live-Daten werden geladen</span></span>
         </div>
+        <section class="card" id="followUpNotificationCard" hidden><div class="card-head"><div><p class="eyebrow">Follow-up</p><h2>Benachrichtigungen</h2></div><span class="count" id="followUpNotificationCount">0</span></div><div id="followUpNotificationList"></div></section>
         <div class="metrics">
           <article class="dark">
             <div><span>Aktive Kunden</span><b id="dashboardNewCustomers">0 diesen Monat</b></div>
@@ -339,9 +340,9 @@
       </section>
 
       <section class="view" data-panel="tasks" id="taskWorkspace">
-        <div class="intro"><div><p class="eyebrow">Dein Arbeitsbereich</p><h1>Aufgaben</h1><p>Wiedervorlagen, Kundenfragen und nächste Schritte an einem Ort.</p></div><div><button type="button" class="secondary" id="refreshTasks">Aktualisieren ↻</button><button type="button" class="primary" id="createTask">+ Aufgabe anlegen</button></div></div>
+        <div class="intro"><div><p class="eyebrow">Dein Arbeitsbereich</p><h1>Aufgaben</h1><p>Follow-ups, Kundenfragen und nächste Schritte an einem Ort.</p></div><div><button type="button" class="secondary" id="refreshTasks">Aktualisieren ↻</button><button type="button" class="primary" id="createTask">+ Aufgabe anlegen</button></div></div>
         <div class="task-statistics" id="taskStatistics"></div>
-        <div class="toolbar task-filters" id="taskFilters"><input id="taskSearch" placeholder="Aufgabe oder Kontakt suchen" aria-label="Aufgaben durchsuchen"><select id="taskStatus" aria-label="Aufgabenstatus"><option value="open">Offen</option><option value="overdue">Überfällig</option><option value="today">Heute fällig</option><option value="completed">Erledigt</option><option value="all">Alle</option></select><select id="taskSource" aria-label="Aufgabenquelle"><option value="">Alle Quellen</option><option value="manual">Manuell</option><option value="lead_follow_up">Wiedervorlage</option><option value="clarity_decline">Klarheitsrückgang</option><option value="customer_question">Kundenfrage</option></select></div>
+        <div class="toolbar task-filters" id="taskFilters"><input id="taskSearch" placeholder="Aufgabe oder Kontakt suchen" aria-label="Aufgaben durchsuchen"><select id="taskStatus" aria-label="Aufgabenstatus"><option value="open">Offen</option><option value="overdue">Überfällig</option><option value="today">Heute fällig</option><option value="completed">Erledigt</option><option value="all">Alle</option></select><select id="taskSource" aria-label="Aufgabenquelle"><option value="">Alle Quellen</option><option value="manual">Manuell</option><option value="lead_follow_up">Follow-up</option><option value="clarity_decline">Klarheitsrückgang</option><option value="customer_question">Kundenfrage</option></select></div>
         <p id="taskLoadStatus" role="status"></p><div id="taskList" class="crm-task-list"></div>
       </section>
       <dialog id="taskEditor" class="crm-task-editor"><form id="taskEditorForm"><div class="dialog-head"><h2 id="taskEditorTitle">Aufgabe</h2><button type="button" id="closeTaskEditor" aria-label="Schließen">×</button></div><label>Kontakt<select name="leadId" id="taskContact"></select></label><label>Titel<input name="title" maxlength="220" required></label><label>Beschreibung<textarea name="details" rows="4" maxlength="2000"></textarea></label><label id="taskDueLabel">Fällig am<input name="dueAt" type="date"></label><label id="taskNoteLabel" hidden>Bearbeitungsnotiz<textarea name="adminNote" rows="3" maxlength="2000"></textarea></label><label class="task-completed"><input name="completed" type="checkbox">Erledigt</label><p id="taskSaveStatus" role="status"></p><button type="submit" class="primary" id="saveTask">Speichern</button></form></dialog>
@@ -396,7 +397,7 @@
           <button class="lead-back" id="closeLeadDashboard" type="button">← Zurück zu allen Interessenten</button>
           <section class="lead-profile-hero" id="leadDashboardOverview">
             <div class="lead-profile-main"><span id="leadDashboardInitials">IN</span><div><p class="eyebrow">Interessentenakte</p><div class="lead-name-line"><h1 id="leadDashboardName">Interessent</h1><i id="leadDashboardStatus">Neu</i></div><p id="leadDashboardContact">E-Mail · Telefon</p></div></div>
-            <div class="lead-profile-actions"><div class="lead-interest-actions" aria-label="Interessenstatus festlegen"><button id="markLeadLost" type="button">Kein Interesse</button><button id="markLeadLater" type="button">Später Interesse</button></div><button class="secondary" id="editLeadProfile" type="button">Kontaktdaten & Termin</button><button class="primary" id="leadDashboardConvert" type="button">Vertrag & Kundenstart →</button></div>
+            <div class="lead-profile-actions"><div class="lead-interest-actions" aria-label="Interessenstatus festlegen"><button id="markLeadLost" type="button">Kein Interesse</button><button id="markLeadLater" type="button">Follow-up</button></div><button class="secondary" id="editLeadProfile" type="button">Kontaktdaten & Termin</button><button class="primary" id="leadDashboardConvert" type="button">Vertrag & Kundenstart →</button></div>
           </section>
           <div class="lead-dashboard-page active" data-lead-page="overview">
             <header class="lead-page-heading"><div><p class="eyebrow">Überblick</p><h2>Kontakt & Vertriebsstatus</h2></div><p>Alle zentralen Informationen und nächsten Schritte dieser Interessentenakte.</p></header>
@@ -430,7 +431,7 @@
             <div class="lead-dashboard-grid"><section class="lead-dashboard-card lead-bank-card" id="leadBankCard"><div class="lead-card-heading"><div><span class="lead-card-icon">▦</span><h2>Bankverbindung</h2></div><button class="lead-card-menu" type="button" data-lead-record="bank" aria-label="Bankverbindung bearbeiten"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><dl id="leadBankDetails"></dl><button class="lead-card-action" type="button" data-lead-record="bank">Bankdaten hinterlegen</button></section></div>
           </div>
           <div class="lead-dashboard-page lead-detail-page" data-lead-page="tasks" hidden>
-            <header class="lead-page-heading"><div><p class="eyebrow">Organisation</p><h2>Aufgaben & Fragen</h2></div><p>Offene Aufgaben, Wiedervorlagen und später verknüpfte Fragen an einem Ort.</p></header>
+            <header class="lead-page-heading"><div><p class="eyebrow">Organisation</p><h2>Aufgaben & Fragen</h2></div><p>Offene Aufgaben, Follow-ups und Kundenfragen an einem Ort.</p></header>
             <div class="lead-dashboard-grid"><section class="lead-dashboard-card lead-task-card" id="leadTasksCard"><div class="lead-card-heading"><div><span class="lead-card-icon">✓</span><h2>Aufgaben & Kundenfragen</h2></div><button class="lead-card-menu" type="button" data-lead-record="task" aria-label="Aufgabe anlegen"><span aria-hidden="true"><i></i><i></i><i></i></span></button></div><div class="lead-task-tabs"><button class="active" type="button" data-lead-task-filter="all">Alle</button><button type="button" data-lead-task-filter="questions">Fragen aus 8 Wochen</button></div><div class="lead-task-list" id="leadTaskList"></div><button class="lead-card-action" type="button" data-lead-record="task">+ Aufgabe anlegen</button></section></div>
           </div>
           <div class="lead-dashboard-page lead-detail-page" data-lead-page="notes" hidden>
@@ -540,6 +541,8 @@
               <div>
                 <b>Termine</b><small>Verfügbarkeit & Regeln</small>
               </div></button
+            ><button data-settings-tab="followups">
+              <span>↻</span><div><b>Follow-ups</b><small>Erinnerungen &amp; Kanal</small></div></button
             ><button data-settings-tab="intake">
               <span>≡</span><div><b>Intake Verfahren</b><small>Erstkontakt &amp; Frageablauf</small></div></button
             ><button data-settings-tab="integrations">
@@ -693,6 +696,15 @@
                   </button>
                 </div>
               </section>
+            </section>
+            <section class="settings-panel" data-settings-panel="followups">
+              <div class="card settings-hero"><span class="settings-icon peach">↻</span><div><p class="eyebrow">Vertrieb &amp; Wiedervorlage</p><h2>Follow-up-Erinnerungen</h2><p>Am fälligen Tag erinnert das CRM an den Kontakt mit dem Interessenten.</p></div></div>
+              <form class="card settings-card" id="followUpSettingsForm">
+                <div class="settings-card-head"><div><h3>Erinnerungskanal</h3><p>Die E-Mail geht standardmäßig an Markus. Bei vielen Follow-ups kannst du stattdessen interne Benachrichtigungen nutzen.</p></div><span class="settings-state active" id="followUpSettingsState">Wird geladen …</span></div>
+                <label><input type="radio" name="reminderChannel" value="email" checked> E-Mail an Markus senden</label>
+                <label><input type="radio" name="reminderChannel" value="notification"> Benachrichtigung im CRM anzeigen</label>
+                <div class="settings-action-row"><button type="submit" class="primary">Einstellung speichern</button></div>
+              </form>
             </section>
             <section class="settings-panel" data-settings-panel="intake">
               <div class="card settings-hero">
@@ -1010,8 +1022,8 @@
         <nav class="lead-wizard-progress" aria-label="Fortschritt im Verkaufsgespräch">
           <ol>
             <li class="active" data-lead-progress-step="1" aria-current="step"><button type="button" data-open-lead-step="1"><span>1</span><div><b>Termin</b><small>Intake-Termin &amp; Meet</small></div></button></li>
-            <li data-lead-progress-step="2"><button type="button" data-open-lead-step="2"><span>2</span><div><b>Kontakt</b><small>Kontaktdaten &amp; Anschrift</small></div></button></li>
-            <li data-lead-progress-step="3"><button type="button" data-open-lead-step="3"><span>3</span><div><b>Gespräch</b><small>Leitfaden &amp; Antworten</small></div></button></li>
+            <li data-lead-progress-step="2"><button type="button" data-open-lead-step="2"><span>2</span><div><b>Gespräch</b><small>Leitfaden &amp; Antworten</small></div></button></li>
+            <li data-lead-progress-step="3"><button type="button" data-open-lead-step="3"><span>3</span><div><b>Kontakt</b><small>Kontaktdaten &amp; Anschrift</small></div></button></li>
             <li data-lead-progress-step="4"><button type="button" data-open-lead-step="4"><span>4</span><div><b>Abschluss</b><small>Vertrag &amp; Video</small></div></button></li>
           </ol>
         </nav>
@@ -1064,10 +1076,10 @@
           </div>
           </details>
         </section>
-        <section class="lead-basics lead-wizard-page" data-lead-step="2" hidden>
+        <section class="lead-basics lead-wizard-page" data-lead-step="3" hidden>
           <div class="lead-section-head">
             <div>
-              <p class="eyebrow">Schritt 2 · Stammdaten</p>
+              <p class="eyebrow">Schritt 3 · Stammdaten</p>
               <h3>Kontaktdaten</h3>
             </div>
             <span>Alle Angaben lassen sich direkt bearbeiten</span>
@@ -1078,15 +1090,15 @@
             <label>E-Mail-Adresse <em>Pflichtfeld</em><input name="email" type="email" autocomplete="email" required /></label>
             <label>Mobilnummer <em>Pflichtfeld</em><input name="mobilePhone" type="tel" autocomplete="tel" required /></label>
             <label>Telefonnummer <small>optional</small><input name="phone" type="tel" autocomplete="tel-national" /></label>
-            <label>Straße <em>Pflichtfeld</em><input name="streetName" maxlength="160" required /></label>
-            <label>Hausnummer <em>Pflichtfeld</em><input name="houseNumber" maxlength="30" required /></label>
-            <label>Postleitzahl <em>Pflichtfeld</em><input name="postalCode" autocomplete="postal-code" inputmode="numeric" maxlength="20" required /></label>
-            <label>Ort <em>Pflichtfeld</em><input name="city" autocomplete="address-level2" maxlength="120" required /></label>
+            <label>Straße <small>optional</small><input name="streetName" maxlength="160" /></label>
+            <label>Hausnummer <small>optional</small><input name="houseNumber" maxlength="30" /></label>
+            <label>Postleitzahl <small>optional</small><input name="postalCode" autocomplete="postal-code" inputmode="numeric" maxlength="20" /></label>
+            <label>Ort <small>optional</small><input name="city" autocomplete="address-level2" maxlength="120" /></label>
             <label class="lead-whatsapp-toggle"><span>WhatsApp</span><span class="lead-switch-copy"><input name="hasAlternateWhatsapp" type="checkbox" /> Abweichende WhatsApp-Nummer verwenden</span></label>
             <label class="lead-whatsapp-field" id="leadWhatsappField" hidden>Abweichende WhatsApp-Nummer <em>Pflichtfeld</em><input name="whatsappPhone" type="tel" autocomplete="tel" /></label>
           </div>
         </section>
-        <section class="lead-questions lead-wizard-page" data-lead-step="3" hidden>
+        <section class="lead-questions lead-wizard-page" data-lead-step="2" hidden>
           <div class="lead-section-head">
             <div>
               <p class="eyebrow">Gesprächsleitfaden</p>
@@ -1120,15 +1132,11 @@
           </div>
           <p>Ein Interessent bleibt Lead, bis Vertragsdokument, ausdrückliche Erklärungen und Video-Abschluss nachvollziehbar dokumentiert sind. Danach wird das Teilnehmerkonto angelegt; die zusätzliche digitale Kundensignatur bleibt separat nachvollziehbar.</p>
           <label class="lead-conclusion-control">Abschlussentscheidung<select name="status">
-            <option value="new">Neu</option>
-            <option value="contacted">Kontaktiert</option>
-            <option value="scheduled">Termin vereinbart</option>
-            <option value="consultation">Gespräch geführt</option>
-            <option value="offer">Angebot offen</option>
-            <option value="later">Später Interesse</option>
+            <option value="offer">Vertragsabschluss</option>
+            <option value="disqualified">Disqualifiziert</option>
+            <option value="later">Follow-up</option>
             <option value="lost">Kein Interesse</option>
-            <option value="customer" disabled>Teilnehmer (automatisch)</option>
-          </select></label>
+          </select></label><label id="leadConclusionFollowUp" hidden>Follow-up am <input name="followUpDate" type="date"></label>
           <div class="lead-wizard-review">
             <article><small>Kontakt</small><strong id="leadReviewContact">–</strong></article>
             <article><small>Termin</small><strong id="leadReviewAppointment">–</strong></article>
@@ -1159,7 +1167,7 @@
       <form id="videoContractForm">
         <div class="dialog-head video-contract-head"><div><p class="eyebrow" id="videoContractModeLabel">VERKAUFSGESPRÄCH · ABSCHLUSS</p><h2 id="videoContractTitle">Vertragsdokument und Videovertrag erstellen</h2><small id="videoContractSubtitle">Google Meet öffnen, Einwilligung protokollieren, Systemaufnahme lokal speichern und anschließend hochladen.</small></div><button type="button" data-close-video-contract aria-label="Abschluss schließen und zum Verkaufsgespräch zurückkehren"><span>Schließen</span><b aria-hidden="true">×</b></button></div>
         <div class="video-contract-layout">
-          <aside class="video-contract-preview"><div class="contract-pdf-toolbar" aria-label="PDF-Vorschau steuern"><button type="button" data-pdf-prev aria-label="Vorherige PDF-Seite">←</button><span data-pdf-page>Seite 1</span><button type="button" data-pdf-next aria-label="Nächste PDF-Seite">→</button><button type="button" data-pdf-zoom-out aria-label="PDF verkleinern">−</button><span data-pdf-zoom>100 %</span><button type="button" data-pdf-zoom-in aria-label="PDF vergrößern">+</button><button type="button" data-pdf-expand aria-pressed="false">Vorschau vergrößern</button></div><div class="contract-pdf-stage" data-pdf-stage hidden><canvas aria-label="Vertragsdokument, aktuelle Seite"></canvas></div><iframe id="videoContractPdf" src="/assets/forms/FDD-VTR-001_B2C-Videovertrag_Finde-Dein-Ding_V1.0.pdf#page=1&amp;zoom=100" title="B2C-Videovertrag FDD-VTR-001"></iframe><p class="contract-pdf-status" data-pdf-status role="status" aria-live="polite"></p><a id="videoContractPdfLink" href="/assets/forms/FDD-VTR-001_B2C-Videovertrag_Finde-Dein-Ding_V1.0.pdf" target="_blank" rel="noopener">PDF vollständig öffnen ↗</a></aside>
+          <aside class="video-contract-preview"><div class="contract-pdf-toolbar" aria-label="PDF-Vorschau steuern"><button type="button" data-pdf-prev aria-label="Vorherige PDF-Seite">←</button><span data-pdf-page>Seite 1</span><button type="button" data-pdf-next aria-label="Nächste PDF-Seite">→</button><button type="button" data-pdf-zoom-out aria-label="PDF verkleinern">−</button><span data-pdf-zoom>100 %</span><button type="button" data-pdf-zoom-in aria-label="PDF vergrößern">+</button><button type="button" data-pdf-expand aria-pressed="false">Vorschau vergrößern</button></div><div class="contract-pdf-stage" data-pdf-stage hidden><canvas aria-label="Vertragsdokument, aktuelle Seite"></canvas></div><iframe id="videoContractPdf" src="/assets/forms/FDD-VTR-001_Videovertrag_Finde-Dein-Ding_V1.0.pdf#page=1&amp;zoom=100" title="Videovertrag FDD-VTR-001"></iframe><p class="contract-pdf-status" data-pdf-status role="status" aria-live="polite"></p><a id="videoContractPdfLink" href="/assets/forms/FDD-VTR-001_Videovertrag_Finde-Dein-Ding_V1.0.pdf" target="_blank" rel="noopener">PDF vollständig öffnen ↗</a></aside>
           <section class="video-contract-workspace">
             <section class="video-contract-section video-meet-section "><header><span>1</span><div><small>Verkaufsgespräch</small><h3>Google-Meet-Termin</h3></div></header><p id="videoContractMeetTime">Termin wird geladen …</p><a class="primary hidden" id="openVideoContractMeet" target="_blank" rel="noopener noreferrer">Google Meet öffnen ↗</a><p id="videoContractMeetStatus">Öffne den zum Verkaufsgespräch gehörenden Termin. Das Meet-Fenster kann anschließend als Bildquelle für die Aufnahme ausgewählt werden.</p></section>
             <section class="video-contract-section video-consent-section "><header><span>2</span><div><small>Vor jeder Aufnahme</small><h3>Aufzeichnung &amp; Einwilligung</h3></div></header><div class="recording-consent"><label><input name="captureConsent" type="checkbox" required><span>Ausdrückliche Aufzeichnungseinwilligung liegt vor.</span></label><label><input name="capturePurposeAccepted" type="checkbox" required><span>Aufzeichnung erfolgt ausschließlich zur Abschlussdokumentation und Beweissicherung.</span></label><label><input name="captureRevocationAccepted" type="checkbox" required><span>Die Widerrufsmöglichkeit für die Zukunft wurde erläutert.</span></label></div><button class="primary" id="confirmVideoRecordingConsent" type="button" disabled>Einwilligung protokollieren</button><p id="recordingConsentState" role="status" aria-live="polite">Alle drei Pflichtbestätigungen auswählen. Erst nach der Protokollierung wird die Aufnahme freigegeben.</p></section>
@@ -1181,7 +1189,7 @@
         </div>
       </form>
     </dialog>
-    <dialog id="contractEmailLockedDialog" class="contract-email-locked-dialog"><div class="dialog-head"><div><p class="eyebrow">Versand noch gesperrt</p><h2>B2C-Videovertrag noch nicht abgeschlossen</h2><small>Bitte zuerst den B2C-Videovertrag erstellen und die zugehörige Videoaufnahme hochladen. Anschließend wird der Versand des Vertragsdokuments automatisch freigeschaltet.</small></div><button type="button" data-close-contract-email-notice aria-label="Hinweis schließen">×</button></div><div class="dialog-actions"><button type="button" class="primary" id="goToVideoContract">Zum Vertragsdokument und Videovertrag →</button></div></dialog>
+    <dialog id="contractEmailLockedDialog" class="contract-email-locked-dialog"><div class="dialog-head"><div><p class="eyebrow">Versand noch gesperrt</p><h2>Videovertrag noch nicht abgeschlossen</h2><small>Bitte zuerst den Videovertrag erstellen und die zugehörige Videoaufnahme hochladen. Anschließend erfolgt der Vertragsversand automatisch.</small></div><button type="button" data-close-contract-email-notice aria-label="Hinweis schließen">×</button></div><div class="dialog-actions"><button type="button" class="primary" id="goToVideoContract">Zum Vertragsdokument und Videovertrag →</button></div></dialog>
     <dialog id="leadEmailDialog" class="lead-email-dialog" aria-labelledby="leadEmailTitle">
       <div class="lead-email-header"><div><span class="eyebrow">Interessentenakte · E-Mail-Verkehr</span><h2 id="leadEmailTitle">E-Mail ansehen</h2></div><button id="closeLeadEmail" type="button" aria-label="E-Mail schließen">×</button></div>
       <dl id="leadEmailMetadata" class="lead-email-metadata"></dl>
@@ -1202,12 +1210,12 @@
       <form id="leadFollowUpForm">
         <div class="lead-follow-up-head">
           <span aria-hidden="true">◷</span>
-          <div><p class="eyebrow">Später Interesse · Wiedervorlage</p><h2 id="leadFollowUpTitle">Wann sollen wir Dich nochmal kontaktieren?</h2><p>Wähle den passenden Tag. Das CRM legt automatisch eine Wiedervorlage für das gesamte Admin- und Mitarbeiterteam an.</p></div>
+          <div><p class="eyebrow">Follow-up</p><h2 id="leadFollowUpTitle">Wann sollen wir Dich nochmal kontaktieren?</h2><p>Wähle den passenden Tag. Das CRM legt automatisch ein Follow-up für das gesamte Admin- und Mitarbeiterteam an.</p></div>
           <button type="button" data-close-lead-follow-up aria-label="Fenster schließen">×</button>
         </div>
-        <label>Datum für die Wiedervorlage<input name="followUpDate" type="date" required /></label>
+        <label>Datum für das Follow-up<input name="followUpDate" type="date" required /></label>
         <div class="lead-follow-up-preview"><span>✓</span><p><strong>Automatische Aufgabe</strong>Am ausgewählten Tag erscheint der Interessent im Admin-Dashboard als fällige Kontaktaufgabe.</p></div>
-        <div class="dialog-actions"><button type="button" class="secondary" data-close-lead-follow-up>Abbrechen</button><button type="submit" class="primary">Wiedervorlage anlegen →</button></div>
+        <div class="dialog-actions"><button type="button" class="secondary" data-close-lead-follow-up>Abbrechen</button><button type="submit" class="primary">Follow-up anlegen →</button></div>
       </form>
     </dialog>
     <dialog id="tariffDialog" class="tariff-dialog">

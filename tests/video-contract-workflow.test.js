@@ -34,7 +34,7 @@ test('Verkaufsgespräch beginnt mit dem im Intake gespeicherten Termin und direk
   assert.match(appointment, /id="leadBookedAppointmentTime"/);
   assert.match(appointment, /id="openMeet"[^>]*>Google Meet öffnen/);
   assert.match(appointment, /id="leadAppointmentReschedule"/);
-  assert.match(html, /<section class="lead-basics lead-wizard-page" data-lead-step="2" hidden>/);
+  assert.match(html, /<section class="lead-basics lead-wizard-page" data-lead-step="3" hidden>/);
   assert.match(js, /renderIntakeAppointment\(lead\)/);
   assert.match(js, /meet\.href=lead\.meet_url/);
   assert.match(api, /appointment_start: startDate\.toISOString\(\)/);
@@ -87,6 +87,21 @@ test('Originalformular wird als ausgefülltes und abgeflachtes Vertrags-PDF erze
   const pdf = await PDFDocument.load(bytes);
   assert.equal(pdf.getPageCount(), 7);
   assert.equal(pdf.getForm().getFields().length, 0);
+});
+
+test('abgeschlossener Videovertrag hat den neuen Titel und beide Signaturhinweise', async () => {
+  const { contract } = normalizeVideoContract(completeInput());
+  const bytes = await buildVideoContractPdf(contract, { videoConfirmed: true, providerConfirmed: true });
+  const rendered = await getDocument({ data: new Uint8Array(bytes), useSystemFonts: true }).promise;
+  const first = (await (await rendered.getPage(1)).getTextContent()).items.map(item => item.str).join(' ');
+  const last = (await (await rendered.getPage(7)).getTextContent()).items.map(item => item.str).join(' ');
+  assert.match(first, /Videovertrag/);
+  assert.doesNotMatch(first, /B2C-Videovertrag/);
+  assert.equal((last.match(/digitale Signatur über beiliegenden Videovertrag/g) || []).length, 2);
+  const draft = await buildVideoContractPdf(contract, { draft: true });
+  const draftPdf = await getDocument({ data: new Uint8Array(draft), useSystemFonts: true }).promise;
+  const draftLast = (await (await draftPdf.getPage(7)).getTextContent()).items.map(item => item.str).join(' ');
+  assert.doesNotMatch(draftLast, /digitale Signatur über beiliegenden Videovertrag/);
 });
 
 test('PDF speichert längere CRM-Eingaben trotz 100-Zeichen-Limit der Vorlage', async () => {

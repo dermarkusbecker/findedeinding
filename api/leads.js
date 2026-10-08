@@ -1,4 +1,5 @@
 import {handleDunningCron} from '../lib/dunning-api.js';
+import { followUpSettings, handleFollowUpCron } from '../lib/follow-up-reminders.js';
 import {customerAccount} from '../lib/customer-account.js';
 import { archiveLeadInvoices } from '../lib/finance-archive.js';
 import { handleReferences } from '../lib/references-api.js';
@@ -32,7 +33,7 @@ import { manageContract, expireContractCheckouts } from '../lib/contract-managem
 import { sendSignedContractMail } from '../lib/contract-mail.js';
 import { attachSignedContractPdf } from '../lib/contract-document.js';
 
-const VALID_STATUSES = ['new', 'contacted', 'scheduled', 'consultation', 'offer', 'later', 'customer', 'lost'];
+const VALID_STATUSES = ['new', 'contacted', 'scheduled', 'consultation', 'offer', 'later', 'customer', 'lost', 'disqualified'];
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const emailValid = (value) => /^\S+@\S+\.\S+$/.test(value || '');
 const uuidValid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || '');
@@ -448,7 +449,7 @@ async function setLeadInterestStatus(service, request) {
   const lead = await leadById(service, request.body?.id);
   if (lead.converted_user_profile_id || lead.status === 'customer') throw Object.assign(new Error('Der Interessenstatus kann nur bei Interessenten geändert werden.'), { status: 409 });
   const status = clean(request.body?.status, 20);
-  if (!['lost', 'later'].includes(status)) throw Object.assign(new Error('Bitte einen gültigen Interessenstatus auswählen.'), { status: 400 });
+  if (!['lost', 'later', 'disqualified'].includes(status)) throw Object.assign(new Error('Bitte einen gültigen Interessenstatus auswählen.'), { status: 400 });
   const followUpDate = clean(request.body?.followUpDate, 10);
   const today = new Date().toISOString().slice(0, 10);
   if (status === 'later' && (!/^\d{4}-\d{2}-\d{2}$/.test(followUpDate) || followUpDate < today)) throw Object.assign(new Error('Bitte ein heutiges oder zukünftiges Datum für die Wiedervorlage auswählen.'), { status: 400 });
@@ -461,8 +462,8 @@ async function setLeadInterestStatus(service, request) {
   return {
     ...result,
     message: status === 'later'
-      ? `Späteres Interesse gespeichert. Wiedervorlage am ${followUpDate.split('-').reverse().join('.')}.`
-      : 'Der Interessent wurde der Liste „Kein Interesse“ zugeordnet.',
+      ? `Follow-up gespeichert. Erinnerung am ${followUpDate.split('-').reverse().join('.')}.`
+      : status === 'disqualified' ? 'Der Interessent wurde als disqualifiziert markiert.' : 'Der Interessent wurde der Liste „Kein Interesse“ zugeordnet.',
   };
 }
 
@@ -689,7 +690,7 @@ function permissionForAction(action) {
   if (action === 'command-dashboard') return 'dashboard';
   if (action.startsWith('communication')) return 'communications';
   if (['available-slots', 'tariffs'].includes(action)) return ['settings', 'sales_calls', 'leads'];
-  if (['google-connect', 'google-callback', 'booking-settings', 'system-status', 'strato-mail-check', 'tariff'].includes(action)) return 'settings';
+  if (['google-connect', 'google-callback', 'booking-settings', 'follow-up-settings', 'system-status', 'strato-mail-check', 'tariff'].includes(action)) return 'settings';
   if (action === 'strato-inbox-sync') return 'communications';
   if (['dashboard', 'dashboard-record', 'contract-manage', 'contract-send-documents'].includes(action)) return ['leads', 'customers', 'finance'];
   if (['update', 'complete-sales-conversation', 'set-interest-status'].includes(action)) return ['leads', 'sales_calls', 'customers'];
@@ -702,6 +703,7 @@ export default async function handler(request, response) {
   const service = serviceConfig();
   const action = request.query?.action || request.body?.action || '';
   if(action==='dunning-cron')return handleDunningCron(request,response);
+  if(action==='follow-up-cron')return handleFollowUpCron(request,response);
   if (action.startsWith('references-')) return handleReferences(request, response);
   if(action.startsWith('finance-')) return handleFinance(request,response);
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
@@ -838,6 +840,25 @@ export default async function handler(request, response) {
     if (request.method === 'GET' && action === 'booking-settings') {
       return response.status(200).json({ settings: await bookingSettings(service) });
     }
+    if (action === 'follow-up-settings') {
+      if (request.method === 'GET') return response.status(200).json({ settings: await followUpSettings(service) });
+      if (request.method !== 'PATCH') return response.status(405).json({ error: 'Methode nicht erlaubt.' });
+      const channel = request.body?.reminderChannel;
+      if (!['email', 'notification'].includes(channel)) return response.status(400).json({ error: 'Bitte E-Mail oder Systembenachrichtigung auswählen.' });
+      const rows = await readJson(await fetch(`${service.url}/rest/v1/follow_up_settings?id=eq.default`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ reminder_channel: channel, updated_at: new Date().toISOString() }) }));
+      return response.status(200).json({ settings: rows[0] });
+    }
+    if (action === 'follow-up-notifications') {
+      if (request.method === 'GET') {
+        const notifications = await readJson(await fetch(`${service.url}/rest/v1/follow_up_notifications?read_at=is.null&select=*&order=created_at.desc&limit=30`, { headers: headers(service.key) }));
+        return response.status(200).json({ notifications });
+      }
+      if (request.method === 'PATCH' && uuidValid(request.body?.id)) {
+        const rows = await readJson(await fetch(`${service.url}/rest/v1/follow_up_notifications?id=eq.${encodeURIComponent(request.body.id)}`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ read_at: new Date().toISOString() }) }));
+        return response.status(200).json({ notification: rows[0] });
+      }
+      return response.status(405).json({ error: 'Methode nicht erlaubt.' });
+    }
     if (request.method === 'GET' && action === 'tariffs') {
       return response.status(200).json({ tariffs: await serviceTariffs(service) });
     }
@@ -857,7 +878,6 @@ export default async function handler(request, response) {
     }
     if (request.method === 'POST' && action === 'create-video-contract') {
       const lead = await leadById(service, request.body?.id);
-      if (!request.body?.saveDraft && ![lead.street_name,lead.house_number,lead.postal_code,lead.city].every(value=>String(value||'').trim())) return response.status(409).json({ error: 'Bitte die Anschrift zuerst in Schritt 2 Kontakt vollständig erfassen.' });
       const normalized = normalizeVideoContract(request.body?.contract, lead);
       const saveDraft = request.body?.saveDraft === true;
       if (!saveDraft && normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze zuerst: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
@@ -965,27 +985,31 @@ export default async function handler(request, response) {
         document_mime_type: 'application/pdf', signing_token_hash: tokenHash,
         signing_expires_at: new Date(Date.now() + 30 * 86400000).toISOString(), signature_method: 'video_confirmation',
       });
-      if (existing.document_bucket && existing.document_storage_path && existing.document_storage_path !== stored.storagePath) await deleteCustomerObject(service, existing.document_bucket, existing.document_storage_path);
+      if (existing.document_bucket && existing.document_storage_path && existing.document_storage_path !== stored.storagePath) await deleteCustomerObject(service, existing.document_bucket, existing.document_storage_path).catch(() => null);
       const signingPath = `/contract-sign.html?token=${encodeURIComponent(signingToken)}`;
-      const signingUrl = new URL(signingPath, process.env.PUBLIC_SITE_URL || 'https://findedeinding.vercel.app').href;
-      await insertLeadRecord(service, 'lead_communications', {
-        lead_id: lead.id, direction: 'outbound', channel: 'email', subject: 'Dein Finde-dein-Ding-Vertrag zur digitalen Bestätigung',
-        preview: 'Der Video-Abschluss wurde dokumentiert. Der zusätzliche digitale Signaturlink ist versandbereit.',
-        body: `Hallo ${lead.name},\n\nder Video-Abschluss wurde dokumentiert. Bitte prüfe deinen Vertrag und bestätige ihn zusätzlich digital:\n${signingUrl}\n\nHerzliche Grüße\nMarkus Becker`, delivery_status: 'draft',
-      }).catch(() => null);
-      const participant = await activateContractedLead(service, lead, normalized.contract.serviceStart);
-      await archiveLeadInvoices(service,lead.id).catch(()=>null);
-      return response.status(200).json({ record, signingPath, participantActivated: Boolean(participant && !participant.alreadyActive), participant, message: 'Video-Abschluss dokumentiert. Der Signaturlink wurde als E-Mail-Entwurf angelegt.' });
+      let participant = null, activationError = null;
+      try { participant = await activateContractedLead(service, lead, normalized.contract.serviceStart); }
+      catch (error) { activationError = error.message; }
+      let mailStatus;
+      try {
+        await archiveLeadInvoices(service, lead.id);
+        mailStatus = await sendSignedContractMail(service, { leadId: lead.id, contractId: record.id, actor: admin.profile?.name || 'CRM' });
+      } catch (error) {
+        mailStatus = { error: error.message };
+      }
+      const allMailAccepted = ['contract','invoice','welcome'].every(key=>['accepted','already_accepted'].includes(mailStatus?.[key]));
+      return response.status(200).json({ record, signingPath, participantActivated: Boolean(participant && !participant.alreadyActive), participant, activationError, mailStatus, message: [mailStatus?.error ? `Automatischer E-Mail-Versand fehlgeschlagen: ${mailStatus.error}` : allMailAccepted ? 'STRATO hat Vertrag, Rechnung und Willkommens-E-Mail angenommen.' : 'Versandstatus von Vertrag, Rechnung und Willkommens-E-Mail bitte im CRM prüfen.', activationError ? `Kundenkonto konnte nicht aktiviert werden: ${activationError}` : ''].filter(Boolean).join(' ') });
     }
     if (request.method === 'POST' && action === 'send-video-contract-email') {
       const lead = await leadById(service, request.body?.id);
       const contract = await leadContractById(service, lead.id, request.body?.contractId);
-      if (!contract.document_prepared_at || contract.status !== 'signed' || !contract.customer_signed_at || !contract.video_contract_confirmed_at || !contract.video_recording_path || !contract.video_recording_reviewed_at || !contract.document_storage_path)
+      if (!contract.document_prepared_at || contract.status !== 'signed' || !contract.video_contract_confirmed_at || !contract.video_recording_path || !contract.video_recording_reviewed_at || !contract.document_storage_path)
         return response.status(409).json({ error: 'Bitte erst das Vertragsdokument und den Videovertrag einschließlich geprüfter Aufnahme vollständig abschließen.' });
       if (!await customerObjectExists(service, contract.video_recording_bucket, contract.video_recording_path) || !await customerObjectExists(service, contract.document_bucket, contract.document_storage_path))
         return response.status(409).json({ error: 'Vertrags-PDF oder geprüfte Aufnahme fehlen im sicheren Dateispeicher.' });
+      await archiveLeadInvoices(service, lead.id);
       const mailStatus = await sendSignedContractMail(service, { leadId: lead.id, contractId: contract.id, actor: admin.profile?.name || 'CRM' });
-      return response.status(200).json({ mailStatus, message: mailStatus.invoice === 'accepted' ? 'Vertrag und Rechnung wurden von STRATO angenommen.' : 'Versandstatus im Kommunikationsverlauf prüfen.' });
+      return response.status(200).json({ mailStatus, message: ['accepted','already_accepted'].includes(mailStatus.welcome) ? 'Vertrag, Rechnung und Willkommens-E-Mail wurden von STRATO angenommen.' : 'Versandstatus im Kommunikationsverlauf prüfen.' });
     }
     if (request.method === 'GET' && ['contract-download', 'video-recording-download'].includes(action)) {
       const lead = await leadById(service, request.query?.id);
@@ -1063,6 +1087,7 @@ export default async function handler(request, response) {
       const email = clean(request.body?.email, 254).toLowerCase();
       const requestedStatus = VALID_STATUSES.includes(request.body?.status) ? request.body.status : current.status;
       const status = current.converted_user_profile_id ? 'customer' : requestedStatus;
+      if (['later','lost','disqualified'].includes(status) && status !== current.status) return response.status(409).json({ error: 'Diese Abschlussentscheidung bitte über den Verkaufsgesprächsabschluss speichern; für Follow-up ist ein Datum erforderlich.' });
       if (!name || !emailValid(email)) return response.status(400).json({ error: 'Name und gültige E-Mail sind erforderlich.' });
       if (current.converted_user_profile_id && email !== current.email) return response.status(409).json({ error: 'Die E-Mail eines Kunden wird sicher über Portal-Login geändert.' });
       if (status === 'customer' && !current.converted_user_profile_id) return response.status(409).json({ error: 'Ein Lead wird erst durch einen vollständig bestätigten Vertragsabschluss automatisch zum Teilnehmer.' });
@@ -1098,9 +1123,8 @@ export default async function handler(request, response) {
     }
     if (request.method === 'POST' && action === 'complete-sales-conversation') {
       let lead = await leadById(service, request.body?.id);
-      if (![lead.street_name,lead.house_number,lead.postal_code,lead.city].every(value=>String(value||'').trim())) return response.status(409).json({ error: 'Bitte die vier Adressfelder in Schritt 2 Kontakt vollständig erfassen.' });
       const now = new Date().toISOString();
-      const completedStatus = lead.converted_user_profile_id ? 'customer' : ['offer', 'later', 'lost'].includes(lead.status) ? lead.status : 'consultation';
+      const completedStatus = lead.converted_user_profile_id ? 'customer' : ['offer', 'later', 'lost', 'disqualified'].includes(lead.status) ? lead.status : 'consultation';
       if (!lead.appointment_start || !lead.appointment_end) {
         const completed = await patchLead(service, lead.id, { sales_conversation_completed_at: now, status: completedStatus });
         return response.status(200).json({ lead: completed, calendarPrepared: false, mailStatus: 'not_applicable', message: 'Verkaufsgespräch abgeschlossen. Ein Termin ist für den Vertragsabschluss nicht erforderlich. Ohne gebuchten Termin wird keine Terminbestätigung versendet.' });

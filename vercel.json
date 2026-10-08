@@ -3,7 +3,10 @@
   "functions": {
     "api/*.js": { "maxDuration": 60, "includeFiles": "assets/{forms/**,fonts/*.ttf,fdd-logo.png}" }
   },
-  "crons": [{ "path": "/api/leads?action=dunning-cron", "schedule": "0 7 * * *" }],
+  "crons": [
+    { "path": "/api/leads?action=dunning-cron", "schedule": "0 7 * * *" },
+    { "path": "/api/leads?action=follow-up-cron", "schedule": "15 7 * * *" }
+  ],
   "rewrites": [
     { "source": "/referenzen", "destination": "/referenzen.html" },
     { "source": "/login", "destination": "/login.html" },

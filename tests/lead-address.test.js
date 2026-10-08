@@ -13,7 +13,8 @@ test('Kontakt fragt die vier Adressangaben einzeln ab und reicht sie an Termin u
   ]);
   const contact = html.slice(html.indexOf('<section class="lead-basics lead-wizard-page"'), html.indexOf('<section class="lead-questions lead-wizard-page"'));
   for (const name of ['streetName', 'houseNumber', 'postalCode', 'city']) {
-    assert.match(contact, new RegExp(`name="${name}"[^>]*required`));
+    assert.match(contact, new RegExp(`name="${name}"[^>]*`));
+    assert.doesNotMatch(contact, new RegExp(`name="${name}"[^>]*required`));
     assert.equal((html.match(new RegExp(`data-lead-address="${name}"`, 'g')) || []).length, 2);
     assert.match(script, new RegExp(`${name}:values\\.${name}`));
   }

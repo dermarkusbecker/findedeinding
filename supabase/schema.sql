@@ -50,7 +50,7 @@ create table if not exists public.leads (
   utm_source text,
   utm_medium text,
   utm_campaign text,
-  status text not null default 'new' check (status in ('new', 'contacted', 'scheduled', 'consultation', 'offer', 'later', 'customer', 'lost')),
+  status text not null default 'new' check (status in ('new', 'contacted', 'scheduled', 'consultation', 'offer', 'later', 'customer', 'lost', 'disqualified')),
   first_name text,
   last_name text,
   internal_notes text,
@@ -287,6 +287,29 @@ create table if not exists public.lead_tasks (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create table if not exists public.follow_up_settings (
+  id text primary key default 'default' check (id = 'default'),
+  reminder_channel text not null default 'email' check (reminder_channel in ('email','notification')),
+  recipient_email text not null default 'markus@dermarkusbecker.de',
+  updated_at timestamptz not null default now()
+);
+insert into public.follow_up_settings (id) values ('default') on conflict (id) do nothing;
+alter table public.follow_up_settings enable row level security;
+
+create table if not exists public.follow_up_notifications (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid not null references public.leads(id) on delete cascade,
+  task_id uuid not null references public.lead_tasks(id) on delete cascade,
+  due_at date not null,
+  title text not null,
+  body text not null,
+  created_at timestamptz not null default now(),
+  read_at timestamptz,
+  unique(task_id,due_at)
+);
+alter table public.follow_up_notifications enable row level security;
+create index if not exists follow_up_notifications_open_idx on public.follow_up_notifications(read_at,created_at desc);
 
 create table if not exists public.communication_templates (
   id uuid primary key default gen_random_uuid(),
@@ -638,11 +661,11 @@ declare
   v_lead public.leads%rowtype;
   v_task public.lead_tasks%rowtype;
 begin
-  if p_status not in ('lost', 'later') then
+  if p_status not in ('lost', 'later', 'disqualified') then
     raise exception 'Ungültiger Interessenstatus.' using errcode = '22023';
   end if;
   if p_status = 'later' and (p_follow_up_date is null or p_follow_up_date < current_date) then
-    raise exception 'Für späteres Interesse ist ein heutiges oder zukünftiges Wiedervorlagedatum erforderlich.' using errcode = '22023';
+    raise exception 'Für Follow-up ist ein heutiges oder zukünftiges Datum erforderlich.' using errcode = '22023';
   end if;
   update public.leads set status = p_status, updated_at = now()
   where id = p_lead_id and converted_user_profile_id is null and status <> 'customer'
@@ -656,10 +679,10 @@ begin
     order by created_at desc limit 1 for update;
     if v_task.id is null then
       insert into public.lead_tasks (lead_id, title, details, due_at, task_type)
-      values (p_lead_id, 'Wiedervorlage: Interessenten erneut kontaktieren', 'Automatisch aus dem Status „Später Interesse“ angelegt.', p_follow_up_date, 'lead_follow_up')
+      values (p_lead_id, 'Follow-up: Interessenten kontaktieren', 'Automatisch aus dem Follow-up-Status angelegt.', p_follow_up_date, 'lead_follow_up')
       returning * into v_task;
     else
-      update public.lead_tasks set due_at = p_follow_up_date, details = 'Automatisch aus dem Status „Später Interesse“ angelegt.', updated_at = now()
+      update public.lead_tasks set due_at = p_follow_up_date, title='Follow-up: Interessenten kontaktieren', details = 'Automatisch aus dem Follow-up-Status angelegt.', updated_at = now()
       where id = v_task.id returning * into v_task;
     end if;
   else
