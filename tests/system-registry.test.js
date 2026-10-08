@@ -18,7 +18,7 @@ test('Systemregister zeigt aktive Google-, Supabase- und OpenAI-Dienste getrennt
   assert.equal(byId.google_meet.status.key, 'active');
   assert.match(byId.google_calendar.detail, /admin@example\.com/);
   assert.equal(byId.supabase_auth_mail.status.key, 'active');
-  assert.equal(registry.summary.activeIntegrations, 6);
+  assert.equal(registry.summary.activeIntegrations, 7);
 });
 
 test('Systemregister unterscheidet fehlende Konfiguration und geplanten Ausbau', () => {
@@ -34,7 +34,8 @@ test('Systemregister unterscheidet fehlende Konfiguration und geplanten Ausbau',
 test('Systemregister listet die tatsächlich implementierten KI-Aufgaben nachvollziehbar', () => {
   const registry = buildSystemRegistry({ openaiConfigured: true });
   const activeAgents = registry.agents.filter((item) => item.status.key === 'active');
-  assert.deepEqual(activeAgents.map((item) => item.id), ['clara_dialog', 'situation_recognition', 'career_recognition', 'week_reflection', 'customer_clarity']);
+  assert.deepEqual(activeAgents.map((item) => item.id), ['clara_dialog', 'situation_recognition', 'career_recognition', 'week_reflection', 'milestone_reports', 'customer_clarity']);
+  assert.match(activeAgents.find((item) => item.id === 'milestone_reports').detail, /bestehende OpenAI-Schnittstelle/);
   assert.match(activeAgents.find((item) => item.id === 'situation_recognition').situation, /Intentionen.*Themen.*Spannungen/);
   assert.match(activeAgents.find((item) => item.id === 'week_reflection').situation, /final gespeicherten Aussagen/);
   assert.match(activeAgents.find((item) => item.id === 'week_reflection').situation, /früherer Abschlüsse automatisch/);

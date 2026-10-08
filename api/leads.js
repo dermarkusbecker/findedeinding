@@ -844,6 +844,7 @@ export default async function handler(request, response) {
         whatsappConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
         stripeConfigured: Boolean(process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_')),
         stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET?.startsWith('whsec_')),
+        vercelConfigured: Boolean(process.env.VERCEL),
       });
       const checks=await checkIntegrationHealth({service,openaiKey:openai.apiKey,openaiModel:openai.model,googleToken:googleConnectionRecord?()=>googleAccessToken(service):null,whatsappToken:process.env.WHATSAPP_ACCESS_TOKEN,whatsappId:process.env.WHATSAPP_PHONE_NUMBER_ID,whatsappVersion:process.env.WHATSAPP_GRAPH_API_VERSION||'v23.0',stripeKey:process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_')&&process.env.STRIPE_WEBHOOK_SECRET?.startsWith('whsec_')?process.env.STRIPE_SECRET_KEY:null});
       if (stratoMailConfig()) checks.domain_email = await verifyStratoMailbox(stratoMailConfig());

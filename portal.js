@@ -238,7 +238,8 @@ function ensureDocumentPreviewDialog() {
         <div class="document-preview-stage"><iframe id="documentPreviewFrame" title="Dokumentenvorschau" hidden></iframe><img id="documentPreviewImage" alt="" hidden><div id="documentPreviewFallback" class="document-preview-fallback" hidden><span>▤</span><strong>Für dieses Dateiformat ist keine direkte Vorschau verfügbar.</strong><p>Du kannst die Originaldatei sicher herunterladen und auf deinem Gerät öffnen.</p></div></div>
         <footer><button class="secondary" type="button" data-close-document-preview>Schließen</button><a class="primary" id="downloadPreviewDocument" href="#" download>Dokument herunterladen ↓</a></footer>
       </div>
-    </dialog>`);
+    </dialog>
+`);
   dialog = $('#documentPreviewDialog');
   dialog.querySelectorAll('[data-close-document-preview]').forEach((button) => button.addEventListener('click', closeDocumentPreview));
   dialog.addEventListener('click', (event) => { if (event.target === dialog) closeDocumentPreview(); });
@@ -1291,11 +1292,17 @@ function ensureWeekDialogs() {
     </dialog>
     <dialog id="weekReflectionDialog" class="week-reflection-dialog" aria-labelledby="weekReflectionTitle">
       <div class="week-reflection-shell"><button type="button" class="dialog-close" data-reflection-close aria-label="Reflexion schließen">×</button><p class="eyebrow" id="weekReflectionEyebrow"></p><h2 id="weekReflectionTitle"></h2><p class="reflection-summary" id="weekReflectionSummary"></p><section><span>Was diese Woche sichtbar wurde</span><ul id="weekReflectionHighlights"></ul></section><div class="reflection-grid"><article><span>Deine Entwicklung</span><p id="weekReflectionDevelopment"></p></article><article><span>Dein nächster Impuls</span><p id="weekReflectionImpulse"></p></article></div><blockquote id="weekReflectionClosing"></blockquote><form id="weekReflectionQuestionForm" class="reflection-question-form"><input type="hidden" name="week" /><span>Deine Frage für das persönliche Q&amp;A mit Markus</span><p>Notiere, was du vertiefen, hinterfragen oder gemeinsam sortieren möchtest. Die Frage landet direkt in deiner Kundenakte.</p><textarea name="question" rows="3" minlength="5" maxlength="1200" required placeholder="Was möchtest du mit Markus besprechen?"></textarea><button class="primary" type="submit">Frage fürs Q&amp;A speichern →</button><small id="weekReflectionQuestionState"></small></form></div>
+    </dialog>
+    <dialog id="milestoneReportDialog" class="week-reflection-dialog" aria-labelledby="milestoneReportTitle">
+      <div class="week-reflection-shell milestone-report-shell"><button type="button" class="dialog-close" data-report-close aria-label="Bericht schließen">×</button><p class="eyebrow" id="milestoneReportEyebrow"></p><h2 id="milestoneReportTitle"></h2><p class="reflection-summary" id="milestoneReportIntroduction"></p><section><span>Deine Ausgangssituation</span><p id="milestoneReportSituation"></p></section><section><span>Was du über dich gelernt hast</span><ul id="milestoneReportInsights"></ul></section><section><span>Deine Entwicklung</span><p id="milestoneReportDevelopment"></p></section><section><span>Deine Umsetzung</span><p id="milestoneReportImplementation"></p></section><section><span>Deine nächsten Schritte</span><ul id="milestoneReportNextSteps"></ul></section><details><summary>Grundlage des Berichts ansehen</summary><ul id="milestoneReportEvidence"></ul></details><button type="button" class="secondary" id="milestoneReportPrint">Bericht drucken / als PDF speichern</button></div>
     </dialog>`);
   $$('[data-week-dialog-close]').forEach((button) => button.addEventListener('click', () => { if (!$('#confirmWeekAction').disabled) $('#weekActionDialog').close(); }));
   $$('[data-reflection-close]').forEach((button) => button.addEventListener('click', () => $('#weekReflectionDialog').close()));
+  $$('[data-report-close]').forEach((button) => button.addEventListener('click', () => $('#milestoneReportDialog').close()));
   $('#weekActionDialog').addEventListener('click', (event) => { if (event.target === event.currentTarget && !$('#confirmWeekAction').disabled) event.currentTarget.close(); });
   $('#weekReflectionDialog').addEventListener('click', (event) => { if (event.target === event.currentTarget) event.currentTarget.close(); });
+  $('#milestoneReportDialog').addEventListener('click', (event) => { if (event.target === event.currentTarget) event.currentTarget.close(); });
+  $('#milestoneReportPrint').addEventListener('click', () => window.print());
   $('#confirmWeekAction').addEventListener('click', executeWeekAction);
   $('#weekReflectionQuestionForm').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget,button=form.querySelector('button'),state=$('#weekReflectionQuestionState');button.disabled=true;state.textContent='Frage wird sicher gespeichert …';try{await request('/api/participant-program',{method:'POST',body:JSON.stringify({action:'support_question',week:Number(form.elements.week.value),question:form.elements.question.value.trim()})});state.textContent='Gespeichert – Markus sieht die Frage jetzt in deiner Kundenakte.';form.elements.question.value='';}catch(error){state.textContent=error.message||'Die Frage konnte noch nicht gespeichert werden.';}finally{button.disabled=false;}});
 }
@@ -2131,6 +2138,7 @@ function renderWeekReflections() {
 }
 
 function renderInsights() {
+  renderMilestoneReports();
   renderWeekReflections();
   $('#insightDocuments').innerHTML = renderInsightDocuments(buildDocumentLibrary(program, customerWorkspace));
   const motivators = program?.profile?.programInsights?.motivators || [];
@@ -2149,6 +2157,35 @@ function renderInsights() {
   const first = measurements[0];
   const latest = currentClarityMeasurement();
   $('#clarityChart').innerHTML = `<b>Start ${first?.score || '—'}</b><i></i><b>Heute ${latest?.score || '—'}</b>`;
+}
+
+function renderMilestoneReports() {
+  const target = $('#milestoneReportList');
+  if (!target) return;
+  const reports = new Map((program?.milestoneReports || []).map((report) => [Number(report.milestoneWeek), report]));
+  const completed = new Set((program?.access?.completedWeeks || []).map(Number));
+  target.innerHTML = [4, 8].map((week) => {
+    const report = reports.get(week);
+    const label = week === 4 ? 'Zwischenbericht' : 'Abschlussbericht';
+    if (report) return `<button type="button" class="week-reflection-card is-ready" data-report-week="${week}"><span>Nach Woche ${week} · gespeichert</span><strong>${escapeHtml(report.title || label)}</strong><p>${escapeHtml(report.introduction || '')}</p><b>Bericht lesen ↗</b></button>`;
+    const pending = Array.from({ length: week }, (_, index) => index + 1).every((number) => completed.has(number));
+    return `<article class="week-reflection-card is-locked"><span>Nach Woche ${week}</span><strong>${label}</strong><p>${pending ? 'Dein Bericht wird aus deinen abgeschlossenen Angaben erstellt.' : `Wird nach Abschluss der Wochen 1 bis ${week} erstellt.`}</p><b>Noch nicht verfügbar</b></article>`;
+  }).join('');
+  target.querySelectorAll('[data-report-week]').forEach((button) => button.addEventListener('click', () => openMilestoneReport(Number(button.dataset.reportWeek))));
+}
+
+function openMilestoneReport(week) {
+  const report = (program?.milestoneReports || []).find((item) => Number(item.milestoneWeek) === week);
+  if (!report) return;
+  ensureWeekDialogs();
+  $('#milestoneReportEyebrow').textContent = week === 4 ? 'Dein Zwischenbericht · Wochen 1–4' : 'Dein Abschlussbericht · Wochen 1–8';
+  for (const [id, value] of [['Title', report.title], ['Introduction', report.introduction], ['Situation', report.situation], ['Development', report.development], ['Implementation', report.implementation]]) {
+    $(`#milestoneReport${id}`).textContent = value || '';
+  }
+  for (const [id, values] of [['Insights', report.insights], ['NextSteps', report.nextSteps], ['Evidence', report.evidence]]) {
+    $(`#milestoneReport${id}`).innerHTML = (values || []).map((value) => `<li>${escapeHtml(value)}</li>`).join('');
+  }
+  $('#milestoneReportDialog').showModal();
 }
 
 function renderDocuments() {
