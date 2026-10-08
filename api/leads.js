@@ -8,6 +8,7 @@ import { handleFinance } from '../lib/finance-api.js';
 import { normalizeSignatureContact, renderBrandedEmail } from '../lib/branded-email.js';
 import { mailAppearance, sendPreparedMail } from '../lib/branded-mail-service.js';
 import { normalizeIntake } from '../lib/intake.js';
+import { intakeAdminNotification } from '../lib/intake-admin-notification.js';
 import {readCurriculumIndex,curriculumAccess,curriculumGates} from '../lib/curriculum-progress.js';
 import {categoryBookingSettings,normalizeAppointmentCategories} from '../lib/appointment-categories.js';
 import { handleCrmTasks } from '../lib/crm-tasks.js';
@@ -665,6 +666,19 @@ async function publicLead(request, response, service) {
     if (mailStatus === 'accepted') await patchLead(service, lead.id, { appointment_confirmation_prepared_at: new Date().toISOString() }).catch(() => null);
   } catch {
     // The appointment is booked. The CRM keeps the draft or delivery status for follow-up.
+  }
+  try {
+    const appearance = await mailAppearance(service);
+    const recipient = 'markus@dermarkusbecker.de';
+    const notification = await insertLeadRecord(service, 'lead_communications', {
+      lead_id: lead.id, direction: 'outbound', channel: 'email',
+      ...intakeAdminNotification(lead, appearance), recipient_email: recipient,
+      delivery_status: 'draft', automation_source: 'intake_admin_notification',
+      event_key: `intake-admin-notification:${lead.id}:${lead.appointment_start}`,
+    });
+    await sendLeadCommunication(service, notification, recipient);
+  } catch {
+    // A failed internal notification must not undo the customer's booked appointment.
   }
   return response.status(201).json({ ok: true, appointment: { startsAt: startDate.toISOString(), endsAt: endDate.toISOString(), timezone: settings.timezone, calendarConnected: true, meetUrl, mailStatus } });
 }

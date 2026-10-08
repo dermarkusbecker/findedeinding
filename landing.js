@@ -498,7 +498,7 @@ async function loadPublicSlots({ advance = false, previous = false } = {}) {
  try {
  const response=await fetch(`/api/leads?action=public-available-slots&from=${encodeURIComponent(publicCalendarMonth)}&to=${encodeURIComponent(rangeEnd)}`),data=await response.json();if(requestId!==publicCalendarRequest)return;if(!response.ok)throw Error(data.error||'Bitte versuche es erneut.');publicCalendarData=data;
  const connected=data.calendarConnected===true,notice=document.querySelector('#publicBookingNotice');notice.textContent=connected?'Freie Zeiten sind mit dem Kalender abgeglichen.':'Die Online-Buchung ist gerade nicht verfügbar. Bitte versuche es später erneut oder kontaktiere uns direkt.';notice.className=`public-booking-notice ${connected?'connected':'reservation'}`;
- document.querySelector('#publicBookingMail').textContent='✓ Persönliches Gespräch';document.querySelector('#publicBookingMeet').textContent=connected?'✓ Bestätigung mit Meet-Link per E-Mail':'○ Buchung vorübergehend pausiert';
+ document.querySelector('#publicBookingMail').textContent='✓ Persönliches Gespräch';document.querySelector('#publicBookingMeet').textContent=connected?'✓ Bestätigung mit Meet-Link per E-Mail · auch Spam-Ordner prüfen':'○ Buchung vorübergehend pausiert';
  if(!connected){container.innerHTML='<p class="public-slot-empty">Sobald der Kalender wieder verbunden ist, kannst du hier einen Termin auswählen.</p>';more.hidden=true;return;}
  renderPublicCalendar();more.hidden=false;more.disabled=moveMonth(publicCalendarMonth,1)>addLandingDays(landingDateKey(),Number(data.bookingHorizonDays||60));back.disabled=publicCalendarMonth<=monthKey(landingDateKey());
  }catch(error){if(requestId!==publicCalendarRequest)return;container.innerHTML=`<div class="public-slot-empty error"><strong>Termine konnten nicht geladen werden.</strong><p>${escapeLanding(error.message)}</p><button type="button" data-retry-calendar>Erneut versuchen</button></div>`;container.querySelector('[data-retry-calendar]').onclick=()=>{publicSlotRangeStart=publicCalendarMonth;loadPublicSlots();};more.disabled=false;back.disabled=publicCalendarMonth<=monthKey(landingDateKey());}finally{if(requestId===publicCalendarRequest)container.setAttribute('aria-busy','false');}
@@ -542,7 +542,7 @@ form.addEventListener('submit', async (event) => {
     document.querySelector('#publicLeadProgress').hidden = true;
     const dateText = appointment.toLocaleString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'});
     document.querySelector('#publicBookingSuccessText').textContent = data.appointment.mailStatus === 'accepted'
-      ? `Dein Klarheitsgespräch findet am ${dateText} Uhr statt. Deine persönliche Bestätigung mit Gesprächslink wurde an ${form.elements.email.value} versendet.`
+      ? `Dein Klarheitsgespräch findet am ${dateText} Uhr statt. Deine persönliche Bestätigung mit Gesprächslink wurde an ${form.elements.email.value} versendet. Bitte prüfe auch deinen Spam-Ordner, falls du die E-Mail nicht im Posteingang findest.`
       : `Dein Klarheitsgespräch am ${dateText} Uhr ist gebucht. Die Bestätigung per E-Mail konnte noch nicht versendet werden. Bitte melde dich bei uns, falls sie nicht zeitnah eintrifft.`;
     document.querySelector('#publicBookingSuccess').hidden = false;
     clearTimeout(publicLeadDraftTimer);
