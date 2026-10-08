@@ -150,7 +150,7 @@ export function processWeekResult(result) {
     const state = week === 1 ? stored : normalizeGuidedWeekState(week, configuredWeekState(week, stored, result.processVersion));
     const definition = guidedWeekDefinition(week, state);
     const access = result.serializedAccess.weekStates?.find((item) => Number(item.week) === week) || {};
-    const released = Number(result.serializedAccess.processWeek) > 0 && (result.serializedAccess.automaticUnlockedWeeks || []).includes(week);
+    const released = Number(result.serializedAccess.processWeek) > 0 && (result.serializedAccess.unlockedWeeks || []).includes(week);
     return {
       week,
       title: week === 1 ? 'Ausgangslage' : definition?.title || `Woche ${week}`,
@@ -274,7 +274,16 @@ export default async function handler(request, response) {
       return response.status(200).json(await publicResult(await getParticipantProgramAccess(participantId), participantId));
     }
     const changes = {};
-    if (body.accessMode !== undefined || body.manuallyUnlockedWeeks !== undefined || body.manuallyLockedWeeks !== undefined) return response.status(409).json({ error: 'Die Wochenfreischaltung ist fest zeitbasiert und erfolgt automatisch alle sieben Tage ab Projektstart.' });
+    if (body.accessMode !== undefined || body.manuallyLockedWeeks !== undefined) return response.status(400).json({ error: 'Dieser Freigabetyp ist nicht zulässig.' });
+    if (body.manuallyUnlockedWeeks !== undefined) {
+      if (!Array.isArray(body.manuallyUnlockedWeeks) || body.manuallyUnlockedWeeks.some((week) => !Number.isInteger(week) || week < 1 || week > 8)) return response.status(400).json({ error: 'Bitte nur Programmwochen 1 bis 8 auswählen.' });
+      const selected = [...new Set(body.manuallyUnlockedWeeks)].sort((a, b) => a - b);
+      const previous = new Set(current.progress.manually_unlocked_weeks || []);
+      const priorDates = current.progress.manual_unlock_dates || {};
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+      changes.manually_unlocked_weeks = selected;
+      changes.manual_unlock_dates = Object.fromEntries(selected.map((week) => [week, previous.has(week) && priorDates[week] ? priorDates[week] : today]));
+    }
     if (body.programStartDate !== undefined) {
       if (!validDate(body.programStartDate)) return response.status(400).json({ error: 'Ungültiges Startdatum.' });
       changes.program_start_date = body.programStartDate;

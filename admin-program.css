@@ -149,6 +149,23 @@
 .program-reset-banner strong { color: #5f3d13; font-size: 12px; }
 .program-reset-banner small { color: #86623d; font-size: 12px; line-height: 1.5; margin-top: 4px; }
 .program-reset-banner .danger { background: #b7512a; border-color: #b7512a; color: #fff; }
+.program-week-release { margin: 8px 0 18px; padding: 18px; border: 1px solid #bce0cf; border-radius: 12px; background: #f3faf6; }
+.program-week-release-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.program-week-release-head strong,.program-week-release-head small { display: block; }
+.program-week-release-head strong { color: #176347; font-size: 14px; }
+.program-week-release-head small { color: #527365; font-size: 12px; line-height: 1.5; margin-top: 5px; max-width: 570px; }
+.program-week-release-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin-top: 16px; }
+.program-week-release-option { display: flex; align-items: center; gap: 9px; padding: 11px; border: 1px solid #cadbd2; border-radius: 10px; background: #fff; cursor: pointer; }
+.program-week-release-option.released { border-color: #58b391; background: #e9f8f0; }
+.program-week-release-option input { accent-color: #11866c; width: 18px; height: 18px; flex: none; }
+.program-week-release-option input:disabled { cursor: default; opacity: 1; }
+.program-week-release-option strong,.program-week-release-option small { display: block; }
+.program-week-release-option strong { color: #204a3e; font-size: 12px; }
+.program-week-release-option small { color: #608176; font-size: 10px; line-height: 1.3; margin-top: 3px; }
+#programWeekReleaseSummary { color: #176347; font-size: 12px; font-weight: 700; margin: 12px 0 0; }
+.customer-progress-indicators { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.customer-all-weeks-badge:not([hidden]) { display: inline-flex; align-items: center; border: 1px solid #65bea0; border-radius: 99px; background: #e3f8ee; color: #0c765c; font-size: 12px; font-weight: 800; padding: 8px 12px; }
+@media (max-width: 700px) { .program-week-release-head { flex-direction: column; } .program-week-release-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 .override-head { align-items: end; border-top: 1px solid #deddd6; display: flex; justify-content: space-between; margin-top: 23px; padding-top: 20px; }
 .override-head strong, .override-head small { display: block; }
 .override-head strong { font-size: 12px; }.override-head small { color: #747a74; font-size: 12px; margin-top: 4px; }

@@ -184,25 +184,23 @@ test('alle Wochenschritte sind anklickbar und abgeschlossene Inhalte bleiben sch
   assert.match(documents, /program\.access\.canAccessWeek\(normalizedWeek\)/);
 });
 
-test('Freischaltungs-Auswahl ist entfernt und der Server akzeptiert keine Overrides mehr', async () => {
-  const [adminHtml, adminScript, controlApi, participantApi, access, migration] = await Promise.all([
+test('Admin-Auswahl und Serverzugriff nutzen dieselben Wochenfreigaben', async () => {
+  const [adminHtml, adminScript, controlApi, participantApi, access] = await Promise.all([
     readFile(new URL('../admin.html', import.meta.url), 'utf8'),
     readFile(new URL('../admin.js', import.meta.url), 'utf8'),
     readFile(new URL('../api/program-control.js', import.meta.url), 'utf8'),
     readFile(new URL('../api/participant-program.js', import.meta.url), 'utf8'),
     readFile(new URL('../lib/program-access.js', import.meta.url), 'utf8'),
-    readFile(new URL('../supabase/migrations/20260904210000_enforce_timed_program_access.sql', import.meta.url), 'utf8'),
   ]);
-  assert.doesNotMatch(adminHtml, /name="accessMode"|id="unlockAllWeeks"|id="weekOverrides"/);
-  assert.doesNotMatch(adminHtml, /name="currentWeek"/);
-  assert.doesNotMatch(adminScript, /data-week-override|manuallyUnlockedWeeks/);
-  assert.match(controlApi, /fest zeitbasiert/);
-  assert.match(controlApi, /aktuelle Arbeitswoche wird ausschließlich/);
-  assert.match(access, /const accessMode = ACCESS_MODES\.TIME/);
-  assert.doesNotMatch(participantApi, /protectedAccess|week_1_incomplete/);
-  assert.match(migration, /check \(access_mode = 'time_based'\)/);
-  assert.match(migration, /manually_unlocked_weeks = '\{\}'::integer\[\]/);
+  assert.match(adminHtml, /id="unlockAllWeeks"/);
+  assert.match(adminHtml, /id="weekOverrides"/);
+  assert.match(adminHtml, /id="customerAllWeeksBadge"/);
+  assert.match(adminScript, /manuallyUnlockedWeeks:selectedManualWeeks\(\)/);
+  assert.match(controlApi, /changes\.manually_unlocked_weeks = selected/);
+  assert.match(access, /reason = 'admin_unlocked'/);
+  assert.match(participantApi, /access\.unlockedWeeks\.map\(Number\)/);
 });
+
 
 test('Wochenschluss kehrt zur Übersicht zurück statt ungefragt die nächste Woche zu öffnen', async () => {
   const script = await readFile(scriptUrl, 'utf8');

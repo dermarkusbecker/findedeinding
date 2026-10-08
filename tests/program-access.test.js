@@ -166,12 +166,17 @@ test('Demo-Vollzugriff bleibt vor abgeschlossenem Onboarding und bei Pausierung 
   assert.deepEqual(paused.unlockedWeeks, []);
 });
 
-test('alte manuelle Overrides können den automatischen Zeitplan nicht umgehen', () => {
-  const access = calculateProgramAccess({ progress: { ...onboardingComplete, program_start_date: '2026-09-04', manually_unlocked_weeks: [3], manually_locked_weeks: [1] }, now: new Date('2026-09-04T12:00:00Z') });
-  assert.deepEqual(access.unlockedWeeks, [1]);
-  assert.deepEqual(access.manuallyUnlockedWeeks, []);
-  assert.deepEqual(access.manuallyLockedWeeks, []);
-  assert.equal(access.weekStates[0].reason, 'scheduled_release');
+test('Admin kann Wochen 1 bis 4 oder alle acht freischalten, ohne sie abzuschließen', () => {
+  const progress = { ...onboardingComplete, program_start_date: '2026-09-04', manually_unlocked_weeks: [2, 3, 4], manual_unlock_dates: { 2: '2026-09-04', 3: '2026-09-04', 4: '2026-09-04' } };
+  const access = calculateProgramAccess({ progress, now: new Date('2026-09-04T12:00:00Z') });
+  assert.deepEqual(access.unlockedWeeks, [1, 2, 3, 4]);
+  assert.deepEqual(access.manuallyUnlockedWeeks, [2, 3, 4]);
+  assert.equal(access.weekStates[3].reason, 'admin_unlocked');
+  assert.equal(access.weekStates[3].unlocksAt, '2026-09-04');
+  assert.deepEqual(access.completedWeeks, []);
+  assert.equal(reconcileProgramPosition(access, []).processWeek, 1);
+  const all = calculateProgramAccess({ progress: { ...progress, manually_unlocked_weeks: [1, 2, 3, 4, 5, 6, 7, 8] }, now: new Date('2026-09-04T12:00:00Z') });
+  assert.deepEqual(all.unlockedWeeks, [1, 2, 3, 4, 5, 6, 7, 8]);
 });
 
 test('Pausierung stoppt auch den festen Zeitplan', () => {

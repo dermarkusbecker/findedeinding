@@ -406,6 +406,7 @@ create table if not exists public.participant_progress (
   access_mode text not null default 'time_based' check (access_mode = 'time_based'),
   program_status text not null default 'active' check (program_status in ('active', 'paused')),
   manually_unlocked_weeks integer[] not null default '{}'::integer[],
+  manual_unlock_dates jsonb not null default '{}'::jsonb,
   manually_locked_weeks integer[] not null default '{}'::integer[],
   completed_steps jsonb not null default '[]'::jsonb,
   privacy_consent_at timestamptz,
@@ -683,6 +684,7 @@ alter table public.participant_progress add column if not exists program_start_d
 alter table public.participant_progress add column if not exists access_mode text not null default 'time_based';
 alter table public.participant_progress add column if not exists program_status text not null default 'active';
 alter table public.participant_progress add column if not exists manually_unlocked_weeks integer[] not null default '{}'::integer[];
+alter table public.participant_progress add column if not exists manual_unlock_dates jsonb not null default '{}'::jsonb;
 alter table public.participant_progress add column if not exists manually_locked_weeks integer[] not null default '{}'::integer[];
 
 create unique index if not exists participant_progress_user_profile_unique on public.participant_progress(user_profile_id);
@@ -720,10 +722,8 @@ for each row execute function public.assign_participant_login();
 
 update public.participant_progress
 set access_mode = 'time_based',
-    manually_unlocked_weeks = '{}'::integer[],
     manually_locked_weeks = '{}'::integer[]
 where access_mode is distinct from 'time_based'
-   or cardinality(manually_unlocked_weeks) > 0
    or cardinality(manually_locked_weeks) > 0;
 update public.participant_progress set program_status = 'active' where program_status is null;
 

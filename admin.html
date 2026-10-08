@@ -268,7 +268,7 @@
             <div class="lead-profile-actions"><button class="secondary" id="openCustomerProgram" type="button">Programm steuern</button><button class="secondary" id="openCustomerLogin" type="button">Portal-Login</button><button class="primary" id="openCustomerPortal" type="button">Als Kunde öffnen →</button><button class="secondary danger" id="deleteCustomerButton" type="button" hidden>Kunden löschen</button></div>
           </section>
           <div class="customer-dashboard-page active" data-customer-page="dashboard">
-            <section class="card customer-week-progress"><div class="lead-card-heading"><div><p class="eyebrow">8-Wochen-Prozess</p><h2 id="customerProgramHeadline">Aktueller Kundenfortschritt</h2></div><span id="customerProgramProgress">0 %</span></div><div class="customer-week-track" id="customerWeekTrack"></div></section>
+            <section class="card customer-week-progress"><div class="lead-card-heading"><div><p class="eyebrow">8-Wochen-Prozess</p><h2 id="customerProgramHeadline">Aktueller Kundenfortschritt</h2></div><div class="customer-progress-indicators"><span class="customer-all-weeks-badge" id="customerAllWeeksBadge" hidden>✓ Alle 8 Wochen freigeschaltet</span><span id="customerProgramProgress">0 %</span></div></div><div class="customer-week-track" id="customerWeekTrack"></div></section>
 
             <section class="lead-dashboard-card customer-contracts-overview" id="customerContractsOverview" data-customer-summary-permission="customers,finance" aria-labelledby="customerContractsHeading">
               <div class="lead-card-heading"><div><span class="lead-card-icon">▤</span><h2 id="customerContractsHeading">Verträge <span id="customerActiveContractCount" class="customer-contract-count">0</span></h2></div><div class="customer-contract-toolbar"><button class="secondary" type="button" data-open-customer-contracts>Verträge ansehen →</button><button type="button" class="primary" id="newCustomerContract" data-new-customer-contract>+ Vertrag anlegen</button></div></div>
@@ -1690,6 +1690,11 @@
             Auf Onboarding zurücksetzen
           </button>
         </div>
+        <section class="program-week-release" aria-labelledby="programWeekReleaseTitle">
+          <div class="program-week-release-head"><div><strong id="programWeekReleaseTitle">Wochen für Kunden freischalten</strong><small>Wähle zusätzliche Wochen aus. Bereits automatisch erreichte Wochen bleiben freigeschaltet. Der Arbeitsstand und die Pflichtschritte ändern sich dadurch nicht.</small></div><button type="button" class="secondary" id="unlockAllWeeks">Alle Wochen freischalten</button></div>
+          <div class="program-week-release-grid" id="weekOverrides"></div>
+          <p id="programWeekReleaseSummary" aria-live="polite"></p>
+        </section>
         <details class="progress-correction">
           <summary>Fortschritt und Pflichtaufgaben korrigieren</summary>
           <p>

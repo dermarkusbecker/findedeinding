@@ -75,6 +75,16 @@ test('vollständige Daten einer zukünftigen Woche bleiben bis zu ihrem Startdat
   assert.equal(access.weekStates[1].completed, false);
 });
 
+test('Adminfreigabe erlaubt den belegten Abschluss vor dem regulären Wochenstart', () => {
+  const manualProgress = { ...progress, manually_unlocked_weeks: [2], manual_unlock_dates: { 2: '2026-09-04' } };
+  const weekTwo = completedGuidedWeek(2);
+  weekTwo.completed_at = '2026-09-05T09:00:00Z';
+  const scheduled = calculateProgramAccess({ progress: manualProgress, now: new Date('2026-09-05T12:00:00Z') });
+  const access = reconcileAccessFromEntries({ access: scheduled, progress: manualProgress, entries: [entry(1, completedWeekOne()), entry(2, weekTwo, '2026-09-05T10:00:00Z')] });
+  assert.deepEqual(access.completedWeeks, [1, 2]);
+  assert.equal(access.weekStates[1].reason, 'admin_unlocked');
+});
+
 test('am Freischaltungsdatum wird eine korrekt abgeschlossene Folgewoche berücksichtigt', () => {
   const scheduled = calculateProgramAccess({ progress, now: new Date('2026-09-11T12:00:00Z') });
   const access = reconcileAccessFromEntries({ access: scheduled, progress, entries: [entry(1, completedWeekOne()), entry(2, completedGuidedWeek(2), '2026-09-11T10:00:00Z')] });

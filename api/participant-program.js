@@ -338,7 +338,7 @@ export default async function handler(request, response) {
       const processWeekAccessible = access.weekStates.some((state) => state.week === Number(access.processWeek) && state.accessible);
       const selectedWeek = onboardingComplete ? (requestedWeek || (processWeekAccessible ? Number(access.processWeek) : access.unlockedWeeks[0] || 1)) : 0;
       const guidedState = selectedWeek >= 2 ? (guidedStates.get(selectedWeek) || createGuidedWeekState(selectedWeek)) : null;
-      const releasedWeeks = new Set(access.automaticUnlockedWeeks.map(Number));
+      const releasedWeeks = new Set(access.unlockedWeeks.map(Number));
       const clarityHistory = buildClarityHistory(weekOneState, guidedStates).map((item) => releasedWeeks.has(Number(item.week))
         ? {...item,recordedAt:clarityRecordedAt(result.stateEntries||[],item.week,item.score)||item.recordedAt}
         : { week: item.week, score: null, changed: null, note: '', recordedAt: null });

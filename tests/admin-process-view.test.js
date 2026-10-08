@@ -15,6 +15,7 @@ test('Admin-Prozessansicht zeigt echte Eingaben der freigegebenen Woche', () => 
     serializedAccess: {
       processWeek: 1,
       automaticUnlockedWeeks: [1],
+      unlockedWeeks: [1],
       weekStates: Array.from({ length: 8 }, (_, index) => ({ week: index + 1, accessible: index === 0, completed: false, reason: index === 0 ? 'scheduled_release' : 'scheduled_wait', unlocksAt: `2026-${index < 4 ? '09' : '10'}-${String(4 + index * 7).padStart(2, '0')}` })),
     },
   });
@@ -34,6 +35,7 @@ test('Admin-Prozessansicht blendet verfrüht gespeicherte Zukunftsdaten aus', ()
     serializedAccess: {
       processWeek: 1,
       automaticUnlockedWeeks: [1],
+      unlockedWeeks: [1],
       weekStates: Array.from({ length: 8 }, (_, index) => ({ week: index + 1, accessible: index === 0, completed: false, reason: index === 0 ? 'scheduled_release' : 'scheduled_wait', unlocksAt: null })),
     },
   });
