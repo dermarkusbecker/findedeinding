@@ -66,6 +66,20 @@ test('Videovertrag verlangt vollständige Vertragsdaten und elf einzelne Bestät
   assert.ok(incomplete.missing.includes('Gesamtpreis'));
 });
 
+test('manuelles Verkaufsgespräch kann ohne gebuchten Termin und Meet-Link abgeschlossen werden', async () => {
+  const [api, client] = await Promise.all([read('api/leads.js'), read('admin.js')]);
+  const completion = api.slice(api.indexOf("action === 'complete-sales-conversation'", api.indexOf('export default async function handler')), api.indexOf("action === 'cancel-appointment'", api.indexOf('export default async function handler')));
+  assert.match(completion, /if \(!lead\.appointment_start \|\| !lead\.appointment_end\) \{[\s\S]*?sales_conversation_completed_at: now[\s\S]*?mailStatus: 'not_applicable'/);
+  assert.match(completion, /if \(!lead\.meet_url\) \{[\s\S]*?sales_conversation_completed_at: now/);
+  assert.doesNotMatch(completion, /Bitte plane zuerst einen freien Termin|Der Meet-Link fehlt noch/);
+  assert.match(client, /meetingAt:activeLeadDashboard\?\.lead\?\.appointment_start\|\|latestVideoContract\(\)\?\.contract_data\?\.meetingAt\|\|new Date\(\)\.toISOString\(\)/);
+  const { contract, missing } = normalizeVideoContract({ ...completeInput(), meetingAt: '', place: 'Online · Videogespräch' }, { appointment_start: null, meet_url: null });
+  assert.deepEqual(missing, []);
+  assert.equal(contract.meetingAt, '');
+  const pdf = await buildVideoContractPdf(contract, { videoConfirmed: true, customerSigned: true, providerConfirmed: true });
+  assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
+});
+
 test('Originalformular wird als ausgefülltes und abgeflachtes Vertrags-PDF erzeugt', async () => {
   const { contract } = normalizeVideoContract(completeInput());
   const bytes = await buildVideoContractPdf(contract, { videoConfirmed: true, customerSigned: true, providerConfirmed: true });

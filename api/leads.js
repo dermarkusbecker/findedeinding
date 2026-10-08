@@ -1067,17 +1067,26 @@ export default async function handler(request, response) {
     if (request.method === 'POST' && action === 'complete-sales-conversation') {
       let lead = await leadById(service, request.body?.id);
       if (![lead.street_name,lead.house_number,lead.postal_code,lead.city].every(value=>String(value||'').trim())) return response.status(409).json({ error: 'Bitte die vier Adressfelder in Schritt 2 Kontakt vollständig erfassen.' });
-      if (!lead.appointment_start || !lead.appointment_end) return response.status(409).json({ error: 'Bitte plane zuerst einen freien Termin.' });
       const now = new Date().toISOString();
+      const completedStatus = lead.converted_user_profile_id ? 'customer' : ['offer', 'later', 'lost'].includes(lead.status) ? lead.status : 'consultation';
+      if (!lead.appointment_start || !lead.appointment_end) {
+        const completed = await patchLead(service, lead.id, { sales_conversation_completed_at: now, status: completedStatus });
+        return response.status(200).json({ lead: completed, calendarPrepared: false, mailStatus: 'not_applicable', message: 'Verkaufsgespräch abgeschlossen. Ein Termin ist für den Vertragsabschluss nicht erforderlich. Ohne gebuchten Termin wird keine Terminbestätigung versendet.' });
+      }
       let calendarPrepared = false;
       const accessToken = await optionalGoogleAccessToken(service);
-      if (accessToken && !lead.appointment_confirmation_prepared_at) {
-        const event = await saveCalendarEvent(accessToken, lead, lead.appointment_start, lead.appointment_end, { notifyAttendees: false });
-        const meetUrl = lead.meet_url || await confirmedMeetLink(accessToken, event);
-        lead = await patchLead(service, lead.id, { calendar_event_id: event?.id || lead.calendar_event_id, calendar_event_url: event?.htmlLink || lead.calendar_event_url, meet_url: meetUrl });
-        calendarPrepared = true;
+      if (accessToken && !lead.appointment_confirmation_prepared_at && !lead.meet_url) {
+        try {
+          const event = await saveCalendarEvent(accessToken, lead, lead.appointment_start, lead.appointment_end, { notifyAttendees: false });
+          const meetUrl = await confirmedMeetLink(accessToken, event);
+          lead = await patchLead(service, lead.id, { calendar_event_id: event?.id || lead.calendar_event_id, calendar_event_url: event?.htmlLink || lead.calendar_event_url, meet_url: meetUrl });
+          calendarPrepared = true;
+        } catch { /* Der optionale Meet-Termin darf den Gesprächsabschluss nicht sperren. */ }
       }
-      if (!lead.meet_url) return response.status(503).json({ error: 'Der Meet-Link fehlt noch. Die Terminbestätigung wurde nicht versendet. Bitte die Google-Verbindung prüfen.' });
+      if (!lead.meet_url) {
+        const completed = await patchLead(service, lead.id, { sales_conversation_completed_at: now, status: completedStatus });
+        return response.status(200).json({ lead: completed, calendarPrepared, mailStatus: 'not_applicable', message: 'Verkaufsgespräch abgeschlossen. Ohne Meet-Link wird keine Terminbestätigung versendet. Der Vertragsabschluss bleibt möglich.' });
+      }
       const eventKey = `appointment-confirmation:${lead.id}:${lead.appointment_start}`;
       const existingMail = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?event_key=eq.${encodeURIComponent(eventKey)}&select=*&limit=1`, { headers: headers(service.key) }));
       let confirmation = existingMail[0] || null;
@@ -1095,7 +1104,6 @@ export default async function handler(request, response) {
           mailStatus = state[0]?.delivery_status || 'unknown';
         }
       }
-      const completedStatus = lead.converted_user_profile_id ? 'customer' : ['offer', 'later', 'lost'].includes(lead.status) ? lead.status : 'consultation';
       const completed = await patchLead(service, lead.id, { sales_conversation_completed_at: now, appointment_confirmation_prepared_at: lead.appointment_confirmation_prepared_at || now, status: completedStatus });
       return response.status(200).json({ lead: completed, calendarPrepared, mailStatus, message: mailStatus === 'accepted' ? 'Verkaufsgespräch abgeschlossen. STRATO hat die gestaltete Terminbestätigung mit Signatur angenommen.' : 'Verkaufsgespräch abgeschlossen. Die Terminbestätigung konnte nicht versendet werden und liegt im CRM-Postfach zur Prüfung.' });
     }
