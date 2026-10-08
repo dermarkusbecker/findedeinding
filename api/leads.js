@@ -144,7 +144,8 @@ async function reserveContractNumber(service, contractDate = new Date().toISOStr
 
 async function activateContractedLead(service, lead, programStartDate) {
   async function existingAccess(profile) {
-    if (profile.access_invite_sent_at || profile.password_changed_at) return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, alreadyActive: true };
+    const sentAccess = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?user_profile_id=eq.${encodeURIComponent(profile.id)}&event_key=like.portal-password:*&delivery_status=eq.accepted&select=id&limit=1`, { headers: headers(service.key) }), 'Portalversand konnte nicht geprüft werden.');
+    if (sentAccess[0] || profile.password_changed_at) return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, alreadyActive: true };
     const oneTimePassword = randomTemporaryPassword();
     await readJson(await fetch(`${service.url}/auth/v1/admin/users/${encodeURIComponent(profile.auth_user_id)}`, { method: 'PUT', headers: headers(service.key), body: JSON.stringify({ password: oneTimePassword, email_confirm: true }) }), 'Erstanmeldepasswort konnte nicht erzeugt werden.');
     const [updated] = await readJson(await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(profile.id)}`, { method: 'PATCH', headers: { ...headers(service.key), Prefer: 'return=representation' }, body: JSON.stringify({ must_change_password: true, one_time_password_issued_at: new Date().toISOString() }) }), 'Portalzugang konnte nicht aktualisiert werden.');
