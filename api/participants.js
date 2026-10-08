@@ -4,6 +4,7 @@ import { handleCustomerRecords } from '../lib/customer-records-service.js';
 import { calculateProgramAccess } from '../lib/program-access.js';
 import { reconcileAccessFromEntries } from '../lib/program-position.js';
 import { splitContactName } from '../lib/contact-lifecycle.js';
+import { sendPortalAccessEmails } from '../lib/portal-access-mail.js';
 
 function config() { const auth = supabaseAuthConfig(); return auth ? { ...auth, key: auth.serviceKey } : null; }
 function headers(key, extra = {}) { return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...extra }; }
@@ -188,8 +189,20 @@ export default async function handler(request, response) {
         const authBody = await authResult.json().catch(() => ({}));
         if (!authResult.ok) return response.status(authResult.status).json({ error: authBody.message || 'Einmalpasswort konnte nicht erzeugt werden.' });
         const issuedAt = new Date().toISOString();
-        await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: headers(service.key), body: JSON.stringify({ must_change_password: true, one_time_password_issued_at: issuedAt }) });
+        await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: headers(service.key), body: JSON.stringify({ must_change_password: true, one_time_password_issued_at: issuedAt, access_invite_sent_at: null }) });
         return response.status(200).json({ oneTimePassword, issuedAt, visibleOnce: true });
+      }
+      if (action === 'resend-initial-access') {
+        if (!participant.source_lead_id) return response.status(409).json({ error: 'Für dieses Kundenkonto fehlt die verknüpfte Kontaktakte.' });
+        const [lead] = await readJson(await fetch(`${service.url}/rest/v1/leads?id=eq.${encodeURIComponent(participant.source_lead_id)}&select=id,name,email&limit=1`, { headers: headers(service.key) }));
+        if (!lead) return response.status(404).json({ error: 'Die verknüpfte Kontaktakte wurde nicht gefunden.' });
+        const oneTimePassword = randomTemporaryPassword();
+        const authResult = await fetch(`${service.url}/auth/v1/admin/users/${encodeURIComponent(participant.auth_user_id)}`, { method: 'PUT', headers: authHeaders(service.key), body: JSON.stringify({ password: oneTimePassword, email_confirm: true }) });
+        const authBody = await authResult.json().catch(() => ({}));
+        if (!authResult.ok) return response.status(authResult.status).json({ error: authBody.message || 'Erstanmeldepasswort konnte nicht erzeugt werden.' });
+        const [updated] = await readJson(await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ must_change_password: true, one_time_password_issued_at: new Date().toISOString(), access_invite_sent_at: null }) }));
+        const mailStatus = await sendPortalAccessEmails(service, { lead, profile: updated, oneTimePassword });
+        return response.status(200).json({ mailStatus, sentAt: ['accepted', 'already_accepted'].includes(mailStatus.password) ? new Date().toISOString() : null, message: ['accepted', 'already_accepted'].includes(mailStatus.password) ? 'STRATO hat die zwei Portal-Zugangsmails angenommen.' : 'Versandstatus im CRM prüfen.' });
       }
       if (action === 'send-login-mail') {
         await sendPasswordReset({ ...service, serviceKey: service.key, anonKey: process.env.SUPABASE_ANON_KEY }, participant.email);

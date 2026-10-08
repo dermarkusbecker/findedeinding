@@ -20,7 +20,8 @@ import crypto from 'node:crypto';
 import { DEFAULT_BOOKING_SETTINGS, generateAvailableSlots, isWithinBookingAvailability, normalizeBookingSettings } from '../lib/booking-availability.js';
 import { authorizationUrl, assertCalendarAvailable, calendarBusyIntervals, calendarEvent, decryptCredential, deleteCalendarEvent, emailFromIdToken, encryptCredential, exchangeAuthorizationCode, googleConfig, refreshAccessToken, saveCalendarEvent, verifyOAuthState } from '../lib/google-calendar.js';
 import { assertGoogleMeetSpace, downloadGoogleDriveFile, findGoogleMeetRecording, googleDriveFileMetadata } from '../lib/google-meet.js';
-import { provisionProgramUser, requireCurrentAdmin, supabaseAuthConfig } from '../lib/user-auth.js';
+import { provisionProgramUser, randomTemporaryPassword, requireCurrentAdmin, supabaseAuthConfig } from '../lib/user-auth.js';
+import { sendPortalAccessEmails } from '../lib/portal-access-mail.js';
 import { claraConfig } from '../lib/clara/config.js';
 import { buildSystemRegistry } from '../lib/system-registry.js';
 import { calculateProgramAccess } from '../lib/program-access.js';
@@ -142,16 +143,28 @@ async function reserveContractNumber(service, contractDate = new Date().toISOStr
 }
 
 async function activateContractedLead(service, lead, programStartDate) {
-  if (lead.converted_user_profile_id) return { profileId: lead.converted_user_profile_id, alreadyActive: true };
-  const existing = await readJson(await fetch(`${service.url}/rest/v1/user_profiles?source_lead_id=eq.${encodeURIComponent(lead.id)}&role=eq.user&select=id,name,email,portal_username,customer_number&limit=1`, { headers: headers(service.key) }), 'Kundenkonto konnte nicht geprüft werden.');
+  async function existingAccess(profile) {
+    if (profile.access_invite_sent_at || profile.password_changed_at) return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, alreadyActive: true };
+    const oneTimePassword = randomTemporaryPassword();
+    await readJson(await fetch(`${service.url}/auth/v1/admin/users/${encodeURIComponent(profile.auth_user_id)}`, { method: 'PUT', headers: headers(service.key), body: JSON.stringify({ password: oneTimePassword, email_confirm: true }) }), 'Erstanmeldepasswort konnte nicht erzeugt werden.');
+    const [updated] = await readJson(await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(profile.id)}`, { method: 'PATCH', headers: { ...headers(service.key), Prefer: 'return=representation' }, body: JSON.stringify({ must_change_password: true, one_time_password_issued_at: new Date().toISOString() }) }), 'Portalzugang konnte nicht aktualisiert werden.');
+    let accessMailStatus, accessMailError;
+    try { accessMailStatus = await sendPortalAccessEmails(service, { lead, profile: updated, oneTimePassword }); }
+    catch (error) { accessMailError = error.message || 'Portalzugang konnte nicht versendet werden.'; }
+    return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, alreadyActive: true, accessMailStatus, accessMailError };
+  }
+  const existing = await readJson(await fetch(`${service.url}/rest/v1/user_profiles?${lead.converted_user_profile_id ? `id=eq.${encodeURIComponent(lead.converted_user_profile_id)}` : `source_lead_id=eq.${encodeURIComponent(lead.id)}`}&role=eq.user&select=id,auth_user_id,name,email,portal_username,customer_number,access_invite_sent_at,password_changed_at&limit=1`, { headers: headers(service.key) }), 'Kundenkonto konnte nicht geprüft werden.');
   if (existing[0]) {
     const profile = existing[0];
-    await patchLead(service, lead.id, { status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
-    return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, alreadyActive: true };
+    if (!lead.converted_user_profile_id) await patchLead(service, lead.id, { status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
+    return existingAccess(profile);
   }
-  const profile = await provisionProgramUser(service, { name: lead.name, email: lead.email, phone: lead.mobile_phone || lead.phone, startDate: programStartDate, sourceLeadId: lead.id, permissions: ['customer_portal', 'clara_program', 'documents'] });
+  const profile = await provisionProgramUser(service, { name: lead.name, email: lead.email, phone: lead.mobile_phone || lead.phone, startDate: programStartDate, sourceLeadId: lead.id, permissions: ['customer_portal', 'clara_program', 'documents'], sendInvitation: false });
   await patchLead(service, lead.id, { status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
-  return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, oneTimePassword: profile.oneTimePassword, alreadyActive: false };
+  let accessMailStatus, accessMailError;
+  try { accessMailStatus = await sendPortalAccessEmails(service, { lead, profile, oneTimePassword: profile.oneTimePassword }); }
+  catch (error) { accessMailError = error.message || 'Portalzugang konnte nicht versendet werden.'; }
+  return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, alreadyActive: false, accessMailStatus, accessMailError };
 }
 
 async function completedContract(service, leadId) {
@@ -998,7 +1011,7 @@ export default async function handler(request, response) {
         mailStatus = { error: error.message };
       }
       const allMailAccepted = ['contract','invoice','welcome'].every(key=>['accepted','already_accepted'].includes(mailStatus?.[key]));
-      return response.status(200).json({ record, signingPath, participantActivated: Boolean(participant && !participant.alreadyActive), participant, activationError, mailStatus, message: [mailStatus?.error ? `Automatischer E-Mail-Versand fehlgeschlagen: ${mailStatus.error}` : allMailAccepted ? 'STRATO hat Vertrag, Rechnung und Willkommens-E-Mail angenommen.' : 'Versandstatus von Vertrag, Rechnung und Willkommens-E-Mail bitte im CRM prüfen.', activationError ? `Kundenkonto konnte nicht aktiviert werden: ${activationError}` : ''].filter(Boolean).join(' ') });
+      return response.status(200).json({ record, signingPath, participantActivated: Boolean(participant && !participant.alreadyActive), participant, activationError, mailStatus, message: [mailStatus?.error ? `Automatischer E-Mail-Versand fehlgeschlagen: ${mailStatus.error}` : allMailAccepted ? 'STRATO hat Vertrag, Rechnung und Willkommens-E-Mail angenommen.' : 'Versandstatus von Vertrag, Rechnung und Willkommens-E-Mail bitte im CRM prüfen.', activationError ? `Kundenkonto konnte nicht aktiviert werden: ${activationError}` : '', participant?.accessMailError ? `Portalzugang konnte nicht vollständig versendet werden: ${participant.accessMailError}` : '', participant?.accessMailStatus && !['accepted', 'already_accepted'].includes(participant.accessMailStatus.password) ? 'Versandstatus des Portalzugangs bitte im CRM prüfen.' : ''].filter(Boolean).join(' ') });
     }
     if (request.method === 'POST' && action === 'send-video-contract-email') {
       const lead = await leadById(service, request.body?.id);
@@ -1176,7 +1189,7 @@ export default async function handler(request, response) {
       const contract = await completedContract(service, lead.id);
       if (!contract) return response.status(409).json({ error: 'Teilnehmer-Aktivierung gesperrt: Ein aktiver, unterschriebener Vertrag mit gespeichertem Vertragsdokument fehlt.' });
       const participant = await activateContractedLead(service, lead, contract.program_start_date || request.body?.programStartDate);
-      return response.status(200).json({ lead: await leadById(service, lead.id), profile: { id: participant.profileId, name: participant.name, email: participant.email, loginName: participant.loginName, customerNumber: participant.customerNumber }, oneTimePassword: participant.oneTimePassword, invitationSent: true });
+      return response.status(200).json({ lead: await leadById(service, lead.id), profile: { id: participant.profileId, name: participant.name, email: participant.email, loginName: participant.loginName, customerNumber: participant.customerNumber }, invitationSent: ['accepted', 'already_accepted'].includes(participant.accessMailStatus?.password), accessMailStatus: participant.accessMailStatus, accessMailError: participant.accessMailError });
     }
     return response.status(405).json({ error: 'Aktion oder Methode nicht erlaubt.' });
   } catch (error) {
