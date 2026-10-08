@@ -9,6 +9,7 @@
   ],
   "rewrites": [
     { "source": "/referenzen", "destination": "/referenzen.html" },
+    { "source": "/qa-buchen", "destination": "/qa-buchen.html" },
     { "source": "/login", "destination": "/login.html" },
     { "source": "/zugang", "destination": "/login.html" },
     { "source": "/kunden-login", "destination": "/login.html" },

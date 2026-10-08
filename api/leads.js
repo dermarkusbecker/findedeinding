@@ -28,7 +28,7 @@ import { calculateProgramAccess } from '../lib/program-access.js';
 import { reconcileAccessFromEntries } from '../lib/program-position.js';
 import { syncLeadToCustomerProfile } from '../lib/contact-lifecycle.js';
 import { buildVideoContractPdf, normalizeVideoContract, VIDEO_CONFIRMATION_KEYS } from '../lib/video-contract.js';
-import { customerObjectExists, deleteCustomerObject, importCustomerObject, readCustomerObject, signedCustomerUrl, uploadCustomerObject } from '../lib/customer-storage.js';
+import { customerObjectExists, decodeCustomerUpload, deleteCustomerObject, importCustomerObject, readCustomerObject, signedCustomerUrl, uploadCustomerObject } from '../lib/customer-storage.js';
 import { handlePublicContractSign } from '../lib/contract-sign-service.js';
 import { manageContract, expireContractCheckouts } from '../lib/contract-management.js';
 import { sendSignedContractMail } from '../lib/contract-mail.js';
@@ -169,8 +169,8 @@ async function activateContractedLead(service, lead, programStartDate) {
 }
 
 async function completedContract(service, leadId) {
-  const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_contracts?lead_id=eq.${encodeURIComponent(leadId)}&status=eq.signed&archived_at=is.null&document_confirmed_at=not.is.null&document_storage_path=not.is.null&select=*&order=signed_at.desc&limit=1`, { headers: headers(service.key) }), 'Vertragsstatus konnte nicht geprüft werden.');
-  return rows[0] || null;
+  const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_contracts?lead_id=eq.${encodeURIComponent(leadId)}&status=eq.signed&archived_at=is.null&document_confirmed_at=not.is.null&select=*&order=signed_at.desc&limit=20`, { headers: headers(service.key) }), 'Vertragsstatus konnte nicht geprüft werden.');
+  return rows.find(item => item.document_storage_path || item.contract_data?.manualSignedPdfConfirmed === true) || null;
 }
 
 async function communicationInbox(service) {
@@ -509,7 +509,18 @@ async function optionalGoogleAccessToken(service) {
 
 async function bookingSettings(service) {
   const rows = await readJson(await fetch(`${service.url}/rest/v1/booking_settings?id=eq.default&select=*&limit=1`, { headers: headers(service.key) }), 'Termin-Einstellungen konnten nicht geladen werden.');
-  return normalizeBookingSettings(rows[0] || DEFAULT_BOOKING_SETTINGS);
+  const record=rows[0] || DEFAULT_BOOKING_SETTINGS;
+  return { ...normalizeBookingSettings(record), qaCategories: normalizeQaCategories(record.qa_categories) };
+}
+
+const QA_DURATIONS=[15,30,45,60];
+function normalizeQaCategories(value){
+  const source=Array.isArray(value)?value:[];
+  return QA_DURATIONS.map(duration=>({duration,active:source.find(item=>Number(item?.duration)===duration)?.active===true}));
+}
+function qaBookingSettings(settings,duration){
+  if(!QA_DURATIONS.includes(duration)||!settings.qaCategories.find(item=>item.duration===duration)?.active)throw Object.assign(new Error('Dieser Q&A-Termin ist nicht freigeschaltet.'),{status:404});
+  return {...settings,defaultDurationMinutes:duration,offeredDurations:[duration]};
 }
 
 async function serviceTariffs(service) {
@@ -554,13 +565,20 @@ async function scheduledLeadIntervals(service, start, end, excludeId=null) {
   return rows.map((lead) => ({ start: lead.appointment_start, end: lead.appointment_end })).filter((item) => item.start && item.end);
 }
 
+async function scheduledQaIntervals(service,start,end){
+  const query=new URLSearchParams({appointment_start:`lt.${end}`,appointment_end:`gt.${start}`,select:'appointment_start,appointment_end'});
+  const rows=await readJson(await fetch(`${service.url}/rest/v1/crm_qa_bookings?${query}`,{headers:headers(service.key)}),'Q&A-Termine konnten nicht geprüft werden.');
+  return rows.map(item=>({start:item.appointment_start,end:item.appointment_end}));
+}
+
 async function availableBookingSlots(service, query = {}) {
-  const settings = categoryBookingSettings(await bookingSettings(service),query.categoryId);
+  const baseSettings=await bookingSettings(service);
+  const settings = query.qa?qaBookingSettings(baseSettings,Number(query.duration)):categoryBookingSettings(baseSettings,query.categoryId);
   const duration = Number(query.duration || settings.defaultDurationMinutes);
   const candidates = generateAvailableSlots({ settings, from: clean(query.from, 10), to: clean(query.to, 10), duration, now: new Date() });
   if (!candidates.length) return { settings, slots: [], calendarConnected: false };
   const accessToken = await optionalGoogleAccessToken(service);
-  const storedBusy = await scheduledLeadIntervals(service, candidates[0].start, candidates.at(-1).end);
+  const storedBusy = [...await scheduledLeadIntervals(service, candidates[0].start, candidates.at(-1).end),...await scheduledQaIntervals(service,candidates[0].start,candidates.at(-1).end)];
   const calendarBusy = accessToken ? await calendarBusyIntervals(accessToken, candidates[0].start, candidates.at(-1).end) : [];
   const slots = generateAvailableSlots({ settings, from: clean(query.from, 10), to: clean(query.to, 10), duration, busyIntervals: [...storedBusy, ...calendarBusy], now: new Date() });
   return { settings, slots, calendarConnected: Boolean(accessToken) };
@@ -570,6 +588,7 @@ function bookingSettingsPayload(settings) {
   return {
     id: 'default',
     categories:normalizeAppointmentCategories(settings.categories),
+    qa_categories:normalizeQaCategories(settings.qaCategories),
     timezone: settings.timezone,
     weekly_availability: settings.weeklyAvailability,
     slot_interval_minutes: settings.slotIntervalMinutes,
@@ -706,7 +725,7 @@ function permissionForAction(action) {
   if (['available-slots', 'tariffs'].includes(action)) return ['settings', 'sales_calls', 'leads'];
   if (['google-connect', 'google-callback', 'booking-settings', 'follow-up-settings', 'system-status', 'strato-mail-check', 'tariff'].includes(action)) return 'settings';
   if (action === 'strato-inbox-sync') return 'communications';
-  if (['dashboard', 'dashboard-record', 'contract-manage', 'contract-send-documents'].includes(action)) return ['leads', 'customers', 'finance'];
+  if (['dashboard', 'dashboard-record', 'manual-contract', 'contract-manage', 'contract-send-documents'].includes(action)) return ['leads', 'customers', 'finance'];
   if (['update', 'complete-sales-conversation', 'set-interest-status'].includes(action)) return ['leads', 'sales_calls', 'customers'];
   if (['schedule', 'cancel-appointment'].includes(action)) return ['leads', 'sales_calls'];
   if (['create-video-contract', 'begin-video-recording', 'start-video-recording', 'sync-google-meet-recording', 'video-recording-upload', 'complete-video-recording-upload', 'finalize-video-contract', 'send-video-contract-email', 'contract-download', 'video-recording-download'].includes(action)) return ['leads', 'sales_calls'];
@@ -729,6 +748,49 @@ export default async function handler(request, response) {
     } catch (error) {
       return response.status(error.status || 503).json({ error: error.message });
     }
+  }
+  if (action === 'public-qa-slots' && request.method === 'GET') {
+    try {
+      const duration=Number(request.query?.duration),settings=qaBookingSettings(await bookingSettings(service),duration);
+      const result=await availableBookingSlots(service,{from:clean(request.query?.from,10),to:clean(request.query?.to,10),duration,qa:true});
+      return response.status(200).json({slots:result.slots,timezone:settings.timezone,durationMinutes:duration,calendarConnected:result.calendarConnected});
+    } catch(error){return response.status(error.status||503).json({error:error.message});}
+  }
+  if (action === 'public-qa-book' && request.method === 'POST') {
+    try {
+      if(request.body?.website)return response.status(200).json({ok:true});
+      const name=clean(request.body?.name,120),email=clean(request.body?.email,254).toLowerCase(),phone=clean(request.body?.phone,40)||null;
+      if(!name||!emailValid(email))return response.status(400).json({error:'Bitte Name und gültige E-Mail-Adresse eingeben.'});
+      const duration=Number(request.body?.duration),settings=qaBookingSettings(await bookingSettings(service),duration);
+      const start=new Date(request.body?.start);
+      if(!isWithinBookingAvailability(start,duration,settings))return response.status(409).json({error:'Dieser Termin ist nicht mehr verfügbar.'});
+      const end=new Date(start.getTime()+duration*60000);
+      const busy=[...await scheduledLeadIntervals(service,start.toISOString(),end.toISOString()),...await scheduledQaIntervals(service,start.toISOString(),end.toISOString())];
+      if(busy.length)return response.status(409).json({error:'Dieser Termin wurde bereits vergeben.'});
+      const accessToken=await optionalGoogleAccessToken(service);
+      if(!accessToken)return response.status(503).json({error:'Google Calendar ist derzeit nicht verbunden.'});
+      await assertCalendarAvailable(accessToken,start.toISOString(),end.toISOString());
+      const event=await saveCalendarEvent(accessToken,{name,email,phone,appointment_title:`Q&A Gespräch · ${duration} Minuten`},start.toISOString(),end.toISOString(),{notifyAttendees:false});
+      let booking;
+      try {
+        const meetUrl=await confirmedMeetLink(accessToken,event);
+        if(!meetUrl)throw Object.assign(new Error('Der Google-Meet-Link konnte nicht erstellt werden.'),{status:502});
+        const leadRows=await readJson(await fetch(`${service.url}/rest/v1/leads?email=eq.${encodeURIComponent(email)}&select=id,converted_user_profile_id&order=created_at.desc&limit=1`,{headers:headers(service.key)}));
+        const linkedLead=leadRows[0];
+        const records=await readJson(await fetch(`${service.url}/rest/v1/crm_qa_bookings`,{method:'POST',headers:headers(service.key,{Prefer:'return=representation'}),body:JSON.stringify({name,email,phone,duration_minutes:duration,appointment_start:start.toISOString(),appointment_end:end.toISOString(),google_event_id:event.id,meet_url:meetUrl,lead_id:linkedLead?.id||null,user_profile_id:linkedLead?.converted_user_profile_id||null})}),'Der Q&A-Termin konnte nicht gespeichert werden.');
+        booking=records[0];
+      }catch(error){await deleteCalendarEvent(accessToken,event.id).catch(()=>null);throw error;}
+      let mailStatus='failed';
+      try {
+        const appearance=await mailAppearance(service),date=new Intl.DateTimeFormat('de-DE',{dateStyle:'full',timeStyle:'short',timeZone:'Europe/Berlin'}).format(start);
+        const subject=`Dein Q&A Gespräch am ${date}`,body=`Hallo ${name.split(/\s+/)[0]},\n\ndein Q&A Gespräch ist bestätigt.\n\nTermin: ${date} Uhr\nDauer: ${duration} Minuten\nGoogle Meet: ${booking.meet_url}\n\nWenn du den Termin verschieben musst, antworte bitte auf diese E-Mail.\n\nIch freue mich auf unser Gespräch.`;
+        const rendered=renderBrandedEmail({subject,body,...appearance});
+        const sent=await sendPreparedMail({to:email,subject,text:rendered.text,html:rendered.html});
+        mailStatus='accepted';
+        if(booking.lead_id)await insertLeadRecord(service,'lead_communications',{lead_id:booking.lead_id,user_profile_id:booking.user_profile_id,direction:'outbound',channel:'email',subject,body:rendered.text,body_html:rendered.html,recipient_email:email,sender_email:sent.senderEmail,provider_message_id:sent.providerMessageId,delivery_status:'accepted',automation_source:'qa_confirmation',event_key:`qa-confirmation:${booking.id}`}).catch(()=>null);
+      }catch{mailStatus='failed';}
+      return response.status(201).json({ok:true,start:booking.appointment_start,meetUrl:booking.meet_url,mailStatus});
+    }catch(error){return response.status(error.status||500).json({error:error.message});}
   }
   if (request.method === 'POST' && (!action || action === 'public-intake')) {
     try { return await publicLead(request, response, service); }
@@ -881,10 +943,10 @@ export default async function handler(request, response) {
     }
     if (request.method === 'PATCH' && action === 'booking-settings') {
       const incoming=request.body||{},categories=normalizeAppointmentCategories(incoming.categories),activeCategories=categories.filter(c=>c.active);
-      const settings = normalizeBookingSettings({...incoming,categories,offeredDurations:[...new Set(activeCategories.map(c=>c.duration))],defaultDurationMinutes:activeCategories[0].duration});
+      const settings = {...normalizeBookingSettings({...incoming,categories,offeredDurations:[...new Set(activeCategories.map(c=>c.duration))],defaultDurationMinutes:activeCategories[0].duration}),qaCategories:normalizeQaCategories(incoming.qaCategories)};
       const savedRows = await readJson(await fetch(`${service.url}/rest/v1/booking_settings?on_conflict=id`, { method: 'POST', headers: headers(service.key, { Prefer: 'resolution=merge-duplicates,return=representation' }), body: JSON.stringify(bookingSettingsPayload(settings)) }), 'Termin-Einstellungen konnten nicht gespeichert werden.');
       if (!savedRows[0]) throw Object.assign(new Error('Die gespeicherte Termin-Verfügbarkeit konnte nicht bestätigt werden.'), { status: 500 });
-      return response.status(200).json({ settings: normalizeBookingSettings(savedRows[0]) });
+      return response.status(200).json({ settings: {...normalizeBookingSettings(savedRows[0]),qaCategories:normalizeQaCategories(savedRows[0].qa_categories)} });
     }
     if (request.method === 'GET' && action === 'available-slots') {
       const result = await availableBookingSlots(service, { ...request.query, duration: Number(request.query?.duration) });
@@ -1046,6 +1108,11 @@ export default async function handler(request, response) {
       return response.redirect(302, url);
     }
     if (request.method === 'GET' && action === 'dashboard') return response.status(200).json(await leadDashboard(service, request.query?.id));
+    if (request.method === 'POST' && action === 'mark-viewed') {
+      if (!uuidValid(request.body?.id)) return response.status(400).json({ error: 'Gültige Interessenten-ID fehlt.' });
+      const rows = await readJson(await fetch(`${service.url}/rest/v1/leads?id=eq.${encodeURIComponent(request.body.id)}&admin_first_viewed_at=is.null&converted_user_profile_id=is.null`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ admin_first_viewed_at: new Date().toISOString() }) }));
+      return response.status(200).json({ viewedAt: rows[0]?.admin_first_viewed_at || null });
+    }
     if (request.method === 'POST' && action === 'contract-manage') {
       const body = request.body || {};
       const actor = admin.profile?.name || admin.name || 'CRM-Administrator';
@@ -1081,9 +1148,23 @@ export default async function handler(request, response) {
     if (request.method === 'POST' && action === 'contract-send-documents') {
       const lead = await leadById(service, request.body?.id);
       const contract = await leadContractById(service, lead.id, request.body?.contractId);
-      if (contract.status !== 'signed' || contract.archived_at || !contract.document_confirmed_at || !contract.document_storage_path) return response.status(409).json({ error: 'Unterschriebenes Vertrags-PDF und aktiver Vertrag fehlen.' });
+      if (contract.status !== 'signed' || contract.archived_at || !contract.document_confirmed_at || !(contract.document_storage_path || contract.contract_data?.manualSignedPdfConfirmed === true)) return response.status(409).json({ error: 'Unterschriebener Vertrag oder bestätigter manueller Abschluss fehlt.' });
       await archiveLeadInvoices(service, lead.id);
       return response.status(200).json({ mailStatus: await sendSignedContractMail(service, { leadId: lead.id, contractId: contract.id, actor: admin.profile?.name || 'CRM' }) });
+    }
+    if (request.method === 'POST' && action === 'manual-contract') {
+      const body = request.body || {}, lead = await leadById(service, body.id);
+      if (!/^\S+@\S+\.\S+$/.test(lead.email || '')) return response.status(400).json({ error: 'Bitte zuerst eine gültige Kunden-E-Mail-Adresse beim Interessenten hinterlegen.' });
+      if (!uuidValid(body.tariffId) || !uuidValid(body.requestKey) || !/^\d{4}-\d{2}-\d{2}$/.test(body.serviceStart || '') || !Number.isFinite(Date.parse(body.serviceStart)) || new Date(body.serviceStart).toISOString().slice(0, 10) !== body.serviceStart || !Number.isFinite(Number(body.expectedGross)) || Number(body.expectedGross) < 0 || body.signedPdfConfirmed !== true)
+        return response.status(400).json({ error: 'Aktiven Tarif, gültigen Programmstart und Bestätigung des unterschriebenen PDF-Vertrags angeben.' });
+      if (body.signedDocument) { const document = decodeCustomerUpload(body.signedDocument, 'documents'); if (document.mimeType !== 'application/pdf' || document.buffer.length > 3 * 1024 * 1024 || document.buffer.subarray(0, 5).toString() !== '%PDF-') return response.status(400).json({ error: 'Bitte ein unterschriebenes Vertrags-PDF bis 3 MB auswählen.' }); }
+      const result = await readJson(await fetch(`${service.url}/rest/v1/rpc/create_lead_manual_contract`, { method: 'POST', headers: headers(service.key), body: JSON.stringify({ p_lead: lead.id, p_tariff: body.tariffId, p_start: body.serviceStart, p_request: body.requestKey, p_expected_gross: Number(body.expectedGross), p_actor: admin.profile?.name || 'CRM-Administrator' }) }), 'Vertrag konnte nicht angelegt werden.');
+      if (body.signedDocument) await attachSignedContractPdf(service, lead.id, result.contract_id, body.signedDocument);
+      let participant = null, activationError = null, mailStatus = null, archivePending = false;
+      try { participant = await activateContractedLead(service, lead, body.serviceStart); } catch (error) { activationError = error.message; }
+      try { await archiveLeadInvoices(service, lead.id); } catch { archivePending = true; }
+      try { mailStatus = await sendSignedContractMail(service, { leadId: lead.id, contractId: result.contract_id, actor: admin.profile?.name || 'CRM-Administrator' }); } catch (error) { mailStatus = { error: error.message }; }
+      return response.status(201).json({ ...result, participant, activationError, mailStatus, archivePending });
     }
     if (request.method === 'POST' && action === 'set-interest-status') return response.status(200).json(await setLeadInterestStatus(service, request));
     if (request.method === 'POST' && action === 'dashboard-record') {
@@ -1111,7 +1192,6 @@ export default async function handler(request, response) {
       const addressProvided = ['streetName','houseNumber','postalCode','city'].some(key=>request.body?.[key]!==undefined);
       const address = addressProvided ? {street_name:clean(request.body?.streetName,160),house_number:clean(request.body?.houseNumber,30),postal_code:clean(request.body?.postalCode,20),city:clean(request.body?.city,120)} : {};
       if (!firstName || !lastName || !mobilePhone) return response.status(400).json({ error: 'Vorname, Nachname, E-Mail-Adresse und Mobilnummer sind Pflichtfelder.' });
-      if (addressProvided && !Object.values(address).every(Boolean)) return response.status(400).json({ error: 'Straße, Hausnummer, Postleitzahl und Ort sind Pflichtfelder im Kontakt.' });
       if (!whatsappSameAsMobile && !whatsappPhone) return response.status(400).json({ error: 'Bitte die abweichende WhatsApp-Nummer ergänzen.' });
       const lead = await patchLead(service, current.id, { first_name: firstName, last_name: lastName, name, email, mobile_phone: mobilePhone, phone: clean(request.body?.phone, 40) || null, whatsapp_phone: whatsappPhone || null, whatsapp_same_as_mobile: whatsappSameAsMobile, ...address, challenge: request.body?.challenge === undefined ? current.challenge || null : clean(request.body.challenge, 1000) || null, internal_notes: request.body?.internalNotes === undefined ? current.internal_notes || null : clean(request.body.internalNotes, 10000) || null, qualification_answers: qualificationAnswers(request.body?.qualificationAnswers), status });
       return response.status(200).json({ lead });
@@ -1188,7 +1268,7 @@ export default async function handler(request, response) {
       const lead = await leadById(service, request.body?.id);
       if (lead.converted_user_profile_id) return response.status(409).json({ error: 'Für diesen Lead wurde bereits ein Kundenkonto angelegt.' });
       const contract = await completedContract(service, lead.id);
-      if (!contract) return response.status(409).json({ error: 'Teilnehmer-Aktivierung gesperrt: Ein aktiver, unterschriebener Vertrag mit gespeichertem Vertragsdokument fehlt.' });
+      if (!contract) return response.status(409).json({ error: 'Teilnehmer-Aktivierung gesperrt: Ein aktiver, unterschriebener Vertrag oder bestätigter manueller Abschluss fehlt.' });
       const participant = await activateContractedLead(service, lead, contract.program_start_date || request.body?.programStartDate);
       return response.status(200).json({ lead: await leadById(service, lead.id), profile: { id: participant.profileId, name: participant.name, email: participant.email, loginName: participant.loginName, customerNumber: participant.customerNumber }, invitationSent: ['accepted', 'already_accepted'].includes(participant.accessMailStatus?.password), accessMailStatus: participant.accessMailStatus, accessMailError: participant.accessMailError });
     }

@@ -6,6 +6,20 @@ let communicationSignatures=[];
 let communicationBranding=null;
 let communicationCenterContacts=[];
 let communicationCenterLoaded=false;
+const systemAutomations=[
+  {name:'Neue Anmeldung an Markus',trigger:'Interessent meldet sich über die Website an',timing:'Sofort',recipient:'Markus',template:'Benachrichtigung mit Telefonnummer'},
+  {name:'Terminbestätigung',trigger:'Klarheitsgespräch wird verbindlich gebucht oder im CRM bestätigt',timing:'Sofort nach Terminbuchung',recipient:'Interessent',template:'Termin mit Google-Meet-Link'},
+  {name:'Q&A-Terminbestätigung',trigger:'Q&A-Termin wird über einen freigegebenen Buchungslink gebucht',timing:'Sofort nach Terminbuchung',recipient:'Kunde oder Interessent',template:'Termin mit Google-Meet-Link'},
+  {name:'Vertragsdokument',trigger:'Unterschriebener Vertrag wird abgeschlossen',timing:'Sofort nach Abschluss',recipient:'Kunde',template:'Vertrag oder Vertragszusammenfassung'},
+  {name:'Rechnung',trigger:'Unterschriebener Vertrag und Rechnung liegen vor',timing:'Nach der Vertrags-E-Mail',recipient:'Kunde',template:'Rechnung als PDF'},
+  {name:'Willkommen',trigger:'Vertrags- und Rechnungsversand war erfolgreich',timing:'Im Anschluss',recipient:'Kunde',template:'Willkommens-E-Mail'},
+  {name:'Portal-Benutzername',trigger:'Kundenkonto wird nach Vertragsabschluss aktiviert',timing:'Sofort',recipient:'Kunde',template:'Benutzername und Login-Link'},
+  {name:'Erstanmeldepasswort',trigger:'Benutzername wurde versendet',timing:'In separater E-Mail danach',recipient:'Kunde',template:'Einmaliges Passwort'},
+  {name:'Follow-up-Erinnerung',trigger:'Follow-up ist fällig',timing:'Am Fälligkeitstag',recipient:'Markus',template:'E-Mail oder CRM-Mitteilung laut Einstellungen'},
+  {name:'Zahlungslink',trigger:'Admin sendet einen Stripe-Zahlungslink',timing:'Sofort nach Auslösen',recipient:'Kunde',template:'Zahlungslink und offener Betrag'},
+  {name:'Zahlungserinnerung',trigger:'Offene Rechnung erreicht die konfigurierte Mahnstufe',timing:'Gemäß Mahnlauf',recipient:'Kunde',template:'Betrag und Zahlungsaufforderung'},
+  {name:'Zugang oder Passwort zurücksetzen',trigger:'Einladung oder Passwortzurücksetzung wird angefordert',timing:'Sofort',recipient:'Kunde',template:'Sicherheitslink über Auth-Dienst'},
+];
 let activeCommunicationTemplateId=null;
 let campaignSelectedContacts=new Set();
 
@@ -117,7 +131,8 @@ function automationDelay(item){
 }
 
 function renderAutomations(){
-  document.querySelector('#automationActiveCount').textContent=`${communicationAutomations.filter(item=>item.enabled).length} vorbereitet`;
+  document.querySelector('#automationActiveCount').textContent=`${systemAutomations.length} aktiv`;
+  document.querySelector('#systemAutomationList').innerHTML=systemAutomations.map(item=>`<article class="automation-card"><div class="automation-card-head"><span class="automation-card-icon">✉</span><div class="automation-card-title"><h3>${escapeHtml(item.name)}</h3><small>${escapeHtml(item.template)}</small></div><span class="communication-badge active">Aktiv</span></div><div class="automation-card-flow"><div><small>Auslöser</small><b>${escapeHtml(item.trigger)}</b></div><span>→</span><div><small>Zeitpunkt</small><b>${escapeHtml(item.timing)}</b></div><span>→</span><div><small>Empfänger</small><b>${escapeHtml(item.recipient)}</b></div></div></article>`).join('');
   const list=document.querySelector('#communicationAutomationList');
   list.innerHTML=communicationAutomations.length?communicationAutomations.map(item=>{const template=communicationTemplates.find(entry=>entry.id===item.template_id),transport='Regel vorbereitet · automatische Ausführung angehalten';return`<article class="automation-card"><div class="automation-card-head"><span class="automation-card-icon">⚡</span><div class="automation-card-title"><h3>${escapeHtml(item.name)}</h3><small>${item.enabled?transport:'Regel deaktiviert'}</small></div><span class="communication-badge paused">${item.enabled?'Vorbereitet':'Inaktiv'}</span></div><div class="automation-card-flow"><div><small>Auslöser</small><b>${escapeHtml(triggerLabels[item.trigger_type]||item.trigger_type)}</b></div><span>→</span><div><small>Wartezeit</small><b>${escapeHtml(automationDelay(item))}</b></div><span>→</span><div><small>Vorlage</small><b>${escapeHtml(template?.name||'Nicht gefunden')}</b></div></div><div class="automation-card-foot"><span class="communication-badge">${escapeHtml(audienceLabels[item.audience_type]||item.audience_type)}</span><div><button type="button" class="secondary" data-edit-automation="${escapeHtml(item.id)}">Bearbeiten ···</button><button type="button" class="secondary" data-toggle-automation="${escapeHtml(item.id)}" data-enabled="${item.enabled?'false':'true'}">${item.enabled?'Zurückstellen':'Vorbereiten'}</button></div></div></article>`;}).join(''):'<div class="empty">Noch keine automatisierten Nachrichten angelegt.</div>';
   list.querySelectorAll('[data-edit-automation]').forEach(button=>button.addEventListener('click',()=>openAutomationDialog(button.dataset.editAutomation)));

@@ -29,7 +29,7 @@ test('Aktive Tarife befüllen jeden Vertragsabschluss aus derselben Datenbasis',
   assert.match(html, /id="videoContractTariff"/);
   assert.match(script, /function applyTariffToVideoContract/);
   assert.match(script, /function applyTariffToLeadContract/);
-  assert.match(script, /Tarif<select name="tariffId" required/);
+  assert.match(html, /name="tariffId"/);
   for (const field of ['product', 'duration', 'totalPrice', 'paymentModel', 'paymentDue']) assert.match(script, new RegExp(`elements\\.${field}\\.value=tariff`));
   assert.match(script, /tariffId:values\.tariffId/);
   assert.match(contract, /tariffId: clean\(input\.tariffId/);

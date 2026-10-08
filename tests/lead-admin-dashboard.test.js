@@ -140,7 +140,8 @@ test('Interessenentscheidung ordnet Listen zu und erzeugt eine zentrale Wiedervo
 
 test('CRM-Akte unterstützt Verträge, Zahlungen, E-Mail, Aufgaben, Notizen und Bankdaten', async () => {
   const [script, api, migration] = await Promise.all([file('admin.js'), file('api/leads.js'), file('supabase/migrations/20260904190000_lead_admin_dashboard.sql')]);
-  for (const recordType of ['contract', 'payment', 'communication', 'task', 'bank', 'note']) assert.match(script, new RegExp(`${recordType}:\\{`));
+  for (const recordType of ['payment', 'communication', 'task', 'bank', 'note']) assert.match(script, new RegExp(`${recordType}:\\{`));
+  assert.match(script, /openManualContractForLead/);
   assert.match(api, /action === 'dashboard'/);
   assert.match(api, /action === 'dashboard-record'/);
   for (const table of ['lead_contracts', 'lead_payments', 'lead_communications', 'lead_tasks', 'lead_bank_accounts', 'customer_questions']) assert.match(migration, new RegExp(`create table if not exists public\\.${table}`));
@@ -153,7 +154,7 @@ test('Vertragsnummern werden zentral, fortlaufend und ohne manuelle Eingabe verg
     file('supabase/migrations/20260910170000_automatic_contract_numbers.sql'),
   ]);
   assert.doesNotMatch(script, /name="contractNumber"/);
-  assert.match(script, /Schema: FDD–Jahr–laufende Nummer/);
+  assert.match(script, /openManualContractForLead/);
   assert.match(api, /async function reserveContractNumber/);
   assert.match(api, /rpc\/next_contract_number/);
   assert.doesNotMatch(api, /crypto\.randomInt/);
@@ -182,9 +183,8 @@ test('Ein Lead wird erst nach unterschriebenem Dokument und Videovertrag automat
     file('lib/user-auth.js'),
     file('supabase/migrations/20260904200000_contract_activation_lifecycle.sql'),
   ]);
-  assert.match(script, /documentConfirmed/);
-  assert.match(script, /videoContractConfirmed/);
-  assert.match(script, /participantActivated/);
+  assert.match(html, /name="signedPdfConfirmed"/);
+  assert.match(api, /action === 'manual-contract'/);
   assert.match(api, /status === 'signed' && documentConfirmed && videoContractConfirmed/);
   assert.match(api, /activateContractedLead/);
   assert.match(api, /Teilnehmer-Aktivierung gesperrt/);
