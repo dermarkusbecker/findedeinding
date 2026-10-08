@@ -27,6 +27,9 @@ import { syncLeadToCustomerProfile } from '../lib/contact-lifecycle.js';
 import { buildVideoContractPdf, normalizeVideoContract, VIDEO_CONFIRMATION_KEYS } from '../lib/video-contract.js';
 import { customerObjectExists, deleteCustomerObject, importCustomerObject, readCustomerObject, signedCustomerUrl, uploadCustomerObject } from '../lib/customer-storage.js';
 import { handlePublicContractSign } from '../lib/contract-sign-service.js';
+import { manageContract, expireContractCheckouts } from '../lib/contract-management.js';
+import { sendSignedContractMail } from '../lib/contract-mail.js';
+import { attachSignedContractPdf } from '../lib/contract-document.js';
 
 const VALID_STATUSES = ['new', 'contacted', 'scheduled', 'consultation', 'offer', 'later', 'customer', 'lost'];
 const clean = (value, max = 200) => typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -373,7 +376,8 @@ async function recordDashboardMutation(service, request) {
     const tariff = tariffId ? (await serviceTariffs(service)).find((item) => item.id === tariffId && item.is_active) : null;
     if (!tariff) throw Object.assign(new Error('Bitte wähle einen aktiven Tarif aus den Einstellungen.'), { status: 400 });
     const amount = Number(tariff.gross_price);
-    const status = ['draft', 'sent', 'signed', 'cancelled'].includes(request.body?.status) ? request.body.status : 'draft';
+    const status = ['draft', 'sent', 'signed'].includes(request.body?.status) ? request.body.status : 'draft';
+    if (status === 'signed') throw Object.assign(new Error('Bitte den Vertrag zuerst als Entwurf speichern und im Vertragsfenster mit dem unterschriebenen PDF abschließen.'), { status: 400 });
     const title = clean(tariff.product_label, 180);
     if (!title || !Number.isFinite(amount) || amount < 0) throw Object.assign(new Error('Vertragsbezeichnung und gültiger Betrag sind erforderlich.'), { status: 400 });
     const now = new Date().toISOString();
@@ -381,11 +385,16 @@ async function recordDashboardMutation(service, request) {
     const videoContractConfirmed = request.body?.videoContractConfirmed === 'true' || request.body?.videoContractConfirmed === true;
     const programStartDate = /^\d{4}-\d{2}-\d{2}$/.test(request.body?.programStartDate || '') ? request.body.programStartDate : now.slice(0, 10);
     const contractNumber = await reserveContractNumber(service, now.slice(0, 10));
-    const record = await insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, tariff_id: tariff.id, title, contract_number: contractNumber, amount, status, signed_at: status === 'signed' ? now : null, document_confirmed_at: documentConfirmed ? now : null, video_contract_confirmed_at: videoContractConfirmed ? now : null, program_start_date: programStartDate });
+    const record = await insertLeadRecord(service, 'lead_contracts', { lead_id: lead.id, tariff_id: tariff.id, title, contract_number: contractNumber, amount, status, signed_at: status === 'signed' ? now : null, document_confirmed_at: documentConfirmed ? now : null, video_contract_confirmed_at: videoContractConfirmed ? now : null, program_start_date: programStartDate, contract_data: { source: 'manual_lead_contract', customerName: lead.name, customerEmail: lead.email, street: [lead.street_name, lead.house_number].filter(Boolean).join(' '), postalCity: [lead.postal_code, lead.city].filter(Boolean).join(' '), tariffId: tariff.id, tariffName: tariff.name, product: tariff.product_label, duration: tariff.duration_label, paymentModel: tariff.payment_model, paymentDue: tariff.payment_due, additionalAgreements: tariff.additional_agreements, serviceStart: programStartDate } });
     const readyForParticipant = status === 'signed' && documentConfirmed && videoContractConfirmed;
     const participant = readyForParticipant ? await activateContractedLead(service, lead, programStartDate) : null;
-    if(status==='signed') await archiveLeadInvoices(service,lead.id).catch(()=>null);
-    return { record, participantActivated: Boolean(participant && !participant.alreadyActive), participant };
+    let mailStatus = null;
+    if(status==='signed') {
+      await archiveLeadInvoices(service,lead.id).catch(()=>null);
+      try { mailStatus = await sendSignedContractMail(service, { leadId: lead.id, contractId: record.id, actor: request.adminName || 'CRM' }); }
+      catch (error) { mailStatus = { error: error.message }; }
+    }
+    return { record, participantActivated: Boolean(participant && !participant.alreadyActive), participant, mailStatus };
   }
   if (recordType === 'payment') {
     const amount = Number(request.body?.amount);
@@ -660,7 +669,7 @@ function permissionForAction(action) {
   if (['available-slots', 'tariffs'].includes(action)) return ['settings', 'sales_calls', 'leads'];
   if (['google-connect', 'google-callback', 'booking-settings', 'system-status', 'strato-mail-check', 'tariff'].includes(action)) return 'settings';
   if (action === 'strato-inbox-sync') return 'communications';
-  if (['dashboard', 'dashboard-record'].includes(action)) return ['leads', 'customers', 'finance'];
+  if (['dashboard', 'dashboard-record', 'contract-manage', 'contract-send-documents'].includes(action)) return ['leads', 'customers', 'finance'];
   if (['update', 'complete-sales-conversation', 'set-interest-status'].includes(action)) return ['leads', 'sales_calls', 'customers'];
   if (['schedule', 'cancel-appointment'].includes(action)) return ['leads', 'sales_calls'];
   if (['create-video-contract', 'begin-video-recording', 'start-video-recording', 'sync-google-meet-recording', 'video-recording-upload', 'complete-video-recording-upload', 'finalize-video-contract', 'send-video-contract-email', 'contract-download', 'video-recording-download'].includes(action)) return ['leads', 'sales_calls'];
@@ -949,30 +958,12 @@ export default async function handler(request, response) {
     if (request.method === 'POST' && action === 'send-video-contract-email') {
       const lead = await leadById(service, request.body?.id);
       const contract = await leadContractById(service, lead.id, request.body?.contractId);
-      if (!contract.document_prepared_at || contract.status !== 'signed' || !contract.video_contract_confirmed_at || !contract.video_recording_path || !contract.video_recording_reviewed_at || !contract.document_storage_path)
+      if (!contract.document_prepared_at || contract.status !== 'signed' || !contract.customer_signed_at || !contract.video_contract_confirmed_at || !contract.video_recording_path || !contract.video_recording_reviewed_at || !contract.document_storage_path)
         return response.status(409).json({ error: 'Bitte erst das Vertragsdokument und den Videovertrag einschließlich geprüfter Aufnahme vollständig abschließen.' });
       if (!await customerObjectExists(service, contract.video_recording_bucket, contract.video_recording_path) || !await customerObjectExists(service, contract.document_bucket, contract.document_storage_path))
         return response.status(409).json({ error: 'Vertrags-PDF oder geprüfte Aufnahme fehlen im sicheren Dateispeicher.' });
-      const recipient = clean(contract.contract_data?.customerEmail || lead.email, 254);
-      if (!emailValid(recipient)) return response.status(400).json({ error: 'Die E-Mail-Adresse im Vertragsdokument ist ungültig.' });
-      const eventKey = `video-contract-email:${contract.id}`;
-      const existing = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?event_key=eq.${encodeURIComponent(eventKey)}&select=*&limit=1`, { headers: headers(service.key) }));
-      if (existing[0]?.delivery_status === 'accepted') return response.status(200).json({ communication: existing[0], message: 'Der Vertrag wurde bereits per E-Mail versendet.' });
-      if (existing[0] && !['draft','failed'].includes(existing[0].delivery_status)) return response.status(409).json({ error: 'Der Versandstatus ist noch offen. Bitte zuerst das STRATO-Postfach und den CRM-Eintrag prüfen.' });
-      const pdf = await readCustomerObject(service, contract.document_bucket, contract.document_storage_path);
-      const fileName = `${contract.contract_number || 'Finde-dein-Ding-Vertrag'}.pdf`;
-      let mail = existing[0];
-      if (!mail) mail = await insertLeadRecord(service, 'lead_communications', {
-        lead_id: lead.id, user_profile_id: lead.converted_user_profile_id || null, direction: 'outbound', channel: 'email',
-        subject: 'Dein Finde-dein-Ding-Vertrag',
-        body: `Hallo ${clean(contract.contract_data?.customerName || lead.name, 120)},\n\nvielen Dank für unser Gespräch und dein Vertrauen. Im Anhang findest du deinen finalen Finde-dein-Ding-Vertrag als PDF. Bitte bewahre diese E-Mail und das Dokument für deine Unterlagen auf.\n\nWenn du Fragen zum Vertrag hast, antworte einfach auf diese E-Mail.\n\nHerzliche Grüße\nMarkus Becker`,
-        preview: 'Finaler Finde-dein-Ding-Vertrag mit PDF-Anhang.', delivery_status: 'draft',
-        recipient_email: recipient, sent_by_profile_id: admin.profile.id, sent_by_name: admin.profile.name,
-        attachments: [{ fileName, mimeType: 'application/pdf', bucket: contract.document_bucket, storagePath: contract.document_storage_path, contractId: contract.id }],
-        automation_source: 'video_contract', event_key: eventKey,
-      });
-      const sent = await sendLeadCommunication(service, mail, recipient, [{ filename: fileName, content: pdf, contentType: 'application/pdf' }]);
-      return response.status(200).json({ communication: sent, message: 'Der finale Vertrag wurde mit PDF-Anhang im Finde-dein-Ding-Design per E-Mail versendet.' });
+      const mailStatus = await sendSignedContractMail(service, { leadId: lead.id, contractId: contract.id, actor: admin.profile?.name || 'CRM' });
+      return response.status(200).json({ mailStatus, message: mailStatus.invoice === 'accepted' ? 'Vertrag und Rechnung wurden von STRATO angenommen.' : 'Versandstatus im Kommunikationsverlauf prüfen.' });
     }
     if (request.method === 'GET' && ['contract-download', 'video-recording-download'].includes(action)) {
       const lead = await leadById(service, request.query?.id);
@@ -995,6 +986,35 @@ export default async function handler(request, response) {
       return response.redirect(302, url);
     }
     if (request.method === 'GET' && action === 'dashboard') return response.status(200).json(await leadDashboard(service, request.query?.id));
+    if (request.method === 'POST' && action === 'contract-manage') {
+      const body = request.body || {};
+      const actor = admin.profile?.name || admin.name || 'CRM-Administrator';
+      if (body.contractAction === 'sign') {
+        const existing = await leadContractById(service, body.id, body.contractId);
+        if (!['draft', 'sent'].includes(existing.status) || existing.document_storage_path) return response.status(409).json({ error: 'Dieser Entwurf kann nicht manuell unterzeichnet werden. Ein vorhandenes Vertragsdokument darf nicht überschrieben werden.' });
+        await attachSignedContractPdf(service, body.id, body.contractId, body.signedDocument);
+      }
+      const result = await manageContract(service, { leadId: body.id, contractId: body.contractId, action: body.contractAction, payload: body.payload, requestKey: body.requestKey, actor });
+      let mailStatus = null;
+      let stripeStatus = null;
+      if (body.contractAction === 'cancel') {
+        try { stripeStatus = await expireContractCheckouts(service, body.contractId); }
+        catch (error) { stripeStatus = { error: error.message }; }
+      }
+      if (body.contractAction === 'sign') {
+        await archiveLeadInvoices(service, body.id).catch(() => null);
+        try { mailStatus = await sendSignedContractMail(service, { leadId: body.id, contractId: body.contractId, actor }); }
+        catch (error) { mailStatus = { error: error.message }; }
+      }
+      return response.status(200).json({ ok: true, ...result, mailStatus, stripeStatus });
+    }
+    if (request.method === 'POST' && action === 'contract-send-documents') {
+      const lead = await leadById(service, request.body?.id);
+      const contract = await leadContractById(service, lead.id, request.body?.contractId);
+      if (contract.status !== 'signed' || contract.archived_at || !contract.document_confirmed_at || !contract.document_storage_path) return response.status(409).json({ error: 'Unterschriebenes Vertrags-PDF und aktiver Vertrag fehlen.' });
+      await archiveLeadInvoices(service, lead.id);
+      return response.status(200).json({ mailStatus: await sendSignedContractMail(service, { leadId: lead.id, contractId: contract.id, actor: admin.profile?.name || 'CRM' }) });
+    }
     if (request.method === 'POST' && action === 'set-interest-status') return response.status(200).json(await setLeadInterestStatus(service, request));
     if (request.method === 'POST' && action === 'dashboard-record') {
       const result = await recordDashboardMutation(service, request);

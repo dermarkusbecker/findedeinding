@@ -14,6 +14,14 @@ test('account shows only the due part of planned debt without adding duplicate b
  const account=customerAccount({invoices,payments,plans,today:'2026-02-01'});assert.equal(account.summary.balance,250);assert.equal(account.summary.due,50);assert.equal(account.summary.future,200);assert.equal(account.summary.overdue,50);assert.equal(account.summary.payments,50);assert.equal(account.entries.length,2);
  assert.equal(scheduledInvoiceBalances([{id:'i',open:250}],[{...plans[0],status:'cancelled'}],'2026-02-01')[0].scheduledDue,undefined);
 });
+test('a contract acceleration makes the unpaid balance due despite a future installment plan',()=>{
+ const invoice={id:'i',status:'issued',gross:300,invoice_date:'2026-01-01',due_date:'2026-03-01'};
+ const plan={id:'plan',status:'active',rates:[{due_date:'2026-03-01',allocations:[{invoice_id:'i',amount:100,later_amount:200}]},{due_date:'2026-04-01',allocations:[{invoice_id:'i',amount:200,later_amount:0}]}]};
+ const event={id:'due',invoice_id:'i',kind:'due',booked_at:'2026-02-01',due_date:'2026-02-01',amount:0,created_at:'2026-02-01T12:00:00Z'};
+ const before=customerAccount({invoices:[invoice],payments:[],events:[],plans:[plan],today:'2026-02-01'});
+ const after=customerAccount({invoices:[invoice],payments:[],events:[event],plans:[plan],today:'2026-02-01'});
+ assert.equal(before.summary.future,300);assert.equal(after.summary.future,0);assert.equal(after.summary.due,300);assert.equal(after.summary.balance,300);
+});
 test('dunning waits 14 days after due date, then 14 days after each actual sent notice, and blocks uncertain attempts',()=>{
  const item={target_key:'invoice:a',open:119,due_date:'2026-01-01'},stages=[{days:14},{days:14},{days:14}];
  assert.equal(nextDunningStage(item,[],stages,'2026-01-14'),null);assert.equal(nextDunningStage(item,[],stages,'2026-01-15'),1);
