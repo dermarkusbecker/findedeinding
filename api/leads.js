@@ -141,13 +141,19 @@ async function reserveContractNumber(service, contractDate = new Date().toISOStr
 
 async function activateContractedLead(service, lead, programStartDate) {
   if (lead.converted_user_profile_id) return { profileId: lead.converted_user_profile_id, alreadyActive: true };
+  const existing = await readJson(await fetch(`${service.url}/rest/v1/user_profiles?source_lead_id=eq.${encodeURIComponent(lead.id)}&role=eq.user&select=id,name,email,portal_username,customer_number&limit=1`, { headers: headers(service.key) }), 'Kundenkonto konnte nicht geprüft werden.');
+  if (existing[0]) {
+    const profile = existing[0];
+    await patchLead(service, lead.id, { status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
+    return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, alreadyActive: true };
+  }
   const profile = await provisionProgramUser(service, { name: lead.name, email: lead.email, phone: lead.mobile_phone || lead.phone, startDate: programStartDate, sourceLeadId: lead.id, permissions: ['customer_portal', 'clara_program', 'documents'] });
   await patchLead(service, lead.id, { status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
   return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, oneTimePassword: profile.oneTimePassword, alreadyActive: false };
 }
 
 async function completedContract(service, leadId) {
-  const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_contracts?lead_id=eq.${encodeURIComponent(leadId)}&status=eq.signed&document_confirmed_at=not.is.null&video_contract_confirmed_at=not.is.null&select=*&order=signed_at.desc&limit=1`, { headers: headers(service.key) }), 'Vertragsstatus konnte nicht geprüft werden.');
+  const rows = await readJson(await fetch(`${service.url}/rest/v1/lead_contracts?lead_id=eq.${encodeURIComponent(leadId)}&status=eq.signed&archived_at=is.null&document_confirmed_at=not.is.null&document_storage_path=not.is.null&select=*&order=signed_at.desc&limit=1`, { headers: headers(service.key) }), 'Vertragsstatus konnte nicht geprüft werden.');
   return rows[0] || null;
 }
 
@@ -1004,9 +1010,13 @@ export default async function handler(request, response) {
         catch (error) { stripeStatus = { error: error.message }; }
       }
       if (body.contractAction === 'sign') {
+        const signedLead = await leadById(service, body.id);
+        const signedContract = await leadContractById(service, body.id, body.contractId);
+        const participant = await activateContractedLead(service, signedLead, signedContract.program_start_date);
         await archiveLeadInvoices(service, body.id).catch(() => null);
         try { mailStatus = await sendSignedContractMail(service, { leadId: body.id, contractId: body.contractId, actor }); }
         catch (error) { mailStatus = { error: error.message }; }
+        return response.status(200).json({ ok: true, ...result, participant, participantActivated: !participant.alreadyActive, mailStatus, stripeStatus });
       }
       return response.status(200).json({ ok: true, ...result, mailStatus, stripeStatus });
     }
@@ -1120,7 +1130,7 @@ export default async function handler(request, response) {
       const lead = await leadById(service, request.body?.id);
       if (lead.converted_user_profile_id) return response.status(409).json({ error: 'Für diesen Lead wurde bereits ein Kundenkonto angelegt.' });
       const contract = await completedContract(service, lead.id);
-      if (!contract) return response.status(409).json({ error: 'Teilnehmer-Aktivierung gesperrt: Vertragsdokument und Videovertrag müssen vollständig bestätigt sein.' });
+      if (!contract) return response.status(409).json({ error: 'Teilnehmer-Aktivierung gesperrt: Ein aktiver, unterschriebener Vertrag mit gespeichertem Vertragsdokument fehlt.' });
       const participant = await activateContractedLead(service, lead, contract.program_start_date || request.body?.programStartDate);
       return response.status(200).json({ lead: await leadById(service, lead.id), profile: { id: participant.profileId, name: participant.name, email: participant.email, loginName: participant.loginName, customerNumber: participant.customerNumber }, oneTimePassword: participant.oneTimePassword, invitationSent: true });
     }

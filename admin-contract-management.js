@@ -71,6 +71,11 @@
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Vertragsaktion fehlgeschlagen.');
       await refresh();
+      if (action === 'sign' && data.participant?.profileId) {
+        await Promise.all([loadParticipants(), loadLeads()]);
+        resetLeadListView();
+        showView('participants');
+      }
       toast(action === 'sign' ? `Vertrag abgeschlossen.${data.mailStatus?.error ? ` E-Mail-Versand offen: ${data.mailStatus.error}` : data.mailStatus?.invoice === 'accepted' ? ' Vertrag und Rechnung wurden von STRATO angenommen.' : ' E-Mail-Status im Kommunikationsverlauf prüfen.'}` : action === 'cancel' ? `Vertrag storniert und Gutschrift gebucht.${data.stripeStatus?.error ? ` Stripe-Link prüfen: ${data.stripeStatus.error}` : ''}` : action === 'terminate' ? 'Kündigung mit Datum gespeichert. Zahlungsfälligkeit bleibt bestehen.' : action === 'accelerate' ? 'Offene Beträge fällig gestellt.' : 'Vertrag aktualisiert.');
     } catch (error) { status.textContent = error.message; }
     finally { busy = false; dialog.querySelectorAll('button').forEach(button => { button.disabled = false; }); }

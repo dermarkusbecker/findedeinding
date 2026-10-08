@@ -103,7 +103,7 @@ test('Interessenten-Navigation bildet Eingang, aktive Fälle, kein und späteres
   assert.match(script, /function leadNavigationCounts/);
   assert.match(script, /function setLeadListFilter/);
   assert.match(script, /function resetLeadListView/);
-  assert.match(script, /lead\.converted_user_profile_id\|\|lead\.status==='customer'/);
+  assert.match(script, /if\(lead\.converted_user_profile_id\)return false/);
   assert.match(script, /renderContextNavigation\('leads'\)/);
   assert.match(html, /id="leadListSearch"/);
   assert.match(script, /later:'Später Interesse'/);
