@@ -14,6 +14,7 @@ test('fälliges Follow-up erzeugt im Benachrichtigungsmodus genau einen Hinweis'
     if (path.endsWith('/follow_up_settings')) return Response.json([{ reminder_channel: 'notification', recipient_email: 'markus@dermarkusbecker.de' }]);
     if (path.endsWith('/lead_tasks')) return Response.json([{ id: 'task-1', lead_id: 'lead-1', due_at: '2026-10-01', completed: false }]);
     if (path.endsWith('/leads')) return Response.json([{ id: 'lead-1', name: 'Max Muster', email: 'max@example.test', phone: '+4912345678', status: 'later', converted_user_profile_id: null }]);
+    if (path.endsWith('/communication_templates')) return Response.json([{ subject: 'Follow-up heute: {{name}}', body: 'Hallo Markus, bitte {{name}} am {{date}} kontaktieren. Telefon: {{phone}}' }]);
     if (path.endsWith('/follow_up_notifications') && options.method === 'POST') { const inserted = !created; created = true; return Response.json(inserted ? [{ id: 'notice-1' }] : []); }
     throw new Error(`Unexpected request: ${url}`);
   };

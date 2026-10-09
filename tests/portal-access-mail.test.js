@@ -67,6 +67,7 @@ test('Passwort-Reset für Mitarbeiter nutzt gestaltete STRATO-Mail mit Signatur 
   const mails = [];
   const link = 'https://db.example/auth/v1/verify?token=secret&type=recovery';
   await sendBrandedRecoveryEmail({ url: 'https://db.example', key: 'test' }, { name: 'Markus Becker', email: 'markus@example.de' }, {
+    templateLoader: async (_service,_key,_tokens,fallback) => fallback,
     appearanceLoader: async () => ({ signature: { active: true, signer_name: 'Markus Becker', email: 'markus@dermarkusbecker.de', website: 'findedeinding.com' }, branding: { brand_name: 'Finde dein Ding' } }),
     linkGenerator: async () => link,
     sendMail: async mail => { mails.push(mail); return { senderEmail: 'markus@dermarkusbecker.de' }; },

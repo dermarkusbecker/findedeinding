@@ -97,11 +97,14 @@ test('abgeschlossener Videovertrag hat den neuen Titel und beide Signaturhinweis
   const last = (await (await rendered.getPage(7)).getTextContent()).items.map(item => item.str).join(' ');
   assert.match(first, /Videovertrag/);
   assert.doesNotMatch(first, /B2C-Videovertrag/);
-  assert.equal((last.match(/digitale Signatur über beiliegenden Videovertrag/g) || []).length, 2);
+  assert.equal((last.match(/Digital per Videovertrag geschlossen/g) || []).length, 2);
+  assert.doesNotMatch(last, /RECHTLICHE EINSATZPRÜFUNG|professionell strukturierte Vertrags- und Dokumentationsvorlage/);
+  const fourth = (await (await rendered.getPage(4)).getTextContent()).items.map(item => item.str).join(' ');
+  assert.doesNotMatch(fourth, /B2C/);
   const draft = await buildVideoContractPdf(contract, { draft: true });
   const draftPdf = await getDocument({ data: new Uint8Array(draft), useSystemFonts: true }).promise;
   const draftLast = (await (await draftPdf.getPage(7)).getTextContent()).items.map(item => item.str).join(' ');
-  assert.doesNotMatch(draftLast, /digitale Signatur über beiliegenden Videovertrag/);
+  assert.doesNotMatch(draftLast, /Digital per Videovertrag geschlossen/);
 });
 
 test('PDF speichert längere CRM-Eingaben trotz 100-Zeichen-Limit der Vorlage', async () => {

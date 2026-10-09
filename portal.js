@@ -1586,7 +1586,7 @@ function renderProgramDashboard() {
   $('#dashboardStatusBadge').textContent = program.access.status === 'paused' ? 'Programm pausiert' : completed === 8 ? 'Programm abgeschlossen' : program.access.fullProgramAccess ? 'Demo-Modus · alle Wochen offen' : activeAccessible ? 'Programm aktiv' : 'Nächste Woche noch gesperrt';
   $('#dashboardCurrentNumber').textContent = String(activeWeek).padStart(2, '0');
   $('#dashboardCurrentTitle').textContent = activeSummary?.title || 'Deine aktuelle Woche';
-  $('#dashboardCurrentCopy').textContent = activeSummary ? activeAccessible ? program.access.fullProgramAccess ? `${activeSummary.mode} · Im Demo-Modus kannst du alle acht Wochen anklicken und ihre Fragen und Aufgaben ansehen.` : `${activeSummary.mode} · Diese Woche ist ${activeState?.reason==='admin_unlocked'?'durch dein Team':'gemäß deinem persönlichen Zeitplan'} freigeschaltet.` : `${activeSummary.mode} · Öffnet am ${formatProgramDate(activeState?.unlocksAt)}. Bis dahin bleibt der Bereich gesperrt.` : 'Dein nächster Bereich wird vorbereitet.';
+  $('#dashboardCurrentCopy').textContent = activeSummary ? activeAccessible ? program.access.fullProgramAccess ? `${activeSummary.mode} · Im Demo-Modus kannst du alle acht Wochen anklicken und ihre Fragen und Aufgaben ansehen.` : `${activeSummary.mode} · Diese Woche ist ${activeState?.reason==='admin_unlocked'?'durch dein Team':'gemäß deinem persönlichen Zeitplan'} freigeschaltet.` : activeState?.reason==='payment_required'?`${activeSummary.mode} · Ab Woche 2 werden mindestens 30 % des Vertragswerts als Zahlung benötigt.`:`${activeSummary.mode} · Öffnet am ${formatProgramDate(activeState?.unlocksAt)}. Bis dahin bleibt der Bereich gesperrt.` : 'Dein nächster Bereich wird vorbereitet.';
   $('#dashboardStartDate').textContent = formatProgramDate(program.access.programStartDate);
   $('#dashboardEndDate').textContent = formatProgramDate(program.access.programEndDate);
   $('#dashboardNextDate').textContent = nextState ? `Woche ${nextState.week} · ${formatProgramDate(nextState.unlocksAt)}` : 'Alle Wochen freigeschaltet';
@@ -2098,7 +2098,7 @@ function renderJourney() {
     const summary = state.summary;
     const active = state.week === currentWeek;
     const status = state.completed ? '✓ abgeschlossen' : active ? '● geöffnet' : state.accessible ? '○ verfügbar' : 'gesperrt';
-    const reason = state.reason === 'demo_full_access' ? 'Im Demo-Modus sofort verfügbar' : state.reason === 'admin_unlocked' ? 'Vom Admin freigegeben' : state.reason === 'admin_locked' ? 'Vom Admin gesperrt' : state.reason === 'scheduled_release' ? `Freigeschaltet seit ${formatProgramDate(state.unlocksAt)}` : state.reason === 'scheduled_wait' ? `Öffnet am ${formatProgramDate(state.unlocksAt)}` : state.reason === 'onboarding_required' ? 'Nach dem Onboarding verfügbar' : state.accessible ? 'Zugriff freigegeben' : 'Noch nicht freigeschaltet';
+    const reason = state.reason === 'demo_full_access' ? 'Im Demo-Modus sofort verfügbar' : state.reason === 'admin_unlocked' ? 'Vom Admin freigegeben' : state.reason === 'admin_locked' ? 'Vom Admin gesperrt' : state.reason === 'scheduled_release' ? `Freigeschaltet seit ${formatProgramDate(state.unlocksAt)}` : state.reason === 'payment_required' ? 'Ab Woche 2: mindestens 30 % bezahlt' : state.reason === 'scheduled_wait' ? `Öffnet am ${formatProgramDate(state.unlocksAt)}` : state.reason === 'onboarding_required' ? 'Nach dem Onboarding verfügbar' : state.accessible ? 'Zugriff freigegeben' : 'Noch nicht freigeschaltet';
     const phased = program?.processVersion?.definition?.engine === 'curriculum_4plus4';
     const phase = state.week <= 4 ? 'discovery' : 'implementation';
     const phaseHeading = phased && [1, 5].includes(state.week) ? `<div class="journey-phase-heading ${phase}"><span class="journey-phase-number" aria-hidden="true">${state.week === 1 ? '01' : '02'}</span><div><p>Woche ${state.week === 1 ? '1–4 · Entdecken & Entscheiden' : '5–8 · Prüfen & Handeln'}</p><h2>${state.week === 1 ? 'Finde dein Ding' : 'Komm in die Umsetzung'}</h2><span>${state.week === 1 ? 'Verstehe, was dich ausmacht – und finde deine Richtung.' : 'Erprobe deine Richtung im echten Leben – und mach die nächsten Schritte konkret.'}</span></div></div>` : '';
@@ -2503,6 +2503,7 @@ $('#startProcess').addEventListener('click', async () => {
     await loadProgram();
     showView('today');
     toast('Alles erfolgreich erledigt. Deine 8-Wochen-Übersicht ist jetzt bereit.');
+    openLoginClarity().catch((error) => toast(error.message));
   } catch (error) {
     button.textContent = 'Ich bin bereit →';
     refreshOnboardingGateState();
@@ -2713,7 +2714,7 @@ $('#customerLogout').addEventListener('click', async () => {
   location.replace('/login');
 });
 
-loadProgram().then(() => openLoginClarity()).catch((error) => { if (error.status === 401) location.replace('/kunden-login'); else toast(error.message); });
+loadProgram().then(() => program?.onboardingComplete && openLoginClarity()).catch((error) => { if (error.status === 401) location.replace('/kunden-login'); else toast(error.message); });
 
 window.addEventListener("fdd:clarity-saved",()=>loadProgram().catch(error=>toast(error.message)));
 

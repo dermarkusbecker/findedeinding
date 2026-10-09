@@ -101,9 +101,9 @@ async function createManualCustomer(service, body = {}) {
   return { participant: profiles[0], invitationSent, invitationError, mailStatus };
 }
 
-export function summarizeCustomerProgress(gates = [], progress = {}, entries = [], now = new Date(), fullProgramAccess = false, curriculum = null) {
+export function summarizeCustomerProgress(gates = [], progress = {}, entries = [], now = new Date(), fullProgramAccess = false, curriculum = null, paymentGate = null) {
   const storedProgress = typeof progress === 'object' && progress !== null ? progress : { current_week: Number(progress) || 0 };
-  const scheduled = calculateProgramAccess({ progress: storedProgress, gates, now, fullProgramAccess });
+  const scheduled = calculateProgramAccess({ progress: storedProgress, gates, now, fullProgramAccess, paymentGate });
   const canonical = curriculum ? curriculumAccess(scheduled,curriculum,storedProgress) : reconcileAccessFromEntries({ access: scheduled, progress: storedProgress, entries: Array.isArray(entries) ? entries : [] });
   return {
     completed_weeks: canonical.completedWeeks,
@@ -122,17 +122,20 @@ export default async function handler(request, response) {
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
   if (request.method === 'GET') {
     response.setHeader('Cache-Control', 'private, no-store');
-    const [result, linksResult, gatesResult, entriesResult] = await Promise.all([
+    const [result, linksResult, gatesResult, entriesResult, paymentResult] = await Promise.all([
       fetch(`${service.url}/rest/v1/user_profiles?role=eq.user&select=*,participant_progress!participant_progress_user_profile_id_fkey(*)&order=created_at.desc`, { headers: headers(service.key) }),
       fetch(`${service.url}/rest/v1/leads?converted_user_profile_id=not.is.null&select=id,converted_user_profile_id,converted_at,created_at`, { headers: headers(service.key) }),
       fetch(`${service.url}/rest/v1/week_gates?required=eq.true&select=user_profile_id,week,required,completed_at&limit=5000`, { headers: headers(service.key) }),
       fetch(`${service.url}/rest/v1/process_entries?data_block=like.week_*_state&select=user_profile_id,week,data_block,structured_data,created_at&order=created_at.desc&limit=10000`, { headers: headers(service.key) }),
+      fetch(`${service.url}/rest/v1/program_payment_gates?select=user_profile_id,contract_value,paid_amount,open_amount,allowed&limit=2000`, { headers: headers(service.key) }),
     ]);
-    const participants = await result.json(), links = await linksResult.json(), gates = await gatesResult.json(), entries = await entriesResult.json();
+    const participants = await result.json(), links = await linksResult.json(), gates = await gatesResult.json(), entries = await entriesResult.json(), paymentGates = await paymentResult.json();
     if (!result.ok) return response.status(result.status).json({ error: participants.message });
     if (!linksResult.ok) return response.status(linksResult.status).json({ error: links.message });
     if (!gatesResult.ok) return response.status(gatesResult.status).json({ error: gates.message });
     if (!entriesResult.ok) return response.status(entriesResult.status).json({ error: entries.message });
+    if (!paymentResult.ok) return response.status(paymentResult.status).json({ error: paymentGates.message });
+    const paymentGateMap = new Map(paymentGates.map((gate) => [gate.user_profile_id, gate]));
     const curriculumIndex=await readCurriculumIndex(service);
     const leadByCustomer = new Map(links.map((lead) => [lead.converted_user_profile_id, lead]));
     const gatesByCustomer = new Map();
@@ -163,7 +166,7 @@ export default async function handler(request, response) {
         is_demo: participant.permissions?.includes('demo_full_access') === true,
         linked_lead_id: participant.source_lead_id || lead?.id || null,
         customer_since: lead?.converted_at || lead?.created_at || participant.created_at,
-        ...summarizeCustomerProgress(gatesByCustomer.get(participant.id) || [], progress, entriesByCustomer.get(participant.id) || [], new Date(), participant.permissions?.includes('demo_full_access'),curriculumIndex.get(participant.id)),
+        ...summarizeCustomerProgress(gatesByCustomer.get(participant.id) || [], progress, entriesByCustomer.get(participant.id) || [], new Date(), participant.permissions?.includes('demo_full_access'),curriculumIndex.get(participant.id),paymentGateMap.get(participant.id)),
       };
     });
     return response.status(200).json({ participants: customers });

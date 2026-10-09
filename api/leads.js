@@ -9,7 +9,8 @@ import { handleFinance } from '../lib/finance-api.js';
 import { normalizeSignatureContact, renderBrandedEmail } from '../lib/branded-email.js';
 import { mailAppearance, sendPreparedMail } from '../lib/branded-mail-service.js';
 import { normalizeIntake } from '../lib/intake.js';
-import { intakeAdminNotification } from '../lib/intake-admin-notification.js';
+import { preparedIntakeAdminNotification } from '../lib/intake-admin-notification.js';
+import { automationTemplate } from '../lib/automation-template.js';
 import {readCurriculumIndex,curriculumAccess,curriculumGates} from '../lib/curriculum-progress.js';
 import {categoryBookingSettings,normalizeAppointmentCategories} from '../lib/appointment-categories.js';
 import { handleCrmTasks } from '../lib/crm-tasks.js';
@@ -52,6 +53,14 @@ function serviceConfig() {
 }
 
 const headers = (key, extra = {}) => ({ apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...extra });
+
+async function contractProviderContact(service) {
+  const settings = await readJson(await fetch(`${service.url}/rest/v1/finance_settings?id=eq.default&select=email,phone&limit=1`, { headers: headers(service.key) }), 'Rechnungssteller-Kontakt konnte nicht geladen werden.');
+  return {
+    ...(settings[0]?.email ? { providerEmail: settings[0].email, revocationEmail: settings[0].email } : {}),
+    ...(settings[0]?.phone ? { providerPhone: settings[0].phone } : {}),
+  };
+}
 
 async function readJson(result, fallback = 'Anfrage konnte nicht verarbeitet werden.') {
   const data = await result.json().catch(() => ({}));
@@ -143,6 +152,17 @@ async function reserveContractNumber(service, contractDate = new Date().toISOStr
 }
 
 async function activateContractedLead(service, lead, programStartDate) {
+  async function contractBirthDate() {
+    const contracts = await readJson(await fetch(`${service.url}/rest/v1/lead_contracts?lead_id=eq.${encodeURIComponent(lead.id)}&status=eq.signed&select=contract_data&order=signed_at.desc&limit=1`, { headers: headers(service.key) }), 'Geburtsdatum im Vertrag konnte nicht geprüft werden.');
+    const value = contracts[0]?.contract_data?.birthDate;
+    return /^\d{4}-\d{2}-\d{2}$/.test(value || '') ? value : null;
+  }
+  async function syncBirthDate(profile) {
+    const birthDate = await contractBirthDate();
+    if (!birthDate || profile.birth_date === birthDate) return profile;
+    const rows = await readJson(await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(profile.id)}`, { method: 'PATCH', headers: headers(service.key, { Prefer: 'return=representation' }), body: JSON.stringify({ birth_date: birthDate }) }), 'Geburtsdatum aus dem Vertrag konnte nicht in die Kundenakte übernommen werden.');
+    return rows[0] || profile;
+  }
   async function existingAccess(profile) {
     const sentAccess = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?user_profile_id=eq.${encodeURIComponent(profile.id)}&event_key=like.portal-setup:*&delivery_status=eq.accepted&select=id&limit=1`, { headers: headers(service.key) }), 'Portalversand konnte nicht geprüft werden.');
     if (sentAccess[0] || profile.password_changed_at) return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, alreadyActive: true };
@@ -151,13 +171,13 @@ async function activateContractedLead(service, lead, programStartDate) {
     catch (error) { accessMailError = error.message || 'Portalzugang konnte nicht versendet werden.'; }
     return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, alreadyActive: true, accessMailStatus, accessMailError };
   }
-  const existing = await readJson(await fetch(`${service.url}/rest/v1/user_profiles?${lead.converted_user_profile_id ? `id=eq.${encodeURIComponent(lead.converted_user_profile_id)}` : `source_lead_id=eq.${encodeURIComponent(lead.id)}`}&role=eq.user&select=id,auth_user_id,name,email,portal_username,customer_number,access_invite_sent_at,password_changed_at&limit=1`, { headers: headers(service.key) }), 'Kundenkonto konnte nicht geprüft werden.');
+  const existing = await readJson(await fetch(`${service.url}/rest/v1/user_profiles?${lead.converted_user_profile_id ? `id=eq.${encodeURIComponent(lead.converted_user_profile_id)}` : `source_lead_id=eq.${encodeURIComponent(lead.id)}`}&role=eq.user&select=id,auth_user_id,name,email,birth_date,portal_username,customer_number,access_invite_sent_at,password_changed_at&limit=1`, { headers: headers(service.key) }), 'Kundenkonto konnte nicht geprüft werden.');
   if (existing[0]) {
-    const profile = existing[0];
+    const profile = await syncBirthDate(existing[0]);
     if (!lead.converted_user_profile_id) await patchLead(service, lead.id, { status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
     return existingAccess(profile);
   }
-  const profile = await provisionProgramUser(service, { name: lead.name, email: lead.email, phone: lead.mobile_phone || lead.phone, startDate: programStartDate, sourceLeadId: lead.id, permissions: ['customer_portal', 'clara_program', 'documents'], sendInvitation: false });
+  const profile = await syncBirthDate(await provisionProgramUser(service, { name: lead.name, email: lead.email, phone: lead.mobile_phone || lead.phone, startDate: programStartDate, sourceLeadId: lead.id, permissions: ['customer_portal', 'clara_program', 'documents'], sendInvitation: false }));
   await patchLead(service, lead.id, { status: 'customer', converted_user_profile_id: profile.id, converted_at: new Date().toISOString() });
   let accessMailStatus, accessMailError;
   try { accessMailStatus = await sendPortalAccessEmails(service, { lead, profile, oneTimePassword: profile.oneTimePassword }); }
@@ -280,7 +300,7 @@ async function saveCommunicationAutomation(service, body) {
   const delayValue = Math.max(0, Math.min(365, Number.parseInt(body?.delayValue, 10) || 0));
   if (!name || !triggerType || !uuidValid(templateId)) throw Object.assign(new Error('Name, Auslöser und Vorlage sind erforderlich.'), { status: 400 });
   const triggerConfig = triggerType === 'week_unlocked' ? { week: Math.max(1, Math.min(8, Number.parseInt(body?.week, 10) || 1)) } : triggerType === 'inactivity' ? { inactiveDays: Math.max(1, Math.min(90, Number.parseInt(body?.inactiveDays, 10) || 3)) } : {};
-  const payload = { name, trigger_type: triggerType, trigger_config: triggerConfig, delay_value: delayValue, delay_unit: ['minutes', 'hours', 'days'].includes(body?.delayUnit) ? body.delayUnit : 'hours', send_time: /^([01]\d|2[0-3]):[0-5]\d$/.test(body?.sendTime || '') ? `${body.sendTime}:00` : null, template_id: templateId, audience_type: ['event_contact', 'leads', 'customers'].includes(body?.audienceType) ? body.audienceType : 'event_contact', enabled: body?.enabled === true || body?.enabled === 'true' || body?.enabled === 'on' };
+  const payload = { name, trigger_type: triggerType, trigger_config: triggerConfig, delay_value: delayValue, delay_unit: ['minutes', 'hours', 'days'].includes(body?.delayUnit) ? body.delayUnit : 'hours', send_time: /^([01]\d|2[0-3]):[0-5]\d$/.test(body?.sendTime || '') ? `${body.sendTime}:00` : null, template_id: templateId, audience_type: ['event_contact', 'leads', 'customers'].includes(body?.audienceType) ? body.audienceType : 'event_contact', enabled: false };
   return uuidValid(body?.id) ? patchCommunicationRecord(service, 'communication_automations', body.id, payload) : insertLeadRecord(service, 'communication_automations', payload);
 }
 
@@ -299,12 +319,14 @@ async function commandDashboard(service, admin) {
     fetch(`${service.url}/rest/v1/lead_tasks?completed=eq.false&select=id,lead_id,title,details,due_at,created_at&order=due_at.asc.nullslast&limit=200`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/leads?select=id,name,email,phone,mobile_phone,status,source,utm_source,appointment_start,appointment_end,appointment_timezone,calendar_event_url,meet_url,converted_user_profile_id,created_at&limit=1000`, { headers: headers(service.key) }),
     fetch(`${service.url}/rest/v1/lead_communications?direction=eq.inbound&read_at=is.null&select=id,lead_id,subject,occurred_at&order=occurred_at.asc&limit=200`, { headers: headers(service.key) }),
+    fetch(`${service.url}/rest/v1/program_payment_gates?select=user_profile_id,contract_value,paid_amount,open_amount,allowed&limit=2000`, { headers: headers(service.key) }),
   ];
   const results = await Promise.all(requests);
-  const [profiles, progressRows, gateRows, stateEntries, questions, tasks, leads, unreadMessages] = await Promise.all(results.map((result) => readJson(result, 'Dashboard-Daten konnten nicht geladen werden.')));
+  const [profiles, progressRows, gateRows, stateEntries, questions, tasks, leads, unreadMessages, paymentGates] = await Promise.all(results.map((result) => readJson(result, 'Dashboard-Daten konnten nicht geladen werden.')));
   const curriculumIndex=await readCurriculumIndex(service);
   for(const [id,context] of curriculumIndex){for(let i=gateRows.length-1;i>=0;i--)if(gateRows[i].user_profile_id===id&&gateRows[i].week>0)gateRows.splice(i,1);gateRows.push(...curriculumGates(id,context));}
   const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
+  const paymentGateMap = new Map(paymentGates.map((gate) => [gate.user_profile_id, gate]));
   const leadMap = new Map(leads.map((lead) => [lead.id, lead]));
   const customerIds = new Set(leads.filter(lead=>lead.status==='customer'&&lead.converted_user_profile_id).map(lead=>lead.converted_user_profile_id));
   const activeProgress = progressRows.filter((progress) => (customerIds.has(progress.user_profile_id)||profileMap.get(progress.user_profile_id)?.permissions?.includes('demo_full_access')) && progress.program_status === 'active' && profileMap.get(progress.user_profile_id)?.status === 'active');
@@ -312,7 +334,7 @@ async function commandDashboard(service, admin) {
   const accessMap = new Map(activeProgress.map((progress) => {
     const participantId = progress.user_profile_id;
     const profile = profileMap.get(participantId);
-    const scheduled = calculateProgramAccess({ profileStatus: profile?.status, progress, gates: gateRows.filter((gate) => gate.user_profile_id === participantId), fullProgramAccess: profile?.permissions?.includes('demo_full_access') });
+    const scheduled = calculateProgramAccess({ profileStatus: profile?.status, progress, gates: gateRows.filter((gate) => gate.user_profile_id === participantId), fullProgramAccess: profile?.permissions?.includes('demo_full_access'), paymentGate: paymentGateMap.get(participantId) });
     return [participantId, curriculumIndex.has(participantId)?curriculumAccess(scheduled,curriculumIndex.get(participantId),progress):reconcileAccessFromEntries({ access: scheduled, progress, entries: stateEntries.filter((entry) => entry.user_profile_id === participantId) })];
   }));
   const now = new Date();
@@ -615,14 +637,18 @@ async function confirmedMeetLink(accessToken, event) {
   return link;
 }
 
-function appointmentConfirmationBody(lead) {
+async function appointmentConfirmationBody(service, lead) {
   const appointmentLabel = new Date(lead.appointment_start).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short', timeZone: lead.appointment_timezone || 'Europe/Berlin' });
   const firstName = (lead.first_name || lead.name).split(/\s+/)[0];
-  return {
+  const fallback = {
     subject: 'Dein Klarheitsgespräch ist bestätigt',
     preview: `Dein Klarheitsgespräch am ${appointmentLabel} ist bestätigt.`,
     body: `Hallo ${firstName},\n\nvielen Dank, dass du dir Zeit für dein Klarheitsgespräch nimmst. Ich freue mich darauf, dich und deine Situation kennenzulernen.\n\nDein Termin: ${appointmentLabel} Uhr\n\nÜber diesen Link kommst du direkt in unser Gespräch:\n${lead.meet_url}\n\nMach es dir für unser Gespräch an einem ruhigen Ort bequem. Du brauchst nichts vorzubereiten. Wenn du den Termin verschieben musst, antworte einfach auf diese E-Mail.\n\nIch freue mich auf unser Gespräch.`,
   };
+  const content = await automationTemplate(service, 'intake_appointment_confirmation', {
+    vorname: firstName, appointment: appointmentLabel, meet_url: lead.meet_url || '',
+  }, fallback);
+  return { ...content, preview: fallback.preview };
 }
 
 function intakeReceipt(service, id, email) {
@@ -688,7 +714,7 @@ async function publicLead(request, response, service) {
   try {
     const confirmation = await insertLeadRecord(service, 'lead_communications', {
       lead_id: lead.id, direction: 'outbound', channel: 'email',
-      ...appointmentConfirmationBody(lead), delivery_status: 'draft',
+      ...await appointmentConfirmationBody(service, lead), delivery_status: 'draft',
       automation_source: 'appointment_confirmation',
       event_key: `appointment-confirmation:${lead.id}:${lead.appointment_start}`,
     });
@@ -703,7 +729,7 @@ async function publicLead(request, response, service) {
     const recipient = 'markus@dermarkusbecker.de';
     const notification = await insertLeadRecord(service, 'lead_communications', {
       lead_id: lead.id, direction: 'outbound', channel: 'email',
-      ...intakeAdminNotification(lead, appearance), recipient_email: recipient,
+      ...await preparedIntakeAdminNotification(service, lead, appearance), recipient_email: recipient,
       delivery_status: 'draft', automation_source: 'intake_admin_notification',
       event_key: `intake-admin-notification:${lead.id}:${lead.appointment_start}`,
     });
@@ -780,7 +806,7 @@ export default async function handler(request, response) {
       let mailStatus='failed';
       try {
         const appearance=await mailAppearance(service),date=new Intl.DateTimeFormat('de-DE',{dateStyle:'full',timeStyle:'short',timeZone:'Europe/Berlin'}).format(start);
-        const subject=`Dein Q&A Gespräch am ${date}`,body=`Hallo ${name.split(/\s+/)[0]},\n\ndein Q&A Gespräch ist bestätigt.\n\nTermin: ${date} Uhr\nDauer: ${duration} Minuten\nGoogle Meet: ${booking.meet_url}\n\nWenn du den Termin verschieben musst, antworte bitte auf diese E-Mail.\n\nIch freue mich auf unser Gespräch.`;
+        const {subject,body}=await automationTemplate(service,'qa_appointment_confirmation',{vorname:name.split(/\s+/)[0],appointment:date,duration:String(duration),meet_url:booking.meet_url},{subject:`Dein Q&A Gespräch am ${date}`,body:`Hallo ${name.split(/\s+/)[0]},\n\ndein Q&A Gespräch ist bestätigt.\n\nTermin: ${date} Uhr\nDauer: ${duration} Minuten\nGoogle Meet: ${booking.meet_url}\n\nWenn du den Termin verschieben musst, antworte bitte auf diese E-Mail.\n\nIch freue mich auf unser Gespräch.`});
         const rendered=renderBrandedEmail({subject,body,...appearance});
         const sent=await sendPreparedMail({to:email,subject,text:rendered.text,html:rendered.html});
         mailStatus='accepted';
@@ -865,7 +891,7 @@ export default async function handler(request, response) {
       return response.status(200).json({ record: await saveCommunicationCampaign(service, request.body), message: request.body?.status === 'scheduled' ? 'Seriennachricht wurde geplant. Der automatische Serienversand ist derzeit angehalten.' : 'Seriennachricht wurde als Entwurf gespeichert.' });
     }
     if (request.method === 'POST' && action === 'communication-automation') {
-      return response.status(200).json({ record: await saveCommunicationAutomation(service, request.body), message: 'Automatisierte Nachricht wurde gespeichert.' });
+      return response.status(200).json({ record: await saveCommunicationAutomation(service, request.body), message: 'Regel wurde als Entwurf gespeichert.' });
     }
     if (request.method === 'POST' && action === 'communication-signature') {
       return response.status(200).json({ record: await saveCommunicationSignature(service, request.body), message: 'Signatur wurde gespeichert und steht im Nachrichteneditor bereit.' });
@@ -878,7 +904,7 @@ export default async function handler(request, response) {
       return response.status(200).json({ record: await patchCommunicationRecord(service, 'communication_campaigns', request.body?.id, { status }) });
     }
     if (request.method === 'PATCH' && action === 'communication-automation-state') {
-      return response.status(200).json({ record: await patchCommunicationRecord(service, 'communication_automations', request.body?.id, { enabled: request.body?.enabled === true }) });
+      return response.status(409).json({ error: 'Eigene Regeln bleiben Entwürfe, bis ein automatischer Versand implementiert ist.' });
     }
     if (request.method === 'POST' && action === 'communication-draft') {
       const lead = await leadById(service, request.body?.leadId);
@@ -952,7 +978,7 @@ export default async function handler(request, response) {
     }
     if (request.method === 'POST' && action === 'create-video-contract') {
       const lead = await leadById(service, request.body?.id);
-      const normalized = normalizeVideoContract(request.body?.contract, lead);
+      const normalized = normalizeVideoContract({ ...request.body?.contract, ...await contractProviderContact(service) }, lead);
       const saveDraft = request.body?.saveDraft === true;
       if (!saveDraft && normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze zuerst: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
       if (!saveDraft && VIDEO_CONFIRMATION_KEYS.some(key => !['yes','no'].includes(normalized.contract.answerChoices[key]))) return response.status(400).json({ error: 'Bitte alle Abschlussfragen beantworten.' });
@@ -1041,7 +1067,7 @@ export default async function handler(request, response) {
       if (!existing.video_recording_consent_record_id) return response.status(409).json({ error: 'Die Aufzeichnungseinwilligung wurde noch nicht protokolliert.' });
       if (!existing.video_recording_path || !await customerObjectExists(service, existing.video_recording_bucket, existing.video_recording_path)) return response.status(409).json({ error: 'Die Videoaufzeichnung wurde noch nicht vollständig hochgeladen.' });
       if (request.body?.recordingReviewed !== true) return response.status(400).json({error:'Bitte die gespeicherte Aufnahme ansehen und Bild sowie beide Gesprächsstimmen prüfen.'});
-      const normalized = normalizeVideoContract(existing.contract_data || {}, lead);
+      const normalized = normalizeVideoContract({ ...existing.contract_data, ...await contractProviderContact(service) }, lead);
       if (normalized.missing.length) return response.status(400).json({ error: `Im Vertrag fehlen noch: ${normalized.missing.join(', ')}.` });
       const missingConfirmations = VIDEO_CONFIRMATION_KEYS.filter((key) => normalized.contract.answers[key] !== true);
       if (missingConfirmations.length || !normalized.contract.recordingConsent || !normalized.contract.recordingPurposeAccepted || !normalized.contract.recordingRevocationAccepted || !normalized.contract.finalContractConfirmed) return response.status(400).json({ error: 'Alle Video-Abschlussfragen und die ausdrückliche Aufzeichnungseinwilligung müssen einzeln mit Ja bestätigt sein.' });
@@ -1257,7 +1283,7 @@ export default async function handler(request, response) {
       let confirmation = existingMail[0] || null;
       if (!confirmation && !lead.appointment_confirmation_prepared_at) {
         confirmation = await insertLeadRecord(service, 'lead_communications', {
-          lead_id: lead.id, direction: 'outbound', channel: 'email', ...appointmentConfirmationBody(lead),
+          lead_id: lead.id, direction: 'outbound', channel: 'email', ...await appointmentConfirmationBody(service, lead),
           delivery_status: 'draft', automation_source:'appointment_confirmation', event_key: eventKey,
         });
       }

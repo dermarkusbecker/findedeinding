@@ -93,6 +93,18 @@ test('time_based öffnet unabhängig vom Abschluss alle sieben Tage eine Woche',
   assert.deepEqual(calculateProgramAccess({ progress, now: new Date('2026-09-14T23:59:00Z') }).unlockedWeeks, [1, 2, 3]);
 });
 
+test('Woche zwei bleibt bis zu 30 Prozent Zahlung gesperrt; ein kostenloser Vertrag bleibt frei', () => {
+  const progress = { ...onboardingComplete, program_start_date: '2026-08-31' };
+  const now = new Date('2026-09-21T12:00:00Z');
+  const unpaid = calculateProgramAccess({ progress, now, paymentGate: { contract_value: 1000, paid_amount: 299, open_amount: 701, allowed: false } });
+  assert.deepEqual(unpaid.unlockedWeeks, [1]);
+  assert.equal(unpaid.weekStates[1].reason, 'payment_required');
+  const paid = calculateProgramAccess({ progress, now, paymentGate: { contract_value: 1000, paid_amount: 300, open_amount: 700, allowed: true } });
+  assert.deepEqual(paid.unlockedWeeks, [1, 2, 3, 4]);
+  const free = calculateProgramAccess({ progress, now, paymentGate: { contract_value: 0, paid_amount: 0, open_amount: 0, allowed: true } });
+  assert.deepEqual(free.unlockedWeeks, [1, 2, 3, 4]);
+});
+
 test('Prozessposition bleibt nach zwei Abschlüssen in Woche 3, auch wenn Woche 8 zeitlich freigeschaltet ist', () => {
   const gates = [...requiredGates(1), ...requiredGates(2), ...requiredGates(3, false)];
   const access = calculateProgramAccess({ progress: { current_week: 8, process_status: 'WEEK_3', privacy_consent_at: '2026-07-01', start_commitment_at: '2026-07-01', program_start_date: '2026-07-01' }, gates, now: new Date('2026-09-04T12:00:00Z') });

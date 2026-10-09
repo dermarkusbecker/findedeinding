@@ -33,16 +33,18 @@ export default async function handler(request, response) {
   if (!service) return response.status(503).json({ error: 'Supabase ist noch nicht konfiguriert.' });
   try {
     if (request.method === 'GET') {
-      const [users, gates, entries] = await Promise.all([
+      const [users, gates, entries, paymentGates] = await Promise.all([
         data(await fetch(`${service.url}/rest/v1/user_profiles?select=id,auth_user_id,name,email,role,status,permissions,staff_role,staff_permissions,created_at,participant_progress!participant_progress_user_profile_id_fkey(current_week,process_status,program_status,access_mode,program_start_date,privacy_consent_at,start_commitment_at)&order=created_at.desc`, { headers: authHeaders(service.serviceKey) })),
         data(await fetch(`${service.url}/rest/v1/week_gates?required=eq.true&select=user_profile_id,week,required,completed_at&limit=5000`, { headers: authHeaders(service.serviceKey) })),
         data(await fetch(`${service.url}/rest/v1/process_entries?data_block=like.week_*_state&select=user_profile_id,week,data_block,structured_data,created_at&order=created_at.desc&limit=10000`, { headers: authHeaders(service.serviceKey) })),
+        data(await fetch(`${service.url}/rest/v1/program_payment_gates?select=user_profile_id,contract_value,paid_amount,open_amount,allowed&limit=2000`, { headers: authHeaders(service.serviceKey) })),
       ]);
+      const paymentGateMap = new Map(paymentGates.map((gate) => [gate.user_profile_id, gate]));
       const curriculumIndex=await readCurriculumIndex({url:service.url,key:service.serviceKey});
       const programUsers = users.map((user) => {
         const progress = user.participant_progress?.[0];
         if (!progress) return user;
-        const scheduled = calculateProgramAccess({ profileStatus: user.status, progress, gates: gates.filter((gate) => gate.user_profile_id === user.id), fullProgramAccess: user.permissions?.includes('demo_full_access') });
+        const scheduled = calculateProgramAccess({ profileStatus: user.status, progress, gates: gates.filter((gate) => gate.user_profile_id === user.id), fullProgramAccess: user.permissions?.includes('demo_full_access'), paymentGate: paymentGateMap.get(user.id) });
         const access = curriculumIndex.has(user.id)?curriculumAccess(scheduled,curriculumIndex.get(user.id),progress):reconcileAccessFromEntries({ access: scheduled, progress, entries: entries.filter((entry) => entry.user_profile_id === user.id) });
         return { ...user, program_access: serializeProgramAccess(access) };
       });

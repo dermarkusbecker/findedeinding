@@ -29,6 +29,7 @@ test('Datenschutz und Commitment bestätigen trotz fehlerhafter Entwurfsbereinig
     }
     if (target.includes('/rest/v1/leads?') && method === 'PATCH') return ok([]);
     if (target.includes('/rest/v1/week_gates?') || target.includes('/rest/v1/process_entries?')) return ok([]);
+    if (target.includes('/rest/v1/program_payment_gates?')) return ok([{ user_profile_id: participantId, contract_value: 0, paid_amount: 0, open_amount: 0, allowed: true }]);
     if (target.includes('/rest/v1/rpc/assign_program_version')) return ok(null);
     if (target.includes('/rest/v1/participant_documents?')) return ok(target.includes('document_type=in.(start_commitment,other)') ? documents.filter((document) => ['start_commitment', 'other'].includes(document.document_type)) : documents.filter((document) => document.document_type === 'privacy_consent'));
     if (target.endsWith('/rest/v1/participant_documents') && method === 'POST') {

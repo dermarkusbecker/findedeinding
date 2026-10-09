@@ -507,11 +507,11 @@
         </section>
 
         <section class="communication-center-section" data-communication-section="automations" id="communicationAutomationsSection">
-          <div class="communication-section-head"><div><p class="eyebrow">Automatisierung</p><h2>Automatisierte Nachrichten</h2><p>Ereignisse aus Vertrieb und 8-Wochen-Prozess lösen zum richtigen Zeitpunkt die passende Vorlage aus.</p></div><button class="primary" id="openCommunicationAutomation" type="button">+ Automation erstellen</button></div>
+          <div class="communication-section-head"><div><p class="eyebrow">Automatisierung</p><h2>Automatisierte Nachrichten</h2><p>Bearbeite die Vorlagen der aktiven Systemnachrichten direkt hier.</p></div><button class="primary" id="openCommunicationAutomation" type="button">+ Entwurf erstellen</button></div>
           <div class="automation-explainer"><span>⚡</span><div><strong>Aktive Systemnachrichten</strong><small>Diese Nachrichten werden durch die unten genannten Vorgänge ausgelöst. Versand und Status stehen in der jeweiligen Kontaktakte.</small></div><b id="automationActiveCount">0 aktiv</b></div>
           <div class="automation-grid" id="systemAutomationList"></div>
-          <div class="automation-explainer"><span>⚙</span><div><strong>Eigene Regeln in Vorbereitung</strong><small>Selbst angelegte Regeln werden derzeit noch nicht automatisch ausgeführt.</small></div></div>
-          <div class="automation-grid" id="communicationAutomationList"><div class="empty">Automationen werden geladen …</div></div>
+          <div id="automationDraftSection" hidden><div class="automation-explainer"><span>⚙</span><div><strong>Entwürfe</strong><small>Gespeicherte eigene Regeln ohne automatischen Versand.</small></div></div>
+          <div class="automation-grid" id="communicationAutomationList"></div></div>
         </section>
       </section>
       <section class="view settings-view" data-panel="settings">
@@ -1563,7 +1563,7 @@
     <dialog id="communicationAutomationDialog" class="communication-center-dialog">
       <form id="communicationAutomationForm">
         <input type="hidden" name="id" />
-        <div class="dialog-head"><div><p class="eyebrow">Automatisierte Nachricht</p><h2 id="communicationAutomationDialogTitle">Automation erstellen</h2><small>Die Nachricht wird aus einem CRM-Ereignis heraus vorbereitet.</small></div><button type="button" data-close-automation-dialog>×</button></div>
+        <div class="dialog-head"><div><p class="eyebrow">Automatisierte Nachricht</p><h2 id="communicationAutomationDialogTitle">Entwurf erstellen</h2><small>Eigene Regeln werden als Entwurf gespeichert und nicht automatisch versendet.</small></div><button type="button" data-close-automation-dialog>×</button></div>
         <div class="communication-form-grid">
           <label class="wide">Name der Automation<input name="name" maxlength="140" required placeholder="z. B. Erinnerung 24 Stunden vor Termin" /></label>
           <label>Auslöser<select name="triggerType" id="automationTrigger" required><option value="lead_created">Interessent neu angelegt</option><option value="appointment_scheduled">Termin vereinbart</option><option value="sales_conversation_completed">Verkaufsgespräch abgeschlossen</option><option value="contract_signed">Vertrag abgeschlossen</option><option value="participant_activated">Teilnehmer aktiviert</option><option value="week_unlocked">Programmwoche freigeschaltet</option><option value="inactivity">Keine Aktivität</option></select></label>
@@ -1574,9 +1574,8 @@
           <label>Empfänger<select name="audienceType"><option value="event_contact">Betroffener Kontakt</option><option value="leads">Alle Interessenten</option><option value="customers">Alle Teilnehmer</option></select></label>
           <label class="automation-conditional" data-automation-condition="week_unlocked" hidden>Programmwoche<select name="week"><option value="1">Woche 1</option><option value="2">Woche 2</option><option value="3">Woche 3</option><option value="4">Woche 4</option><option value="5">Woche 5</option><option value="6">Woche 6</option><option value="7">Woche 7</option><option value="8">Woche 8</option></select></label>
           <label class="automation-conditional" data-automation-condition="inactivity" hidden>Inaktiv seit Tagen<input name="inactiveDays" type="number" min="1" max="90" value="3" /></label>
-          <label class="wide communication-switch"><input name="enabled" type="checkbox" /><span><b>Automation vorbereiten</b><small>Die Regel wird gespeichert; automatische Ausführung ist derzeit angehalten.</small></span></label>
         </div>
-        <div class="dialog-actions"><button type="button" class="secondary" data-close-automation-dialog>Abbrechen</button><button type="submit" class="primary">Automation speichern</button></div>
+        <div class="dialog-actions"><button type="button" class="secondary" data-close-automation-dialog>Abbrechen</button><button type="submit" class="primary">Entwurf speichern</button></div>
       </form>
     </dialog>
     <dialog id="customerProfileDialog" class="customer-profile-dialog">

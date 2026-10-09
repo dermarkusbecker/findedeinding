@@ -274,11 +274,15 @@ export default async function handler(request, response) {
       const headers = { apikey: result.service.key, Authorization: `Bearer ${result.service.key}`, 'Content-Type': 'application/json' };
       const sessionKey = String(session.expires);
       if (session.adminPreview || session.role === 'admin') return response.status(200).json({ required: false, history: [] });
+      if (result.profile.status !== 'active' || !isOnboardingComplete(result.progress)) {
+        if (request.method === 'GET') return response.status(200).json({ required: false, available: false, history: [] });
+        return response.status(409).json({ error: 'Schließe zuerst dein Onboarding ab. Danach startet deine Klarheitsanalyse.' });
+      }
       if (request.method === 'GET') {
         const r = await fetch(`${result.service.url}/rest/v1/login_clarity_checkins?user_profile_id=eq.${encodeURIComponent(session.participantId)}&order=created_at.desc&limit=100`, { headers });
         const history = await r.json();
         if (!r.ok) throw new Error('Klarheitsverlauf konnte nicht geladen werden.');
-        return response.status(200).json({ required: !history.some(item => item.session_key === sessionKey), history });
+        return response.status(200).json({ required: !history.some(item => item.session_key === sessionKey), available: true, history });
       }
       if (request.method === 'POST') {
         const score = request.body?.score;
