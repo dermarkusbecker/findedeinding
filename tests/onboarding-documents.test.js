@@ -141,6 +141,7 @@ test('Portal verknüpft Stammdaten, Original-PDF, drei Bestätigungen und digita
   assert.match(html, /id="privacyAiAccepted"/);
   assert.match(html, /id="privacyPreviewStatus"/);
   assert.match(html, /id="commitmentDialog"/);
+  assert.match(html, /id="closeOnboarding"[^>]*>Fenster schließen<\/button>/);
   assert.match(html, /id="commitmentPdfPreview"/);
   assert.match(html, /feature=commitment-template/);
   assert.doesNotMatch(html, /commitmentPdfPreview[^>]+assets\/forms\/FDD-FRM-001/);
@@ -156,6 +157,8 @@ test('Portal verknüpft Stammdaten, Original-PDF, drei Bestätigungen und digita
   assert.match(script, /Bitte ergänze noch:/);
   assert.match(script, /function closePrivacyConsentDialog/);
   assert.match(script, /action: 'confirm_commitment'/);
+  assert.match(script, /closeOnboarding'\)\.classList\.toggle\('hidden', !privacyChecked \|\| !commitmentConfirmed\)/);
+  assert.match(script, /closeOnboarding'\)\.addEventListener\('click', \(\) => showView\('today'\)\)/);
   assert.match(script, /feature=commitment-preview/);
   assert.match(script, /scheduleCommitmentPdfPreview/);
   assert.match(script, /downloadCustomerDocument\(confirmation\.documentId, confirmation\.document\?\.original_file_name \|\| 'FDD-Mein-persoenliches-Commitment\.pdf'/);

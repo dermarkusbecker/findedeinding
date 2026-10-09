@@ -397,6 +397,7 @@ function refreshOnboardingGateState() {
   setGateStatus('#privacyGateStatus', privacyChecked);
   setGateStatus('#commitmentGateStatus', commitmentConfirmed);
   $('#startProcess').disabled = !profileReady || !privacyChecked || !commitmentConfirmed;
+  $('#closeOnboarding').classList.toggle('hidden', !privacyChecked || !commitmentConfirmed);
 }
 
 function renderOnboardingState(completed = false) {
@@ -2508,6 +2509,7 @@ $('#startProcess').addEventListener('click', async () => {
     toast(error.message === 'Die Anfrage konnte nicht verarbeitet werden.' ? 'Der Start konnte gerade nicht abgeschlossen werden. Bitte versuche es noch einmal.' : error.message);
   }
 });
+$('#closeOnboarding').addEventListener('click', () => showView('today'));
 $('#revokePrivacy').addEventListener('click', async () => {
   const confirmed = window.confirm('Möchtest du deine Einwilligung zum Datenschutz wirklich widerrufen? Clara kann dich danach nicht weiter begleiten, bis du erneut einwilligst. Deine bisherigen Inhalte werden nicht gelöscht.');
   if (!confirmed) return;

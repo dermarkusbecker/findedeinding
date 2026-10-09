@@ -1094,6 +1094,12 @@ header > div:last-child {
   box-shadow: none;
 }
 
+#closeOnboarding {
+  align-self: center;
+  width: min(100%, 360px);
+  min-height: 46px;
+}
+
 .task-card {
   padding: 18px;
 }

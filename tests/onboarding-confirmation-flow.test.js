@@ -16,22 +16,27 @@ test('Datenschutz und Commitment bestätigen trotz fehlerhafter Entwurfsbereinig
   const progress = { user_profile_id: participantId, process_status: 'ONBOARDING', current_week: 0, program_status: 'active', access_mode: 'time_based', program_start_date: '2026-10-09', privacy_consent_at: null, start_commitment_at: null };
   const documents = [];
   let cleanupAttempts = 0;
+  let cleanupFails = true;
   globalThis.fetch = async (url, options = {}) => {
     const target = String(url), method = options.method || 'GET';
-    if (target.includes('/rest/v1/user_profiles?id=')) return ok([profile]);
+    if (target.includes('/rest/v1/user_profiles?id=')) {
+      if (method === 'PATCH') Object.assign(profile, JSON.parse(options.body));
+      return ok([profile]);
+    }
     if (target.includes('/rest/v1/participant_progress?')) {
       if (method === 'PATCH') Object.assign(progress, JSON.parse(options.body));
       return ok([progress]);
     }
+    if (target.includes('/rest/v1/leads?') && method === 'PATCH') return ok([]);
     if (target.includes('/rest/v1/week_gates?') || target.includes('/rest/v1/process_entries?')) return ok([]);
     if (target.includes('/rest/v1/rpc/assign_program_version')) return ok(null);
-    if (target.includes('/rest/v1/participant_documents?')) return ok(target.includes('document_type=eq.start_commitment') ? documents.filter((document) => document.document_type === 'start_commitment') : documents.filter((document) => document.document_type === 'privacy_consent'));
+    if (target.includes('/rest/v1/participant_documents?')) return ok(target.includes('document_type=in.(start_commitment,other)') ? documents.filter((document) => ['start_commitment', 'other'].includes(document.document_type)) : documents.filter((document) => document.document_type === 'privacy_consent'));
     if (target.endsWith('/rest/v1/participant_documents') && method === 'POST') {
       const document = { ...JSON.parse(options.body), id: `document-${documents.length + 1}`, created_at: '2026-10-09T10:00:00Z' };
       documents.unshift(document);
       return ok([document], 201);
     }
-    if (target.includes('/rest/v1/participant_form_drafts?') && method === 'DELETE') { cleanupAttempts++; return ok({ message: 'cleanup unavailable' }, 503); }
+    if (target.includes('/rest/v1/participant_form_drafts?') && method === 'DELETE') { cleanupAttempts++; return cleanupFails ? ok({ message: 'cleanup unavailable' }, 503) : ok([]); }
     if (target.includes('/storage/v1/bucket/participant-documents')) return ok({});
     if (target.includes('/storage/v1/object/participant-documents/')) return ok({});
     throw new Error(`Unexpected request: ${method} ${new URL(target).pathname}`);
@@ -55,6 +60,13 @@ test('Datenschutz und Commitment bestätigen trotz fehlerhafter Entwurfsbereinig
     assert.equal(commitment.statusCode, 200, commitment.body?.error);
     assert.equal(commitment.body.documentId, 'document-2');
     assert.equal(cleanupAttempts, 3);
+    documents[0].document_type = 'other';
+    progress.privacy_consent_at = null;
+    cleanupFails = false;
+    const start = await send('start', { profile: { name: profile.name, email: profile.email, birthDate: '1990-01-01', street: 'Musterstraße 1', postalCode: '80331', city: profile.city, country: 'Deutschland', mobilePhone: '01511234567' } });
+    assert.equal(start.statusCode, 200, start.body?.error);
+    assert.ok(progress.privacy_consent_at);
+    assert.ok(progress.start_commitment_at);
   } finally {
     globalThis.fetch = previous.fetch;
     for (const [key, value] of [['AUTH_SECRET', previous.auth], ['SUPABASE_URL', previous.url], ['SUPABASE_ANON_KEY', previous.anon], ['SUPABASE_SERVICE_ROLE_KEY', previous.service]]) {
