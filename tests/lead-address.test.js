@@ -34,6 +34,17 @@ test('separate address fields form the existing PDF and invoice address consiste
   assert.deepEqual(splitStreetAddress('Musterweg 12a'), { streetName: 'Musterweg', houseNumber: '12a' });
 });
 
+test('Anschrift speichert unabhängig von übrigen Pflichtfeldern und aktualisiert Kontakt und Anfrage sofort', async () => {
+  const [script, api] = await Promise.all([read('admin.js'), read('api/leads.js')]);
+  assert.match(script, /function persistLeadAddress\(\)/);
+  assert.match(script, /fetch\('\/api\/leads\?action=update-address'/);
+  assert.match(script, /renderLeadDashboard\(\{\.\.\.activeLeadDashboard,lead:data\.lead\}\)/);
+  assert.match(script, /leadDialog\.addEventListener\('close',[^\n]*persistLeadAddress/);
+  const addressRoute = api.slice(api.indexOf("action === 'update-address'"), api.indexOf("action === 'update')"));
+  assert.match(addressRoute, /patchLead\(service, current\.id, address\)/);
+  assert.doesNotMatch(addressRoute, /mobilePhone|firstName|lastName/);
+});
+
 
 test('an address entered in Kontakt reaches the linked customer and returns as four lead fields', async t => {
   const original = global.fetch;

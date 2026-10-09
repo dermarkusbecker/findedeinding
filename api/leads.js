@@ -1183,6 +1183,16 @@ export default async function handler(request, response) {
       response.setHeader('Cache-Control', 'private, no-store');
       return response.status(200).json({ leads, unreadCount: Number.isSafeInteger(total) && total >= 0 ? total : leads.filter(lead => !lead.converted_user_profile_id && !lead.admin_first_viewed_at).length });
     }
+    if (request.method === 'PATCH' && action === 'update-address') {
+      const current = await leadById(service, request.body?.id);
+      const address = {
+        street_name: clean(request.body?.streetName, 160),
+        house_number: clean(request.body?.houseNumber, 30),
+        postal_code: clean(request.body?.postalCode, 20),
+        city: clean(request.body?.city, 120),
+      };
+      return response.status(200).json({ lead: await patchLead(service, current.id, address) });
+    }
     if (request.method === 'PATCH' && action === 'update') {
       const current = await leadById(service, request.body?.id);
       const firstName = clean(request.body?.firstName, 80), lastName = clean(request.body?.lastName, 80);
