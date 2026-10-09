@@ -20,7 +20,7 @@ import crypto from 'node:crypto';
 import { DEFAULT_BOOKING_SETTINGS, generateAvailableSlots, isWithinBookingAvailability, normalizeBookingSettings } from '../lib/booking-availability.js';
 import { authorizationUrl, assertCalendarAvailable, calendarBusyIntervals, calendarEvent, decryptCredential, deleteCalendarEvent, emailFromIdToken, encryptCredential, exchangeAuthorizationCode, googleConfig, refreshAccessToken, saveCalendarEvent, verifyOAuthState } from '../lib/google-calendar.js';
 import { assertGoogleMeetSpace, downloadGoogleDriveFile, findGoogleMeetRecording, googleDriveFileMetadata } from '../lib/google-meet.js';
-import { provisionProgramUser, randomTemporaryPassword, requireCurrentAdmin, supabaseAuthConfig } from '../lib/user-auth.js';
+import { provisionProgramUser, requireCurrentAdmin, supabaseAuthConfig } from '../lib/user-auth.js';
 import { sendPortalAccessEmails } from '../lib/portal-access-mail.js';
 import { claraConfig } from '../lib/clara/config.js';
 import { buildSystemRegistry } from '../lib/system-registry.js';
@@ -144,13 +144,10 @@ async function reserveContractNumber(service, contractDate = new Date().toISOStr
 
 async function activateContractedLead(service, lead, programStartDate) {
   async function existingAccess(profile) {
-    const sentAccess = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?user_profile_id=eq.${encodeURIComponent(profile.id)}&event_key=like.portal-password:*&delivery_status=eq.accepted&select=id&limit=1`, { headers: headers(service.key) }), 'Portalversand konnte nicht geprüft werden.');
+    const sentAccess = await readJson(await fetch(`${service.url}/rest/v1/lead_communications?user_profile_id=eq.${encodeURIComponent(profile.id)}&event_key=like.portal-setup:*&delivery_status=eq.accepted&select=id&limit=1`, { headers: headers(service.key) }), 'Portalversand konnte nicht geprüft werden.');
     if (sentAccess[0] || profile.password_changed_at) return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, alreadyActive: true };
-    const oneTimePassword = randomTemporaryPassword();
-    await readJson(await fetch(`${service.url}/auth/v1/admin/users/${encodeURIComponent(profile.auth_user_id)}`, { method: 'PUT', headers: headers(service.key), body: JSON.stringify({ password: oneTimePassword, email_confirm: true }) }), 'Erstanmeldepasswort konnte nicht erzeugt werden.');
-    const [updated] = await readJson(await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(profile.id)}`, { method: 'PATCH', headers: { ...headers(service.key), Prefer: 'return=representation' }, body: JSON.stringify({ must_change_password: true, one_time_password_issued_at: new Date().toISOString() }) }), 'Portalzugang konnte nicht aktualisiert werden.');
     let accessMailStatus, accessMailError;
-    try { accessMailStatus = await sendPortalAccessEmails(service, { lead, profile: updated, oneTimePassword }); }
+    try { accessMailStatus = await sendPortalAccessEmails(service, { lead, profile }, { eventKeySuffix: new Date().toISOString() }); }
     catch (error) { accessMailError = error.message || 'Portalzugang konnte nicht versendet werden.'; }
     return { profileId: profile.id, name: profile.name, email: profile.email, loginName: profile.portal_username, customerNumber: profile.customer_number, alreadyActive: true, accessMailStatus, accessMailError };
   }
@@ -1075,7 +1072,7 @@ export default async function handler(request, response) {
         mailStatus = { error: error.message };
       }
       const allMailAccepted = ['contract','invoice','welcome'].every(key=>['accepted','already_accepted'].includes(mailStatus?.[key]));
-      return response.status(200).json({ record, signingPath, participantActivated: Boolean(participant && !participant.alreadyActive), participant, activationError, mailStatus, message: [mailStatus?.error ? `Automatischer E-Mail-Versand fehlgeschlagen: ${mailStatus.error}` : allMailAccepted ? 'STRATO hat Vertrag, Rechnung und Willkommens-E-Mail angenommen.' : 'Versandstatus von Vertrag, Rechnung und Willkommens-E-Mail bitte im CRM prüfen.', activationError ? `Kundenkonto konnte nicht aktiviert werden: ${activationError}` : '', participant?.accessMailError ? `Portalzugang konnte nicht vollständig versendet werden: ${participant.accessMailError}` : '', participant?.accessMailStatus && !['accepted', 'already_accepted'].includes(participant.accessMailStatus.password) ? 'Versandstatus des Portalzugangs bitte im CRM prüfen.' : ''].filter(Boolean).join(' ') });
+      return response.status(200).json({ record, signingPath, participantActivated: Boolean(participant && !participant.alreadyActive), participant, activationError, mailStatus, message: [mailStatus?.error ? `Automatischer E-Mail-Versand fehlgeschlagen: ${mailStatus.error}` : allMailAccepted ? 'STRATO hat Vertrag, Rechnung und Willkommens-E-Mail angenommen.' : 'Versandstatus von Vertrag, Rechnung und Willkommens-E-Mail bitte im CRM prüfen.', activationError ? `Kundenkonto konnte nicht aktiviert werden: ${activationError}` : '', participant?.accessMailError ? `Portalzugang konnte nicht versendet werden: ${participant.accessMailError}` : '', participant?.accessMailStatus && !['accepted', 'already_accepted'].includes(participant.accessMailStatus.setup) ? 'Versandstatus des Portalzugangs bitte im CRM prüfen.' : ''].filter(Boolean).join(' ') });
     }
     if (request.method === 'POST' && action === 'send-video-contract-email') {
       const lead = await leadById(service, request.body?.id);

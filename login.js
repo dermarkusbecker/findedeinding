@@ -2,6 +2,7 @@ const form = document.querySelector('#loginForm');
 const status = document.querySelector('#loginStatus');
 const recovery = new URLSearchParams(location.hash.slice(1));
 const recoveryToken = recovery.get('type') === 'recovery' ? recovery.get('access_token') : '';
+const setupMode = new URLSearchParams(location.search).get('setup') === '1';
 const initialPasswordChange = new URLSearchParams(location.search).get('change') === 'required';
 const loginChoices = document.querySelector('.login-choices');
 if (recoveryToken || initialPasswordChange) loginChoices.hidden = true;
@@ -16,9 +17,10 @@ function setLoginAudience(audience) {
 }
 loginChoices.querySelectorAll('button').forEach(button => button.addEventListener('click', () => setLoginAudience(button.dataset.loginAudience)));
 if (!recoveryToken && !initialPasswordChange) setLoginAudience(new URLSearchParams(location.search).get('bereich') === 'mitarbeiter' ? 'staff' : 'customer');
+if (setupMode && !recoveryToken) status.textContent = 'Der Einrichtungslink ist ungültig oder abgelaufen. Über „Passwort vergessen?“ kannst du mit deiner E-Mail-Adresse einen neuen Link anfordern.';
 if (recoveryToken) {
-  form.querySelector('h2').textContent = 'Neues Passwort vergeben.';
-  form.querySelector('h2 + p').textContent = 'Wähle ein neues Passwort mit mindestens acht Zeichen.';
+  form.querySelector('h2').textContent = setupMode ? 'Dein Passwort festlegen.' : 'Neues Passwort vergeben.';
+  form.querySelector('h2 + p').textContent = 'Wähle ein persönliches Passwort mit mindestens acht Zeichen. Danach öffnet sich dein Kundenportal.';
   form.elements.identifier.closest('label').hidden = true;
   form.elements.identifier.required = false;
   form.elements.password.autocomplete = 'new-password';
@@ -40,7 +42,7 @@ form.addEventListener('submit', async (event) => {
       status.textContent = 'Neues Passwort wird gespeichert …';
       const response = await fetch('/api/auth?action=update-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accessToken: recoveryToken, password: form.elements.password.value }) });
       const data = await response.json(); if (!response.ok) throw new Error(data.error);
-      history.replaceState(null, '', '/login'); form.reset(); status.textContent = 'Passwort gespeichert. Du kannst dich jetzt anmelden.'; setTimeout(() => location.replace('/login'), 1200); return;
+      history.replaceState(null, '', '/login'); form.reset(); status.textContent = 'Passwort gespeichert. Dein Portal wird geöffnet …'; location.replace(data.destination || '/login'); return;
     }
     if (initialPasswordChange) {
       status.textContent = 'Persönliches Passwort wird gespeichert …';

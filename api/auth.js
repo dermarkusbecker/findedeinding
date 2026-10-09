@@ -39,12 +39,23 @@ async function updatePassword(request, response) {
   if (!accessToken || password.length < 8) return response.status(400).json({ error: 'Das neue Passwort muss mindestens acht Zeichen lang sein.' });
   const config = supabaseAuthConfig();
   if (!config) return response.status(503).json({ error: 'Der Login ist noch nicht vollständig konfiguriert.' });
-  const result = await fetch(`${config.url}/auth/v1/user`, { method: 'PUT', headers: { ...authHeaders(config.anonKey), Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ password }) });
+  const tokenHeaders = { ...authHeaders(config.anonKey), Authorization: `Bearer ${accessToken}` };
+  const tokenCheck = await fetch(`${config.url}/auth/v1/user`, { headers: tokenHeaders });
+  const authenticated = await tokenCheck.json().catch(() => ({}));
+  if (!tokenCheck.ok || !authenticated.id) return response.status(401).json({ error: 'Der Link ist ungültig oder abgelaufen.' });
+  const profile = await profileByAuthId(config, authenticated.id).catch(() => null);
+  if (!profile || profile.status !== 'active') return response.status(403).json({ error: 'Ein aktiver Portalzugang wurde nicht gefunden.' });
+  const result = await fetch(`${config.url}/auth/v1/user`, { method: 'PUT', headers: tokenHeaders, body: JSON.stringify({ password }) });
   const data = await result.json().catch(() => ({}));
-  if (!result.ok) return response.status(result.status).json({ error: data.message || 'Der Reset-Link ist ungültig oder abgelaufen.' });
-  const profile = data.id ? await profileByAuthId(config, data.id).catch(() => null) : null;
-  if (profile) await fetch(`${config.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(profile.id)}`, { method: 'PATCH', headers: authHeaders(config.serviceKey), body: JSON.stringify({ must_change_password: false, password_changed_at: new Date().toISOString() }) });
-  return response.status(200).json({ ok: true });
+  if (!result.ok) return response.status(result.status).json({ error: data.message || 'Das Passwort konnte nicht gespeichert werden.' });
+  const saved = await fetch(`${config.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(profile.id)}`, { method: 'PATCH', headers: authHeaders(config.serviceKey), body: JSON.stringify({ must_change_password: false, password_changed_at: new Date().toISOString() }) });
+  if (!saved.ok) return response.status(503).json({ error: 'Das Passwort wurde geändert, aber der Portalstatus konnte nicht aktualisiert werden. Bitte beim Support melden.' });
+  if (profile.role === 'user' && profile.permissions?.includes('customer_portal')) {
+    const token = createSession(profile.email, 'user', { userId: profile.auth_user_id, profileId: profile.id, participantId: profile.id, name: profile.name, email: profile.email, permissions: profile.permissions || [], mustChangePassword: false });
+    response.setHeader('Set-Cookie', sessionCookie(token));
+    return response.status(200).json({ ok: true, destination: '/portal' });
+  }
+  return response.status(200).json({ ok: true, destination: '/login' });
 }
 
 async function changeInitialPassword(request, response) {

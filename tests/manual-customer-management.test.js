@@ -20,7 +20,9 @@ test('Mitarbeiter mit Kundenrecht können eine vollständig verknüpfte Kundenak
     assert.match(html, new RegExp(`name="${field}"`));
   }
   assert.match(client, /fetch\('\/api\/participants',\{method:'POST'/);
-  assert.match(client, /openParticipantLogin\(data\.participant\.id,data\.oneTimePassword/);
+  assert.match(client, /openParticipantLogin\(data\.participant\.id\)/);
+  assert.match(api, /sendPortalAccessEmails\(service, \{ lead, profile: profiles\[0\] \}\)/);
+  assert.doesNotMatch(api, /return \{ participant: profiles\[0\], oneTimePassword/);
   assert.match(api, /async function createManualCustomer/);
   assert.match(api, /request\.method === 'POST' \? 'customers'/);
   assert.match(api, /source: 'manual_crm'/);

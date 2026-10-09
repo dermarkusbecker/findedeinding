@@ -13,12 +13,11 @@ const systemAutomations=[
   {name:'Vertragsdokument',trigger:'Unterschriebener Vertrag wird abgeschlossen',timing:'Sofort nach Abschluss',recipient:'Kunde',template:'Vertrag oder Vertragszusammenfassung'},
   {name:'Rechnung',trigger:'Unterschriebener Vertrag und Rechnung liegen vor',timing:'Nach der Vertrags-E-Mail',recipient:'Kunde',template:'Rechnung als PDF'},
   {name:'Willkommen',trigger:'Vertrags- und Rechnungsversand war erfolgreich',timing:'Im Anschluss',recipient:'Kunde',template:'Willkommens-E-Mail'},
-  {name:'Portal-Benutzername',trigger:'Kundenkonto wird nach Vertragsabschluss aktiviert',timing:'Sofort',recipient:'Kunde',template:'Benutzername und Login-Link'},
-  {name:'Erstanmeldepasswort',trigger:'Benutzername wurde versendet',timing:'In separater E-Mail danach',recipient:'Kunde',template:'Einmaliges Passwort'},
+  {name:'Kundenportal einrichten',trigger:'Kundenkonto wird nach Vertragsabschluss aktiviert',timing:'Sofort',recipient:'Kunde',template:'Benutzername, E-Mail und sicherer Passwort-Link'},
   {name:'Follow-up-Erinnerung',trigger:'Follow-up ist fällig',timing:'Am Fälligkeitstag',recipient:'Markus',template:'E-Mail oder CRM-Mitteilung laut Einstellungen'},
   {name:'Zahlungslink',trigger:'Admin sendet einen Stripe-Zahlungslink',timing:'Sofort nach Auslösen',recipient:'Kunde',template:'Zahlungslink und offener Betrag'},
   {name:'Zahlungserinnerung',trigger:'Offene Rechnung erreicht die konfigurierte Mahnstufe',timing:'Gemäß Mahnlauf',recipient:'Kunde',template:'Betrag und Zahlungsaufforderung'},
-  {name:'Zugang oder Passwort zurücksetzen',trigger:'Einladung oder Passwortzurücksetzung wird angefordert',timing:'Sofort',recipient:'Kunde',template:'Sicherheitslink über Auth-Dienst'},
+  {name:'Passwort-Link erneut senden',trigger:'Admin fordert einen neuen Kundenportal-Link an',timing:'Sofort',recipient:'Kunde',template:'Gestaltete Zugangsmail über STRATO'},
 ];
 let activeCommunicationTemplateId=null;
 let campaignSelectedContacts=new Set();
