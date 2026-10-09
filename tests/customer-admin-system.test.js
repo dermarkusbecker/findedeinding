@@ -13,7 +13,7 @@ test('Kundenübersicht trennt Kundenliste und Teilnehmer-Login in eigene Unterbe
   assert.match(script, /groups:\[\{label:'Kundenakten'/);
   assert.match(script, /detailGroups:\[\{label:'Überblick'/);
   assert.match(script, /label:'Zugang & Unterlagen'/);
-  assert.match(script, /\['Portal-Login','Login, Einmalpasswort & Versand'/);
+  assert.match(script, /\['Portal-Login','Login und Zugangsmail'/);
   assert.match(script, /function setParticipantSection/);
   assert.match(script, /participantSection!=='logins'/);
 });

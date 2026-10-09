@@ -16,7 +16,7 @@ test('Vertragsabschluss erzeugt automatisch Kundennummer, Teilnehmer-Login und E
   assert.match(auth, /oneTimePassword = randomTemporaryPassword\(\)/);
   assert.match(auth, /must_change_password: true/);
   assert.match(leads, /provisionProgramUser/);
-  assert.match(auth, /sendLoggedRecovery/);
+  assert.match(auth, /sendPortalAccessEmails/);
   assert.match(auth, /purpose:'invitation'/);
 });
 
@@ -32,24 +32,26 @@ test('Teilnehmer können sich mit Teilnehmer-Login anmelden und müssen das Einm
   assert.match(auth, /portal_username=eq/);
 });
 
-test('zweite Navigation und Adminbereich verwalten Login, Einmalpasswort und Mailversand', async () => {
+test('Adminbereich bietet nur eine gestaltete Zugangsmail für die erneute Passwortvergabe', async () => {
   const [html, client, participantsApi, styles] = await Promise.all([
     file('admin.html'), file('admin.js'), file('api/participants.js'), file('admin-crm-refresh.css'),
   ]);
-  assert.match(client, /\['Portal-Login','Login, Einmalpasswort & Versand','#participantLoginManager'/);
-  for (const id of ['participantLoginManager', 'participantLoginDialog', 'issueOneTimePassword', 'sendParticipantLoginMail', 'oneTimePasswordResult']) assert.match(html, new RegExp(`id="${id}"`));
+  assert.match(client, /\['Portal-Login','Login und Zugangsmail','#participantLoginManager'/);
+  for (const id of ['participantLoginManager', 'participantLoginDialog', 'resendInitialAccess']) assert.match(html, new RegExp(`id="${id}"`));
+  for (const id of ['issueOneTimePassword', 'sendParticipantLoginMail', 'oneTimePasswordResult']) assert.doesNotMatch(html, new RegExp(`id="${id}"`));
   assert.match(participantsApi, /action === 'update-login'/);
-  assert.match(participantsApi, /action === 'issue-one-time-password'/);
-  assert.match(participantsApi, /action === 'send-login-mail'/);
+  assert.match(participantsApi, /action === 'resend-initial-access'/);
+  assert.doesNotMatch(participantsApi, /action === 'issue-one-time-password'|action === 'send-login-mail'/);
+  assert.match(participantsApi, /sendPortalAccessEmails/);
   assert.match(styles, /\.participant-login-manager/);
 });
 
-test('Einmalpasswörter werden nicht im Klartext persistiert', async () => {
+test('Die Login-Verwaltung speichert und zeigt keine Einmalpasswörter an', async () => {
   const [migration, api] = await Promise.all([
     file('supabase/migrations/20260904220000_participant_logins.sql'),
     file('api/participants.js'),
   ]);
   assert.doesNotMatch(migration, /temporary_password|plain.*password/i);
   assert.doesNotMatch(api, /one_time_password\s*:/i);
-  assert.match(api, /visibleOnce: true/);
+  assert.doesNotMatch(api, /visibleOnce: true|oneTimePassword/);
 });

@@ -1,5 +1,5 @@
 import {readCurriculumIndex,curriculumAccess} from '../lib/curriculum-progress.js';
-import { authHeaders, profileById, provisionProgramUser, randomTemporaryPassword, requireCurrentAdmin, supabaseAuthConfig } from '../lib/user-auth.js';
+import { profileById, provisionProgramUser, requireCurrentAdmin, supabaseAuthConfig } from '../lib/user-auth.js';
 import { handleCustomerRecords } from '../lib/customer-records-service.js';
 import { calculateProgramAccess } from '../lib/program-access.js';
 import { reconcileAccessFromEntries } from '../lib/program-position.js';
@@ -189,15 +189,6 @@ export default async function handler(request, response) {
         if (!changed.ok) return response.status(changed.status === 409 ? 409 : changed.status).json({ error: changed.status === 409 ? 'Dieser Teilnehmer-Login ist bereits vergeben.' : rows.message || 'Login konnte nicht gespeichert werden.' });
         return response.status(200).json({ participant: rows[0] });
       }
-      if (action === 'issue-one-time-password') {
-        const oneTimePassword = randomTemporaryPassword();
-        const authResult = await fetch(`${service.url}/auth/v1/admin/users/${encodeURIComponent(participant.auth_user_id)}`, { method: 'PUT', headers: authHeaders(service.key), body: JSON.stringify({ password: oneTimePassword, email_confirm: true }) });
-        const authBody = await authResult.json().catch(() => ({}));
-        if (!authResult.ok) return response.status(authResult.status).json({ error: authBody.message || 'Einmalpasswort konnte nicht erzeugt werden.' });
-        const issuedAt = new Date().toISOString();
-        await fetch(`${service.url}/rest/v1/user_profiles?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: headers(service.key), body: JSON.stringify({ must_change_password: true, one_time_password_issued_at: issuedAt, access_invite_sent_at: null }) });
-        return response.status(200).json({ oneTimePassword, issuedAt, visibleOnce: true });
-      }
       if (action === 'resend-initial-access') {
         if (!participant.source_lead_id) return response.status(409).json({ error: 'Für dieses Kundenkonto fehlt die verknüpfte Kontaktakte.' });
         const [lead] = await readJson(await fetch(`${service.url}/rest/v1/leads?id=eq.${encodeURIComponent(participant.source_lead_id)}&select=id,name,email&limit=1`, { headers: headers(service.key) }));
@@ -205,14 +196,6 @@ export default async function handler(request, response) {
         const sentAt = new Date().toISOString();
         const mailStatus = await sendPortalAccessEmails(service, { lead, profile: participant }, { eventKeySuffix: sentAt });
         return response.status(200).json({ mailStatus, sentAt: mailStatus.setup === 'accepted' ? sentAt : null, message: mailStatus.setup === 'accepted' ? 'STRATO hat die Zugangsmail mit Passwort-Einrichtungslink angenommen.' : 'Versandstatus im CRM prüfen.' });
-      }
-      if (action === 'send-login-mail') {
-        if (!participant.source_lead_id) return response.status(409).json({ error: 'Für dieses Kundenkonto fehlt die verknüpfte Kontaktakte.' });
-        const [lead] = await readJson(await fetch(`${service.url}/rest/v1/leads?id=eq.${encodeURIComponent(participant.source_lead_id)}&select=id,name,email&limit=1`, { headers: headers(service.key) }));
-        if (!lead) return response.status(404).json({ error: 'Die verknüpfte Kontaktakte wurde nicht gefunden.' });
-        const sentAt = new Date().toISOString();
-        const mailStatus = await sendPortalAccessEmails(service, { lead, profile: participant }, { eventKeySuffix: sentAt });
-        return response.status(200).json({ sentAt: mailStatus.setup === 'accepted' ? sentAt : null, mailStatus, provider: 'strato', message: mailStatus.setup === 'accepted' ? 'STRATO hat den neuen Passwort-Link angenommen.' : 'Versandstatus im CRM prüfen.' });
       }
       return response.status(400).json({ error: 'Unbekannte Login-Aktion.' });
     } catch (error) {

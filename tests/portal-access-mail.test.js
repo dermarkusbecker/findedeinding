@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generatePortalSetupLink, sendPortalAccessEmails } from '../lib/portal-access-mail.js';
+import { generatePortalSetupLink, sendBrandedRecoveryEmail, sendPortalAccessEmails } from '../lib/portal-access-mail.js';
 
 test('Vertragszugang versendet eine gestaltete Einrichtungs-Mail und protokolliert keinen geheimen Link', async () => {
   const originalFetch = globalThis.fetch;
@@ -61,4 +61,19 @@ test('Einrichtungslink wird vom Auth-Dienst erzeugt und muss zum Portal zurückf
   assert.match(await generatePortalSetupLink({ url: 'https://db.example', key: 'test' }, 'kunde@example.de'), /token=secret/);
   globalThis.fetch = async () => Response.json({ action_link: 'https://evil.example/auth/v1/verify?token=secret&type=recovery' });
   await assert.rejects(generatePortalSetupLink({ url: 'https://db.example', key: 'test' }, 'kunde@example.de'), /führt nicht zum Kundenportal/);
+});
+
+test('Passwort-Reset für Mitarbeiter nutzt gestaltete STRATO-Mail mit Signatur und klickbarem Link', async () => {
+  const mails = [];
+  const link = 'https://db.example/auth/v1/verify?token=secret&type=recovery';
+  await sendBrandedRecoveryEmail({ url: 'https://db.example', key: 'test' }, { name: 'Markus Becker', email: 'markus@example.de' }, {
+    appearanceLoader: async () => ({ signature: { active: true, signer_name: 'Markus Becker', email: 'markus@dermarkusbecker.de', website: 'findedeinding.com' }, branding: { brand_name: 'Finde dein Ding' } }),
+    linkGenerator: async () => link,
+    sendMail: async mail => { mails.push(mail); return { senderEmail: 'markus@dermarkusbecker.de' }; },
+  });
+  assert.equal(mails.length, 1);
+  assert.match(mails[0].html, /href="https:\/\/db\.example\/auth\/v1\/verify\?token=secret&amp;type=recovery"/);
+  assert.match(mails[0].html, /markus@dermarkusbecker\.de/);
+  assert.match(mails[0].html, /findedeinding\.com/);
+  assert.match(mails[0].html, /Passwort festlegen/);
 });

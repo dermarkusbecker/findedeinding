@@ -8,10 +8,11 @@ test('Portal-Login ist sicher in Kundenakte und zweiter Navigation verwaltbar', 
   const [html, client, api] = await Promise.all([file('admin.html'), file('admin.js'), file('api/participants.js')]);
   assert.match(client, /label:'Portal & Sicherheit'/);
   assert.match(client, /data-manage-customer-login/);
-  assert.match(html, /id="toggleOneTimePassword"/);
-  assert.match(client, /dataset\.password/);
-  assert.match(api, /must_change_password: true/);
-  assert.match(api, /action === 'send-login-mail'/);
+  assert.match(html, /id="resendInitialAccess"/);
+  assert.doesNotMatch(html, /id="toggleOneTimePassword"/);
+  assert.match(client, /action:'resend-initial-access'/);
+  assert.match(api, /sendPortalAccessEmails/);
+  assert.doesNotMatch(api, /action === 'send-login-mail'/);
 });
 
 test('Signaturen und globale Logoquelle sind editierbar und im Composer auswählbar', async () => {

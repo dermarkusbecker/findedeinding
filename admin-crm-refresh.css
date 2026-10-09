@@ -769,11 +769,7 @@ main>header {
 .login-security-state span, .login-security-state small { display: block; }
 .login-security-state span { color: #24554c; font-size: 12px; font-weight: 800; }
 .login-security-state small { color: #71807c; font-size: 12px; line-height: 1.55; margin-top: 5px; }
-.one-time-password-result { align-items: center; background: #fff4d9; border: 1px solid #e9cf91; border-radius: 11px; display: flex; justify-content: space-between; margin-top: 14px; padding: 15px; }
-.one-time-password-result[hidden] { display: none; }
-.one-time-password-result small { color: #866519; display: block; font-size: 12px; }
-.one-time-password-result strong { color: #5e4307; display: block; font: 800 15px DM Mono; margin-top: 6px; word-break: break-all; }
-.participant-login-actions { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; margin-top: 14px; }
+.participant-login-actions { display: grid; margin-top: 14px; }
 .mail-provider-note { background: #faf9f5; border-left: 3px solid #d7cdb3; color: #6c746f; font-size: 12px!important; line-height: 1.6; margin: 14px 0 0!important; padding: 11px 13px; }
 
 /* Admin-editable clarity questions */
@@ -1131,7 +1127,6 @@ dialog form>p { font-size: 12px; }
   .participant-login-row { grid-template-columns: 1fr; }
   .participant-login-row>.participant { grid-column: auto; }
   .participant-login-fields, .participant-login-actions { grid-template-columns: 1fr; }
-  .one-time-password-result { align-items: stretch; flex-direction: column; gap: 12px; }
   .question-toolbar { grid-template-columns: 1fr; }
   .question-card-actions { align-items: stretch; flex-direction: column; }
   .question-card-actions>div { flex-direction: column; }
@@ -1418,8 +1413,6 @@ body { -moz-osx-font-smoothing: grayscale; font-synthesis: none; text-rendering:
 .communication-badge,.mail-direction,.mail-contact-type,.mail-list-item time,.mail-sender time { font-size: 12px!important; }
 .customer-process-week-nav button small,.customer-process-week-nav button i,.customer-process-facts small,.customer-process-section-head small,.customer-process-gates small { font-size: 12px!important; }
 .customer-process-week-nav button strong,.customer-process-answers strong,.customer-process-gates strong { font-size: 13px!important; }
-.password-eye-toggle { min-width: 44px; font-size: 18px!important; }
-.one-time-password-result strong { letter-spacing: .14em; }
 .customer-login-actions { background:#f7f5ef; border:1px solid #e3ded2; border-radius:14px; display:flex; gap:18px; margin-top:18px; padding:18px; align-items:center; }
 .customer-login-actions p { color:#65736f; font-size:12px; line-height:1.6; margin:0; }
 .signature-settings-card { margin-top:18px; padding:24px; }

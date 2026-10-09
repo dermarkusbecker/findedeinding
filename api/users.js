@@ -58,7 +58,12 @@ export default async function handler(request, response) {
       if (role === 'user' && permissions.includes('clara_program')) return response.status(409).json({ error: 'Teilnehmerzugänge entstehen ausschließlich automatisch nach dem vollständig bestätigten Lead-Vertragsabschluss.' });
       const authUser = await createManagedAuthUser(service, email, name, password);
       const profiles = await data(await fetch(`${service.url}/rest/v1/user_profiles`, { method: 'POST', headers: { ...authHeaders(service.serviceKey), Prefer: 'return=representation' }, body: JSON.stringify({ auth_user_id: authUser.id, name, email, role, status: 'active', permissions, staff_role: staffRole, staff_permissions: staffRole ? staffPermissionsFor(staffRole) : [] }) }));
-      return response.status(201).json({ user: profiles[0], passwordResetSent: !password, programCreated: false });
+      let passwordResetSent = false, passwordResetError = null;
+      if (!password) {
+        try { const mail = await sendPasswordReset(service, email, { purpose: 'invitation' }); passwordResetSent = !mail?.setup || ['accepted', 'already_accepted'].includes(mail.setup); if (!passwordResetSent) passwordResetError = 'Versandstatus der Zugangsmail im CRM prüfen.'; }
+        catch (error) { passwordResetError = error.message || 'Die Zugangsmail konnte nicht versendet werden.'; }
+      }
+      return response.status(201).json({ user: profiles[0], passwordResetSent, passwordResetError, programCreated: false });
     }
     if (request.method === 'PATCH') {
       const id = clean(request.body?.id, 80);
