@@ -112,7 +112,7 @@ create unique index if not exists service_tariffs_single_default_idx on public.s
 create index if not exists service_tariffs_active_order_idx on public.service_tariffs (is_active desc, sort_order asc, name asc);
 
 insert into public.service_tariffs (code, name, description, product_label, duration_label, gross_price, payment_model, payment_due, is_active, is_default, sort_order)
-values ('fdd-8-wochen', 'FDD 8-Wochen-Programm', 'Persönlicher Finde-dein-Ding-Prozess mit Clara, digitalen Arbeitsbereichen und begleitenden Gesprächen.', 'Finde dein Ding · 8-Wochen-Programm', '8 Wochen', 2490.00, 'Einmalzahlung', '7 Tage nach Abschluss', true, true, 10)
+values ('fdd-8-wochen', 'FDD 8-Wochen-Programm', 'Persönlicher Finde-dein-Ding-Prozess mit Clara, digitalen Arbeitsbereichen und begleitenden Gesprächen.', 'Finde dein Ding · 8-Wochen-Programm', '8 Wochen', 2490.00, 'Einmalzahlung', 'zahlbar sofort', true, true, 10)
 on conflict (code) do nothing;
 
 create table if not exists public.lead_contracts (
