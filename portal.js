@@ -1550,10 +1550,9 @@ function renderDashboardClarityChart() {
   target.innerHTML = `<svg viewBox="0 0 880 292" aria-hidden="true" focusable="false"><defs><linearGradient id="clarityLineGradient" x1="0" x2="1"><stop offset="0" stop-color="#ff765e"></stop><stop offset=".48" stop-color="#ffad54"></stop><stop offset="1" stop-color="#f2cf6b"></stop></linearGradient><linearGradient id="clarityAreaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb45e" stop-opacity=".32"></stop><stop offset="1" stop-color="#ff765e" stop-opacity="0"></stop></linearGradient><linearGradient id="clarityTargetGradient" x1="0" x2="1"><stop offset="0" stop-color="#a87818" stop-opacity=".13"></stop><stop offset=".55" stop-color="#f2c85b" stop-opacity=".26"></stop><stop offset="1" stop-color="#ffe6a0" stop-opacity=".16"></stop></linearGradient><filter id="clarityGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="blur"></feGaussianBlur><feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter></defs><rect class="clarity-chart-surface" x="${left}" y="${top}" width="${right - left}" height="${bottom - top}"></rect><rect class="clarity-low-band" x="${left}" y="${y(4)}" width="${right - left}" height="${bottom - y(4)}"></rect><rect class="clarity-growth-band" x="${left}" y="${y(7)}" width="${right - left}" height="${y(4) - y(7)}"></rect><rect class="clarity-target-band" x="${left}" y="${top}" width="${right - left}" height="${y(7) - top}"></rect>${verticalGrid}${horizontalGrid}${markerLines}${areaPath ? `<path class="clarity-progress-area" d="${areaPath}"></path>` : ''}${points ? `<path class="clarity-progress-line clarity-progress-glow" d="${linePath}"></path><path class="clarity-progress-line" d="${linePath}"></path>` : ''}${dots}${weekLabels}<g class="target-chip"><rect x="${right - 170}" y="${top + 10}" width="158" height="28" rx="14"></rect><text class="target-label" x="${right - 91}" y="${top + 28}">ZIELBEREICH 7–10</text></g></svg>${measurements.length ? '' : '<p>Noch kein Klarheitswert gespeichert. Deine erste Messung entsteht in Woche 1.</p>'}`;
 }
 
-function renderDashboardContracts(visible) {
+function renderFinanceContracts() {
   const section = $('#portalDashboardContracts');
-  section.classList.toggle('hidden', !visible);
-  if (!visible) return;
+  section.classList.remove('hidden');
   const contracts = (customerWorkspace?.contracts || []).filter((contract) => ['signed', 'cancelled'].includes(contract.status));
   $('#portalDashboardContractsCount').textContent = `${contracts.length} ${contracts.length === 1 ? 'Vertrag' : 'Verträge'}`;
   $('#portalDashboardContractsList').innerHTML = customerWorkspace?.loadError
@@ -1994,7 +1993,7 @@ function render() {
   $('#onboarding').classList.toggle('hidden', !showOnboarding);
   $('#preOnboardingDashboard').classList.toggle('hidden', !showPreOnboarding);
   $('#programDashboard').classList.toggle('hidden', !showDashboard);
-  renderDashboardContracts(showDashboard || showPreOnboarding);
+  renderFinanceContracts();
   $('#activeWeek').classList.toggle('hidden', showOnboarding || showPreOnboarding || showDashboard || !started || !content);
   $('.welcome').classList.toggle('week-hero-compact', Boolean(
     started
