@@ -400,25 +400,25 @@ export default async function handler(request, response) {
         if (artifactIsAfterOnboardingReset(existing, result.progress.onboarding_reset_at)) return response.status(409).json({ error: 'Das Commitment ist bereits bestätigt.' });
       }
       const saved = await saveOnboardingFormDraft(result.service, session.participantId, formKey, request.body?.draft);
-      await patchParticipantProgress(result.service, session.participantId, { last_activity_at: new Date().toISOString() });
+      await patchParticipantProgress(result.service, session.participantId, { last_activity_at: new Date().toISOString() }).catch(() => null);
       return response.status(200).json({ ok: true, ...saved });
     } else if (action === 'confirm_privacy') {
       if (isOnboardingComplete(result.progress)) return response.status(409).json({ error: 'Das Onboarding ist bereits abgeschlossen und schreibgeschützt.' });
-      if (result.progress.privacy_consent_at) return response.status(409).json({ error: 'Die Datenschutzeinwilligung wurde bereits bestätigt und ist schreibgeschützt.' });
       const existingPrivacyDocument = await readPrivacyConsentDocument(result.service, session.participantId);
       const currentPrivacyDocument = artifactIsAfterOnboardingReset(existingPrivacyDocument, result.progress.onboarding_reset_at) ? existingPrivacyDocument : null;
       if (currentPrivacyDocument) {
         const confirmedAt = currentPrivacyDocument.participant_confirmed_at || currentPrivacyDocument.created_at || new Date().toISOString();
-        await patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: confirmedAt, last_activity_at: new Date().toISOString() });
-        await deleteOnboardingFormDraft(result.service, session.participantId, 'privacy_consent');
+        if (!result.progress.privacy_consent_at) await patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: confirmedAt, last_activity_at: new Date().toISOString() });
+        await deleteOnboardingFormDraft(result.service, session.participantId, 'privacy_consent').catch(() => null);
         return response.status(200).json({ ok: true, confirmedAt, documentId: currentPrivacyDocument.id, document: { id: currentPrivacyDocument.id, week: 0, document_type: currentPrivacyDocument.document_type, display_title: currentPrivacyDocument.display_title || 'Datenschutzinformation & Einwilligung', original_file_name: currentPrivacyDocument.original_file_name, source: currentPrivacyDocument.source || 'system', visibility: currentPrivacyDocument.visibility || 'customer', processing_status: currentPrivacyDocument.processing_status || 'ready', created_at: currentPrivacyDocument.created_at }, recovered: true });
       }
+      if (result.progress.privacy_consent_at) return response.status(409).json({ error: 'Die Datenschutzeinwilligung wurde bereits bestätigt und ist schreibgeschützt.' });
       const normalized = normalizePrivacyConsent(request.body?.consent, result.profile);
       if (normalized.missing.length) return response.status(400).json({ error: `Bitte bestätige bzw. ergänze noch: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
       const now = new Date().toISOString();
       const document = await storePrivacyConsentDocument(result.service, session.participantId, normalized.consent, now);
       await patchParticipantProgress(result.service, session.participantId, { privacy_consent_at: now, last_activity_at: now });
-      await deleteOnboardingFormDraft(result.service, session.participantId, 'privacy_consent');
+      await deleteOnboardingFormDraft(result.service, session.participantId, 'privacy_consent').catch(() => null);
       const privacyGates = result.gates.filter((gate) => Number(gate.week) === 0 && gate.gate_key === 'privacy_consent');
       await Promise.allSettled(privacyGates.map((gate) => setGate(result.service, session.participantId, gate.id, true)));
       return response.status(200).json({ ok: true, confirmedAt: now, documentId: document.id, document: { id: document.id, week: 0, document_type: document.document_type, display_title: document.display_title, original_file_name: document.original_file_name, source: document.source, visibility: document.visibility, processing_status: document.processing_status, created_at: document.created_at } });
@@ -427,7 +427,7 @@ export default async function handler(request, response) {
       const latestDocument = await readStartCommitmentDocument(result.service, session.participantId);
       const currentDocument = artifactIsAfterOnboardingReset(latestDocument, result.progress.onboarding_reset_at) ? latestDocument : null;
       if (currentDocument) {
-        await deleteOnboardingFormDraft(result.service, session.participantId, 'start_commitment');
+        await deleteOnboardingFormDraft(result.service, session.participantId, 'start_commitment').catch(() => null);
         await Promise.allSettled(result.gates.filter((gate) => Number(gate.week) === 0 && gate.gate_key === 'start_commitment').map((gate) => setGate(result.service, session.participantId, gate.id, true)));
         return response.status(200).json({ ok: true, confirmedAt: currentDocument.participant_confirmed_at || currentDocument.created_at, documentId: currentDocument.id, document: { id: currentDocument.id, week: 0, document_type: currentDocument.document_type, display_title: currentDocument.display_title || 'Mein persönliches Commitment', original_file_name: currentDocument.original_file_name, mime_type: currentDocument.mime_type || 'application/pdf', source: currentDocument.source || 'system', visibility: currentDocument.visibility || 'customer', processing_status: currentDocument.processing_status || 'ready', created_at: currentDocument.created_at }, recovered: true });
       }
@@ -435,8 +435,8 @@ export default async function handler(request, response) {
       if (normalized.missing.length) return response.status(400).json({ error: `Bitte ergänze bzw. bestätige noch: ${normalized.missing.join(', ')}.`, missingFields: normalized.missing });
       const now = new Date().toISOString();
       const document = await storeStartCommitmentDocument(result.service, session.participantId, normalized.commitment, now);
-      await patchParticipantProgress(result.service, session.participantId, { last_activity_at: now });
-      await deleteOnboardingFormDraft(result.service, session.participantId, 'start_commitment');
+      await patchParticipantProgress(result.service, session.participantId, { last_activity_at: now }).catch(() => null);
+      await deleteOnboardingFormDraft(result.service, session.participantId, 'start_commitment').catch(() => null);
       await Promise.allSettled(result.gates.filter((gate) => Number(gate.week) === 0 && gate.gate_key === 'start_commitment').map((gate) => setGate(result.service, session.participantId, gate.id, true)));
       return response.status(200).json({ ok: true, confirmedAt: now, documentId: document.id, document: { id: document.id, week: 0, document_type: document.document_type, display_title: document.display_title, original_file_name: document.original_file_name, mime_type: document.mime_type || 'application/pdf', source: document.source, visibility: document.visibility, processing_status: document.processing_status, created_at: document.created_at } });
     } else if (action === 'start') {
@@ -624,6 +624,7 @@ export default async function handler(request, response) {
     }
     return response.status(200).json({ ok: true, access: updated.serializedAccess, reportPending, ...(actionReflection ? { reflection: actionReflection } : {}) });
   } catch (error) {
+    console.error('participant-program request failed', { action: String(request.body?.action || ''), feature: String(request.query?.feature || ''), status: Number(error.status) || 500, code: String(error.code || ''), source: String(error.stack?.split('\n')[1] || '').replace(/\([^)]*\)/g, '(redacted)').slice(0, 180) });
     return response.status(Number(error.status) || 500).json({ error: error.message || 'Programmzugriff konnte nicht verarbeitet werden.' });
   }
 }

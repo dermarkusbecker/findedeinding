@@ -2434,9 +2434,9 @@ $('#privacyConsentForm').addEventListener('submit', async (event) => {
     closePrivacyConsentDialog('confirmed');
     $('#privacyConsentForm').reset();
     downloadCustomerDocument(confirmation.documentId, confirmation.document?.original_file_name || 'FDD-Datenschutzeinwilligung.pdf');
-    await loadProgram();
-    showView('onboarding');
     toast('Deine Einwilligung wurde bestätigt, bei Dokumente gespeichert und heruntergeladen.');
+    try { await loadProgram(); showView('onboarding'); }
+    catch { if (program?.onboarding) { program.onboarding.privacyConfirmed = true; program.onboarding.privacyDocumentId = confirmation.documentId; program.onboarding.privacyConfirmedAt = confirmation.confirmedAt; renderOnboardingState(); } toast('Gespeichert. Falls der Status noch offen erscheint, lade die Seite bitte neu.'); }
   } catch (error) { onboardingFormsFinalizing.delete('privacy_consent'); toast(error.message); }
   finally { button.disabled = false; button.textContent = 'Verbindlich bestätigen →'; }
 });
@@ -2485,10 +2485,10 @@ $('#commitmentForm').addEventListener('submit', async (event) => {
     refreshOnboardingGateState();
     closeCommitmentDialog('confirmed');
     downloadCustomerDocument(confirmation.documentId, confirmation.document?.original_file_name || 'FDD-Mein-persoenliches-Commitment.pdf');
-    await loadProgram();
-    showView('onboarding');
-    window.setTimeout(() => $('.commitment-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
     toast('Dein Commitment wurde ausgefüllt, bei Dokumente gespeichert und heruntergeladen.');
+    try { await loadProgram(); showView('onboarding'); }
+    catch { renderOnboardingState(); toast('Gespeichert. Falls der Status noch offen erscheint, lade die Seite bitte neu.'); }
+    window.setTimeout(() => $('.commitment-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
   } catch (error) { onboardingFormsFinalizing.delete('start_commitment'); toast(error.message); }
   finally { button.disabled = false; button.textContent = 'Digital bestätigen →'; }
 });

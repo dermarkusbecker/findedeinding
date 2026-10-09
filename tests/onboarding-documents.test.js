@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PDFDocument, PDFName } from 'pdf-lib';
+import { PDFParse } from 'pdf-parse';
 import { buildPrivacyConsentText, buildStartCommitmentDocument } from '../lib/onboarding-documents.js';
 import { buildCompletedPrivacyPdf, buildDraftPrivacyPreviewPdf, buildReadonlyPrivacyPreviewPdf, missingOnboardingFields, normalizeOnboardingProfile, normalizePrivacyConsent } from '../lib/privacy-consent.js';
 import { buildCompletedStartCommitmentPdf, buildDraftStartCommitmentPreviewPdf, buildReadonlyStartCommitmentPreviewPdf, normalizeStartCommitment } from '../lib/start-commitment.js';
@@ -24,16 +25,18 @@ test('Start-Commitment enthält den vollständigen Namen und die bestätigende S
   assert.match(commitment.content, /Unterschrift/i);
 });
 
-test('Datenschutzeinwilligung verlangt drei bewusste Bestätigungen, Name, Ort und Datum', () => {
+test('Datenschutzeinwilligung lässt sensible Angaben freiwillig und verlangt die übrigen Angaben', () => {
   const incomplete = normalizePrivacyConsent({ privacyNotice: true, name: 'Anna Muster' }, { email: 'anna@example.de' });
   assert.deepEqual(incomplete.missing, [
-    'Einwilligung zu freiwillig angegebenen sensiblen Daten',
     'Kenntnisnahme der KI-gestützten Verarbeitung',
     'Ort',
     'gültiges Datum',
   ]);
   const complete = normalizePrivacyConsent({ specialCategories: true, privacyNotice: true, aiNotice: true, name: 'Anna Muster', place: 'Berlin', date: '2026-09-07' }, { email: 'anna@example.de' });
   assert.deepEqual(complete.missing, []);
+  const withoutSensitiveDataConsent = normalizePrivacyConsent({ specialCategories: false, privacyNotice: true, aiNotice: true, name: 'Anna Muster', place: 'Berlin', date: '2026-09-07' }, { email: 'anna@example.de' });
+  assert.deepEqual(withoutSensitiveDataConsent.missing, []);
+  assert.equal(withoutSensitiveDataConsent.consent.specialCategories, false);
   const browserCompatible = normalizePrivacyConsent({ special_categories: 'on', privacyAccepted: 'true', aiAccepted: 1, name: 'Anna Muster', place: 'Berlin', date: '07.09.2026' }, { email: 'anna@example.de' });
   assert.deepEqual(browserCompatible.missing, []);
   assert.equal(browserCompatible.consent.date, '2026-09-07');
@@ -51,6 +54,18 @@ test('aus dem Originalformular entsteht ein ausgefülltes, abgeflachtes PDF', as
   const pdf = await buildCompletedPrivacyPdf({ specialCategories: true, privacyNotice: true, aiNotice: true, name: 'Anna Muster', email: 'anna@example.de', place: 'Berlin', date: '2026-09-07' });
   assert.equal(pdf.subarray(0, 4).toString(), '%PDF');
   assert.ok(pdf.length > 80000);
+});
+
+test('Datenschutz-PDF zeigt Teilnehmerdaten auf Seite 2 und behält Umlaute bei', async () => {
+  const buffer = await buildCompletedPrivacyPdf({ specialCategories: true, privacyNotice: true, aiNotice: true, name: 'Jörg Müller-Özdemir', email: 'joerg@example.de', place: 'München', date: '2026-10-09' });
+  const parser = new PDFParse({ data: new Uint8Array(buffer) });
+  try {
+    const pages = (await parser.getText()).pages;
+    assert.match(pages[0].text, /VERANTWORTLICHER\s+Markus Becker/);
+    assert.match(pages[1].text, /Jörg Müller-Özdemir/);
+    assert.match(pages[1].text, /München/);
+    assert.match(pages[1].text, /Per digitalem Klick bestätigt/);
+  } finally { await parser.destroy(); }
 });
 
 test('Datenschutzvorschau ist schreibgeschützt und enthält keine ausfüllbaren PDF-Felder', async () => {
