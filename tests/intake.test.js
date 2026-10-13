@@ -11,5 +11,5 @@ test('intake preserves exact answers and stable segments, optional barrier may b
 test('intake rejects missing required answers and forged options',()=>{
  assert.throws(()=>normalizeIntake({}),/Wie fühlt/);
  const input=Object.fromEntries(INTAKE_QUESTIONS.map(q=>[q.id,0]));
- input.future=99;assert.throws(()=>normalizeIntake(input),/12 Monaten/);
+ input.future=99;assert.throws(()=>normalizeIntake(input),/28 Tagen/);
 });
